@@ -36,4 +36,13 @@ async function updatePasswordHash(id, passwordHash) {
   await db.query('UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2', [passwordHash, id]);
 }
 
-module.exports = { findByEmail, findById, create, updatePasswordHash, USER_STATUS, USER_ROLE };
+// Annuaire minimal pour démarrer une conversation : seuls les comptes actifs, sans données sensibles
+async function findActiveExcept(userId) {
+  const result = await db.query(
+    `SELECT id, full_name, role FROM users WHERE id != $1 AND status = $2 ORDER BY full_name ASC`,
+    [userId, USER_STATUS.ACTIVE]
+  );
+  return result.rows;
+}
+
+module.exports = { findByEmail, findById, create, updatePasswordHash, findActiveExcept, USER_STATUS, USER_ROLE };

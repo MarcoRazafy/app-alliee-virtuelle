@@ -196,6 +196,65 @@ async function replaceDailySelection(userId, date, taskIds) {
   });
 }
 
+// --- Commentaires & notes ---
+
+// includeNotes=false (employé) : ne renvoie jamais les NOTE, jamais confié au frontend de les filtrer
+async function findComments(taskId, { includeNotes }) {
+  const condition = includeNotes ? '' : 'AND is_visible_to_employee = TRUE';
+  const result = await db.query(
+    `SELECT c.id, c.content, c.type, c.is_visible_to_employee, c.created_at, c.author_id, u.full_name AS author_name
+     FROM task_comments c
+     JOIN users u ON u.id = c.author_id
+     WHERE c.task_id = $1 ${condition}
+     ORDER BY c.created_at ASC`,
+    [taskId]
+  );
+  return result.rows;
+}
+
+async function createComment({ taskId, authorId, content, type, isVisibleToEmployee }) {
+  const result = await db.query(
+    `INSERT INTO task_comments (task_id, author_id, content, type, is_visible_to_employee)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, content, type, is_visible_to_employee, created_at, author_id`,
+    [taskId, authorId, content, type, isVisibleToEmployee]
+  );
+  return result.rows[0];
+}
+
+// --- Pièces jointes ---
+
+async function findAttachments(taskId) {
+  const result = await db.query(
+    `SELECT a.id, a.file_name, a.file_size, a.file_type, a.created_at, a.uploaded_by, u.full_name AS uploaded_by_name
+     FROM task_attachments a
+     JOIN users u ON u.id = a.uploaded_by
+     WHERE a.task_id = $1
+     ORDER BY a.created_at DESC`,
+    [taskId]
+  );
+  return result.rows;
+}
+
+async function findAttachmentById(attachmentId) {
+  const result = await db.query('SELECT * FROM task_attachments WHERE id = $1', [attachmentId]);
+  return result.rows[0] || null;
+}
+
+async function createAttachment({ taskId, fileName, filePath, fileSize, fileType, uploadedBy }) {
+  const result = await db.query(
+    `INSERT INTO task_attachments (task_id, file_name, file_path, file_size, file_type, uploaded_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, file_name, file_size, file_type, created_at, uploaded_by`,
+    [taskId, fileName, filePath, fileSize, fileType, uploadedBy]
+  );
+  return result.rows[0];
+}
+
+async function deleteAttachment(attachmentId) {
+  await db.query('DELETE FROM task_attachments WHERE id = $1', [attachmentId]);
+}
+
 module.exports = {
   TASK_STATUS,
   findAssignedTasks,
@@ -213,4 +272,10 @@ module.exports = {
   findDailySelection,
   validateDailySelection,
   replaceDailySelection,
+  findComments,
+  createComment,
+  findAttachments,
+  findAttachmentById,
+  createAttachment,
+  deleteAttachment,
 };

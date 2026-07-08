@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import useAuthStore from '../store/authStore';
+import { notifySuccess, notifyError } from '../utils/toast';
 
 function Profile() {
   const changePassword = useAuthStore((state) => state.changePassword);
@@ -12,9 +13,6 @@ function Profile() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-
   useEffect(() => {
     api.get('/api/auth/me').then((res) => setProfile(res.data));
   }, []);
@@ -23,25 +21,22 @@ function Profile() {
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
-    setError('');
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
-    setSuccessMessage('');
 
     if (newPassword !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
+      notifyError('Les mots de passe ne correspondent pas');
       return;
     }
 
     const result = await changePassword(currentPassword, newPassword);
     if (result.success) {
-      setSuccessMessage('Mot de passe mis à jour');
+      notifySuccess('Mot de passe mis à jour');
       resetPasswordForm();
     } else {
-      setError(result.message);
+      notifyError(result.message);
     }
   }
 
@@ -98,9 +93,6 @@ function Profile() {
             required
           />
         </div>
-
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
 
         <button type="submit">Enregistrer les modifications</button>
         <button type="button" onClick={resetPasswordForm}>

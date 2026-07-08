@@ -1,6 +1,7 @@
 const express = require('express');
 const taskController = require('../controllers/taskController');
 const authMiddleware = require('../middleware/auth.middleware');
+const { handleSingleUpload } = require('../config/upload');
 
 const router = express.Router();
 
@@ -18,6 +19,14 @@ router.get('/timelog/:taskId', taskController.getTimelogHistory);
 router.get('/my-day', taskController.getMyDay);
 router.post('/my-day', taskController.setMyDay);
 router.post('/my-day/validate', taskController.validateMyDay);
+
+router.get('/tasks/:id/comments', taskController.getComments);
+router.post('/tasks/:id/comments', taskController.createComment);
+
+router.get('/tasks/:id/attachments', taskController.getAttachments);
+router.post('/tasks/:id/attachments', handleSingleUpload, taskController.uploadAttachment);
+router.delete('/tasks/:id/attachments/:fileId', taskController.deleteAttachment);
+router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 
 // Admin
 router.post('/tasks', authMiddleware.requireRole('ADMIN'), taskController.createTask);

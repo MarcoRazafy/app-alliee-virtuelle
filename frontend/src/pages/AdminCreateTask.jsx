@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
+import { notifySuccess, notifyError } from '../utils/toast';
 
 function AdminCreateTask() {
   const [form, setForm] = useState({
@@ -11,8 +12,6 @@ function AdminCreateTask() {
     deadline: '',
     start_date: '',
   });
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,15 +19,13 @@ function AdminCreateTask() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
-    setSuccessMessage('');
     try {
       const result = await taskService.createTask(form);
-      setSuccessMessage(`Tâche créée avec le statut ${result.status}`);
+      notifySuccess(`Tâche créée avec le statut ${result.status}`);
       setForm({ title: '', description: '', assigned_to: '', priority: 'NORMALE', deadline: '', start_date: '' });
     } catch (err) {
       const data = err.response?.data;
-      setError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
+      notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
     }
   }
 
@@ -69,8 +66,6 @@ function AdminCreateTask() {
           <label htmlFor="deadline">Deadline</label>
           <input id="deadline" name="deadline" type="date" value={form.deadline} onChange={handleChange} required />
         </div>
-        {error && <p>{error}</p>}
-        {successMessage && <p>{successMessage}</p>}
         <button type="submit">Créer la tâche</button>
       </form>
     </div>

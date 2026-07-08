@@ -47,3 +47,31 @@ export function setMyDay(taskIds) {
 export function validateMyDay() {
   return api.post('/api/my-day/validate').then((res) => res.data);
 }
+
+export function getComments(taskId) {
+  return api.get(`/api/tasks/${taskId}/comments`).then((res) => res.data);
+}
+
+export function createComment(taskId, content, type = 'COMMENT') {
+  return api.post(`/api/tasks/${taskId}/comments`, { content, type }).then((res) => res.data);
+}
+
+export function getAttachments(taskId) {
+  return api.get(`/api/tasks/${taskId}/attachments`).then((res) => res.data);
+}
+
+export function uploadAttachment(taskId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api
+    .post(`/api/tasks/${taskId}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then((res) => res.data);
+}
+
+export function downloadAttachment(fileId) {
+  return api.get(`/api/attachments/${fileId}/download`, { responseType: 'blob' }).then((res) => res.data);
+}
+
+export function deleteAttachment(taskId, fileId) {
+  return api.delete(`/api/tasks/${taskId}/attachments/${fileId}`).then((res) => res.data);
+}

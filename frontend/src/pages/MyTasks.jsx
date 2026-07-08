@@ -1,51 +1,92 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
+import SearchBar from '../components/SearchBar';
+import Pagination from '../components/Pagination';
+import { formatDurationShort } from '../utils/formatters';
+import { notifyError } from '../utils/toast';
 
 const STATUS_LABELS = {
   VALIDEE: 'À faire',
   EN_COURS: 'En cours',
+  A_REPRENDRE: 'À reprendre',
   TERMINEE: 'Terminée',
   CONFIRMEE: 'Confirmée',
 };
 
-function formatDuration(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  return [hours, minutes, seconds].map((n) => String(n).padStart(2, '0')).join(':');
+function matchesDeadlineRange(deadline, range) {
+  if (!range) return true;
+
+  const date = new Date(deadline);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (range === 'today') return dateOnly.getTime() === startOfToday.getTime();
+  if (range === 'past') return dateOnly.getTime() < startOfToday.getTime();
+  if (range === 'week') {
+    const weekEnd = new Date(startOfToday);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    return dateOnly >= startOfToday && dateOnly < weekEnd;
+  }
+  if (range === 'month') {
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+  }
+  return true;
 }
 
 function MyTasks() {
   const [tasks, setTasks] = useState([]);
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState('');
+  const [filters, setFilters] = useState({ search: '', statuses: [], priorities: [], deadlineRange: '' });
+  const [page, setPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     async function loadTasks() {
       try {
-        const filters = {};
-        if (status) filters.status = status;
-        const data = await taskService.getTasks(filters);
-
-        const withDuration = await Promise.all(
+        const data = await taskService.getTasks();
+        const enriched = await Promise.all(
           data.map(async (task) => {
-            if (task.status !== 'TERMINEE' && task.status !== 'CONFIRMEE') {
-              return task;
+            if (task.status === 'TERMINEE' || task.status === 'CONFIRMEE') {
+              const history = await taskService.getTimelogHistory(task.id);
+              const total = history.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
+              return { ...task, totalDuration: total, displayStatus: task.status };
             }
-            const history = await taskService.getTimelogHistory(task.id);
-            const total = history.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
-            return { ...task, totalDuration: total };
+            if (task.status === 'EN_COURS') {
+              const history = await taskService.getTimelogHistory(task.id);
+              const hasActiveSession = history.some((s) => !s.end_time);
+              return { ...task, displayStatus: hasActiveSession ? 'EN_COURS' : 'A_REPRENDRE' };
+            }
+            return { ...task, displayStatus: task.status };
           })
         );
-
-        setTasks(withDuration);
+        setTasks(enriched);
       } catch (err) {
-        setError(err.response?.data?.error || 'Impossible de charger les tâches');
+        notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
       }
     }
     loadTasks();
-  }, [status]);
+  }, []);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const search = filters.search.toLowerCase();
+      const matchesSearch =
+        !search ||
+        task.title.toLowerCase().includes(search) ||
+        (task.description || '').toLowerCase().includes(search);
+      const matchesStatus = filters.statuses.length === 0 || filters.statuses.includes(task.displayStatus);
+      const matchesPriority = filters.priorities.length === 0 || filters.priorities.includes(task.priority);
+      const matchesDeadline = matchesDeadlineRange(task.deadline, filters.deadlineRange);
+      return matchesSearch && matchesStatus && matchesPriority && matchesDeadline;
+    });
+  }, [tasks, filters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
+  const paginatedTasks = filteredTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   return (
     <div>
@@ -53,28 +94,32 @@ function MyTasks() {
         <Link to="/dashboard">Retour au tableau de bord</Link>
       </p>
       <h1>Mes tâches</h1>
-      <div>
-        <label htmlFor="status">Statut</label>
-        <select id="status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Tous</option>
-          <option value="VALIDEE">À faire</option>
-          <option value="EN_COURS">En cours</option>
-          <option value="TERMINEE">Terminée</option>
-          <option value="CONFIRMEE">Confirmée</option>
-        </select>
-      </div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <SearchBar onChange={setFilters} />
+
+      <p>{filteredTasks.length} tâche(s) trouvée(s)</p>
+      {filteredTasks.length === 0 && <p>Aucune tâche.</p>}
 
       <ul>
-        {tasks.map((task) => (
+        {paginatedTasks.map((task) => (
           <li key={task.id}>
-            {task.title} — {task.priority} — deadline {task.deadline} — {STATUS_LABELS[task.status] || task.status}
-            {task.totalDuration != null && <span> — durée totale {formatDuration(task.totalDuration)}</span>}
+            {task.title} — {task.priority} — deadline {task.deadline} —{' '}
+            {STATUS_LABELS[task.displayStatus] || task.displayStatus}
+            {task.totalDuration != null && <span> — durée totale {formatDurationShort(task.totalDuration)}</span>}
             <Link to={`/tasks/${task.id}`}> [+]</Link>
           </li>
         ))}
       </ul>
+
+      {filteredTasks.length > 0 && (
+        <Pagination
+          page={page}
+          totalItems={filteredTasks.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
+      )}
     </div>
   );
 }

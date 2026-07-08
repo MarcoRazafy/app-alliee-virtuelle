@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
 const messageRoutes = require('./routes/messages');
 const resourceRoutes = require('./routes/resources');
+const userRoutes = require('./routes/users');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', taskRoutes);
 app.use('/api', messageRoutes);
 app.use('/api', resourceRoutes);
+app.use('/api', userRoutes);
 
 app.use(errorHandler);
 

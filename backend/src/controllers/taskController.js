@@ -1,7 +1,12 @@
+const fs = require('fs');
 const db = require('../config/database');
 const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
 const { isValidTitle, isValidPriority, isFutureDate } = require('../utils/validators');
+
+function canAccessTask(task, user) {
+  return user.role === 'ADMIN' || task.assigned_to === user.id;
+}
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -105,28 +110,61 @@ async function startTimelog(req, res, next) {
     if (task.assigned_to !== req.user.id) {
       return res.status(403).json({ error: "Cette tâche ne vous est pas assignée" });
     }
-    if (![taskModel.TASK_STATUS.VALIDATED, taskModel.TASK_STATUS.DONE].includes(task.status)) {
+    // VALIDEE/TERMINEE : premier démarrage ou redémarrage après complétion.
+    // EN_COURS : reprise d'une tâche mise en pause (chrono arrêté mais tâche pas terminée).
+    const startableStatuses = [
+      taskModel.TASK_STATUS.VALIDATED,
+      taskModel.TASK_STATUS.IN_PROGRESS,
+      taskModel.TASK_STATUS.DONE,
+    ];
+    if (!startableStatuses.includes(task.status)) {
       return res.status(400).json({ error: 'Le chrono ne peut pas être démarré depuis ce statut' });
     }
 
-    const activeSession = await taskModel.findActiveSessionForEmployee(req.user.id);
-    if (activeSession) {
-      return res.status(409).json({ error: 'Une session de chrono est déjà active sur une autre tâche' });
-    }
+    const isResuming = task.status === taskModel.TASK_STATUS.IN_PROGRESS;
 
-    const session = await db.withTransaction(async (client) => {
+    const result = await db.withTransaction(async (client) => {
+      const activeSession = await taskModel.findActiveSessionForEmployee(req.user.id);
+      let switchedFrom = null;
+
+      if (activeSession) {
+        if (activeSession.task_id === taskId) {
+          const alreadyRunning = new Error('Le chrono est déjà actif sur cette tâche');
+          alreadyRunning.status = 409;
+          throw alreadyRunning;
+        }
+
+        // Bascule automatique : on arrête la session en cours sur l'autre tâche avant de démarrer celle-ci
+        const stopped = await taskModel.stopSession(activeSession.id, client);
+        await taskModel.recordAudit(
+          {
+            userId: req.user.id,
+            action: 'AUTO_STOP_TIMELOG',
+            entityType: 'task',
+            entityId: activeSession.task_id,
+            details: { sessionId: activeSession.id, durationSeconds: stopped.duration_seconds },
+          },
+          client
+        );
+        switchedFrom = { taskId: activeSession.task_id, duration: stopped.duration_seconds };
+      }
+
       const newSession = await taskModel.startSession(taskId, req.user.id, client);
-      await taskModel.updateStatus(taskId, taskModel.TASK_STATUS.IN_PROGRESS, client);
-      await taskModel.recordHistory(
-        {
-          taskId,
-          fieldChanged: 'status',
-          oldValue: task.status,
-          newValue: taskModel.TASK_STATUS.IN_PROGRESS,
-          changedBy: req.user.id,
-        },
-        client
-      );
+
+      if (!isResuming) {
+        await taskModel.updateStatus(taskId, taskModel.TASK_STATUS.IN_PROGRESS, client);
+        await taskModel.recordHistory(
+          {
+            taskId,
+            fieldChanged: 'status',
+            oldValue: task.status,
+            newValue: taskModel.TASK_STATUS.IN_PROGRESS,
+            changedBy: req.user.id,
+          },
+          client
+        );
+      }
+
       await taskModel.recordAudit(
         {
           userId: req.user.id,
@@ -137,10 +175,17 @@ async function startTimelog(req, res, next) {
         },
         client
       );
-      return newSession;
+
+      return { newSession, switchedFrom };
     });
 
-    res.status(201).json({ sessionId: session.id, taskId: session.task_id, start_time: session.start_time });
+    res.status(201).json({
+      sessionId: result.newSession.id,
+      taskId: result.newSession.task_id,
+      start_time: result.newSession.start_time,
+      switchedFromTaskId: result.switchedFrom?.taskId || null,
+      switchedFromDuration: result.switchedFrom != null ? result.switchedFrom.duration : null,
+    });
   } catch (err) {
     next(err);
   }
@@ -410,6 +455,146 @@ async function rejectTask(req, res, next) {
   }
 }
 
+async function getComments(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (!canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+
+    const comments = await taskModel.findComments(id, { includeNotes: req.user.role === 'ADMIN' });
+    res.status(200).json(comments);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function createComment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { content, type } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Le contenu est requis' });
+    }
+
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (!canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+
+    // Un employé ne peut jamais créer de NOTE (DECISIONS.md) : uniquement l'admin, explicitement
+    const isNote = req.user.role === 'ADMIN' && type === 'NOTE';
+
+    const comment = await taskModel.createComment({
+      taskId: id,
+      authorId: req.user.id,
+      content,
+      type: isNote ? 'NOTE' : 'COMMENT',
+      isVisibleToEmployee: !isNote,
+    });
+
+    res.status(201).json(comment);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getAttachments(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (!canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+
+    const attachments = await taskModel.findAttachments(id);
+    res.status(200).json(attachments);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function uploadAttachment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (!canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Fichier requis' });
+    }
+
+    const attachment = await taskModel.createAttachment({
+      taskId: id,
+      fileName: req.file.originalname,
+      filePath: req.file.path,
+      fileSize: req.file.size,
+      fileType: req.file.mimetype,
+      uploadedBy: req.user.id,
+    });
+
+    res.status(201).json(attachment);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function downloadAttachment(req, res, next) {
+  try {
+    const { fileId } = req.params;
+    const attachment = await taskModel.findAttachmentById(fileId);
+    if (!attachment) {
+      return res.status(404).json({ error: 'Fichier introuvable' });
+    }
+
+    const task = await taskModel.findById(attachment.task_id);
+    if (!task || !canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à ce fichier' });
+    }
+
+    res.download(attachment.file_path, attachment.file_name);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteAttachment(req, res, next) {
+  try {
+    const { id, fileId } = req.params;
+    const attachment = await taskModel.findAttachmentById(fileId);
+    if (!attachment || attachment.task_id !== id) {
+      return res.status(404).json({ error: 'Fichier introuvable' });
+    }
+
+    const task = await taskModel.findById(id);
+    if (!task || !canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+
+    await taskModel.deleteAttachment(fileId);
+    fs.unlink(attachment.file_path, () => {});
+
+    res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listTasks,
   getTask,
@@ -423,4 +608,10 @@ module.exports = {
   completeTask,
   confirmTask,
   rejectTask,
+  getComments,
+  createComment,
+  getAttachments,
+  uploadAttachment,
+  downloadAttachment,
+  deleteAttachment,
 };

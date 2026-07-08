@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as messageService from '../services/messageService';
+import { formatClock, formatDurationShort } from '../utils/formatters';
+import { notifySuccess, notifyError } from '../utils/toast';
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -32,17 +34,9 @@ function PriorityBadge({ priority }) {
   );
 }
 
-function formatDuration(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  return [hours, minutes, seconds].map((n) => String(n).padStart(2, '0')).join(':');
-}
-
 function TodayTaskRow({ task, onChanged }) {
   const [activeSession, setActiveSession] = useState(null);
   const [elapsed, setElapsed] = useState(0);
-  const [error, setError] = useState('');
 
   const loadSession = useCallback(async () => {
     if (task.status !== 'EN_COURS') {
@@ -57,6 +51,13 @@ function TodayTaskRow({ task, onChanged }) {
     loadSession();
   }, [loadSession]);
 
+  // Repère les changements faits ailleurs (bascule depuis une autre tâche, autre onglet...)
+  // sans que l'utilisateur ait à recharger la page
+  useEffect(() => {
+    const poll = setInterval(loadSession, 5000);
+    return () => clearInterval(poll);
+  }, [loadSession]);
+
   useEffect(() => {
     if (!activeSession) return undefined;
     const interval = setInterval(() => {
@@ -66,39 +67,51 @@ function TodayTaskRow({ task, onChanged }) {
   }, [activeSession]);
 
   async function handleStart() {
-    setError('');
     try {
-      await taskService.startTimelog(task.id);
+      const result = await taskService.startTimelog(task.id);
+      if (result.switchedFromTaskId) {
+        notifySuccess(`Chrono précédent arrêté (${formatDurationShort(result.switchedFromDuration)}), nouveau chrono démarré`);
+      } else {
+        notifySuccess('Chrono démarré');
+      }
+      await loadSession();
       onChanged();
     } catch (err) {
-      setError(err.response?.data?.error || 'Impossible de démarrer le chrono');
+      if (err.response?.status === 409) {
+        notifyError('Le chrono est déjà actif sur cette tâche');
+      } else {
+        notifyError(err.response?.data?.error || 'Impossible de démarrer le chrono');
+      }
     }
   }
 
   async function handleStop() {
-    setError('');
     try {
-      await taskService.stopTimelog(task.id);
+      const result = await taskService.stopTimelog(task.id);
+      notifySuccess(`Chrono arrêté - ${formatDurationShort(result.duration)} enregistrées`);
+      await loadSession();
       onChanged();
     } catch (err) {
-      setError(err.response?.data?.error || "Impossible d'arrêter le chrono");
+      notifyError(err.response?.data?.error || "Impossible d'arrêter le chrono");
     }
   }
 
+  // "En cours" seulement si un chrono tourne vraiment ; sinon la tâche est en pause ("à reprendre")
+  const displayStatus = task.status === 'EN_COURS' ? (activeSession ? 'En cours' : 'À reprendre') : task.status;
+
   return (
     <li style={{ marginBottom: '10px' }}>
-      <Link to={`/tasks/${task.id}`}>{task.title}</Link> <PriorityBadge priority={task.priority} /> — {task.status}
-      {task.status === 'EN_COURS' && activeSession && <span> — {formatDuration(elapsed)}</span>}
+      <Link to={`/tasks/${task.id}`}>{task.title}</Link> <PriorityBadge priority={task.priority} /> — {displayStatus}
+      {activeSession && <span> — {formatClock(elapsed)}</span>}
       <div>
-        {task.status === 'EN_COURS' ? (
+        {activeSession ? (
           <button onClick={handleStop}>ARRÊTER</button>
         ) : (
-          <button onClick={handleStart} disabled={!['VALIDEE', 'TERMINEE'].includes(task.status)}>
+          <button onClick={handleStart} disabled={!['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status)}>
             DÉMARRER
           </button>
         )}
       </div>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
     </li>
   );
 }
@@ -147,6 +160,15 @@ function Workspace() {
     loadChat();
   }, [loadDay, loadDone, loadChat]);
 
+  // Rafraîchit la liste (statuts, tâches terminées) sans que l'utilisateur ait à recharger la page
+  useEffect(() => {
+    const poll = setInterval(() => {
+      loadDay();
+      loadDone();
+    }, 8000);
+    return () => clearInterval(poll);
+  }, [loadDay, loadDone]);
+
   async function handleSendMessage(e) {
     e.preventDefault();
     if (!chatInput.trim() || !adminConversation) return;
@@ -183,7 +205,7 @@ function Workspace() {
         <ul>
           {doneTasks.map((task) => (
             <li key={task.id}>
-              {task.title} — {task.status} — durée totale {formatDuration(task.totalDuration)}
+              {task.title} — {task.status} — durée totale {formatDurationShort(task.totalDuration)}
             </li>
           ))}
         </ul>

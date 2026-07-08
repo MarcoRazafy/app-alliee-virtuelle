@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
+import { notifySuccess, notifyError } from '../utils/toast';
 
 function AdminTasksToValidate() {
   const [tasks, setTasks] = useState([]);
   const [motifs, setMotifs] = useState({});
-  const [error, setError] = useState('');
 
   async function load() {
     try {
       const data = await taskService.getTasks({ status: 'TERMINEE' });
       setTasks(data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Impossible de charger les tâches');
+      notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
     }
   }
 
@@ -21,27 +21,27 @@ function AdminTasksToValidate() {
   }, []);
 
   async function handleConfirm(id) {
-    setError('');
     try {
       await taskService.confirmTask(id);
+      notifySuccess('Tâche confirmée');
       await load();
     } catch (err) {
-      setError(err.response?.data?.error || 'Impossible de confirmer la tâche');
+      notifyError(err.response?.data?.error || 'Impossible de confirmer la tâche');
     }
   }
 
   async function handleReject(id) {
     const motif = motifs[id];
     if (!motif || !motif.trim()) {
-      setError('Le motif est requis pour renvoyer une tâche');
+      notifyError('Le motif est requis pour renvoyer une tâche');
       return;
     }
-    setError('');
     try {
       await taskService.rejectTask(id, motif);
+      notifySuccess('Tâche renvoyée à l\'employé');
       await load();
     } catch (err) {
-      setError(err.response?.data?.error || 'Impossible de renvoyer la tâche');
+      notifyError(err.response?.data?.error || 'Impossible de renvoyer la tâche');
     }
   }
 
@@ -51,7 +51,6 @@ function AdminTasksToValidate() {
         <Link to="/dashboard">Retour au tableau de bord</Link>
       </p>
       <h1>Tâches à valider</h1>
-      {error && <p>{error}</p>}
       {tasks.length === 0 && <p>Aucune tâche en attente de validation.</p>}
       <ul>
         {tasks.map((task) => (

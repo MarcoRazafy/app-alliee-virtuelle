@@ -4,6 +4,10 @@ export function getGlobalMessages() {
   return api.get('/api/messages/global').then((res) => res.data);
 }
 
+export function sendGlobalMessage(content) {
+  return api.post('/api/messages/global', { content }).then((res) => res.data);
+}
+
 export function getConversations() {
   return api.get('/api/conversations').then((res) => res.data);
 }
