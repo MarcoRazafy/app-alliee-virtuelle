@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const env = require('./config/env');
 const authRoutes = require('./routes/auth');
+const taskRoutes = require('./routes/tasks');
+const messageRoutes = require('./routes/messages');
+const resourceRoutes = require('./routes/resources');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -14,6 +17,9 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api', taskRoutes);
+app.use('/api', messageRoutes);
+app.use('/api', resourceRoutes);
 
 app.use(errorHandler);
 

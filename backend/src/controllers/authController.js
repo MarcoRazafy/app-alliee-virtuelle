@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const userModel = require('../models/user.model');
 const { generateToken } = require('../utils/jwt.util');
+const { isValidPassword } = require('../utils/validators');
 
 const SALT_ROUNDS = 10;
 
@@ -87,8 +88,31 @@ async function me(req, res, next) {
   }
 }
 
+async function changePassword(req, res, next) {
+  try {
+    const { current_password: currentPassword, new_password: newPassword } = req.body;
+
+    if (!isValidPassword(newPassword)) {
+      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const user = await userModel.findById(req.user.id);
+    const passwordMatches = await bcrypt.compare(currentPassword || '', user.password_hash);
+    if (!passwordMatches) {
+      return res.status(400).json({ error: 'Mot de passe actuel incorrect' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await userModel.updatePasswordHash(user.id, passwordHash);
+
+    res.status(200).json({ message: 'Mot de passe mis à jour' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 function logout(req, res) {
   res.status(200).json({ message: 'Déconnexion réussie' });
 }
 
-module.exports = { register, login, me, logout };
+module.exports = { register, login, me, logout, changePassword };

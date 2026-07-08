@@ -17,4 +17,14 @@ function authMiddleware(req, res, next) {
   }
 }
 
+function requireRole(...roles) {
+  return function (req, res, next) {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Accès refusé' });
+    }
+    next();
+  };
+}
+
 module.exports = authMiddleware;
+module.exports.requireRole = requireRole;

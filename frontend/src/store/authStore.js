@@ -42,6 +42,18 @@ const useAuthStore = create((set) => ({
     }
   },
 
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      await api.post('/api/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: extractErrorMessage(err, 'Impossible de changer le mot de passe.') };
+    }
+  },
+
   logout: async () => {
     try {
       await api.post('/api/auth/logout');

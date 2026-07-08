@@ -32,4 +32,8 @@ async function create({ email, passwordHash, fullName, phone, position }) {
   return result.rows[0];
 }
 
-module.exports = { findByEmail, findById, create, USER_STATUS, USER_ROLE };
+async function updatePasswordHash(id, passwordHash) {
+  await db.query('UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2', [passwordHash, id]);
+}
+
+module.exports = { findByEmail, findById, create, updatePasswordHash, USER_STATUS, USER_ROLE };
