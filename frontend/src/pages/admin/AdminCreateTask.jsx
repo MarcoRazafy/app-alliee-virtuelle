@@ -1,0 +1,86 @@
+import { useEffect, useState } from 'react';
+import * as taskService from '../../services/taskService';
+import * as userService from '../../services/userService';
+import { notifySuccess, notifyError } from '../../utils/toast';
+
+function AdminCreateTask() {
+  const [employees, setEmployees] = useState([]);
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    assigned_to: '',
+    priority: 'NORMALE',
+    deadline: '',
+    start_date: '',
+  });
+
+  useEffect(() => {
+    userService
+      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
+      .then(setEmployees)
+      .catch(() => setEmployees([]));
+  }, []);
+
+  function handleChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    try {
+      const result = await taskService.createTask(form);
+      notifySuccess(`Tâche créée avec le statut ${result.status}`);
+      setForm({ title: '', description: '', assigned_to: '', priority: 'NORMALE', deadline: '', start_date: '' });
+    } catch (err) {
+      const data = err.response?.data;
+      notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
+    }
+  }
+
+  return (
+    <div>
+      <h1>Créer une tâche</h1>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="title">Titre</label>
+          <input id="title" name="title" value={form.title} onChange={handleChange} required />
+        </div>
+        <div>
+          <label htmlFor="description">Description</label>
+          <textarea id="description" name="description" value={form.description} onChange={handleChange} />
+        </div>
+        <div>
+          <label htmlFor="assigned_to">Employé assigné</label>
+          <select id="assigned_to" name="assigned_to" value={form.assigned_to} onChange={handleChange} required>
+            <option value="">Choisir un employé</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.full_name} ({emp.position})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="priority">Priorité</label>
+          <select id="priority" name="priority" value={form.priority} onChange={handleChange}>
+            <option value="URGENT">Urgent</option>
+            <option value="HAUTE">Haute</option>
+            <option value="NORMALE">Normale</option>
+            <option value="FAIBLE">Faible</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="start_date">Date de début</label>
+          <input id="start_date" name="start_date" type="date" value={form.start_date} onChange={handleChange} />
+        </div>
+        <div>
+          <label htmlFor="deadline">Deadline</label>
+          <input id="deadline" name="deadline" type="date" value={form.deadline} onChange={handleChange} required />
+        </div>
+        <button type="submit">Créer la tâche</button>
+      </form>
+    </div>
+  );
+}
+
+export default AdminCreateTask;
