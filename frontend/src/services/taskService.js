@@ -75,3 +75,15 @@ export function downloadAttachment(fileId) {
 export function deleteAttachment(taskId, fileId) {
   return api.delete(`/api/tasks/${taskId}/attachments/${fileId}`).then((res) => res.data);
 }
+
+export function getNotes(taskId) {
+  return api.get(`/api/tasks/${taskId}/notes`).then((res) => res.data);
+}
+
+export function createNote(taskId, content) {
+  return api.post(`/api/tasks/${taskId}/notes`, { content }).then((res) => res.data);
+}
+
+export function getLateTasks() {
+  return api.get('/api/tasks/late').then((res) => res.data);
+}

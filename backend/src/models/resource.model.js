@@ -13,19 +13,121 @@ async function findFolders(type) {
 }
 
 async function findFolderById(folderId) {
-  const result = await db.query('SELECT id, name, type FROM resources_folders WHERE id = $1', [folderId]);
+  const result = await db.query('SELECT id, name, type, parent_folder_id FROM resources_folders WHERE id = $1', [
+    folderId,
+  ]);
   return result.rows[0] || null;
 }
 
 async function findFilesByFolder(folderId) {
   const result = await db.query(
-    `SELECT id, file_name, file_path, file_type, file_size, created_at
-     FROM resources_files
-     WHERE folder_id = $1
-     ORDER BY file_name ASC`,
+    `SELECT f.id, f.file_name, f.file_path, f.file_type, f.file_size, f.created_at, f.created_by,
+            u.full_name AS created_by_name
+     FROM resources_files f
+     JOIN users u ON u.id = f.created_by
+     WHERE f.folder_id = $1
+     ORDER BY f.file_name ASC`,
     [folderId]
   );
   return result.rows;
 }
 
-module.exports = { findFolders, findFolderById, findFilesByFolder };
+async function createFolder({ name, type, parentFolderId, createdBy }) {
+  const result = await db.query(
+    `INSERT INTO resources_folders (name, type, parent_folder_id, created_by)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, name, type, parent_folder_id`,
+    [name, type, parentFolderId || null, createdBy]
+  );
+  return result.rows[0];
+}
+
+async function renameFolder(id, name) {
+  const result = await db.query(
+    `UPDATE resources_folders SET name = $1, updated_at = now() WHERE id = $2 RETURNING id, name`,
+    [name, id]
+  );
+  return result.rows[0];
+}
+
+async function countFilesInFolder(folderId) {
+  const result = await db.query('SELECT COUNT(*)::INTEGER AS count FROM resources_files WHERE folder_id = $1', [
+    folderId,
+  ]);
+  return result.rows[0].count;
+}
+
+async function deleteFolder(id) {
+  await db.query('DELETE FROM resources_folders WHERE id = $1', [id]);
+}
+
+async function createFile({ folderId, fileName, filePath, fileType, fileSize, createdBy }) {
+  const result = await db.query(
+    `INSERT INTO resources_files (folder_id, file_name, file_path, file_type, file_size, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, file_name, file_type, file_size, created_at`,
+    [folderId, fileName, filePath, fileType, fileSize, createdBy]
+  );
+  return result.rows[0];
+}
+
+async function findFileById(id) {
+  const result = await db.query('SELECT * FROM resources_files WHERE id = $1', [id]);
+  return result.rows[0] || null;
+}
+
+async function deleteFile(id) {
+  await db.query('DELETE FROM resources_files WHERE id = $1', [id]);
+}
+
+async function createShares({ folderId, userIds, permissionType, expiresAt, sharedBy }, client = db) {
+  const rows = [];
+  for (const userId of userIds) {
+    const result = await client.query(
+      `INSERT INTO resources_shares (folder_id, shared_with_user_id, permission_type, shared_by_user_id, expires_at)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, shared_with_user_id, permission_type, expires_at`,
+      [folderId, userId, permissionType, sharedBy, expiresAt || null]
+    );
+    rows.push(result.rows[0]);
+  }
+  return rows;
+}
+
+async function findSharesForFolder(folderId) {
+  const result = await db.query(
+    `SELECT s.id, s.shared_with_user_id, u.full_name AS shared_with_name, s.permission_type, s.expires_at, s.created_at
+     FROM resources_shares s
+     JOIN users u ON u.id = s.shared_with_user_id
+     WHERE s.folder_id = $1
+     ORDER BY s.created_at DESC`,
+    [folderId]
+  );
+  return result.rows;
+}
+
+async function findShareById(id) {
+  const result = await db.query('SELECT * FROM resources_shares WHERE id = $1', [id]);
+  return result.rows[0] || null;
+}
+
+async function deleteShare(id, client = db) {
+  await client.query('DELETE FROM resources_shares WHERE id = $1', [id]);
+}
+
+module.exports = {
+  findFolders,
+  findFolderById,
+  findFilesByFolder,
+  createFolder,
+  renameFolder,
+  countFilesInFolder,
+  deleteFolder,
+  createFile,
+  findFileById,
+  deleteFile,
+  createShares,
+  findSharesForFolder,
+  findShareById,
+  deleteShare,
+};

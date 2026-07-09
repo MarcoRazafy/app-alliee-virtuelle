@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { computeCompletionRate } = require('../utils/kpi');
 
 const TASK_STATUS = {
   DECLARED: 'DECLAREE',
@@ -198,16 +199,22 @@ async function replaceDailySelection(userId, date, taskIds) {
 
 // --- Commentaires & notes ---
 
-// includeNotes=false (employé) : ne renvoie jamais les NOTE, jamais confié au frontend de les filtrer
-async function findComments(taskId, { includeNotes }) {
-  const condition = includeNotes ? '' : 'AND is_visible_to_employee = TRUE';
+// onlyType filtre strictement côté serveur : jamais confié au frontend de séparer NOTE/COMMENT
+async function findComments(taskId, { onlyType } = {}) {
+  const conditions = ['c.task_id = $1'];
+  const params = [taskId];
+  if (onlyType) {
+    params.push(onlyType);
+    conditions.push(`c.type = $${params.length}`);
+  }
+
   const result = await db.query(
     `SELECT c.id, c.content, c.type, c.is_visible_to_employee, c.created_at, c.author_id, u.full_name AS author_name
      FROM task_comments c
      JOIN users u ON u.id = c.author_id
-     WHERE c.task_id = $1 ${condition}
+     WHERE ${conditions.join(' AND ')}
      ORDER BY c.created_at ASC`,
-    [taskId]
+    params
   );
   return result.rows;
 }
@@ -255,6 +262,159 @@ async function deleteAttachment(attachmentId) {
   await db.query('DELETE FROM task_attachments WHERE id = $1', [attachmentId]);
 }
 
+// --- Admin : supervision ---
+
+// Tâches en retard : deadline dépassée ET pas confirmée (une CONFIRMEE n'est jamais en retard - DECISIONS.md)
+async function findLateTasks() {
+  const result = await db.query(
+    `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.assigned_to,
+            u.full_name AS assigned_to_name,
+            (CURRENT_DATE - t.deadline) AS days_late
+     FROM tasks t
+     JOIN users u ON u.id = t.assigned_to
+     WHERE t.deadline < CURRENT_DATE AND t.status != 'CONFIRMEE'
+     ORDER BY t.deadline ASC`
+  );
+  return result.rows;
+}
+
+// Vue admin : toutes les tâches d'un employé, y compris DECLAREE (l'admin voit tout)
+async function findTasksForEmployee(userId) {
+  const result = await db.query(
+    `SELECT id, title, priority, status, deadline
+     FROM tasks WHERE assigned_to = $1 ORDER BY deadline ASC`,
+    [userId]
+  );
+  return result.rows;
+}
+
+async function computeEmployeeStats(userId) {
+  const taskResult = await db.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
+       COUNT(*)::INTEGER AS tasks_assigned,
+       COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'CONFIRMEE')::INTEGER AS tasks_late
+     FROM tasks WHERE assigned_to = $1`,
+    [userId]
+  );
+  const hoursResult = await db.query(
+    `SELECT COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
+     FROM timelog WHERE employee_id = $1`,
+    [userId]
+  );
+
+  const row = taskResult.rows[0];
+
+  return {
+    tasks_confirmed: row.tasks_confirmed,
+    tasks_assigned: row.tasks_assigned,
+    completion_rate: computeCompletionRate(row.tasks_confirmed, row.tasks_assigned),
+    hours_worked_seconds: Number(hoursResult.rows[0].hours_worked_seconds),
+    tasks_late: row.tasks_late,
+  };
+}
+
+async function findRecentAuditForUser(userId, limit = 10) {
+  const result = await db.query(
+    `SELECT action, entity_id, timestamp FROM audit_log WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2`,
+    [userId, limit]
+  );
+  return result.rows;
+}
+
+// Suivi en temps réel : employés actifs, tâches réellement en cours (session active), tâches en retard
+async function computeRealtimeDashboard() {
+  const employeesResult = await db.query(
+    `SELECT id, full_name, position FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF' ORDER BY full_name ASC`
+  );
+
+  const statsResult = await db.query(`
+    SELECT
+      (SELECT COUNT(DISTINCT employee_id) FROM timelog
+       WHERE end_time IS NULL AND start_time::date = CURRENT_DATE)::INTEGER AS active_employees,
+      (SELECT COUNT(*) FROM tasks t WHERE t.status = 'EN_COURS'
+       AND EXISTS (SELECT 1 FROM timelog tl WHERE tl.task_id = t.id AND tl.end_time IS NULL))::INTEGER AS tasks_in_progress,
+      (SELECT COUNT(*) FROM tasks WHERE deadline < CURRENT_DATE AND status != 'CONFIRMEE')::INTEGER AS tasks_late
+  `);
+
+  const employees = await Promise.all(
+    employeesResult.rows.map(async (employee) => {
+      const todoResult = await db.query(
+        `SELECT id, title, priority FROM tasks WHERE assigned_to = $1 AND status = 'VALIDEE' ORDER BY deadline ASC`,
+        [employee.id]
+      );
+
+      const inProgressResult = await db.query(
+        `SELECT t.id, t.title, t.priority, tl.start_time AS session_start_time
+         FROM tasks t
+         JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
+         WHERE t.assigned_to = $1 AND t.status = 'EN_COURS'`,
+        [employee.id]
+      );
+
+      const doneResult = await db.query(
+        `SELECT t.id, t.title,
+                COALESCE((SELECT SUM(duration_seconds) FROM timelog WHERE task_id = t.id), 0)::BIGINT AS total_duration_seconds
+         FROM tasks t
+         WHERE t.assigned_to = $1 AND t.status IN ('TERMINEE', 'CONFIRMEE')`,
+        [employee.id]
+      );
+
+      return {
+        id: employee.id,
+        full_name: employee.full_name,
+        position: employee.position,
+        todo: todoResult.rows,
+        in_progress: inProgressResult.rows,
+        done: doneResult.rows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          total_duration_seconds: Number(row.total_duration_seconds),
+        })),
+      };
+    })
+  );
+
+  const stats = statsResult.rows[0];
+
+  return {
+    stats: {
+      active_employees: stats.active_employees,
+      tasks_in_progress: stats.tasks_in_progress,
+      tasks_late: stats.tasks_late,
+    },
+    employees,
+  };
+}
+
+async function findAuditLog({ entityType, userId, limit = 50 } = {}) {
+  const conditions = [];
+  const params = [];
+
+  if (entityType) {
+    params.push(entityType);
+    conditions.push(`a.entity_type = $${params.length}`);
+  }
+  if (userId) {
+    params.push(userId);
+    conditions.push(`a.user_id = $${params.length}`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(limit);
+
+  const result = await db.query(
+    `SELECT a.id, a.user_id, u.full_name AS user_name, a.action, a.entity_type, a.entity_id, a.details, a.timestamp
+     FROM audit_log a
+     LEFT JOIN users u ON u.id = a.user_id
+     ${where}
+     ORDER BY a.timestamp DESC
+     LIMIT $${params.length}`,
+    params
+  );
+  return result.rows;
+}
+
 module.exports = {
   TASK_STATUS,
   findAssignedTasks,
@@ -278,4 +438,10 @@ module.exports = {
   findAttachmentById,
   createAttachment,
   deleteAttachment,
+  findLateTasks,
+  findTasksForEmployee,
+  computeEmployeeStats,
+  findRecentAuditForUser,
+  computeRealtimeDashboard,
+  findAuditLog,
 };

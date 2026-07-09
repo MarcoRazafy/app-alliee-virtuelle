@@ -9,6 +9,7 @@ function CommentSection({ taskId }) {
   const isAdmin = user?.role === 'ADMIN';
 
   const [comments, setComments] = useState([]);
+  const [notes, setNotes] = useState([]);
   const [content, setContent] = useState('');
   const [asNote, setAsNote] = useState(false);
 
@@ -16,10 +17,14 @@ function CommentSection({ taskId }) {
     try {
       const data = await taskService.getComments(taskId);
       setComments(data);
+      if (isAdmin) {
+        const noteData = await taskService.getNotes(taskId);
+        setNotes(noteData);
+      }
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de charger les commentaires');
     }
-  }, [taskId]);
+  }, [taskId, isAdmin]);
 
   useEffect(() => {
     load();
@@ -29,8 +34,13 @@ function CommentSection({ taskId }) {
     e.preventDefault();
     if (!content.trim()) return;
     try {
-      await taskService.createComment(taskId, content, isAdmin && asNote ? 'NOTE' : 'COMMENT');
-      notifySuccess(asNote ? 'Note ajoutée' : 'Commentaire envoyé');
+      if (isAdmin && asNote) {
+        await taskService.createNote(taskId, content);
+        notifySuccess('Note ajoutée');
+      } else {
+        await taskService.createComment(taskId, content);
+        notifySuccess('Commentaire envoyé');
+      }
       setContent('');
       setAsNote(false);
       await load();
@@ -38,11 +48,6 @@ function CommentSection({ taskId }) {
       notifyError(err.response?.data?.error || "Impossible d'envoyer le message");
     }
   }
-
-  // Notes = admin seul (DECISIONS.md) : le serveur ne les renvoie jamais à un employé,
-  // donc ce filtre côté client sert uniquement à séparer visuellement les deux sections pour l'admin
-  const notes = comments.filter((c) => c.type === 'NOTE');
-  const visibleComments = comments.filter((c) => c.type === 'COMMENT');
 
   return (
     <div>
@@ -61,9 +66,9 @@ function CommentSection({ taskId }) {
       )}
 
       <h3>Commentaires</h3>
-      {visibleComments.length === 0 && <p>Aucun commentaire pour le moment.</p>}
+      {comments.length === 0 && <p>Aucun commentaire pour le moment.</p>}
       <ul>
-        {visibleComments.map((comment) => (
+        {comments.map((comment) => (
           <li key={comment.id}>
             <strong>{comment.author_name}</strong> ({formatDateTime(comment.created_at)}) : {comment.content}
           </li>

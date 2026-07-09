@@ -19,3 +19,9 @@ export function getPrivateMessages(userId) {
 export function sendPrivateMessage(userId, content) {
   return api.post(`/api/messages/private/${userId}`, { content }).then((res) => res.data);
 }
+
+// Un message -> une conversation privée par destinataire. Chacun ne voit que sa propre conversation
+// (DECISIONS.md : les destinataires ne voient jamais la liste des autres).
+export function sendMessageToMultiple(userIds, content) {
+  return Promise.all(userIds.map((userId) => sendPrivateMessage(userId, content)));
+}

@@ -7,6 +7,9 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// Routes statiques déclarées avant /tasks/:id pour éviter tout conflit de matching
+router.get('/tasks/late', authMiddleware.requireRole('ADMIN'), taskController.getLateTasks);
+
 // Employé
 router.get('/tasks', taskController.listTasks);
 router.get('/tasks/:id', taskController.getTask);
@@ -32,5 +35,7 @@ router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 router.post('/tasks', authMiddleware.requireRole('ADMIN'), taskController.createTask);
 router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskController.confirmTask);
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);
+router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.getNotes);
+router.post('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.createNote);
 
 module.exports = router;

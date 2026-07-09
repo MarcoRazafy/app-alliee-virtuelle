@@ -14,6 +14,10 @@ function Dashboard() {
   const firstName = user?.full_name?.split(' ')[0] || '';
 
   useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      navigate('/admin', { replace: true });
+      return;
+    }
     if (user?.role !== 'EMPLOYEE') return;
 
     taskService.getMyDay().then((selection) => {
@@ -21,7 +25,7 @@ function Dashboard() {
     });
 
     taskService.getTasks({ priority: 'URGENT' }).then(setUrgentTasks);
-  }, [user]);
+  }, [user, navigate]);
 
   async function handleLogout() {
     await logout();
@@ -58,17 +62,6 @@ function Dashboard() {
             ))}
           </ul>
         </div>
-      )}
-
-      {user?.role === 'ADMIN' && (
-        <ul>
-          <li>
-            <Link to="/admin/create-task">Créer une tâche</Link>
-          </li>
-          <li>
-            <Link to="/admin/validate">Tâches à valider</Link>
-          </li>
-        </ul>
       )}
 
       <button onClick={handleLogout}>Déconnexion</button>

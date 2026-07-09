@@ -466,7 +466,7 @@ async function getComments(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
-    const comments = await taskModel.findComments(id, { includeNotes: req.user.role === 'ADMIN' });
+    const comments = await taskModel.findComments(id, { onlyType: 'COMMENT' });
     res.status(200).json(comments);
   } catch (err) {
     next(err);
@@ -476,7 +476,7 @@ async function getComments(req, res, next) {
 async function createComment(req, res, next) {
   try {
     const { id } = req.params;
-    const { content, type } = req.body;
+    const { content } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Le contenu est requis' });
@@ -490,18 +490,68 @@ async function createComment(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
-    // Un employé ne peut jamais créer de NOTE (DECISIONS.md) : uniquement l'admin, explicitement
-    const isNote = req.user.role === 'ADMIN' && type === 'NOTE';
-
     const comment = await taskModel.createComment({
       taskId: id,
       authorId: req.user.id,
       content,
-      type: isNote ? 'NOTE' : 'COMMENT',
-      isVisibleToEmployee: !isNote,
+      type: 'COMMENT',
+      isVisibleToEmployee: true,
     });
 
     res.status(201).json(comment);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Notes internes : admin seul, jamais visibles à l'employé (DECISIONS.md - arbitrage 3)
+async function getNotes(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+
+    const notes = await taskModel.findComments(id, { onlyType: 'NOTE' });
+    res.status(200).json(notes);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function createNote(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Le contenu est requis' });
+    }
+
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+
+    const note = await taskModel.createComment({
+      taskId: id,
+      authorId: req.user.id,
+      content,
+      type: 'NOTE',
+      isVisibleToEmployee: false,
+    });
+
+    res.status(201).json(note);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getLateTasks(req, res, next) {
+  try {
+    const tasks = await taskModel.findLateTasks();
+    res.status(200).json(tasks);
   } catch (err) {
     next(err);
   }
@@ -610,6 +660,9 @@ module.exports = {
   rejectTask,
   getComments,
   createComment,
+  getNotes,
+  createNote,
+  getLateTasks,
   getAttachments,
   uploadAttachment,
   downloadAttachment,

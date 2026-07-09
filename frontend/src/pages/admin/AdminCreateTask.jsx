@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import * as taskService from '../services/taskService';
-import { notifySuccess, notifyError } from '../utils/toast';
+import { useEffect, useState } from 'react';
+import * as taskService from '../../services/taskService';
+import * as userService from '../../services/userService';
+import { notifySuccess, notifyError } from '../../utils/toast';
 
 function AdminCreateTask() {
+  const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -12,6 +13,13 @@ function AdminCreateTask() {
     deadline: '',
     start_date: '',
   });
+
+  useEffect(() => {
+    userService
+      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
+      .then(setEmployees)
+      .catch(() => setEmployees([]));
+  }, []);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,11 +39,7 @@ function AdminCreateTask() {
 
   return (
     <div>
-      <p>
-        <Link to="/dashboard">Retour au tableau de bord</Link>
-      </p>
       <h1>Créer une tâche</h1>
-      {/* Pas encore de liste d'employés côté API : on saisit directement l'ID utilisateur */}
       <form onSubmit={handleSubmit}>
         <div>
           <label htmlFor="title">Titre</label>
@@ -46,8 +50,15 @@ function AdminCreateTask() {
           <textarea id="description" name="description" value={form.description} onChange={handleChange} />
         </div>
         <div>
-          <label htmlFor="assigned_to">ID de l'employé assigné</label>
-          <input id="assigned_to" name="assigned_to" value={form.assigned_to} onChange={handleChange} required />
+          <label htmlFor="assigned_to">Employé assigné</label>
+          <select id="assigned_to" name="assigned_to" value={form.assigned_to} onChange={handleChange} required>
+            <option value="">Choisir un employé</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.full_name} ({emp.position})
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label htmlFor="priority">Priorité</label>

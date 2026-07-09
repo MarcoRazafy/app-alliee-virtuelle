@@ -10,9 +10,25 @@ import MyDay from './pages/MyDay';
 import Messaging from './pages/Messaging';
 import Profile from './pages/Profile';
 import Resources from './pages/Resources';
-import AdminCreateTask from './pages/AdminCreateTask';
-import AdminTasksToValidate from './pages/AdminTasksToValidate';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminCreateTask from './pages/admin/AdminCreateTask';
+import AdminTasksToValidate from './pages/admin/AdminTasksToValidate';
+import AdminLateTasks from './pages/admin/AdminLateTasks';
+import AdminStatistics from './pages/admin/AdminStatistics';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminMessaging from './pages/admin/AdminMessaging';
+import AdminResources from './pages/admin/AdminResources';
+import AdminProfile from './pages/admin/AdminProfile';
 import ProtectedRoute from './components/ProtectedRoute';
+
+function AdminRoute({ children }) {
+  return (
+    <ProtectedRoute role="ADMIN">
+      <AdminLayout>{children}</AdminLayout>
+    </ProtectedRoute>
+  );
+}
 
 function App() {
   return (
@@ -85,22 +101,17 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/admin/create-task"
-          element={
-            <ProtectedRoute role="ADMIN">
-              <AdminCreateTask />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/validate"
-          element={
-            <ProtectedRoute role="ADMIN">
-              <AdminTasksToValidate />
-            </ProtectedRoute>
-          }
-        />
+
+        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/create-task" element={<AdminRoute><AdminCreateTask /></AdminRoute>} />
+        <Route path="/admin/validate" element={<AdminRoute><AdminTasksToValidate /></AdminRoute>} />
+        <Route path="/admin/late" element={<AdminRoute><AdminLateTasks /></AdminRoute>} />
+        <Route path="/admin/stats" element={<AdminRoute><AdminStatistics /></AdminRoute>} />
+        <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+        <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
+        <Route path="/admin/resources" element={<AdminRoute><AdminResources /></AdminRoute>} />
+        <Route path="/admin/profile" element={<AdminRoute><AdminProfile /></AdminRoute>} />
+
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
