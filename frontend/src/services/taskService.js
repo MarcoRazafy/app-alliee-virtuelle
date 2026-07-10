@@ -12,6 +12,10 @@ export function createTask(payload) {
   return api.post('/api/tasks', payload).then((res) => res.data);
 }
 
+export function validateTask(id) {
+  return api.post(`/api/tasks/${id}/validate`).then((res) => res.data);
+}
+
 export function confirmTask(id) {
   return api.post(`/api/tasks/${id}/confirm`).then((res) => res.data);
 }

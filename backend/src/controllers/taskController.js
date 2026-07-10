@@ -367,6 +367,47 @@ async function completeTask(req, res, next) {
   }
 }
 
+async function validateTask(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (task.status !== taskModel.TASK_STATUS.DECLARED) {
+      return res.status(400).json({ error: 'Seule une tâche Déclarée peut être validée' });
+    }
+
+    await db.withTransaction(async (client) => {
+      await taskModel.updateStatus(id, taskModel.TASK_STATUS.VALIDATED, client);
+      await taskModel.recordHistory(
+        {
+          taskId: id,
+          fieldChanged: 'status',
+          oldValue: task.status,
+          newValue: taskModel.TASK_STATUS.VALIDATED,
+          changedBy: req.user.id,
+        },
+        client
+      );
+      await taskModel.recordAudit(
+        {
+          userId: req.user.id,
+          action: 'VALIDATE_TASK',
+          entityType: 'task',
+          entityId: id,
+        },
+        client
+      );
+    });
+
+    res.status(200).json({ status: taskModel.TASK_STATUS.VALIDATED });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function confirmTask(req, res, next) {
   try {
     const { id } = req.params;
@@ -656,6 +697,7 @@ module.exports = {
   setMyDay,
   validateMyDay,
   completeTask,
+  validateTask,
   confirmTask,
   rejectTask,
   getComments,

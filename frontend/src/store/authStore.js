@@ -10,10 +10,12 @@ function extractErrorMessage(err, fallback) {
   return fallback;
 }
 
-const useAuthStore = create((set) => ({
+const useAuthStore = create((set, get) => ({
   user: authService.getUser(),
   isAuthenticated: !!authService.getToken(),
   error: null,
+  // null = pas encore vérifié (ex: rechargement de page), true/false = état connu
+  dayValidated: null,
 
   login: async (email, password) => {
     set({ error: null });
@@ -22,7 +24,8 @@ const useAuthStore = create((set) => ({
       const { token, user } = response.data;
       authService.setToken(token);
       authService.setUser(user);
-      set({ user, isAuthenticated: true });
+      // Le backend vide la sélection du jour à chaque login : l'employé doit toujours revalider
+      set({ user, isAuthenticated: true, dayValidated: user.role === 'EMPLOYEE' ? false : true });
       return true;
     } catch (err) {
       set({ error: extractErrorMessage(err, 'Impossible de se connecter. Vérifiez vos identifiants.') });
@@ -54,6 +57,29 @@ const useAuthStore = create((set) => ({
     }
   },
 
+  setDayValidated: (value) => set({ dayValidated: value }),
+
+  // Restaure l'état réel depuis le serveur (utile après un rechargement de page,
+  // où l'état mémoire de dayValidated est perdu mais la validation serveur, elle, persiste).
+  // Si l'employé n'a plus aucune tâche disponible à sélectionner, on ne le bloque pas.
+  checkDayValidated: async () => {
+    if (get().user?.role !== 'EMPLOYEE') {
+      set({ dayValidated: true });
+      return;
+    }
+    try {
+      const [selectionRes, tasksRes] = await Promise.all([api.get('/api/my-day'), api.get('/api/tasks')]);
+      const selection = selectionRes.data;
+      const tasks = tasksRes.data;
+      const validated = selection.length > 0 && selection.every((item) => item.validated_at);
+      const hasAvailableTasks = tasks.some((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
+      set({ dayValidated: validated || !hasAvailableTasks });
+    } catch (err) {
+      // Ne jamais bloquer l'employé à cause d'une erreur réseau
+      set({ dayValidated: true });
+    }
+  },
+
   logout: async () => {
     try {
       await api.post('/api/auth/logout');
@@ -62,7 +88,7 @@ const useAuthStore = create((set) => ({
     }
     authService.removeToken();
     authService.removeUser();
-    set({ user: null, isAuthenticated: false });
+    set({ user: null, isAuthenticated: false, dayValidated: null });
   },
 }));
 
