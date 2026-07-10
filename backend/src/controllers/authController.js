@@ -1,9 +1,14 @@
 const bcrypt = require('bcrypt');
 const userModel = require('../models/user.model');
+const taskModel = require('../models/task.model');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
 
 const SALT_ROUNDS = 10;
+
+function todayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 async function register(req, res, next) {
   try {
@@ -48,6 +53,11 @@ async function login(req, res, next) {
     }
     if (user.status === userModel.USER_STATUS.REJECTED) {
       return res.status(403).json({ error: 'Compte refusé' });
+    }
+
+    // L'employé doit revalider sa journée à chaque connexion : on repart d'une sélection vide
+    if (user.role === userModel.USER_ROLE.EMPLOYEE) {
+      await taskModel.replaceDailySelection(user.id, todayDateString(), []);
     }
 
     const token = generateToken(user);

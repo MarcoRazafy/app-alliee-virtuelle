@@ -33,6 +33,7 @@ router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 
 // Admin
 router.post('/tasks', authMiddleware.requireRole('ADMIN'), taskController.createTask);
+router.post('/tasks/:id/validate', authMiddleware.requireRole('ADMIN'), taskController.validateTask);
 router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskController.confirmTask);
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);
 router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.getNotes);
