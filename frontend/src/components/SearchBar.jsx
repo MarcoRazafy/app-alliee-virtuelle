@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IconSearch } from './icons';
 
 const STATUS_OPTIONS = [
   { value: 'VALIDEE', label: 'À faire' },
@@ -52,46 +53,51 @@ function SearchBar({ onChange }) {
   }
 
   return (
-    <div>
-      <input placeholder="Rechercher une tâche..." value={search} onChange={handleSearchChange} />
-
-      <div>
-        <strong>Statut : </strong>
-        {STATUS_OPTIONS.map((opt) => (
-          <label key={opt.value} style={{ marginRight: '10px' }}>
-            <input
-              type="checkbox"
-              checked={statuses.includes(opt.value)}
-              onChange={() => handleStatusToggle(opt.value)}
-            />
-            {opt.label}
-          </label>
-        ))}
+    <div className="filter-bar">
+      <div className="filter-search">
+        <IconSearch />
+        <input placeholder="Rechercher une tâche..." value={search} onChange={handleSearchChange} />
       </div>
 
-      <div>
-        <strong>Priorité : </strong>
-        {PRIORITY_OPTIONS.map((value) => (
-          <label key={value} style={{ marginRight: '10px' }}>
-            <input
-              type="checkbox"
-              checked={priorities.includes(value)}
-              onChange={() => handlePriorityToggle(value)}
-            />
-            {value}
-          </label>
-        ))}
-      </div>
+      <div className="filter-groups">
+        <div className="filter-group">
+          <span className="filter-group-label">Statut</span>
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`filter-chip${statuses.includes(opt.value) ? ' filter-chip--active' : ''}`}
+              onClick={() => handleStatusToggle(opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
-      <div>
-        <strong>Deadline : </strong>
-        <select value={deadlineRange} onChange={handleDeadlineChange}>
-          <option value="">Toutes</option>
-          <option value="today">Aujourd'hui</option>
-          <option value="week">Cette semaine</option>
-          <option value="month">Ce mois</option>
-          <option value="past">Passée</option>
-        </select>
+        <div className="filter-group">
+          <span className="filter-group-label">Priorité</span>
+          {PRIORITY_OPTIONS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={`filter-chip${priorities.includes(value) ? ' filter-chip--active' : ''}`}
+              onClick={() => handlePriorityToggle(value)}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+
+        <div className="filter-group">
+          <span className="filter-group-label">Échéance</span>
+          <select className="filter-select" value={deadlineRange} onChange={handleDeadlineChange}>
+            <option value="">Toutes</option>
+            <option value="today">Aujourd'hui</option>
+            <option value="week">Cette semaine</option>
+            <option value="month">Ce mois</option>
+            <option value="past">Passée</option>
+          </select>
+        </div>
       </div>
     </div>
   );

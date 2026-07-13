@@ -80,6 +80,10 @@ async function getTaskDetail(req, res, next) {
     }
 
     const detail = await taskModel.getTaskDetail(id);
+    // Une sous-tâche DECLAREE n'est pas plus visible à l'employé que sa tâche parente (DECISIONS.md)
+    if (!isAdmin) {
+      detail.subtasks = detail.subtasks.filter((s) => s.status !== taskModel.TASK_STATUS.DECLARED);
+    }
     res.status(200).json(detail);
   } catch (err) {
     next(err);
@@ -97,8 +101,12 @@ async function getSubtasks(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
+    const isAdmin = req.user.role === 'ADMIN';
     const subtasks = await taskModel.findSubtasks(id);
-    res.status(200).json(subtasks);
+    const visibleSubtasks = isAdmin
+      ? subtasks
+      : subtasks.filter((s) => s.status !== taskModel.TASK_STATUS.DECLARED);
+    res.status(200).json(visibleSubtasks);
   } catch (err) {
     next(err);
   }
@@ -342,6 +350,8 @@ async function getMyDay(req, res, next) {
           priority: row.priority,
           status: row.status,
           deadline: row.deadline,
+          list_id: row.list_id,
+          list_name: row.list_name,
         },
       }))
     );
@@ -381,6 +391,8 @@ async function setMyDay(req, res, next) {
           priority: row.priority,
           status: row.status,
           deadline: row.deadline,
+          list_id: row.list_id,
+          list_name: row.list_name,
         },
       }))
     );
@@ -396,7 +408,23 @@ async function validateMyDay(req, res, next) {
     if (updatedCount === 0) {
       return res.status(400).json({ error: 'Sélectionnez au moins une tâche avant de valider votre journée' });
     }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'VALIDATE_MY_DAY',
+      entityType: 'user_daily_selection',
+      entityId: req.user.id,
+      details: { date },
+    });
     res.status(200).json({ validated: true, date });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getMyActivity(req, res, next) {
+  try {
+    const activity = await taskModel.findRecentAuditForUser(req.user.id, 8);
+    res.status(200).json(activity);
   } catch (err) {
     next(err);
   }
@@ -782,6 +810,7 @@ module.exports = {
   getMyDay,
   setMyDay,
   validateMyDay,
+  getMyActivity,
   completeTask,
   validateTask,
   confirmTask,

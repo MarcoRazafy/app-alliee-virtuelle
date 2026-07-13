@@ -72,6 +72,14 @@
   /* Texte posé sur une surface toujours colorée en accent (ex: bouton primaire) :
      ne doit jamais suivre --color-text-primary, qui bascule avec le thème. */
   --color-on-accent: #ffffff;
+
+  /* La sidebar reste toujours sombre, y compris en thème clair (identité de marque) :
+     ces tokens ne sont volontairement PAS redéfinis dans [data-theme='light']. */
+  --sidebar-bg: #0b1b33;
+  --sidebar-border: #163156;
+  --sidebar-text: #b8c4d9;
+  --sidebar-text-hover: #f7faff;
+  --sidebar-overlay: rgba(255, 255, 255, 0.04);
 }
 
 /* Reset minimal : sans lui, la marge par défaut du navigateur sur <body> provoque

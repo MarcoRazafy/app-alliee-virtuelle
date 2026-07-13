@@ -22,6 +22,7 @@ router.get('/timelog/:taskId', taskController.getTimelogHistory);
 router.get('/my-day', taskController.getMyDay);
 router.post('/my-day', taskController.setMyDay);
 router.post('/my-day/validate', taskController.validateMyDay);
+router.get('/my-activity', taskController.getMyActivity);
 
 router.get('/tasks/:id/detail', taskController.getTaskDetail);
 router.get('/tasks/:id/subtasks', taskController.getSubtasks);
