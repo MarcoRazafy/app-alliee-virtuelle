@@ -2,10 +2,14 @@ const fs = require('fs');
 const db = require('../config/database');
 const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
-const { isValidTitle, isValidPriority, isFutureDate } = require('../utils/validators');
+const { isValidTitle, isValidPriority, isFutureDate, isValidEmail } = require('../utils/validators');
 
 function canAccessTask(task, user) {
-  return user.role === 'ADMIN' || task.assigned_to === user.id;
+  if (user.role === 'ADMIN') return true;
+  // Une tâche DECLAREE n'est pas encore visible à l'employé, y compris pour ses
+  // sous-ressources (sous-tâches, commentaires, pièces jointes) — cf. getTask/getTaskDetail
+  if (task.status === taskModel.TASK_STATUS.DECLARED) return false;
+  return task.assigned_to === user.id;
 }
 
 function todayDateString() {
@@ -14,11 +18,11 @@ function todayDateString() {
 
 async function listTasks(req, res, next) {
   try {
-    const { status, priority, deadline } = req.query;
+    const { status, priority, deadline, list_id: listId } = req.query;
     const tasks =
       req.user.role === 'ADMIN'
-        ? await taskModel.findAllTasks({ status, priority, deadline })
-        : await taskModel.findAssignedTasks(req.user.id, { status, priority, deadline });
+        ? await taskModel.findAllTasks({ status, priority, deadline, listId })
+        : await taskModel.findAssignedTasks(req.user.id, { status, priority, deadline, listId });
     res.status(200).json(tasks);
   } catch (err) {
     next(err);
@@ -50,7 +54,51 @@ async function getTask(req, res, next) {
       priority: task.priority,
       status: task.status,
       deadline: task.deadline,
+      assigned_to: task.assigned_to,
+      client_name: task.client_name,
+      client_email: task.client_email,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getTaskDetail(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+
+    const isAdmin = req.user.role === 'ADMIN';
+    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (!canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+
+    const detail = await taskModel.getTaskDetail(id);
+    res.status(200).json(detail);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getSubtasks(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (!canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+
+    const subtasks = await taskModel.findSubtasks(id);
+    res.status(200).json(subtasks);
   } catch (err) {
     next(err);
   }
@@ -58,13 +106,25 @@ async function getTask(req, res, next) {
 
 async function createTask(req, res, next) {
   try {
-    const { title, description, assigned_to, priority, deadline, start_date } = req.body;
+    const {
+      title,
+      description,
+      assigned_to,
+      priority,
+      deadline,
+      start_date,
+      list_id: listId,
+      parent_task_id: parentTaskId,
+      client_name: clientName,
+      client_email: clientEmail,
+    } = req.body;
     const errors = [];
 
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!isFutureDate(deadline)) errors.push("La deadline doit être postérieure à aujourd'hui");
     if (!assigned_to) errors.push('assigned_to est requis');
+    if (clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
 
     if (errors.length > 0) {
       return res.status(400).json({ errors });
@@ -75,6 +135,14 @@ async function createTask(req, res, next) {
       return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
     }
 
+    // list_id et parent_task_id sont optionnels (tâche "libre" hors hiérarchie)
+    if (parentTaskId) {
+      const parentTask = await taskModel.findById(parentTaskId);
+      if (!parentTask) {
+        return res.status(400).json({ error: 'Tâche parente introuvable' });
+      }
+    }
+
     const task = await taskModel.create({
       title,
       description,
@@ -83,6 +151,10 @@ async function createTask(req, res, next) {
       priority,
       deadline,
       startDate: start_date,
+      listId,
+      parentTaskId,
+      clientName,
+      clientEmail,
     });
 
     await taskModel.recordAudit({
@@ -90,7 +162,16 @@ async function createTask(req, res, next) {
       action: 'CREATE_TASK',
       entityType: 'task',
       entityId: task.id,
-      details: { title, assigned_to, priority, deadline },
+      details: {
+        title,
+        assigned_to,
+        priority,
+        deadline,
+        list_id: listId || null,
+        parent_task_id: parentTaskId || null,
+        client_name: clientName || null,
+        client_email: clientEmail || null,
+      },
     });
 
     res.status(201).json({ id: task.id, status: task.status });
@@ -311,7 +392,10 @@ async function setMyDay(req, res, next) {
 async function validateMyDay(req, res, next) {
   try {
     const date = todayDateString();
-    await taskModel.validateDailySelection(req.user.id, date);
+    const updatedCount = await taskModel.validateDailySelection(req.user.id, date);
+    if (updatedCount === 0) {
+      return res.status(400).json({ error: 'Sélectionnez au moins une tâche avant de valider votre journée' });
+    }
     res.status(200).json({ validated: true, date });
   } catch (err) {
     next(err);
@@ -362,6 +446,47 @@ async function completeTask(req, res, next) {
     });
 
     res.status(200).json({ status: taskModel.TASK_STATUS.DONE });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function validateTask(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (task.status !== taskModel.TASK_STATUS.DECLARED) {
+      return res.status(400).json({ error: 'Seule une tâche Déclarée peut être validée' });
+    }
+
+    await db.withTransaction(async (client) => {
+      await taskModel.updateStatus(id, taskModel.TASK_STATUS.VALIDATED, client);
+      await taskModel.recordHistory(
+        {
+          taskId: id,
+          fieldChanged: 'status',
+          oldValue: task.status,
+          newValue: taskModel.TASK_STATUS.VALIDATED,
+          changedBy: req.user.id,
+        },
+        client
+      );
+      await taskModel.recordAudit(
+        {
+          userId: req.user.id,
+          action: 'VALIDATE_TASK',
+          entityType: 'task',
+          entityId: id,
+        },
+        client
+      );
+    });
+
+    res.status(200).json({ status: taskModel.TASK_STATUS.VALIDATED });
   } catch (err) {
     next(err);
   }
@@ -648,6 +773,8 @@ async function deleteAttachment(req, res, next) {
 module.exports = {
   listTasks,
   getTask,
+  getTaskDetail,
+  getSubtasks,
   createTask,
   startTimelog,
   stopTimelog,
@@ -656,6 +783,7 @@ module.exports = {
   setMyDay,
   validateMyDay,
   completeTask,
+  validateTask,
   confirmTask,
   rejectTask,
   getComments,

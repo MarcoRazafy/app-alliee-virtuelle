@@ -7,9 +7,13 @@ function Register() {
     email: '',
     password: '',
     confirmPassword: '',
-    full_name: '',
+    first_name: '',
+    last_name: '',
+    username: '',
     phone: '',
     position: '',
+    postal_address: '',
+    birth_date: '',
   });
   const [localError, setLocalError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -17,7 +21,11 @@ function Register() {
   const navigate = useNavigate();
 
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    let { value } = e.target;
+    if (e.target.name === 'username') {
+      value = value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    }
+    setForm({ ...form, [e.target.name]: value });
   }
 
   async function handleSubmit(e) {
@@ -31,6 +39,10 @@ function Register() {
     }
     if (form.password.length < 8) {
       setLocalError('Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+    if (form.username.length < 3) {
+      setLocalError("Le nom d'utilisateur doit contenir au moins 3 caractères");
       return;
     }
 
@@ -50,6 +62,18 @@ function Register() {
       <h1>Créer un compte</h1>
       <form onSubmit={handleSubmit}>
         <div>
+          <label htmlFor="first_name">Prénom</label>
+          <input id="first_name" name="first_name" type="text" value={form.first_name} onChange={handleChange} required />
+        </div>
+        <div>
+          <label htmlFor="last_name">Nom</label>
+          <input id="last_name" name="last_name" type="text" value={form.last_name} onChange={handleChange} required />
+        </div>
+        <div>
+          <label htmlFor="username">Nom d'utilisateur</label>
+          <input id="username" name="username" type="text" value={form.username} onChange={handleChange} required />
+        </div>
+        <div>
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" value={form.email} onChange={handleChange} required />
         </div>
@@ -59,11 +83,14 @@ function Register() {
         </div>
         <div>
           <label htmlFor="confirmPassword">Confirmer le mot de passe</label>
-          <input id="confirmPassword" name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} required />
-        </div>
-        <div>
-          <label htmlFor="full_name">Nom complet</label>
-          <input id="full_name" name="full_name" type="text" value={form.full_name} onChange={handleChange} required />
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            required
+          />
         </div>
         <div>
           <label htmlFor="phone">Téléphone</label>
@@ -72,6 +99,20 @@ function Register() {
         <div>
           <label htmlFor="position">Poste</label>
           <input id="position" name="position" type="text" value={form.position} onChange={handleChange} required />
+        </div>
+        <div>
+          <label htmlFor="postal_address">Adresse postale</label>
+          <input
+            id="postal_address"
+            name="postal_address"
+            type="text"
+            value={form.postal_address}
+            onChange={handleChange}
+          />
+        </div>
+        <div>
+          <label htmlFor="birth_date">Date de naissance</label>
+          <input id="birth_date" name="birth_date" type="date" value={form.birth_date} onChange={handleChange} />
         </div>
         {localError && <p>{localError}</p>}
         {successMessage && <p>{successMessage}</p>}

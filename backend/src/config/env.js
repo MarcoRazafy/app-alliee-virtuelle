@@ -6,4 +6,6 @@ module.exports = {
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiry: process.env.JWT_EXPIRY || '7d',
+  mistralApiKey: process.env.MISTRAL_API_KEY,
+  mistralModel: process.env.MISTRAL_MODEL || 'mistral-medium',
 };

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import DragDropTasks from '../components/DragDropTasks';
 import { notifySuccess, notifyError } from '../utils/toast';
+import useAuthStore from '../store/authStore';
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -15,27 +16,31 @@ function MyDay() {
   const [available, setAvailable] = useState([]);
   const [selected, setSelected] = useState([]);
   const [validated, setValidated] = useState(false);
+  const setDayValidated = useAuthStore((state) => state.setDayValidated);
 
   useEffect(() => {
     async function load() {
       try {
-        const [validatedTasks, myDay] = await Promise.all([
-          taskService.getTasks({ status: 'VALIDEE' }),
-          taskService.getMyDay(),
-        ]);
+        const [allTasks, myDay] = await Promise.all([taskService.getTasks(), taskService.getMyDay()]);
+
+        // Une tâche pas encore terminée (VALIDEE ou EN_COURS) reste sélectionnable pour aujourd'hui
+        const selectableTasks = allTasks.filter((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
 
         const selectedIds = new Set(myDay.map((item) => item.task_id));
         setSelected(
           myDay.map((item) => ({ id: item.task_id, title: item.task_data.title, priority: item.task_data.priority }))
         );
-        setAvailable(validatedTasks.filter((task) => !selectedIds.has(task.id)));
-        setValidated(myDay.length > 0 && myDay.every((item) => item.validated_at));
+        setAvailable(selectableTasks.filter((task) => !selectedIds.has(task.id)));
+
+        const isValidated = myDay.length > 0 && myDay.every((item) => item.validated_at);
+        setValidated(isValidated);
+        setDayValidated(isValidated || selectableTasks.length === 0);
       } catch (err) {
         notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
       }
     }
     load();
-  }, []);
+  }, [setDayValidated]);
 
   function handleUpdate({ available: newAvailable, selected: newSelected }) {
     setAvailable(newAvailable);
@@ -51,6 +56,7 @@ function MyDay() {
       await taskService.setMyDay(selected.map((task) => task.id));
       await taskService.validateMyDay();
       setValidated(true);
+      setDayValidated(true);
       notifySuccess('Votre journée est validée');
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de valider la journée');
@@ -59,11 +65,18 @@ function MyDay() {
 
   return (
     <div>
-      <p>
-        <Link to="/dashboard">Retour au tableau de bord</Link>
-      </p>
+      {validated && (
+        <p>
+          <Link to="/dashboard">Retour au tableau de bord</Link>
+        </p>
+      )}
       <h1>Ma journée — {today}</h1>
       {validated && <p style={{ color: 'green' }}>Votre journée est validée</p>}
+      {!validated && (
+        <p style={{ color: 'gray' }}>
+          Glissez au moins une tâche vers "Mes tâches aujourd'hui" et validez pour accéder au reste de l'application.
+        </p>
+      )}
 
       <DragDropTasks availableTasks={available} selectedTasks={selected} onUpdate={handleUpdate} validated={validated} />
 
