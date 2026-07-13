@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>L'Alliée Virtuelle</title>
+    <!-- Applique le thème avant le premier rendu pour éviter un flash de la mauvaise couleur -->
+    <script>
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+            ? 'light'
+            : 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html[data-theme='dark'] body { background: #07162d; }
+      html[data-theme='light'] body { background: #f4f7fc; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
