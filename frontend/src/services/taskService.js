@@ -8,8 +8,20 @@ export function getTask(id) {
   return api.get(`/api/tasks/${id}`).then((res) => res.data);
 }
 
+export function getTaskDetail(id) {
+  return api.get(`/api/tasks/${id}/detail`).then((res) => res.data);
+}
+
+export function getSubtasks(id) {
+  return api.get(`/api/tasks/${id}/subtasks`).then((res) => res.data);
+}
+
 export function createTask(payload) {
   return api.post('/api/tasks', payload).then((res) => res.data);
+}
+
+export function validateTask(id) {
+  return api.post(`/api/tasks/${id}/validate`).then((res) => res.data);
 }
 
 export function confirmTask(id) {

@@ -3,7 +3,7 @@ const env = require('../config/env');
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, username: user.username, role: user.role },
     env.jwtSecret,
     { expiresIn: env.jwtExpiry }
   );

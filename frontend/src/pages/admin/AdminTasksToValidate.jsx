@@ -28,7 +28,7 @@ function matchesDeadlineRange(deadline, range) {
 function AdminTasksToValidate() {
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('TERMINEE');
+  const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [employeeFilter, setEmployeeFilter] = useState('');
   const [deadlineFilter, setDeadlineFilter] = useState('');
@@ -78,6 +78,16 @@ function AdminTasksToValidate() {
 
   function toggleSelect(id) {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  async function handleValidateOne(id) {
+    try {
+      await taskService.validateTask(id);
+      notifySuccess('Tâche validée : elle est maintenant visible par l\'employé');
+      await load();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de valider la tâche');
+    }
   }
 
   async function handleConfirmOne(id) {
@@ -214,6 +224,9 @@ function AdminTasksToValidate() {
                 <button onClick={() => setDetailTaskId(task.id)}>{task.title}</button> —{' '}
                 {employeeName(task.assigned_to)} — {task.priority} — {task.status} — deadline {task.deadline}
                 <div>
+                  <button onClick={() => handleValidateOne(task.id)} disabled={task.status !== 'DECLAREE'}>
+                    Valider
+                  </button>
                   <button onClick={() => handleConfirmOne(task.id)} disabled={task.status !== 'TERMINEE'}>
                     Confirmer
                   </button>

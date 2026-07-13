@@ -5,9 +5,11 @@ import useAuthStore from '../../store/authStore';
 
 const NAV_ITEMS = [
   { to: '/admin', label: 'Suivi en temps réel' },
+  { to: '/admin/lists', label: 'Listes' },
   { to: '/admin/validate', label: 'Tâches à valider', badgeKey: 'toValidate' },
   { to: '/admin/late', label: 'Tâches en retard', badgeKey: 'late' },
   { to: '/admin/stats', label: 'Statistiques' },
+  { to: '/admin/assistant', label: 'Assistant IA' },
   { to: '/admin/users', label: 'Utilisateurs' },
   { to: '/admin/messaging', label: 'Messagerie' },
   { to: '/admin/resources', label: 'Ressources' },
@@ -21,9 +23,12 @@ function AdminLayout({ children }) {
 
   useEffect(() => {
     function loadBadges() {
-      taskService.getTasks({ status: 'TERMINEE' }).then((tasks) => {
-        setBadges((prev) => ({ ...prev, toValidate: tasks.length }));
-      });
+      // "À valider" regroupe les tâches Déclarée (à valider par l'admin) et Terminée (à confirmer)
+      Promise.all([taskService.getTasks({ status: 'DECLAREE' }), taskService.getTasks({ status: 'TERMINEE' })]).then(
+        ([declared, done]) => {
+          setBadges((prev) => ({ ...prev, toValidate: declared.length + done.length }));
+        }
+      );
       taskService.getLateTasks().then((tasks) => {
         setBadges((prev) => ({ ...prev, late: tasks.length }));
       });

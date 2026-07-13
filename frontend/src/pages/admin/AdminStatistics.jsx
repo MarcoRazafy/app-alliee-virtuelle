@@ -13,6 +13,11 @@ function computeRange(preset) {
   const from = new Date();
   if (preset === 'week') from.setDate(from.getDate() - 6);
   if (preset === 'month') from.setDate(from.getDate() - 29);
+  if (preset === 'year') {
+    from.setMonth(0);
+    from.setDate(1);
+  }
+  // 'day' : from et to restent tous les deux égaux à aujourd'hui
   return { from: toDateString(from), to: toDateString(to) };
 }
 
@@ -119,10 +124,16 @@ function AdminStatistics() {
 
       <div>
         <label>
+          <input type="radio" checked={preset === 'day'} onChange={() => setPreset('day')} /> Aujourd'hui
+        </label>
+        <label>
           <input type="radio" checked={preset === 'week'} onChange={() => setPreset('week')} /> Semaine
         </label>
         <label>
           <input type="radio" checked={preset === 'month'} onChange={() => setPreset('month')} /> Mois
+        </label>
+        <label>
+          <input type="radio" checked={preset === 'year'} onChange={() => setPreset('year')} /> Année
         </label>
         <label>
           <input type="radio" checked={preset === 'custom'} onChange={() => setPreset('custom')} /> Personnalisé

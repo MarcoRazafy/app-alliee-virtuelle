@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const resourceModel = require('../models/resource.model');
 const taskModel = require('../models/task.model');
+const userModel = require('../models/user.model');
 
 const FOLDER_TYPES = ['INTERNE', 'CLIENT'];
 const PERMISSION_TYPES = ['LECTURE_SEULE', 'LECTURE_ECRITURE'];
@@ -53,6 +54,14 @@ async function createFolder(req, res, next) {
       createdBy: req.user.id,
     });
 
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'CREATE_RESOURCE_FOLDER',
+      entityType: 'resources_folder',
+      entityId: folder.id,
+      details: { name, type, parent_folder_id: parentFolderId || null },
+    });
+
     res.status(201).json(folder);
   } catch (err) {
     next(err);
@@ -74,6 +83,15 @@ async function renameFolder(req, res, next) {
     }
 
     const updated = await resourceModel.renameFolder(id, name);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'RENAME_RESOURCE_FOLDER',
+      entityType: 'resources_folder',
+      entityId: id,
+      details: { old_name: folder.name, new_name: name },
+    });
+
     res.status(200).json(updated);
   } catch (err) {
     next(err);
@@ -98,6 +116,15 @@ async function deleteFolder(req, res, next) {
     }
 
     await resourceModel.deleteFolder(id);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'DELETE_RESOURCE_FOLDER',
+      entityType: 'resources_folder',
+      entityId: id,
+      details: { name: folder.name, type: folder.type },
+    });
+
     res.status(200).json({ deleted: true });
   } catch (err) {
     next(err);
@@ -127,6 +154,14 @@ async function createFile(req, res, next) {
       createdBy: req.user.id,
     });
 
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'CREATE_RESOURCE_FILE',
+      entityType: 'resources_file',
+      entityId: file.id,
+      details: { file_name: fileName, folder_id: id },
+    });
+
     res.status(201).json(file);
   } catch (err) {
     next(err);
@@ -143,6 +178,15 @@ async function deleteFile(req, res, next) {
     }
 
     await resourceModel.deleteFile(id);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'DELETE_RESOURCE_FILE',
+      entityType: 'resources_file',
+      entityId: id,
+      details: { file_name: file.file_name, folder_id: file.folder_id },
+    });
+
     res.status(200).json({ deleted: true });
   } catch (err) {
     next(err);
@@ -164,6 +208,12 @@ async function shareFolder(req, res, next) {
     const folder = await resourceModel.findFolderById(id);
     if (!folder) {
       return res.status(404).json({ error: 'Dossier introuvable' });
+    }
+
+    const existingIds = await userModel.findExistingIds(userIds);
+    const missingIds = userIds.filter((userId) => !existingIds.includes(userId));
+    if (missingIds.length > 0) {
+      return res.status(400).json({ error: `Utilisateur(s) introuvable(s) : ${missingIds.join(', ')}` });
     }
 
     const shares = await db.withTransaction(async (client) => {

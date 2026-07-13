@@ -23,6 +23,9 @@ router.get('/my-day', taskController.getMyDay);
 router.post('/my-day', taskController.setMyDay);
 router.post('/my-day/validate', taskController.validateMyDay);
 
+router.get('/tasks/:id/detail', taskController.getTaskDetail);
+router.get('/tasks/:id/subtasks', taskController.getSubtasks);
+
 router.get('/tasks/:id/comments', taskController.getComments);
 router.post('/tasks/:id/comments', taskController.createComment);
 
@@ -33,6 +36,7 @@ router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 
 // Admin
 router.post('/tasks', authMiddleware.requireRole('ADMIN'), taskController.createTask);
+router.post('/tasks/:id/validate', authMiddleware.requireRole('ADMIN'), taskController.validateTask);
 router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskController.confirmTask);
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);
 router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.getNotes);
