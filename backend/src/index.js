@@ -10,6 +10,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const statsRoutes = require('./routes/stats');
 const auditLogRoutes = require('./routes/auditLog');
 const aiRoutes = require('./routes/ai');
+const hierarchyRoutes = require('./routes/hierarchy');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api', dashboardRoutes);
 app.use('/api', statsRoutes);
 app.use('/api', auditLogRoutes);
 app.use('/api', aiRoutes);
+app.use('/api', hierarchyRoutes);
 
 app.use(errorHandler);
 

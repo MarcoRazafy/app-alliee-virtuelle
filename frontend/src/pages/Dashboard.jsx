@@ -48,6 +48,7 @@ function Dashboard() {
             <Link to="/my-day">Ma journée</Link>
             <Link to="/tasks">Mes tâches</Link>
             <Link to="/messaging">Messagerie</Link>
+            <Link to="/stats">Mes statistiques</Link>
             <Link to="/profile">Mon profil</Link>
             <Link to="/resources">Ressources</Link>
           </div>

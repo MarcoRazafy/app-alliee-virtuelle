@@ -23,6 +23,9 @@ router.get('/my-day', taskController.getMyDay);
 router.post('/my-day', taskController.setMyDay);
 router.post('/my-day/validate', taskController.validateMyDay);
 
+router.get('/tasks/:id/detail', taskController.getTaskDetail);
+router.get('/tasks/:id/subtasks', taskController.getSubtasks);
+
 router.get('/tasks/:id/comments', taskController.getComments);
 router.post('/tasks/:id/comments', taskController.createComment);
 

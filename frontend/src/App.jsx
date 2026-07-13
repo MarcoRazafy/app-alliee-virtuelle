@@ -7,12 +7,14 @@ import Workspace from './pages/Workspace';
 import MyTasks from './pages/MyTasks';
 import TaskDetail from './pages/TaskDetail';
 import MyDay from './pages/MyDay';
+import MyStats from './pages/MyStats';
 import Messaging from './pages/Messaging';
 import Profile from './pages/Profile';
 import Resources from './pages/Resources';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminCreateTask from './pages/admin/AdminCreateTask';
+import AdminListView from './pages/admin/AdminListView';
 import AdminTasksToValidate from './pages/admin/AdminTasksToValidate';
 import AdminLateTasks from './pages/admin/AdminLateTasks';
 import AdminStatistics from './pages/admin/AdminStatistics';
@@ -102,9 +104,18 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/stats"
+          element={
+            <ProtectedRoute>
+              <MyStats />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/create-task" element={<AdminRoute><AdminCreateTask /></AdminRoute>} />
+        <Route path="/admin/lists" element={<AdminRoute><AdminListView /></AdminRoute>} />
         <Route path="/admin/validate" element={<AdminRoute><AdminTasksToValidate /></AdminRoute>} />
         <Route path="/admin/late" element={<AdminRoute><AdminLateTasks /></AdminRoute>} />
         <Route path="/admin/stats" element={<AdminRoute><AdminStatistics /></AdminRoute>} />

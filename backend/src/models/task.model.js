@@ -10,7 +10,7 @@ const TASK_STATUS = {
 };
 
 // DECLAREE n'est pas encore visible à l'employé (DECISIONS.md)
-async function findAssignedTasks(userId, { status, priority, deadline } = {}) {
+async function findAssignedTasks(userId, { status, priority, deadline, listId } = {}) {
   const conditions = ['assigned_to = $1', "status != 'DECLAREE'"];
   const params = [userId];
 
@@ -26,9 +26,13 @@ async function findAssignedTasks(userId, { status, priority, deadline } = {}) {
     params.push(deadline);
     conditions.push(`deadline = $${params.length}`);
   }
+  if (listId) {
+    params.push(listId);
+    conditions.push(`list_id = $${params.length}`);
+  }
 
   const result = await db.query(
-    `SELECT id, title, description, priority, status, deadline
+    `SELECT id, title, description, priority, status, deadline, list_id, parent_task_id, client_name, client_email
      FROM tasks
      WHERE ${conditions.join(' AND ')}
      ORDER BY deadline ASC`,
@@ -38,30 +42,36 @@ async function findAssignedTasks(userId, { status, priority, deadline } = {}) {
 }
 
 // Vue admin : toutes les tâches, tous employés confondus (nécessaire pour confirm/reject)
-async function findAllTasks({ status, priority, deadline } = {}) {
+async function findAllTasks({ status, priority, deadline, listId } = {}) {
   const conditions = [];
   const params = [];
 
   if (status) {
     params.push(status);
-    conditions.push(`status = $${params.length}`);
+    conditions.push(`t.status = $${params.length}`);
   }
   if (priority) {
     params.push(priority);
-    conditions.push(`priority = $${params.length}`);
+    conditions.push(`t.priority = $${params.length}`);
   }
   if (deadline) {
     params.push(deadline);
-    conditions.push(`deadline = $${params.length}`);
+    conditions.push(`t.deadline = $${params.length}`);
+  }
+  if (listId) {
+    params.push(listId);
+    conditions.push(`t.list_id = $${params.length}`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await db.query(
-    `SELECT id, title, description, priority, status, deadline, assigned_to
-     FROM tasks
+    `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.assigned_to, t.list_id,
+            t.parent_task_id, t.client_name, t.client_email, u.full_name AS assigned_to_name
+     FROM tasks t
+     JOIN users u ON u.id = t.assigned_to
      ${where}
-     ORDER BY deadline ASC`,
+     ORDER BY t.deadline ASC`,
     params
   );
   return result.rows;
@@ -69,21 +79,108 @@ async function findAllTasks({ status, priority, deadline } = {}) {
 
 async function findById(taskId) {
   const result = await db.query(
-    `SELECT id, title, description, assigned_to, created_by, priority, status, start_date, deadline
+    `SELECT id, title, description, assigned_to, created_by, priority, status, start_date, deadline,
+            list_id, parent_task_id, client_name, client_email
      FROM tasks WHERE id = $1`,
     [taskId]
   );
   return result.rows[0] || null;
 }
 
-async function create({ title, description, assignedTo, createdBy, priority, deadline, startDate }) {
+async function create({
+  title,
+  description,
+  assignedTo,
+  createdBy,
+  priority,
+  deadline,
+  startDate,
+  listId,
+  parentTaskId,
+  clientName,
+  clientEmail,
+}) {
   const result = await db.query(
-    `INSERT INTO tasks (title, description, assigned_to, created_by, priority, deadline, start_date, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO tasks (
+       title, description, assigned_to, created_by, priority, deadline, start_date, status,
+       list_id, parent_task_id, client_name, client_email
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING id, status`,
-    [title, description, assignedTo, createdBy, priority, deadline, startDate || null, TASK_STATUS.DECLARED]
+    [
+      title,
+      description,
+      assignedTo,
+      createdBy,
+      priority,
+      deadline,
+      startDate || null,
+      TASK_STATUS.DECLARED,
+      listId || null,
+      parentTaskId || null,
+      clientName || null,
+      clientEmail || null,
+    ]
   );
   return result.rows[0];
+}
+
+// Sous-tâches d'une tâche parente
+async function findSubtasks(parentTaskId) {
+  const result = await db.query(
+    `SELECT id, title, priority, status, deadline
+     FROM tasks WHERE parent_task_id = $1 ORDER BY created_at ASC`,
+    [parentTaskId]
+  );
+  return result.rows;
+}
+
+// Vue détail "ClickUp" : tâche + fil d'Ariane (space/folder/list) + sous-tâches + temps total
+async function getTaskDetail(taskId) {
+  const taskResult = await db.query(
+    `SELECT t.id, t.title, t.description, t.assigned_to, t.created_by, t.priority, t.status,
+            t.start_date, t.deadline, t.list_id, t.parent_task_id, t.client_name, t.client_email,
+            u.full_name AS assigned_to_name,
+            tl.id AS list_id_ref, tl.name AS list_name,
+            tf.id AS folder_id, tf.name AS folder_name,
+            ts.id AS space_id, ts.name AS space_name
+     FROM tasks t
+     JOIN users u ON u.id = t.assigned_to
+     LEFT JOIN task_lists tl ON tl.id = t.list_id
+     LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+     LEFT JOIN task_spaces ts ON ts.id = tf.space_id
+     WHERE t.id = $1`,
+    [taskId]
+  );
+
+  const task = taskResult.rows[0];
+  if (!task) return null;
+
+  const [subtasks, timeResult] = await Promise.all([
+    findSubtasks(taskId),
+    db.query('SELECT COALESCE(SUM(duration_seconds), 0)::BIGINT AS total_seconds FROM timelog WHERE task_id = $1', [
+      taskId,
+    ]),
+  ]);
+
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    assigned_to: task.assigned_to,
+    assigned_to_name: task.assigned_to_name,
+    priority: task.priority,
+    status: task.status,
+    start_date: task.start_date,
+    deadline: task.deadline,
+    client_name: task.client_name,
+    client_email: task.client_email,
+    breadcrumb: task.space_id
+      ? { space: { id: task.space_id, name: task.space_name }, folder: { id: task.folder_id, name: task.folder_name }, list: { id: task.list_id_ref, name: task.list_name } }
+      : null,
+    subtasks,
+    total_duration_seconds: Number(timeResult.rows[0].total_seconds),
+  };
 }
 
 async function updateStatus(taskId, status, client = db) {
@@ -175,11 +272,12 @@ async function findDailySelection(userId, date) {
 }
 
 async function validateDailySelection(userId, date) {
-  await db.query(
+  const result = await db.query(
     `UPDATE user_daily_selection SET validated_at = now()
      WHERE user_id = $1 AND date = $2`,
     [userId, date]
   );
+  return result.rowCount;
 }
 
 // Remplace la sélection du jour par la liste ordonnée reçue (drag-drop côté front)
@@ -187,13 +285,19 @@ async function replaceDailySelection(userId, date, taskIds) {
   return db.withTransaction(async (client) => {
     await client.query('DELETE FROM user_daily_selection WHERE user_id = $1 AND date = $2', [userId, date]);
 
-    for (let i = 0; i < taskIds.length; i += 1) {
-      await client.query(
-        `INSERT INTO user_daily_selection (user_id, task_id, selected_order, date)
-         VALUES ($1, $2, $3, $4)`,
-        [userId, taskIds[i], i + 1, date]
-      );
-    }
+    if (taskIds.length === 0) return;
+
+    const params = [];
+    const placeholders = taskIds.map((taskId, i) => {
+      params.push(userId, taskId, i + 1, date);
+      const offset = i * 4;
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
+    });
+
+    await client.query(
+      `INSERT INTO user_daily_selection (user_id, task_id, selected_order, date) VALUES ${placeholders.join(', ')}`,
+      params
+    );
   });
 }
 
@@ -337,43 +441,65 @@ async function computeRealtimeDashboard() {
       (SELECT COUNT(*) FROM tasks WHERE deadline < CURRENT_DATE AND status != 'CONFIRMEE')::INTEGER AS tasks_late
   `);
 
-  const employees = await Promise.all(
-    employeesResult.rows.map(async (employee) => {
-      const todoResult = await db.query(
-        `SELECT id, title, priority FROM tasks WHERE assigned_to = $1 AND status = 'VALIDEE' ORDER BY deadline ASC`,
-        [employee.id]
-      );
+  // 3 requêtes groupées sur tous les employés plutôt que 3 requêtes par employé (N+1)
+  const employeeIds = employeesResult.rows.map((employee) => employee.id);
 
-      const inProgressResult = await db.query(
-        `SELECT t.id, t.title, t.priority, tl.start_time AS session_start_time
-         FROM tasks t
-         JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
-         WHERE t.assigned_to = $1 AND t.status = 'EN_COURS'`,
-        [employee.id]
-      );
+  const [todoResult, inProgressResult, doneResult] = await Promise.all([
+    db.query(
+      `SELECT id, assigned_to, title, priority FROM tasks
+       WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE' ORDER BY deadline ASC`,
+      [employeeIds]
+    ),
+    db.query(
+      `SELECT t.id, t.assigned_to, t.title, t.priority, tl.start_time AS session_start_time
+       FROM tasks t
+       JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
+       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status = 'EN_COURS'`,
+      [employeeIds]
+    ),
+    db.query(
+      `SELECT t.id, t.assigned_to, t.title,
+              COALESCE((SELECT SUM(duration_seconds) FROM timelog WHERE task_id = t.id), 0)::BIGINT AS total_duration_seconds
+       FROM tasks t
+       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')`,
+      [employeeIds]
+    ),
+  ]);
 
-      const doneResult = await db.query(
-        `SELECT t.id, t.title,
-                COALESCE((SELECT SUM(duration_seconds) FROM timelog WHERE task_id = t.id), 0)::BIGINT AS total_duration_seconds
-         FROM tasks t
-         WHERE t.assigned_to = $1 AND t.status IN ('TERMINEE', 'CONFIRMEE')`,
-        [employee.id]
-      );
+  function groupByAssignee(rows) {
+    const map = new Map();
+    rows.forEach((row) => {
+      if (!map.has(row.assigned_to)) map.set(row.assigned_to, []);
+      map.get(row.assigned_to).push(row);
+    });
+    return map;
+  }
 
-      return {
-        id: employee.id,
-        full_name: employee.full_name,
-        position: employee.position,
-        todo: todoResult.rows,
-        in_progress: inProgressResult.rows,
-        done: doneResult.rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          total_duration_seconds: Number(row.total_duration_seconds),
-        })),
-      };
-    })
-  );
+  const todoByEmployee = groupByAssignee(todoResult.rows);
+  const inProgressByEmployee = groupByAssignee(inProgressResult.rows);
+  const doneByEmployee = groupByAssignee(doneResult.rows);
+
+  const employees = employeesResult.rows.map((employee) => ({
+    id: employee.id,
+    full_name: employee.full_name,
+    position: employee.position,
+    todo: (todoByEmployee.get(employee.id) || []).map((row) => ({
+      id: row.id,
+      title: row.title,
+      priority: row.priority,
+    })),
+    in_progress: (inProgressByEmployee.get(employee.id) || []).map((row) => ({
+      id: row.id,
+      title: row.title,
+      priority: row.priority,
+      session_start_time: row.session_start_time,
+    })),
+    done: (doneByEmployee.get(employee.id) || []).map((row) => ({
+      id: row.id,
+      title: row.title,
+      total_duration_seconds: Number(row.total_duration_seconds),
+    })),
+  }));
 
   const stats = statsResult.rows[0];
 
@@ -421,6 +547,8 @@ module.exports = {
   findAllTasks,
   findById,
   create,
+  findSubtasks,
+  getTaskDetail,
   updateStatus,
   recordHistory,
   recordAudit,
