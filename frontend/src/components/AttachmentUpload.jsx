@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import * as taskService from '../services/taskService';
 import { formatBytes, formatDateTime } from '../utils/formatters';
 import { notifySuccess, notifyError } from '../utils/toast';
+import { IconFileText, IconDownload, IconTrash, IconPaperclip } from './icons';
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
@@ -72,22 +73,49 @@ function AttachmentUpload({ taskId, canUpload }) {
   return (
     <div>
       {canUpload && (
-        <div>
-          <input type="file" onChange={handleFileChange} disabled={uploading} />
-          {uploading && <span> Envoi en cours...</span>}
+        <div className="upload-zone">
+          <label className="upload-btn">
+            <IconPaperclip />
+            {uploading ? 'Envoi en cours...' : 'Ajouter un fichier'}
+            <input type="file" onChange={handleFileChange} disabled={uploading} />
+          </label>
         </div>
       )}
 
-      {attachments.length === 0 && <p>Aucune pièce jointe pour le moment.</p>}
-      <ul>
-        {attachments.map((attachment) => (
-          <li key={attachment.id}>
-            {attachment.file_name} — {formatBytes(attachment.file_size)} — {formatDateTime(attachment.created_at)}
-            <button onClick={() => handleDownload(attachment)}>Télécharger</button>
-            {canUpload && <button onClick={() => handleDelete(attachment)}>Supprimer</button>}
-          </li>
-        ))}
-      </ul>
+      {attachments.length === 0 && <div className="empty-state">Aucune pièce jointe pour le moment.</div>}
+      {attachments.map((attachment) => (
+        <div key={attachment.id} className="attachment-row">
+          <span className="attachment-icon">
+            <IconFileText />
+          </span>
+          <div className="attachment-info">
+            <div className="attachment-name">{attachment.file_name}</div>
+            <div className="attachment-meta">
+              {formatBytes(attachment.file_size)} · {formatDateTime(attachment.created_at)}
+            </div>
+          </div>
+          <div className="attachment-actions">
+            <button
+              className="icon-link-btn"
+              onClick={() => handleDownload(attachment)}
+              aria-label="Télécharger"
+              title="Télécharger"
+            >
+              <IconDownload />
+            </button>
+            {canUpload && (
+              <button
+                className="icon-link-btn"
+                onClick={() => handleDelete(attachment)}
+                aria-label="Supprimer"
+                title="Supprimer"
+              >
+                <IconTrash />
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
