@@ -81,17 +81,20 @@ async function deleteFile(id) {
 }
 
 async function createShares({ folderId, userIds, permissionType, expiresAt, sharedBy }, client = db) {
-  const rows = [];
-  for (const userId of userIds) {
-    const result = await client.query(
-      `INSERT INTO resources_shares (folder_id, shared_with_user_id, permission_type, shared_by_user_id, expires_at)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, shared_with_user_id, permission_type, expires_at`,
-      [folderId, userId, permissionType, sharedBy, expiresAt || null]
-    );
-    rows.push(result.rows[0]);
-  }
-  return rows;
+  const params = [];
+  const placeholders = userIds.map((userId, i) => {
+    params.push(folderId, userId, permissionType, sharedBy, expiresAt || null);
+    const offset = i * 5;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5})`;
+  });
+
+  const result = await client.query(
+    `INSERT INTO resources_shares (folder_id, shared_with_user_id, permission_type, shared_by_user_id, expires_at)
+     VALUES ${placeholders.join(', ')}
+     RETURNING id, shared_with_user_id, permission_type, expires_at`,
+    params
+  );
+  return result.rows;
 }
 
 async function findSharesForFolder(folderId) {

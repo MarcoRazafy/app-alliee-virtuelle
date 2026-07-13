@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
 function Login() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const login = useAuthStore((state) => state.login);
   const error = useAuthStore((state) => state.error);
@@ -11,7 +11,7 @@ function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const success = await login(email, password);
+    const success = await login(identifier, password);
     if (success) {
       navigate('/dashboard');
     }
@@ -22,12 +22,12 @@ function Login() {
       <h1>Connexion</h1>
       <form onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="email">Email</label>
+          <label htmlFor="identifier">Email ou nom d'utilisateur</label>
           <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="identifier"
+            type="text"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             required
           />
         </div>

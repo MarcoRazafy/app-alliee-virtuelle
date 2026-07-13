@@ -17,10 +17,10 @@ const useAuthStore = create((set, get) => ({
   // null = pas encore vérifié (ex: rechargement de page), true/false = état connu
   dayValidated: null,
 
-  login: async (email, password) => {
+  login: async (identifier, password) => {
     set({ error: null });
     try {
-      const response = await api.post('/api/auth/login', { email, password });
+      const response = await api.post('/api/auth/login', { identifier, password });
       const { token, user } = response.data;
       authService.setToken(token);
       authService.setUser(user);
@@ -54,6 +54,18 @@ const useAuthStore = create((set, get) => ({
       return { success: true };
     } catch (err) {
       return { success: false, message: extractErrorMessage(err, 'Impossible de changer le mot de passe.') };
+    }
+  },
+
+  updateProfile: async (payload) => {
+    try {
+      const response = await api.put('/api/auth/me', payload);
+      const updatedUser = { ...get().user, ...response.data };
+      authService.setUser(updatedUser);
+      set({ user: updatedUser });
+      return { success: true, user: response.data };
+    } catch (err) {
+      return { success: false, message: extractErrorMessage(err, 'Impossible de mettre à jour le profil.') };
     }
   },
 

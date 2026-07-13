@@ -5,6 +5,7 @@ import useAuthStore from '../../store/authStore';
 
 const NAV_ITEMS = [
   { to: '/admin', label: 'Suivi en temps réel' },
+  { to: '/admin/lists', label: 'Listes' },
   { to: '/admin/validate', label: 'Tâches à valider', badgeKey: 'toValidate' },
   { to: '/admin/late', label: 'Tâches en retard', badgeKey: 'late' },
   { to: '/admin/stats', label: 'Statistiques' },
