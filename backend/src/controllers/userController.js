@@ -1,12 +1,35 @@
 const db = require('../config/database');
 const userModel = require('../models/user.model');
 const taskModel = require('../models/task.model');
+const avatarModel = require('../models/avatar.model');
 
 // Annuaire minimal, ouvert à tout utilisateur connecté (nécessaire pour démarrer une conversation)
 async function listDirectory(req, res, next) {
   try {
     const users = await userModel.findActiveExcept(req.user.id);
     res.status(200).json(users);
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+async function getUserAvatar(req, res, next) {
+  try {
+    const { id } = req.params;
+    const user = await userModel.findById(id);
+
+    // L'annuaire de messagerie n'expose que les membres actifs de l'équipe.
+    if (!user || user.status !== userModel.USER_STATUS.ACTIVE) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
+    }
+
+    const avatar = await avatarModel.findByUserId(id);
+    if (!avatar) {
+      return res.status(404).json({ error: 'Aucune photo de profil' });
+    }
+
+    res.sendFile(avatar.file_path);
   } catch (err) {
     next(err);
   }
@@ -207,6 +230,7 @@ async function getUserDetail(req, res, next) {
 
 module.exports = {
   listDirectory,
+  getUserAvatar,
   listUsers,
   listPending,
   approveUser,
