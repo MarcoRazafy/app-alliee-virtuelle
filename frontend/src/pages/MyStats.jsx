@@ -113,6 +113,15 @@ function Icon({ type }) {
     );
   }
 
+  if (type === 'login') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M15 8l4 4-4 4M9 12h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
   if (type === 'refresh') {
     return (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -421,6 +430,14 @@ function MyStats() {
                 value={formatDurationShort(summary.total_hours_worked_seconds || 0)}
                 helper="Somme des sessions terminées"
                 variant="time"
+              />
+
+              <StatCard
+                icon="login"
+                label="Temps de connexion"
+                value={formatDurationShort(summary.total_connected_seconds || 0)}
+                helper="Indépendant du temps travaillé sur les tâches"
+                variant="connection"
               />
             </div>
 

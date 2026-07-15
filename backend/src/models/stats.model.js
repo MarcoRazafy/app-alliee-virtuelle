@@ -138,6 +138,14 @@ async function computeEmployeeStats(employeeId, from, to) {
     [employeeId, from, to]
   );
 
+  // Chrono de connexion (présence), indépendant du chrono de tâche ci-dessus : même
+  // simplification que timeResult (filtre sur la date de début de la session).
+  const connectedResult = await db.query(
+    `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(logout_at, now()) - login_at))), 0)::BIGINT AS total_seconds
+     FROM user_sessions WHERE user_id = $1 AND login_at::date BETWEEN $2 AND $3`,
+    [employeeId, from, to]
+  );
+
   const tasksConfirmed = summaryResult.rows[0].tasks_confirmed;
   const totalTasks = summaryResult.rows[0].total_tasks;
   const totalSeconds = Number(timeResult.rows[0].total_seconds);
@@ -148,6 +156,7 @@ async function computeEmployeeStats(employeeId, from, to) {
     completion_rate: computeCompletionRate(tasksConfirmed, totalTasks),
     average_time_per_task_seconds: tasksWithTime > 0 ? Math.round(totalSeconds / tasksWithTime) : 0,
     total_hours_worked_seconds: totalSeconds,
+    total_connected_seconds: Number(connectedResult.rows[0].total_seconds),
   };
 
   const confirmedByDayResult = await db.query(

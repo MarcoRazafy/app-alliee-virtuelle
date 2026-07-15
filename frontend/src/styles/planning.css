@@ -267,6 +267,11 @@
   font-weight: 700;
 }
 
+.planning-total-hours--connection {
+  margin-top: 4px;
+  color: var(--color-accent-lighter);
+}
+
 .planning-actions {
   display: flex;
   gap: 12px;

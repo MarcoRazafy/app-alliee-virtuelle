@@ -99,7 +99,21 @@ function SlotBlock({ day, slot, slotIndex, canEdit, drag, onHandlePointerDown, o
   );
 }
 
-function WeekCalendarGrid({ days, canEdit, onStatusChange, onSlotsChange, onCopyTo, onNoteChange }) {
+function SessionBlock({ segment }) {
+  const startMinutes = timeToMinutes(segment.start_time);
+  const endMinutes = timeToMinutes(segment.end_time);
+  const top = (startMinutes / 60) * ROW_HEIGHT;
+  const height = Math.max(4, ((endMinutes - startMinutes) / 60) * ROW_HEIGHT);
+  return (
+    <div
+      className="cal-session-block"
+      style={{ top: `${top}px`, height: `${height}px` }}
+      title={`Connecté de ${toTimeInputValue(segment.start_time)} à ${toTimeInputValue(segment.end_time === '24:00' ? '23:59' : segment.end_time)}`}
+    />
+  );
+}
+
+function WeekCalendarGrid({ days, canEdit, onStatusChange, onSlotsChange, onCopyTo, onNoteChange, sessionSegmentsByDate }) {
   const [drag, setDrag] = useState(null);
   const columnRefs = useRef({});
 
@@ -270,6 +284,10 @@ function WeekCalendarGrid({ days, canEdit, onStatusChange, onSlotsChange, onCopy
                   <div className="cal-day-empty-hint">Choisissez un statut</div>
                 )}
                 {isBlocked && <div className="cal-day-empty-hint">Indisponible</div>}
+
+                {(sessionSegmentsByDate?.[day.date] || []).map((segment, segmentIndex) => (
+                  <SessionBlock key={segmentIndex} segment={segment} />
+                ))}
 
                 {day.time_slots.map((slot, slotIndex) => (
                   <SlotBlock

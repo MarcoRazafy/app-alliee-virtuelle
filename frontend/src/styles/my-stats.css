@@ -252,7 +252,7 @@
 
 .employee-stats-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
 }
@@ -288,6 +288,9 @@
 .employee-stats-kpi-card--average { color: var(--employee-stats-orange); }
 .employee-stats-kpi-card--time { color: var(--employee-stats-cyan); }
 .employee-stats-kpi-card--completion { color: var(--employee-stats-primary); }
+/* Même couleur que le chrono de connexion flottant (connection-chrono.css), pour garder
+   "bleu = présence/connexion" cohérent partout où cette donnée apparaît. */
+.employee-stats-kpi-card--connection { color: var(--employee-stats-primary); }
 
 .employee-stats-kpi-icon,
 .employee-stats-insights-icon,
@@ -325,13 +328,12 @@
 .employee-stats-kpi-copy strong {
   display: block;
   margin-bottom: 5px;
-  overflow: hidden;
   color: var(--employee-stats-text);
-  font-size: clamp(1.22rem, 2vw, 1.7rem);
+  font-size: clamp(1.05rem, 1.6vw, 1.7rem);
   font-weight: 780;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .employee-stats-kpi-copy span {

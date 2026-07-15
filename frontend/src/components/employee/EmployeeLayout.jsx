@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import ThemeToggle from '../ThemeToggle';
+import ConnectionChrono from './ConnectionChrono';
 import api from '../../services/api';
 import * as messageService from '../../services/messageService';
 import * as avatarService from '../../services/avatarService';
@@ -332,6 +333,8 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
 
         <main className="shell-content">{children}</main>
       </div>
+
+      <ConnectionChrono />
     </div>
   );
 }

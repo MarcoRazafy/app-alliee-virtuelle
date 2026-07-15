@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { closeSessionOnUnload } from './services/sessionService';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -36,6 +38,14 @@ function AdminRoute({ children }) {
 }
 
 function App() {
+  // Chrono de connexion (présence), indépendant du chrono de tâche : ferme la session
+  // ouverte quand l'utilisateur ferme l'onglet/le navigateur (pagehide ne se déclenche
+  // pas sur une navigation interne React Router, seulement au déchargement réel de la page).
+  useEffect(() => {
+    window.addEventListener('pagehide', closeSessionOnUnload);
+    return () => window.removeEventListener('pagehide', closeSessionOnUnload);
+  }, []);
+
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
