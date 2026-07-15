@@ -8,6 +8,7 @@ import MyTasks from './pages/MyTasks';
 import TaskDetail from './pages/TaskDetail';
 import MyDay from './pages/MyDay';
 import MyStats from './pages/MyStats';
+import Planning from './pages/Planning';
 import Messaging from './pages/Messaging';
 import Profile from './pages/Profile';
 import Resources from './pages/Resources';
@@ -18,6 +19,7 @@ import AdminListView from './pages/admin/AdminListView';
 import AdminTasksToValidate from './pages/admin/AdminTasksToValidate';
 import AdminLateTasks from './pages/admin/AdminLateTasks';
 import AdminStatistics from './pages/admin/AdminStatistics';
+import AdminPlanning from './pages/admin/AdminPlanning';
 import AdminAssistant from './pages/admin/AdminAssistant';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminMessaging from './pages/admin/AdminMessaging';
@@ -112,6 +114,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/planning"
+          element={
+            <ProtectedRoute>
+              <Planning />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/create-task" element={<AdminRoute><AdminCreateTask /></AdminRoute>} />
@@ -119,6 +129,7 @@ function App() {
         <Route path="/admin/validate" element={<AdminRoute><AdminTasksToValidate /></AdminRoute>} />
         <Route path="/admin/late" element={<AdminRoute><AdminLateTasks /></AdminRoute>} />
         <Route path="/admin/stats" element={<AdminRoute><AdminStatistics /></AdminRoute>} />
+        <Route path="/admin/planning" element={<AdminRoute><AdminPlanning /></AdminRoute>} />
         <Route path="/admin/assistant" element={<AdminRoute><AdminAssistant /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
         <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />

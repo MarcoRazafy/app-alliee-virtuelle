@@ -118,13 +118,16 @@ async function computeTeamStats(from, to) {
   };
 }
 
-// Mêmes métriques que computeTeamStats mais restreintes à un seul employé (son propre espace stats)
+// Mêmes métriques que computeTeamStats mais restreintes à un seul employé (son propre espace stats).
+// tasks_confirmed/total_tasks sont filtrés sur updated_at (date de confirmation), pas sur deadline :
+// cette page affiche aussi un détail par jour basé sur la date de confirmation (by_day plus bas),
+// les deux doivent compter les mêmes tâches sous peine de se contredire à l'écran.
 async function computeEmployeeStats(employeeId, from, to) {
   const summaryResult = await db.query(
     `SELECT
        COUNT(*) FILTER (WHERE status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
        COUNT(*)::INTEGER AS total_tasks
-     FROM tasks WHERE assigned_to = $1 AND deadline BETWEEN $2 AND $3`,
+     FROM tasks WHERE assigned_to = $1 AND updated_at::date BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 

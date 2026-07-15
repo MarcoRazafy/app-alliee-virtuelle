@@ -267,3 +267,13 @@ export const IconPaperclip = (props) =>
     />,
     props
   );
+
+export const IconCalendarWeek = (props) =>
+  base(
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M7 14h3M7 17h3M14 14h3M14 17h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </>,
+    props
+  );

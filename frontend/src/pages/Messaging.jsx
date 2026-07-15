@@ -6,7 +6,7 @@ import * as messageService from '../services/messageService';
 import * as userService from '../services/userService';
 import * as teamAvatarService from '../services/teamAvatarService';
 import useAuthStore from '../store/authStore';
-import { notifyError, notifySuccess } from '../utils/toast';
+import { notifyError, notifyInfo, notifySuccess } from '../utils/toast';
 import '../styles/messaging.css';
 
 function SendIcon(props) {
@@ -180,6 +180,18 @@ function Messaging() {
 
   const pinStorageKey = user?.id ? `alliee.messaging.pins.${user.id}` : null;
 
+  const previousConversationUnreadRef = useRef(null);
+  const activeChannelRef = useRef(activeChannel);
+  const openConversationRef = useRef(openConversation);
+
+  useEffect(() => {
+    activeChannelRef.current = activeChannel;
+  }, [activeChannel]);
+
+  useEffect(() => {
+    openConversationRef.current = openConversation;
+  }, [openConversation]);
+
   async function loadConversations() {
     try {
       const data = await messageService.getConversations();
@@ -210,7 +222,9 @@ function Messaging() {
 
   useEffect(() => {
     loadGlobalMessages({ goToLastPage: true });
-    loadConversations();
+    loadConversations().then((data) => {
+      previousConversationUnreadRef.current = new Map(data.map((c) => [c.other_user_id, c.unread_count || 0]));
+    });
     userService
       .getUsers()
       .then(setAvailableUsers)
@@ -218,6 +232,71 @@ function Messaging() {
     // Le chargement initial ne doit s'exécuter qu'une fois.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sondage de la liste des conversations pour détecter un nouveau message dans une
+  // conversation qui n'est pas celle actuellement ouverte (celle-ci est rafraîchie
+  // séparément ci-dessous et ne doit pas déclencher de notification redondante).
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollConversations() {
+      const data = await loadConversations();
+      if (cancelled) return;
+
+      const previous = previousConversationUnreadRef.current;
+      if (previous) {
+        data.forEach((conversation) => {
+          const before = previous.get(conversation.other_user_id) || 0;
+          const isOpenConversation =
+            activeChannelRef.current === 'private' &&
+            openConversationRef.current?.other_user_id === conversation.other_user_id;
+          if ((conversation.unread_count || 0) > before && !isOpenConversation) {
+            notifyInfo(`Nouveau message de ${conversation.other_user_name}`);
+          }
+        });
+      }
+      previousConversationUnreadRef.current = new Map(data.map((c) => [c.other_user_id, c.unread_count || 0]));
+    }
+
+    const interval = window.setInterval(pollConversations, 10000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Rafraîchit le salon général en continu pour un rendu "temps réel" (annoncé dans le sous-titre de la page).
+  useEffect(() => {
+    if (activeChannel !== 'global') return undefined;
+
+    const interval = window.setInterval(async () => {
+      try {
+        const data = await messageService.getGlobalMessages();
+        setGlobalMessages((current) => (data.length !== current.length ? data : current));
+      } catch {
+        // Rafraîchissement silencieux : une erreur ponctuelle ne doit pas spammer de toasts.
+      }
+    }, 6000);
+    return () => window.clearInterval(interval);
+  }, [activeChannel]);
+
+  // Rafraîchit la conversation privée ouverte en continu, pour la même raison.
+  useEffect(() => {
+    if (activeChannel !== 'private' || !openConversation) return undefined;
+    const otherUserId = openConversation.other_user_id;
+
+    const interval = window.setInterval(async () => {
+      try {
+        const data = await messageService.getPrivateMessages(otherUserId);
+        setConversationMessages((current) => (data.length !== current.length ? data : current));
+      } catch {
+        // Rafraîchissement silencieux, idem.
+      }
+    }, 6000);
+    return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChannel, openConversation?.other_user_id]);
 
   useEffect(() => {
     if (!pinStorageKey) return;

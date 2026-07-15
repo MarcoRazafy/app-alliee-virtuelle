@@ -128,6 +128,7 @@ async function me(req, res, next) {
       role: user.role,
       status: user.status,
       has_avatar: !!avatar,
+      created_at: user.created_at,
     });
   } catch (err) {
     next(err);
