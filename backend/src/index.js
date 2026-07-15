@@ -12,6 +12,7 @@ const auditLogRoutes = require('./routes/auditLog');
 const aiRoutes = require('./routes/ai');
 const hierarchyRoutes = require('./routes/hierarchy');
 const planningRoutes = require('./routes/planning');
+const sessionRoutes = require('./routes/sessions');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -34,6 +35,7 @@ app.use('/api', auditLogRoutes);
 app.use('/api', aiRoutes);
 app.use('/api', hierarchyRoutes);
 app.use('/api', planningRoutes);
+app.use('/api', sessionRoutes);
 
 app.use(errorHandler);
 

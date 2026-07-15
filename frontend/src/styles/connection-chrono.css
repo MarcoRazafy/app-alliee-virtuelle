@@ -1,0 +1,51 @@
+/* Chrono de connexion flottant : couleurs directement sur les tokens partagés
+   (tokens.css), toujours au-dessus du contenu, jamais lié à la mise en page d'une page. */
+.connection-chrono {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  box-shadow: var(--card-shadow);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+.connection-chrono-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: var(--color-accent-lighter);
+  background: var(--glow-accent);
+}
+
+.connection-chrono-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.connection-chrono-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 620px) {
+  .connection-chrono {
+    right: 12px;
+    bottom: 12px;
+    padding: 8px 12px 8px 10px;
+  }
+}

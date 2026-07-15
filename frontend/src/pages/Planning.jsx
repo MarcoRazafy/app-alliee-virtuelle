@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import WeekCalendarGrid from '../components/employee/WeekCalendarGrid';
 import * as planningService from '../services/planningService';
+import * as sessionService from '../services/sessionService';
 import { notifyError, notifySuccess } from '../utils/toast';
+import { formatDurationShort } from '../utils/formatters';
 import { IconAlert, IconCheckCircle, IconCalendarWeek } from '../components/icons';
 import {
   EMPLOYEE_STATUS_OPTIONS,
@@ -16,6 +18,7 @@ import {
   computeTotalHours,
   slotsOverlap,
   generateWeekOptions,
+  timeToMinutes,
 } from '../utils/planningFormat';
 import '../styles/planning.css';
 import '../styles/week-calendar.css';
@@ -87,6 +90,10 @@ function Planning() {
   const [browsedWeek, setBrowsedWeek] = useState(null);
   const [browsing, setBrowsing] = useState(false);
 
+  // Chrono de connexion (présence), indépendant du chrono de tâche : uniquement affiché
+  // sur la semaine actuelle (lecture seule), une semaine future ne pouvant avoir de connexion réelle.
+  const [sessionSegmentsByDate, setSessionSegmentsByDate] = useState({});
+
   const [myPlannings, setMyPlannings] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [listWeekFilter, setListWeekFilter] = useState('');
@@ -100,6 +107,18 @@ function Planning() {
         setNextWeek(next);
         setDraftDays(toDraftDays(next.days));
         setDraftNote(next.planning?.general_note || '');
+
+        sessionService
+          .getMySessionsForWeek(current.week_start_date)
+          .then((segments) => {
+            const byDate = {};
+            segments.forEach((segment) => {
+              if (!byDate[segment.date]) byDate[segment.date] = [];
+              byDate[segment.date].push(segment);
+            });
+            setSessionSegmentsByDate(byDate);
+          })
+          .catch(() => setSessionSegmentsByDate({}));
       } catch (err) {
         notifyError(err.response?.data?.error || 'Impossible de charger le planning');
       } finally {
@@ -129,6 +148,18 @@ function Planning() {
   }
 
   const canEdit = Boolean(nextWeek?.can_edit);
+
+  // Statistique du chrono de connexion pour la semaine affichée, calculée à partir des
+  // segments déjà récupérés pour le calendrier (aucun appel réseau supplémentaire).
+  const totalConnectedSeconds = useMemo(() => {
+    let minutes = 0;
+    Object.values(sessionSegmentsByDate).forEach((segments) => {
+      segments.forEach((segment) => {
+        minutes += timeToMinutes(segment.end_time) - timeToMinutes(segment.start_time);
+      });
+    });
+    return minutes * 60;
+  }, [sessionSegmentsByDate]);
 
   function handleStatusChange(date, status) {
     setDraftDays((days) =>
@@ -310,9 +341,21 @@ function Planning() {
 
               <AdminModifiedAlert planning={currentWeek.admin_modified ? currentWeek.planning : null} />
 
-              <WeekCalendarGrid days={currentWeek.days} canEdit={false} onNoteChange={() => {}} />
+              <p className="cal-session-legend">
+                <span className="cal-session-legend-swatch" /> Temps de connexion réel (indépendant des tâches)
+              </p>
+
+              <WeekCalendarGrid
+                days={currentWeek.days}
+                canEdit={false}
+                onNoteChange={() => {}}
+                sessionSegmentsByDate={sessionSegmentsByDate}
+              />
 
               <p className="planning-total-hours">Total : {currentWeek.total_hours} h disponibles</p>
+              <p className="planning-total-hours planning-total-hours--connection">
+                Temps de connexion cette semaine : {formatDurationShort(totalConnectedSeconds)}
+              </p>
             </div>
 
             <div className="side-card planning-week-card">

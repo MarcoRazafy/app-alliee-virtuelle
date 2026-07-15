@@ -141,6 +141,28 @@ function formatDbDate(value) {
   return `${year}-${month}-${day}`;
 }
 
+// Découpe un intervalle [startIso, endIso[ (deux timestamps ISO, ex: login_at/logout_at
+// d'une session de connexion) en segments par jour calendaire dans PLANNING_TIMEZONE.
+// Utilisé pour superposer les périodes de connexion réelle sur la grille de planning,
+// qui raisonne en journées locales. Un segment qui va jusqu'à minuit exact se termine à
+// "24:00" (et non "00:00" du jour suivant) pour rester positionnable sur une grille 0-24h.
+function splitRangeIntoDaySegments(startIso, endIso) {
+  const start = DateTime.fromISO(startIso, { zone: PLANNING_TIMEZONE });
+  const end = DateTime.fromISO(endIso, { zone: PLANNING_TIMEZONE });
+  const segments = [];
+  let cursor = start;
+
+  while (cursor < end) {
+    const nextMidnight = cursor.plus({ days: 1 }).startOf('day');
+    const segmentEnd = end < nextMidnight ? end : nextMidnight;
+    const endLabel = segmentEnd.equals(nextMidnight) ? '24:00' : segmentEnd.toFormat('HH:mm');
+    segments.push({ date: formatDate(cursor), start_time: cursor.toFormat('HH:mm'), end_time: endLabel });
+    cursor = segmentEnd;
+  }
+
+  return segments;
+}
+
 module.exports = {
   PLANNING_TIMEZONE,
   PLANNING_STATUS,
@@ -160,4 +182,5 @@ module.exports = {
   formatFrenchDayDate,
   getWeekDates,
   formatDbDate,
+  splitRangeIntoDaySegments,
 };

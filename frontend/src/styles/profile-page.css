@@ -322,11 +322,7 @@
   overflow-wrap: normal;
   word-break: normal;
   hyphens: none;
-}
-
-.profile-metric--cyan strong,
-.profile-metric--blue strong {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .profile-metric--sky strong {
@@ -586,11 +582,6 @@
 
   .profile-metric {
     min-height: 125px;
-  }
-
-  .profile-metric--cyan strong,
-  .profile-metric--blue strong {
-    white-space: normal;
   }
 }
 

@@ -67,6 +67,7 @@ function Dashboard() {
   const [inProgressCount, setInProgressCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [secondsWorkedToday, setSecondsWorkedToday] = useState(0);
+  const [secondsConnectedToday, setSecondsConnectedToday] = useState(0);
   const [urgentTasks, setUrgentTasks] = useState([]);
   const [activity, setActivity] = useState([]);
 
@@ -92,7 +93,10 @@ function Dashboard() {
       .then((conversations) => setUnreadCount(conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)));
 
     const date = todayDateString();
-    statsService.getMyStats(date, date).then((stats) => setSecondsWorkedToday(stats.summary.total_hours_worked_seconds));
+    statsService.getMyStats(date, date).then((stats) => {
+      setSecondsWorkedToday(stats.summary.total_hours_worked_seconds);
+      setSecondsConnectedToday(stats.summary.total_connected_seconds);
+    });
 
     taskService.getMyActivity().then(setActivity);
   }, [user, navigate]);
@@ -185,6 +189,15 @@ function Dashboard() {
               <div>
                 <div className="stat-tile-value">{formatDurationShort(secondsWorkedToday)}</div>
                 <div className="stat-tile-label">Temps travaillé</div>
+              </div>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-tile-icon stat-tile-icon--cyan">
+                <IconClock />
+              </span>
+              <div>
+                <div className="stat-tile-value">{formatDurationShort(secondsConnectedToday)}</div>
+                <div className="stat-tile-label">Temps de connexion</div>
               </div>
             </div>
           </div>
