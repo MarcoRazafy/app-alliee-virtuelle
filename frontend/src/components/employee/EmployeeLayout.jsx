@@ -5,12 +5,14 @@ import ThemeToggle from '../ThemeToggle';
 import api from '../../services/api';
 import * as messageService from '../../services/messageService';
 import * as avatarService from '../../services/avatarService';
+import { notifyInfo } from '../../utils/toast';
 import {
   IconWorkspace,
   IconCalendarCheck,
   IconChecklist,
   IconChat,
   IconBarChart,
+  IconCalendarWeek,
   IconFolder,
   IconUser,
   IconLogout,
@@ -32,6 +34,7 @@ const NAV_ITEMS = [
   { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
   { to: '/messaging', label: 'Messagerie', icon: IconChat, badgeKey: 'messages' },
   { to: '/stats', label: 'Stats', icon: IconBarChart },
+  { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
   { to: '/resources', label: 'Ressources', icon: IconFolder },
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
@@ -57,11 +60,42 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
+  const previousUnreadRef = useRef(null);
+
+  // Sondage régulier des conversations pour garder le badge à jour et notifier
+  // l'arrivée d'un nouveau message même si l'utilisateur n'est pas sur la messagerie.
+  // La page Messagerie gère elle-même ses propres notifications (conversation ouverte,
+  // salon général) : on évite donc les doublons en ne notifiant pas depuis cette page.
   useEffect(() => {
-    messageService
-      .getConversations()
-      .then((conversations) => setUnreadCount(conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)))
-      .catch(() => setUnreadCount(0));
+    let cancelled = false;
+
+    async function pollUnread() {
+      try {
+        const conversations = await messageService.getConversations();
+        if (cancelled) return;
+        setUnreadCount(conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0));
+
+        const previous = previousUnreadRef.current;
+        if (previous && !location.pathname.startsWith('/messaging')) {
+          conversations.forEach((conversation) => {
+            const before = previous.get(conversation.other_user_id) || 0;
+            if ((conversation.unread_count || 0) > before) {
+              notifyInfo(`Nouveau message de ${conversation.other_user_name}`);
+            }
+          });
+        }
+        previousUnreadRef.current = new Map(conversations.map((c) => [c.other_user_id, c.unread_count || 0]));
+      } catch {
+        if (!cancelled) setUnreadCount(0);
+      }
+    }
+
+    pollUnread();
+    const interval = window.setInterval(pollUnread, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, [location.pathname]);
 
   useEffect(() => {

@@ -1,48 +1,27 @@
+/* Ces variables reprennent les tokens partagés (tokens.css) au lieu d'une palette
+   propre à cette page, pour rester visuellement identique au reste de l'app. */
 .employee-stats-page {
-  /* Palette locale bleue : aucune surface n'hérite des anciens tokens violets. */
-  --employee-stats-primary: #2f6bff;
-  --employee-stats-primary-strong: #1f57d6;
-  --employee-stats-primary-soft: rgba(47, 107, 255, 0.12);
-  --employee-stats-cyan: #19a8c7;
-  --employee-stats-cyan-soft: rgba(25, 168, 199, 0.12);
-  --employee-stats-green: #11a86b;
-  --employee-stats-green-soft: rgba(17, 168, 107, 0.12);
-  --employee-stats-orange: #db8312;
-  --employee-stats-orange-soft: rgba(219, 131, 18, 0.13);
-  --employee-stats-bg: #f4f7fc;
-  --employee-stats-surface: #ffffff;
-  --employee-stats-surface-soft: #eef4ff;
-  --employee-stats-surface-strong: #e2ecff;
-  --employee-stats-border: #c8d8f5;
-  --employee-stats-text: #11182d;
-  --employee-stats-muted: #65738f;
-  --employee-stats-overlay: rgba(47, 107, 255, 0.08);
-  --employee-stats-shadow: 0 16px 45px rgba(23, 57, 117, 0.08);
+  --employee-stats-primary: var(--color-accent);
+  --employee-stats-primary-strong: var(--color-accent-lighter);
+  --employee-stats-primary-soft: var(--glow-accent);
+  --employee-stats-cyan: var(--color-info);
+  --employee-stats-cyan-soft: var(--glow-info);
+  --employee-stats-green: var(--color-success);
+  --employee-stats-green-soft: var(--glow-success);
+  --employee-stats-orange: var(--color-warning);
+  --employee-stats-orange-soft: var(--glow-warning);
+  --employee-stats-bg: var(--color-bg-primary);
+  --employee-stats-surface: var(--color-bg-secondary);
+  --employee-stats-surface-soft: var(--input-bg);
+  --employee-stats-surface-strong: var(--glass-overlay);
+  --employee-stats-border: var(--color-border);
+  --employee-stats-text: var(--color-text-primary);
+  --employee-stats-muted: var(--color-text-muted);
+  --employee-stats-overlay: var(--glow-accent);
+  --employee-stats-shadow: var(--card-shadow);
   min-height: calc(100vh - 104px);
   padding: 2px 0 28px;
   color: var(--employee-stats-text);
-  background: linear-gradient(180deg, var(--employee-stats-overlay), transparent 40%), var(--employee-stats-bg);
-}
-
-html[data-theme='dark'] .employee-stats-page {
-  --employee-stats-primary: #3b82f6;
-  --employee-stats-primary-strong: #60a5fa;
-  --employee-stats-primary-soft: rgba(59, 130, 246, 0.18);
-  --employee-stats-cyan: #45c6df;
-  --employee-stats-cyan-soft: rgba(69, 198, 223, 0.16);
-  --employee-stats-green: #36d18e;
-  --employee-stats-green-soft: rgba(54, 209, 142, 0.16);
-  --employee-stats-orange: #f3ad43;
-  --employee-stats-orange-soft: rgba(243, 173, 67, 0.16);
-  --employee-stats-bg: #061426;
-  --employee-stats-surface: #0d2344;
-  --employee-stats-surface-soft: #12315b;
-  --employee-stats-surface-strong: #17406f;
-  --employee-stats-border: #2f5d91;
-  --employee-stats-text: #f7f9ff;
-  --employee-stats-muted: #9cb4d8;
-  --employee-stats-overlay: rgba(59, 130, 246, 0.12);
-  --employee-stats-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
 }
 
 .employee-stats-page *,
@@ -173,10 +152,10 @@ html[data-theme='dark'] .employee-stats-page {
 }
 
 .employee-stats-segmented-control button.is-active {
-  color: #ffffff;
+  color: var(--color-on-accent);
   border-color: var(--employee-stats-primary);
   background: var(--employee-stats-primary);
-  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.24);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--employee-stats-primary) 24%, transparent);
 }
 
 .employee-stats-custom-range {
@@ -255,9 +234,9 @@ html[data-theme='dark'] .employee-stats-page {
   justify-content: space-between;
   gap: 20px;
   padding: 20px;
-  border: 1px solid rgba(221, 75, 75, 0.36);
+  border: 1px solid color-mix(in srgb, var(--color-error) 36%, transparent);
   border-radius: 15px;
-  background: rgba(221, 75, 75, 0.08);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
 }
 
 .employee-stats-error-card strong {
@@ -851,33 +830,4 @@ html[data-theme='dark'] .employee-stats-page {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-
-/* Protection contre les anciens styles globaux de la page statistiques. */
-html[data-theme='dark'] .employee-stats-page {
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.12), transparent 40%), #061426 !important;
-}
-
-html[data-theme='dark'] .employee-stats-filter-card,
-html[data-theme='dark'] .employee-stats-kpi-card,
-html[data-theme='dark'] .employee-stats-chart-card,
-html[data-theme='dark'] .employee-stats-summary-card,
-html[data-theme='dark'] .employee-stats-table-card,
-html[data-theme='dark'] .employee-stats-loading,
-html[data-theme='dark'] .employee-stats-refresh-button {
-  background-color: #0d2344 !important;
-  border-color: #2f5d91 !important;
-}
-
-html[data-theme='dark'] .employee-stats-summary-item,
-html[data-theme='dark'] .employee-stats-custom-range input {
-  background-color: #12315b !important;
-  border-color: #2f5d91 !important;
-}
-
-html[data-theme='dark'] .employee-stats-segmented-control button.is-active {
-  background: #3b82f6 !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.24) !important;
 }

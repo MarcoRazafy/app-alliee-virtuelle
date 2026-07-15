@@ -1,42 +1,22 @@
+/* Ces variables reprennent les tokens partagés (tokens.css) au lieu d'une palette
+   propre à cette page, pour rester visuellement identique au reste de l'app. */
 .messaging-page {
-  --msg-bg: var(--app-bg, var(--background, #f4f7fc));
-  --msg-surface: var(--card-bg, var(--surface, #ffffff));
-  --msg-surface-soft: var(--surface-soft, #f7f8fd);
-  --msg-surface-hover: var(--surface-hover, #f1f2ff);
-  --msg-text: var(--text-primary, #11182d);
-  --msg-muted: var(--text-secondary, #75809a);
-  --msg-border: var(--border-color, #e3e7f2);
-  --msg-primary: #2f6bff;
-  --msg-primary-strong: #1f57d6;
-  --msg-primary-soft: rgba(47, 107, 255, 0.12);
-  --msg-blue-surface: #eef4ff;
-  --msg-blue-surface-strong: #e2ecff;
-  --msg-blue-border: #c8d8f5;
-  --msg-shadow: 0 18px 50px rgba(27, 35, 73, 0.08);
+  --msg-bg: var(--color-bg-primary);
+  --msg-surface: var(--color-bg-secondary);
+  --msg-surface-soft: var(--input-bg);
+  --msg-surface-hover: var(--glass-overlay);
+  --msg-text: var(--color-text-primary);
+  --msg-muted: var(--color-text-muted);
+  --msg-border: var(--color-border);
+  --msg-primary: var(--color-accent);
+  --msg-primary-strong: var(--color-accent-lighter);
+  --msg-primary-soft: var(--glow-accent);
+  --msg-blue-surface: var(--input-bg);
+  --msg-blue-surface-strong: var(--glass-overlay);
+  --msg-blue-border: var(--color-border);
+  --msg-shadow: var(--card-shadow);
   color: var(--msg-text);
   background: var(--msg-bg);
-}
-
-html[data-theme='dark'] .messaging-page,
-html.dark .messaging-page,
-body[data-theme='dark'] .messaging-page,
-body.dark .messaging-page,
-body.dark-theme .messaging-page,
-.dark-mode .messaging-page {
-  --msg-bg: #07162d;
-  --msg-surface: #101b3f;
-  --msg-surface-soft: #152047;
-  --msg-surface-hover: #1a2754;
-  --msg-text: #f7f8ff;
-  --msg-muted: #8e9abc;
-  --msg-border: #27345d;
-  --msg-primary: #4d8dff;
-  --msg-primary-strong: #73a7ff;
-  --msg-primary-soft: rgba(77, 141, 255, 0.18);
-  --msg-blue-surface: #10284d;
-  --msg-blue-surface-strong: #163461;
-  --msg-blue-border: #2d4f83;
-  --msg-shadow: 0 22px 55px rgba(0, 0, 0, 0.23);
 }
 
 .messaging-page *,
@@ -89,9 +69,9 @@ body.dark-theme .messaging-page,
   justify-content: center;
   gap: 8px;
   padding: 0 16px;
-  color: #ffffff;
+  color: var(--color-on-accent);
   background: var(--msg-primary);
-  box-shadow: 0 10px 24px rgba(47, 107, 255, 0.22);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--msg-primary) 22%, transparent);
 }
 
 .messaging-new-button:hover,
@@ -394,7 +374,7 @@ body.dark-theme .messaging-page,
 }
 
 .conversation-avatar--team {
-  color: #ffffff;
+  color: var(--color-on-accent);
   background: var(--msg-primary);
 }
 
@@ -458,7 +438,7 @@ body.dark-theme .messaging-page,
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  color: #ffffff;
+  color: var(--color-on-accent);
   background: var(--msg-primary);
   font-size: 0.62rem;
   font-weight: 750;
@@ -612,9 +592,9 @@ body.dark-theme .messaging-page,
 .message-bubble--own {
   border-color: var(--msg-primary);
   border-radius: 15px 15px 5px 15px;
-  color: #ffffff;
+  color: var(--color-on-accent);
   background: var(--msg-primary);
-  box-shadow: 0 7px 18px rgba(47, 107, 255, 0.22);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--msg-primary) 22%, transparent);
 }
 
 .message-bubble p {
@@ -748,7 +728,7 @@ body.dark-theme .messaging-page,
   flex: 0 0 auto;
   border: 0;
   border-radius: 11px;
-  color: #ffffff;
+  color: var(--color-on-accent);
   background: var(--msg-primary);
   cursor: pointer;
   transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
@@ -1042,30 +1022,5 @@ body.dark-theme .messaging-page,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* Surfaces de messagerie forcées vers le bleu : évite l'héritage des anciens tokens violets. */
-.conversation-search,
-.message-composer,
-.message-bubble:not(.message-bubble--own),
-.messaging-modal-form select,
-.messaging-modal-form textarea,
-.messaging-secondary-button,
-.conversation-section-label {
-  background-color: var(--msg-blue-surface);
-  border-color: var(--msg-blue-border);
-}
-
-@supports (background-color: color-mix(in srgb, #000 50%, #fff)) {
-  .conversation-search,
-  .message-composer,
-  .message-bubble:not(.message-bubble--own),
-  .messaging-modal-form select,
-  .messaging-modal-form textarea,
-  .messaging-secondary-button,
-  .conversation-section-label {
-    background-color: color-mix(in srgb, var(--color-bg-secondary) 82%, #2f6bff 18%);
-    border-color: color-mix(in srgb, var(--color-bg-secondary) 62%, #4d8dff 38%);
   }
 }

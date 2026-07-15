@@ -13,6 +13,7 @@ import {
   IconChecklist,
   IconChat,
   IconBarChart,
+  IconCalendarWeek,
   IconFolder,
   IconUser,
   IconAlert,
@@ -35,6 +36,7 @@ const QUICK_LINKS = [
   { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
   { to: '/messaging', label: 'Messagerie', icon: IconChat, badgeKey: 'messages' },
   { to: '/stats', label: 'Stats', icon: IconBarChart },
+  { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
   { to: '/resources', label: 'Ressources', icon: IconFolder },
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];

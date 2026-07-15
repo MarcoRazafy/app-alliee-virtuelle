@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/admin/validate', label: 'Tâches à valider', badgeKey: 'toValidate' },
   { to: '/admin/late', label: 'Tâches en retard', badgeKey: 'late' },
   { to: '/admin/stats', label: 'Statistiques' },
+  { to: '/admin/planning', label: 'Gestion des plannings' },
   { to: '/admin/assistant', label: 'Assistant IA' },
   { to: '/admin/users', label: 'Utilisateurs' },
   { to: '/admin/messaging', label: 'Messagerie' },
