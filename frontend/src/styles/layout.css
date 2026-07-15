@@ -9,10 +9,20 @@
 }
 
 /* La sidebar garde toujours son identité sombre (--sidebar-*), qu'elle ne
-   change jamais avec le thème clair/sombre du reste de l'application. */
+   change jamais avec le thème clair/sombre du reste de l'application.
+   position: sticky + align-self: flex-start l'empêche de s'étirer à la hauteur
+   du contenu (comportement par défaut d'un enfant flex) : sans ça, dès qu'une
+   page a beaucoup de contenu (ex: Planning), la sidebar défile avec la page
+   au lieu de rester fixe à l'écran. overflow-y gère le cas où la nav elle-même
+   dépasserait 100vh (petits écrans avec beaucoup de liens). */
 .sidebar {
   width: 236px;
   flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   padding: 28px 16px;

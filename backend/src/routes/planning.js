@@ -25,5 +25,6 @@ router.post('/planning/next-week', planningController.createNextWeekPlanning);
 router.put('/planning/next-week', planningController.updateNextWeekPlanning);
 router.post('/planning/next-week/submit', planningController.submitNextWeekPlanning);
 router.get('/planning/history', planningController.getMyPlanningHistory);
+router.get('/planning/mine', planningController.getMyPlannings);
 
 module.exports = router;

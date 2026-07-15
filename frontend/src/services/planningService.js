@@ -32,6 +32,11 @@ export function getMyPlanningHistory(params = {}) {
   return api.get('/api/planning/history', { params }).then((res) => res.data);
 }
 
+// Liste filtrable des plannings de l'employé connecté (une ligne par semaine déclarée).
+export function getMyPlannings(params = {}) {
+  return api.get('/api/planning/mine', { params }).then((res) => res.data);
+}
+
 // ---------- Administrateur ----------
 
 export function getAdminPlannings(params = {}) {

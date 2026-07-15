@@ -12,25 +12,12 @@ import {
   formatWeekRange,
   formatDateTime,
   toDraftDays,
+  toDateInputValue,
+  getMondayOf,
 } from '../../utils/planningFormat';
 import '../../styles/app.css';
 import '../../styles/planning.css';
 import '../../styles/admin-planning.css';
-
-function toDateInputValue(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function getMondayOf(dateString) {
-  const date = new Date(dateString);
-  const weekday = date.getDay(); // 0 = dimanche ... 6 = samedi (heure locale)
-  const diff = weekday === 0 ? -6 : 1 - weekday;
-  date.setDate(date.getDate() + diff);
-  return toDateInputValue(date);
-}
 
 function todayDateInputValue() {
   return toDateInputValue(new Date());

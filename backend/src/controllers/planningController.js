@@ -349,6 +349,46 @@ async function getMyPlanningHistory(req, res, next) {
   }
 }
 
+// Filtrage par semaine (liste) : reprend le même modèle que l'admin (listPlanningsForAdmin)
+// mais forcé sur l'utilisateur connecté — aucune logique de filtre dupliquée.
+async function getMyPlannings(req, res, next) {
+  try {
+    const now = planningDates.nowInPlanningZone();
+    const { week_start_date: weekStartDate, status, submitted } = req.query;
+
+    const rows = await planningModel.listPlanningsForAdmin({
+      userId: req.user.id,
+      weekStartDate,
+      status,
+      submitted,
+    });
+
+    const items = rows.map((row) => {
+      const rowWeekStart = toDateString(row.week_start_date);
+      return {
+        planning_id: row.planning_id,
+        week_start_date: rowWeekStart,
+        week_end_date: toDateString(row.week_end_date),
+        status: row.status,
+        effective_status: planningDates.computeEffectiveStatus({
+          status: row.status,
+          weekStartDateString: rowWeekStart,
+          referenceDateTime: now,
+        }),
+        submitted_at: row.submitted_at,
+        is_submitted: !!row.submitted_at,
+        updated_at: row.updated_at,
+        admin_modified_at: row.admin_modified_at,
+        total_hours: Math.round(Number(row.total_hours) * 100) / 100,
+      };
+    });
+
+    res.status(200).json(items);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ---------- Administrateur ----------
 
 async function adminListPlannings(req, res, next) {
@@ -603,6 +643,7 @@ module.exports = {
   updateNextWeekPlanning,
   submitNextWeekPlanning,
   getMyPlanningHistory,
+  getMyPlannings,
   adminListPlannings,
   adminGetPlanningSummary,
   adminGetPlanningDetail,

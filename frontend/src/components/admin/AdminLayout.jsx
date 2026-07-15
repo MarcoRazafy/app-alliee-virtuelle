@@ -46,7 +46,19 @@ function AdminLayout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <nav style={{ width: '220px', borderRight: '1px solid black', padding: '10px' }}>
+      <nav
+        style={{
+          width: '220px',
+          flexShrink: 0,
+          alignSelf: 'flex-start',
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          overflowY: 'auto',
+          borderRight: '1px solid black',
+          padding: '10px',
+        }}
+      >
         <h2>Administration</h2>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {NAV_ITEMS.map((item) => (
