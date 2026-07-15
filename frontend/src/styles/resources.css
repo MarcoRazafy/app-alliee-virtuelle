@@ -1,0 +1,129 @@
+/* Couleurs directement sur les tokens partagés (tokens.css), sans variable locale
+   intermédiaire — même choix que planning.css/week-calendar.css cette session. */
+
+.resources-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.resources-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.resources-shell {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.resources-folder-panel,
+.resources-files-panel {
+  min-width: 0;
+}
+
+.resources-folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resources-folder-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--color-text-primary);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.resources-folder-item:hover {
+  background: var(--input-bg);
+}
+
+.resources-folder-item--active {
+  background: var(--glow-accent);
+}
+
+.resources-folder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: var(--color-accent-lighter);
+  background: var(--glow-accent);
+}
+
+.resources-folder-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.resources-folder-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.resources-folder-info strong {
+  overflow: hidden;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resources-folder-info span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.resources-search {
+  margin-bottom: 16px;
+}
+
+.resources-file-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.resources-file-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--color-text-secondary);
+  background: var(--input-bg);
+}
+
+.resources-file-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 860px) {
+  .resources-shell {
+    grid-template-columns: 1fr;
+  }
+}

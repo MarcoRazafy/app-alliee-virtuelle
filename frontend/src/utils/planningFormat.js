@@ -61,6 +61,32 @@ export function formatWeekRange(weekStart, weekEnd) {
   return `${start} - ${end}`;
 }
 
+// Version compacte ("15 janv. - 21 janv.") pour les listes déroulantes de semaines.
+export function formatWeekRangeShort(weekStart, weekEnd) {
+  const start = new Date(weekStart).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const end = new Date(weekEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return `${start} - ${end}`;
+}
+
+// Liste de semaines (lundi -> dimanche) pour peupler un filtre déroulant : futureCount
+// semaines à venir puis pastCount semaines passées, la plus récente en premier.
+export function generateWeekOptions({ pastCount = 12, futureCount = 1 } = {}) {
+  const todayMonday = getMondayOf(toDateInputValue(new Date()));
+  const options = [];
+
+  for (let i = -futureCount; i <= pastCount; i += 1) {
+    const monday = new Date(todayMonday);
+    monday.setDate(monday.getDate() - i * 7);
+    const weekStart = toDateInputValue(monday);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    const weekEnd = toDateInputValue(sunday);
+    options.push({ value: weekStart, label: formatWeekRangeShort(weekStart, weekEnd) });
+  }
+
+  return options;
+}
+
 export function formatDateTime(isoString) {
   if (!isoString) return '';
   return new Date(isoString).toLocaleString('fr-FR', {
@@ -79,6 +105,23 @@ export function toTimeInputValue(time) {
 export function timeToMinutes(time) {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
+}
+
+export function toDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Ramène une date quelconque au lundi de sa semaine (utilisé par tous les filtres "semaine"
+// côté employé et admin, pour ne jamais interroger le backend avec une date hors-lundi).
+export function getMondayOf(dateString) {
+  const date = new Date(dateString);
+  const weekday = date.getDay(); // 0 = dimanche ... 6 = samedi (heure locale)
+  const diff = weekday === 0 ? -6 : 1 - weekday;
+  date.setDate(date.getDate() + diff);
+  return toDateInputValue(date);
 }
 
 export function minutesToTime(totalMinutes) {

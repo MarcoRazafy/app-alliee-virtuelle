@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import WeekCalendarGrid from '../components/employee/WeekCalendarGrid';
 import * as planningService from '../services/planningService';
@@ -15,6 +15,7 @@ import {
   toDraftDays,
   computeTotalHours,
   slotsOverlap,
+  generateWeekOptions,
 } from '../utils/planningFormat';
 import '../styles/planning.css';
 import '../styles/week-calendar.css';
@@ -83,9 +84,13 @@ function Planning() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState([]);
 
-  const [browseDate, setBrowseDate] = useState('');
   const [browsedWeek, setBrowsedWeek] = useState(null);
   const [browsing, setBrowsing] = useState(false);
+
+  const [myPlannings, setMyPlannings] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [listWeekFilter, setListWeekFilter] = useState('');
+  const weekOptions = useMemo(() => generateWeekOptions({ pastCount: 12, futureCount: 1 }), []);
 
   useEffect(() => {
     async function load() {
@@ -102,7 +107,26 @@ function Planning() {
       }
     }
     load();
+    loadMyPlannings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function loadMyPlannings(weekStartDate) {
+    setLoadingList(true);
+    try {
+      const items = await planningService.getMyPlannings(weekStartDate ? { week_start_date: weekStartDate } : {});
+      setMyPlannings(items);
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de charger vos plannings');
+    } finally {
+      setLoadingList(false);
+    }
+  }
+
+  function handleListWeekFilterChange(weekStart) {
+    setListWeekFilter(weekStart);
+    loadMyPlannings(weekStart || undefined);
+  }
 
   const canEdit = Boolean(nextWeek?.can_edit);
 
@@ -153,12 +177,10 @@ function Planning() {
     notifySuccess('Plage ajoutée au planning');
   }
 
-  async function handleBrowseWeek(event) {
-    event.preventDefault();
-    if (!browseDate) return;
+  async function handleConsultWeek(weekStartDate) {
     setBrowsing(true);
     try {
-      const result = await planningService.getWeekPlanning(browseDate);
+      const result = await planningService.getWeekPlanning(weekStartDate);
       setBrowsedWeek(result);
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de charger cette semaine');
@@ -376,18 +398,67 @@ function Planning() {
 
             <div className="side-card planning-week-card">
               <div className="side-card-header">
-                <p className="side-card-title">Consulter une autre semaine</p>
+                <p className="side-card-title">Mes plannings</p>
               </div>
               <p className="planning-week-filter-hint">
-                Filtrez par semaine pour revoir un planning passé (lecture seule) : choisissez n'importe quel jour de
-                la semaine à afficher.
+                Filtrez par semaine de disponibilité pour retrouver un planning passé (lecture seule).
               </p>
-              <form className="planning-week-filter" onSubmit={handleBrowseWeek}>
-                <input type="date" value={browseDate} onChange={(e) => setBrowseDate(e.target.value)} required />
-                <button type="submit" className="btn-outline" disabled={browsing}>
-                  {browsing ? 'Chargement...' : 'Afficher'}
-                </button>
-              </form>
+              <div className="planning-week-filter">
+                <select
+                  className="filter-select"
+                  value={listWeekFilter}
+                  onChange={(e) => handleListWeekFilterChange(e.target.value)}
+                  aria-label="Filtrer par semaine"
+                >
+                  <option value="">Toutes les semaines</option>
+                  {weekOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {loadingList && <div className="empty-state">Chargement de vos plannings...</div>}
+              {!loadingList && myPlannings.length === 0 && (
+                <div className="empty-state">Aucun planning ne correspond à ce filtre.</div>
+              )}
+              {!loadingList && myPlannings.length > 0 && (
+                <div className="task-table-wrap">
+                  <table className="task-table">
+                    <thead>
+                      <tr>
+                        <th>Semaine</th>
+                        <th>Statut</th>
+                        <th>Soumis le</th>
+                        <th>Heures dispo.</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {myPlannings.map((item) => (
+                        <tr key={item.planning_id}>
+                          <td>{formatWeekRange(item.week_start_date, item.week_end_date)}</td>
+                          <td>
+                            <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[item.effective_status] || ''}`}>
+                              {EFFECTIVE_STATUS_LABELS[item.effective_status] || item.effective_status}
+                            </span>
+                          </td>
+                          <td>{item.submitted_at ? formatDateTime(item.submitted_at) : '—'}</td>
+                          <td>{item.total_hours} h</td>
+                          <td>
+                            <button type="button" className="app-link" onClick={() => handleConsultWeek(item.week_start_date)}>
+                              Consulter
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {browsing && <div className="empty-state">Chargement...</div>}
 
               {browsedWeek && (
                 <>
