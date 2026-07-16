@@ -630,9 +630,7 @@
   width: 66px;
   height: 66px;
   margin-bottom: 15px;
-  border-radius: 20px;
-  color: var(--msg-primary);
-  background: var(--msg-primary-soft);
+  color: var(--color-text-muted);
 }
 
 .messaging-state-icon svg {
@@ -803,12 +801,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
+  width: 36px;
   height: 42px;
   flex: 0 0 auto;
-  border-radius: 13px;
-  color: var(--msg-primary);
-  background: var(--msg-primary-soft);
+  color: var(--color-text-secondary);
 }
 
 .messaging-modal-icon svg {

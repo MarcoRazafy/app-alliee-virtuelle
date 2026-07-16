@@ -272,25 +272,13 @@
   box-shadow: var(--employee-stats-shadow);
 }
 
-.employee-stats-kpi-card::after {
-  content: '';
-  position: absolute;
-  top: -38px;
-  right: -30px;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.055;
-}
-
-.employee-stats-kpi-card--confirmed { color: var(--employee-stats-green); }
-.employee-stats-kpi-card--average { color: var(--employee-stats-orange); }
-.employee-stats-kpi-card--time { color: var(--employee-stats-cyan); }
-.employee-stats-kpi-card--completion { color: var(--employee-stats-primary); }
-/* Même couleur que le chrono de connexion flottant (connection-chrono.css), pour garder
-   "bleu = présence/connexion" cohérent partout où cette donnée apparaît. */
-.employee-stats-kpi-card--connection { color: var(--employee-stats-primary); }
+/* Ces KPI sont des métriques (pas des états) → icônes neutres, sans pastille ni
+   blob de coin coloré. Les variantes de couleur sont volontairement neutralisées. */
+.employee-stats-kpi-card--confirmed,
+.employee-stats-kpi-card--average,
+.employee-stats-kpi-card--time,
+.employee-stats-kpi-card--completion,
+.employee-stats-kpi-card--connection { color: var(--color-text-secondary); }
 
 .employee-stats-kpi-icon,
 .employee-stats-insights-icon,
@@ -302,15 +290,14 @@
 }
 
 .employee-stats-kpi-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 13px;
-  background: color-mix(in srgb, currentColor 13%, transparent);
+  width: 40px;
+  height: 40px;
+  color: var(--color-text-secondary);
 }
 
 .employee-stats-kpi-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 27px;
+  height: 27px;
 }
 
 .employee-stats-kpi-copy {
@@ -532,14 +519,12 @@
 .employee-stats-empty-icon {
   width: 46px;
   height: 46px;
-  border-radius: 14px;
-  color: var(--employee-stats-primary);
-  background: var(--employee-stats-primary-soft);
+  color: var(--color-text-muted);
 }
 
 .employee-stats-empty-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
 }
 
 .employee-stats-empty-chart h3,
@@ -567,16 +552,14 @@
 }
 
 .employee-stats-insights-icon {
-  width: 42px;
+  width: 36px;
   height: 42px;
-  border-radius: 13px;
-  color: var(--employee-stats-primary);
-  background: var(--employee-stats-primary-soft);
+  color: var(--color-text-secondary);
 }
 
 .employee-stats-insights-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
 }
 
 .employee-stats-insights-heading p {

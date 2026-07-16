@@ -275,33 +275,25 @@
   flex: 1;
 }
 
+/* Métriques de profil : icônes monochromes neutres, sans pastille colorée */
 .profile-metric-icon {
-  width: 54px;
+  width: 40px;
   height: 54px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  border-radius: 14px;
+  color: var(--color-text-secondary);
 }
 
 .profile-metric-icon svg {
-  width: 27px;
-  height: 27px;
+  width: 30px;
+  height: 30px;
 }
 
-.profile-metric--cyan .profile-metric-icon {
-  color: var(--profile-cyan);
-  background: color-mix(in srgb, var(--profile-cyan) 13%, transparent);
-}
-
-.profile-metric--blue .profile-metric-icon {
-  color: var(--profile-blue);
-  background: var(--profile-blue-soft);
-}
-
+.profile-metric--cyan .profile-metric-icon,
+.profile-metric--blue .profile-metric-icon,
 .profile-metric--sky .profile-metric-icon {
-  color: var(--profile-blue-strong);
-  background: color-mix(in srgb, var(--profile-blue-strong) 15%, transparent);
+  color: var(--color-text-secondary);
 }
 
 .profile-metric p {
@@ -364,19 +356,17 @@
 }
 
 .profile-panel-header > span {
-  width: 39px;
+  width: 30px;
   height: 39px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  border-radius: 11px;
-  color: var(--profile-blue);
-  background: var(--profile-blue-soft);
+  color: var(--color-text-secondary);
 }
 
 .profile-panel-header svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .profile-panel-header p {
@@ -525,19 +515,17 @@
 }
 
 .profile-help-card > span {
-  width: 40px;
+  width: 28px;
   height: 40px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  border-radius: 11px;
-  color: var(--profile-blue);
-  background: var(--profile-blue-soft);
+  color: var(--color-text-secondary);
 }
 
 .profile-help-card svg {
-  width: 21px;
-  height: 21px;
+  width: 24px;
+  height: 24px;
 }
 
 .profile-help-card strong {

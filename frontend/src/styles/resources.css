@@ -62,16 +62,14 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 38px;
+  width: 30px;
   height: 38px;
-  border-radius: 11px;
-  color: var(--color-accent-lighter);
-  background: var(--glow-accent);
+  color: var(--color-text-secondary);
 }
 
 .resources-folder-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 .resources-folder-info {
@@ -110,16 +108,14 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 30px;
+  width: 24px;
   height: 30px;
-  border-radius: 9px;
-  color: var(--color-text-secondary);
-  background: var(--input-bg);
+  color: var(--color-text-muted);
 }
 
 .resources-file-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 @media (max-width: 860px) {

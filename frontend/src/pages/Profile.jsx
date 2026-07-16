@@ -223,8 +223,8 @@ function Profile() {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      notifyError('La photo ne doit pas dépasser 2 Mo');
+    if (file.size > 5 * 1024 * 1024) {
+      notifyError('La photo ne doit pas dépasser 5 Mo');
       event.target.value = '';
       return;
     }

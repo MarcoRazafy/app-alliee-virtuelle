@@ -23,17 +23,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
-  border-radius: 50%;
-  color: var(--color-accent-lighter);
-  background: var(--glow-accent);
+  color: var(--color-text-secondary);
 }
 
 .connection-chrono-icon svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 .connection-chrono-value {
