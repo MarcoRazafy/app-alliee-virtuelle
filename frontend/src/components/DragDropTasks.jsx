@@ -4,6 +4,13 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 
 const ITEM_TYPE = 'TASK';
 
+const PRIORITY_DOT_CLASS = {
+  URGENT: 'priority-dot--urgent',
+  HAUTE: 'priority-dot--haute',
+  NORMALE: 'priority-dot--normale',
+  FAIBLE: 'priority-dot--faible',
+};
+
 function DraggableTask({ task, index, column, order, moveTask, disabled }) {
   const ref = useRef(null);
 
@@ -28,23 +35,19 @@ function DraggableTask({ task, index, column, order, moveTask, disabled }) {
   return (
     <div
       ref={ref}
-      style={{
-        opacity: isDragging ? 0.4 : 1,
-        border: '1px solid gray',
-        padding: '8px',
-        marginBottom: '6px',
-        cursor: disabled ? 'default' : 'grab',
-      }}
+      className={`task-card${isDragging ? ' task-card--dragging' : ''}${disabled ? ' task-card--locked' : ''}`}
     >
-      {order != null && <strong>{order}. </strong>}
-      {task.title} — {task.priority}
+      {order != null && <span className="task-order-badge">{order}</span>}
+      <span className={`priority-dot ${PRIORITY_DOT_CLASS[task.priority] || 'priority-dot--normale'}`} />
+      <span className="task-card-title">{task.title}</span>
+      <span className="task-card-priority">{task.priority}</span>
     </div>
   );
 }
 
 function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disabled }) {
   const ref = useRef(null);
-  const [, drop] = useDrop({
+  const [{ isOver }, drop] = useDrop({
     accept: ITEM_TYPE,
     drop(item) {
       if (disabled) return;
@@ -54,13 +57,17 @@ function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disable
         item.index = tasks.length;
       }
     },
+    collect: (monitor) => ({ isOver: monitor.isOver() }),
   });
   drop(ref);
 
   return (
-    <div ref={ref} style={{ flex: 1, border: '1px solid black', padding: '10px', minHeight: '200px' }}>
-      <h2>{title}</h2>
-      {tasks.length === 0 && <p>{emptyLabel}</p>}
+    <div ref={ref} className={`dnd-column${isOver && !disabled ? ' dnd-column--over' : ''}`}>
+      <div className="dnd-column-header">
+        <p className="dnd-column-title">{title}</p>
+        <span className="dnd-column-count">{tasks.length}</span>
+      </div>
+      {tasks.length === 0 && <div className="dnd-empty">{emptyLabel}</div>}
       {tasks.map((task, index) => (
         <DraggableTask
           key={task.id}
@@ -94,7 +101,7 @@ function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated }) {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div style={{ display: 'flex', gap: '20px' }}>
+      <div className="dnd-columns">
         <Column
           title="Tâches disponibles"
           tasks={availableTasks}

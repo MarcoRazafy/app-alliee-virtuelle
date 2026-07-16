@@ -8,6 +8,7 @@ router.use(authMiddleware);
 
 // Annuaire minimal, ouvert à tout utilisateur connecté (messagerie)
 router.get('/users/directory', userController.listDirectory);
+router.get('/users/:id/avatar', userController.getUserAvatar);
 
 // Gestion des comptes : admin uniquement
 router.get('/users/pending', authMiddleware.requireRole('ADMIN'), userController.listPending);

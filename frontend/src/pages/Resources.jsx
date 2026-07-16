@@ -1,108 +1,188 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import EmployeeLayout from '../components/employee/EmployeeLayout';
 import * as resourceService from '../services/resourceService';
+import { formatBytes } from '../utils/formatters';
+import { notifyError } from '../utils/toast';
+import { IconFolder, IconFileText, IconDownload, IconSearch } from '../components/icons';
+import '../styles/resources.css';
 
-function formatBytes(bytes) {
-  const n = Number(bytes);
-  if (n >= 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} Mo`;
-  if (n >= 1024) return `${(n / 1024).toFixed(0)} Ko`;
-  return `${n} o`;
-}
+const TABS = [
+  { value: 'INTERNE', label: 'Interne' },
+  { value: 'CLIENT', label: 'Client' },
+];
 
 function Resources() {
   const [tab, setTab] = useState('INTERNE');
   const [folders, setFolders] = useState([]);
+  const [loadingFolders, setLoadingFolders] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [files, setFiles] = useState([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
   const [search, setSearch] = useState('');
-  const [error, setError] = useState('');
 
   useEffect(() => {
     setSelectedFolder(null);
     setFiles([]);
     setSearch('');
-    setError('');
-
+    setLoadingFolders(true);
     resourceService
       .getFolders(tab)
       .then(setFolders)
-      .catch((err) => setError(err.response?.data?.error || 'Impossible de charger les dossiers'));
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
+      .finally(() => setLoadingFolders(false));
   }, [tab]);
 
   async function openFolder(folder) {
-    setError('');
     setSelectedFolder(folder);
+    setSearch('');
+    setLoadingFiles(true);
     try {
       const data = await resourceService.getFolderFiles(folder.id);
       setFiles(data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Impossible de charger les fichiers');
+      setFiles([]);
+      notifyError(err.response?.data?.error || 'Impossible de charger les fichiers');
+    } finally {
+      setLoadingFiles(false);
     }
   }
 
-  const filteredFiles = files.filter((f) => f.file_name.toLowerCase().includes(search.toLowerCase()));
+  const filteredFiles = files.filter((file) => file.file_name.toLowerCase().includes(search.trim().toLowerCase()));
 
   return (
-    <div>
-      <p>
-        <Link to="/dashboard">Retour au tableau de bord</Link>
-      </p>
-      <h1>Ressources</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <div>
-        <button onClick={() => setTab('INTERNE')} disabled={tab === 'INTERNE'}>
-          Interne
-        </button>
-        <button onClick={() => setTab('CLIENT')} disabled={tab === 'CLIENT'}>
-          Client
-        </button>
-      </div>
-
-      <p>
-        Ressources &gt; {tab === 'INTERNE' ? 'Interne' : 'Client'}
-        {selectedFolder && <> &gt; {selectedFolder.name}</>}
-      </p>
-
-      <div style={{ display: 'flex', gap: '20px' }}>
-        <div style={{ flex: 1, border: '1px solid black', padding: '10px' }}>
-          <h2>Dossiers</h2>
-          {folders.length === 0 && <p>Aucun dossier.</p>}
-          <ul>
-            {folders.map((folder) => (
-              <li key={folder.id}>
-                <button onClick={() => openFolder(folder)}>
-                  {folder.name} ({folder.file_count} fichiers)
-                </button>
-              </li>
-            ))}
-          </ul>
+    <EmployeeLayout
+      title="Ressources"
+      breadcrumb={[
+        { label: 'Accueil', to: '/dashboard' },
+        { label: 'Ressources' },
+        ...(selectedFolder ? [{ label: selectedFolder.name }] : []),
+      ]}
+      subtitle="Documents internes et fichiers partagés avec les clients"
+    >
+      <section className="resources-page">
+        <div className="resources-tabs" role="tablist" aria-label="Type de ressources">
+          {TABS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.value}
+              className={`filter-chip${tab === item.value ? ' filter-chip--active' : ''}`}
+              onClick={() => setTab(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
-        <div style={{ flex: 2, border: '1px solid black', padding: '10px' }}>
-          <h2>Fichiers</h2>
-          {!selectedFolder && <p>Sélectionnez un dossier.</p>}
-          {selectedFolder && (
-            <>
-              <input placeholder="Rechercher un fichier" value={search} onChange={(e) => setSearch(e.target.value)} />
-              {filteredFiles.length === 0 && <p>Aucun fichier.</p>}
-              <ul>
-                {filteredFiles.map((file) => (
-                  <li key={file.id}>
-                    {file.file_name} — {file.file_type} — {formatBytes(file.file_size)} —{' '}
-                    {new Date(file.created_at).toLocaleDateString('fr-FR')}
-                    <a href={file.file_path} download>
-                      {' '}
-                      Télécharger
-                    </a>
+        <div className="resources-shell">
+          <aside className="side-card resources-folder-panel">
+            <div className="side-card-header">
+              <p className="side-card-title">Dossiers</p>
+            </div>
+
+            {loadingFolders && <div className="empty-state">Chargement...</div>}
+            {!loadingFolders && folders.length === 0 && <div className="empty-state">Aucun dossier disponible.</div>}
+
+            {!loadingFolders && folders.length > 0 && (
+              <ul className="resources-folder-list">
+                {folders.map((folder) => (
+                  <li key={folder.id}>
+                    <button
+                      type="button"
+                      className={`resources-folder-item${
+                        selectedFolder?.id === folder.id ? ' resources-folder-item--active' : ''
+                      }`}
+                      onClick={() => openFolder(folder)}
+                    >
+                      <span className="resources-folder-icon">
+                        <IconFolder />
+                      </span>
+                      <span className="resources-folder-info">
+                        <strong>{folder.name}</strong>
+                        <span>
+                          {folder.file_count} fichier{Number(folder.file_count) > 1 ? 's' : ''}
+                        </span>
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>
-            </>
-          )}
+            )}
+          </aside>
+
+          <div className="side-card resources-files-panel">
+            <div className="side-card-header">
+              <p className="side-card-title">{selectedFolder ? selectedFolder.name : 'Fichiers'}</p>
+            </div>
+
+            {!selectedFolder && (
+              <div className="empty-state">Sélectionnez un dossier pour consulter ses fichiers.</div>
+            )}
+
+            {selectedFolder && (
+              <>
+                <label className="filter-search resources-search">
+                  <IconSearch />
+                  <input
+                    type="search"
+                    placeholder="Rechercher un fichier..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    aria-label="Rechercher un fichier"
+                  />
+                </label>
+
+                {loadingFiles && <div className="empty-state">Chargement...</div>}
+                {!loadingFiles && filteredFiles.length === 0 && (
+                  <div className="empty-state">
+                    {search.trim() ? 'Aucun fichier ne correspond à cette recherche.' : 'Ce dossier est vide.'}
+                  </div>
+                )}
+
+                {!loadingFiles && filteredFiles.length > 0 && (
+                  <div className="task-table-wrap">
+                    <table className="task-table">
+                      <thead>
+                        <tr>
+                          <th>Nom</th>
+                          <th>Type</th>
+                          <th>Taille</th>
+                          <th>Ajouté le</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredFiles.map((file) => (
+                          <tr key={file.id}>
+                            <td>
+                              <span className="resources-file-name-cell">
+                                <span className="resources-file-icon">
+                                  <IconFileText />
+                                </span>
+                                {file.file_name}
+                              </span>
+                            </td>
+                            <td>{file.file_type || '—'}</td>
+                            <td>{formatBytes(file.file_size)}</td>
+                            <td>{new Date(file.created_at).toLocaleDateString('fr-FR')}</td>
+                            <td>
+                              <a href={file.file_path} download className="icon-link-btn" aria-label="Télécharger">
+                                <IconDownload />
+                              </a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </EmployeeLayout>
   );
 }
 

@@ -52,38 +52,58 @@ function CommentSection({ taskId }) {
   return (
     <div>
       {isAdmin && (
-        <div>
-          <h3>Notes internes (admin uniquement)</h3>
-          {notes.length === 0 && <p>Aucune note.</p>}
-          <ul>
-            {notes.map((note) => (
-              <li key={note.id}>
-                <strong>{note.author_name}</strong> ({formatDateTime(note.created_at)}) : {note.content}
-              </li>
-            ))}
-          </ul>
+        <>
+          <p className="app-section-title">Notes internes (admin uniquement)</p>
+          {notes.length === 0 && <div className="empty-state">Aucune note.</div>}
+          {notes.length > 0 && (
+            <div className="comment-list">
+              {notes.map((note) => (
+                <div key={note.id} className="comment-bubble comment-bubble--note">
+                  <div className="comment-header">
+                    <span className="comment-author">{note.author_name}</span>
+                    <span className="comment-time">{formatDateTime(note.created_at)}</span>
+                  </div>
+                  <p className="comment-content">{note.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {comments.length === 0 && <div className="empty-state">Aucun commentaire pour le moment.</div>}
+      {comments.length > 0 && (
+        <div className="comment-list">
+          {comments.map((comment) => (
+            <div key={comment.id} className="comment-bubble">
+              <div className="comment-header">
+                <span className="comment-author">{comment.author_name}</span>
+                <span className="comment-time">{formatDateTime(comment.created_at)}</span>
+              </div>
+              <p className="comment-content">{comment.content}</p>
+            </div>
+          ))}
         </div>
       )}
 
-      <h3>Commentaires</h3>
-      {comments.length === 0 && <p>Aucun commentaire pour le moment.</p>}
-      <ul>
-        {comments.map((comment) => (
-          <li key={comment.id}>
-            <strong>{comment.author_name}</strong> ({formatDateTime(comment.created_at)}) : {comment.content}
-          </li>
-        ))}
-      </ul>
-
-      <form onSubmit={handleSubmit}>
-        <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Ajouter un commentaire" />
+      <form className="comment-form" onSubmit={handleSubmit}>
+        <div className="comment-form-row">
+          <input
+            type="text"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Ajouter un commentaire"
+          />
+          <button type="submit" className="btn-primary">
+            Envoyer
+          </button>
+        </div>
         {isAdmin && (
-          <label>
+          <label className="comment-form-note-toggle">
             <input type="checkbox" checked={asNote} onChange={(e) => setAsNote(e.target.checked)} />
             Note interne (visible uniquement par les admins)
           </label>
         )}
-        <button type="submit">Envoyer</button>
       </form>
     </div>
   );

@@ -1,0 +1,194 @@
+/* AdminLayout n'encapsule pas encore ses pages dans un shell themé (contrairement à
+   EmployeeLayout) : cette page pose donc elle-même son fond et sa couleur de texte
+   à partir des tokens partagés (tokens.css), pour rester correcte en clair/sombre. */
+.admin-planning-page {
+  min-height: 100vh;
+  padding: 4px 2px 32px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  font-family: 'Montserrat', sans-serif;
+}
+
+.admin-planning-page h1 {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+}
+
+.admin-planning-subtitle {
+  margin: 0 0 20px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.admin-planning-summary {
+  margin-bottom: 20px;
+}
+
+.admin-planning-filters {
+  margin-bottom: 20px;
+}
+
+.admin-planning-page .side-card {
+  margin-bottom: 20px;
+}
+
+.admin-planning-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 10, 28, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.admin-planning-modal {
+  width: min(100%, 900px);
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 17px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  box-shadow: var(--card-shadow);
+}
+
+.admin-planning-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-planning-modal-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-planning-modal-header h2 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.admin-planning-modal-header p {
+  margin: 5px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+}
+
+.admin-planning-modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 42px;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+
+.admin-planning-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  color: var(--color-accent-lighter);
+  background: var(--input-bg);
+  cursor: pointer;
+}
+
+.admin-planning-modal-close:hover {
+  border-color: var(--color-accent-light);
+  background: var(--glow-accent);
+}
+
+.admin-planning-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+.admin-planning-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.admin-planning-modal-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-planning-history {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.admin-planning-history ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.admin-planning-availability-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.admin-planning-availability-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.admin-planning-availability-form input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  font: inherit;
+}
+
+.admin-planning-availability-results {
+  margin-top: 14px;
+}
+
+.admin-planning-availability-results ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 720px) {
+  .admin-planning-filters,
+  .admin-planning-availability-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
