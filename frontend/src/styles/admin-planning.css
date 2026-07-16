@@ -84,12 +84,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
+  width: 36px;
   height: 42px;
   flex: 0 0 auto;
-  border-radius: 13px;
-  color: var(--color-accent-lighter);
-  background: var(--glow-accent);
+  color: var(--color-text-secondary);
 }
 
 .admin-planning-modal-close {

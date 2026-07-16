@@ -2,7 +2,7 @@ const path = require('path');
 const multer = require('multer');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads/avatars');
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 Mo
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
 
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg'];
 
