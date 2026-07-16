@@ -1,43 +1,58 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as dashboardService from '../../services/dashboardService';
 import EmployeeDetailPanel from '../../components/admin/EmployeeDetailPanel';
-import { formatClock } from '../../utils/formatters';
+import { formatClock, formatDurationShort } from '../../utils/formatters';
 import { notifyError } from '../../utils/toast';
+import {
+  IconWorkspace,
+  IconPlay,
+  IconAlert,
+  IconSearch,
+  IconArrowRight,
+  IconCheckCircle,
+} from '../../components/icons';
+import '../../styles/admin.css';
 
-function matchesDeadlineRange(deadline, range) {
-  if (!range) return true;
-  const date = new Date(deadline);
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const PRIORITY_META = {
+  URGENT: { label: 'Urgent', cls: 'urgent' },
+  HAUTE: { label: 'Haute', cls: 'haute' },
+  NORMALE: { label: 'Normale', cls: 'normale' },
+  FAIBLE: { label: 'Faible', cls: 'faible' },
+};
 
-  if (range === 'today') return dateOnly.getTime() === startOfToday.getTime();
-  if (range === 'past') return dateOnly.getTime() < startOfToday.getTime();
-  if (range === 'week') {
-    const weekEnd = new Date(startOfToday);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    return dateOnly >= startOfToday && dateOnly < weekEnd;
-  }
-  if (range === 'month') {
-    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-  }
-  return true;
-}
+const STATUS_FILTERS = [
+  { value: '', label: 'Tout' },
+  { value: 'VALIDEE', label: 'À faire' },
+  { value: 'EN_COURS', label: 'En cours' },
+  { value: 'TERMINEE', label: 'Effectuées' },
+];
 
+// Chrono qui s'incrémente en direct pour une session de tâche encore ouverte
 function LiveClock({ startTime }) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     function tick() {
-      setElapsed(Math.floor((Date.now() - new Date(startTime).getTime()) / 1000));
+      setElapsed(Math.max(0, Math.floor((Date.now() - new Date(startTime).getTime()) / 1000)));
     }
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [startTime]);
 
-  return <span>{formatClock(elapsed)}</span>;
+  return <span className="monitor-chrono-value">{formatClock(elapsed)}</span>;
+}
+
+function Initials({ name }) {
+  const initials = (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  return <span className="monitor-avatar">{initials || '?'}</span>;
 }
 
 function AdminDashboard() {
@@ -45,13 +60,20 @@ function AdminDashboard() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [deadlineFilter, setDeadlineFilter] = useState('');
+  const [query, setQuery] = useState('');
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   function load() {
+    setRefreshing(true);
     dashboardService
       .getRealtimeDashboard()
-      .then(setData)
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger le tableau de bord'));
+      .then((payload) => {
+        setData(payload);
+        setLastUpdate(new Date());
+      })
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger le tableau de bord'))
+      .finally(() => setRefreshing(false));
   }
 
   useEffect(() => {
@@ -63,125 +85,226 @@ function AdminDashboard() {
   function resetFilters() {
     setStatusFilter('');
     setPriorityFilter('');
-    setDeadlineFilter('');
-  }
-
-  function filterTasks(tasks) {
-    return tasks.filter(
-      (task) => (!priorityFilter || task.priority === priorityFilter) && matchesDeadlineRange(task.deadline, deadlineFilter)
-    );
-  }
-
-  if (!data) {
-    return <p>Chargement...</p>;
+    setQuery('');
   }
 
   const showTodo = !statusFilter || statusFilter === 'VALIDEE';
   const showInProgress = !statusFilter || statusFilter === 'EN_COURS';
   const showDone = !statusFilter || statusFilter === 'TERMINEE';
 
+  function byPriority(tasks) {
+    return priorityFilter ? tasks.filter((task) => task.priority === priorityFilter) : tasks;
+  }
+
+  const visibleEmployees = useMemo(() => {
+    if (!data) return [];
+    const q = query.trim().toLowerCase();
+    return data.employees.filter((employee) => !q || employee.full_name.toLowerCase().includes(q));
+  }, [data, query]);
+
+  if (!data) {
+    return (
+      <div className="admin-loading">
+        <span className="admin-loading-spinner" />
+        <p>Chargement du suivi en temps réel…</p>
+      </div>
+    );
+  }
+
+  const activeCount = data.stats.active_employees;
+  const hasFilters = statusFilter || priorityFilter || query.trim();
+
   return (
-    <div>
-      <h1>Suivi en temps réel</h1>
-      <p>
-        <Link to="/admin/create-task">Créer une tâche</Link>
-      </p>
-
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-        <div style={{ border: '1px solid black', padding: '10px' }}>
-          <strong>Employés actifs</strong>
-          <p>{data.stats.active_employees}</p>
+    <div className="admin-dash">
+      <div className="admin-toolbar">
+        <div className="admin-live-badge">
+          <span className="admin-live-dot" />
+          En direct
+          {lastUpdate && (
+            <span className="admin-live-time">
+              · mis à jour à{' '}
+              {lastUpdate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
         </div>
-        <div style={{ border: '1px solid black', padding: '10px' }}>
-          <strong>Tâches en cours</strong>
-          <p>{data.stats.tasks_in_progress}</p>
-        </div>
-        <div style={{ border: '1px solid black', padding: '10px' }}>
-          <strong>Tâches en retard</strong>
-          <p>{data.stats.tasks_late}</p>
+        <div className="admin-toolbar-actions">
+          <button type="button" className="btn-outline" onClick={load} disabled={refreshing}>
+            {refreshing ? <span className="btn-spinner btn-spinner--dark" /> : <IconArrowRight />}
+            Actualiser
+          </button>
+          <Link to="/admin/create-task" className="btn-primary">
+            <IconArrowRight />
+            Créer une tâche
+          </Link>
         </div>
       </div>
 
-      <div style={{ marginBottom: '20px' }}>
-        <label>
-          Statut :
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">Tous</option>
-            <option value="VALIDEE">À faire</option>
-            <option value="EN_COURS">En cours</option>
-            <option value="TERMINEE">Effectuées</option>
-          </select>
-        </label>
-        <label>
-          Priorité :
-          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-            <option value="">Toutes</option>
-            <option value="URGENT">Urgent</option>
-            <option value="HAUTE">Haute</option>
-            <option value="NORMALE">Normale</option>
-            <option value="FAIBLE">Faible</option>
-          </select>
-        </label>
-        <label>
-          Échéance :
-          <select value={deadlineFilter} onChange={(e) => setDeadlineFilter(e.target.value)}>
-            <option value="">Toutes</option>
-            <option value="today">Aujourd'hui</option>
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-            <option value="past">Passée</option>
-          </select>
-        </label>
-        <button onClick={resetFilters}>Réinitialiser les filtres</button>
+      <div className="admin-kpi-grid">
+        <div className="admin-kpi-card admin-kpi-card--green">
+          <span className="admin-kpi-icon">
+            <IconWorkspace />
+          </span>
+          <div className="admin-kpi-copy">
+            <p>Employés actifs</p>
+            <strong>{activeCount}</strong>
+            <span className="admin-kpi-hint">en train de travailler maintenant</span>
+          </div>
+        </div>
+        <div className="admin-kpi-card admin-kpi-card--blue">
+          <span className="admin-kpi-icon">
+            <IconPlay />
+          </span>
+          <div className="admin-kpi-copy">
+            <p>Tâches en cours</p>
+            <strong>{data.stats.tasks_in_progress}</strong>
+            <span className="admin-kpi-hint">chronos démarrés</span>
+          </div>
+        </div>
+        <div className="admin-kpi-card admin-kpi-card--red">
+          <span className="admin-kpi-icon">
+            <IconAlert />
+          </span>
+          <div className="admin-kpi-copy">
+            <p>Tâches en retard</p>
+            <strong>{data.stats.tasks_late}</strong>
+            <span className="admin-kpi-hint">échéances dépassées</span>
+          </div>
+        </div>
       </div>
 
-      <table border="1" cellPadding="6">
-        <thead>
-          <tr>
-            <th>Employé</th>
-            <th>À faire</th>
-            <th>En cours</th>
-            <th>Effectuées</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.employees.map((employee) => (
-            <tr
-              key={employee.id}
-              onClick={() => setSelectedEmployeeId(employee.id)}
-              style={{ cursor: 'pointer' }}
-            >
-              <td>
-                {employee.full_name}
-                <br />
-                <small>{employee.position}</small>
-              </td>
-              <td>
-                {showTodo &&
-                  filterTasks(employee.todo).map((task) => (
-                    <div key={task.id}>
-                      {task.title} ({task.priority})
+      <div className="admin-filter-bar">
+        <div className="filter-search admin-filter-search">
+          <IconSearch />
+          <input
+            type="text"
+            placeholder="Rechercher un employé…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="filter-groups">
+          <div className="filter-group">
+            <span className="filter-group-label">Statut</span>
+            {STATUS_FILTERS.map((option) => (
+              <button
+                key={option.value || 'all'}
+                type="button"
+                className={`filter-chip${statusFilter === option.value ? ' filter-chip--active' : ''}`}
+                onClick={() => setStatusFilter(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div className="filter-group">
+            <span className="filter-group-label">Priorité</span>
+            <select className="filter-select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+              <option value="">Toutes</option>
+              <option value="URGENT">Urgent</option>
+              <option value="HAUTE">Haute</option>
+              <option value="NORMALE">Normale</option>
+              <option value="FAIBLE">Faible</option>
+            </select>
+          </div>
+          {hasFilters && (
+            <button type="button" className="admin-filter-reset" onClick={resetFilters}>
+              Réinitialiser
+            </button>
+          )}
+        </div>
+      </div>
+
+      {visibleEmployees.length === 0 ? (
+        <div className="empty-state">Aucun employé ne correspond à votre recherche.</div>
+      ) : (
+        <div className="monitor-grid">
+          {visibleEmployees.map((employee) => {
+            const todo = byPriority(employee.todo);
+            const inProgress = byPriority(employee.in_progress);
+            const isActive = employee.in_progress.length > 0;
+
+            return (
+              <button
+                key={employee.id}
+                type="button"
+                className={`monitor-card${isActive ? ' monitor-card--active' : ''}`}
+                onClick={() => setSelectedEmployeeId(employee.id)}
+              >
+                <div className="monitor-card-head">
+                  <Initials name={employee.full_name} />
+                  <div className="monitor-card-identity">
+                    <span className="monitor-card-name">{employee.full_name}</span>
+                    <span className="monitor-card-position">{employee.position || 'Employé'}</span>
+                  </div>
+                  <span className={`monitor-status${isActive ? ' monitor-status--active' : ''}`}>
+                    <span className="monitor-status-dot" />
+                    {isActive ? 'En activité' : 'Au repos'}
+                  </span>
+                </div>
+
+                <div className="monitor-cols">
+                  {showTodo && (
+                    <div className="monitor-col">
+                      <span className="monitor-col-label">À faire · {todo.length}</span>
+                      {todo.length === 0 ? (
+                        <span className="monitor-col-empty">—</span>
+                      ) : (
+                        todo.slice(0, 3).map((task) => (
+                          <span key={task.id} className="monitor-task">
+                            <span className={`priority-dot priority-dot--${PRIORITY_META[task.priority]?.cls || 'normale'}`} />
+                            <span className="monitor-task-title">{task.title}</span>
+                          </span>
+                        ))
+                      )}
+                      {todo.length > 3 && <span className="monitor-more">+{todo.length - 3}</span>}
                     </div>
-                  ))}
-              </td>
-              <td>
-                {showInProgress &&
-                  filterTasks(employee.in_progress).map((task) => (
-                    <div key={task.id}>
-                      {task.title} ({task.priority}) — <LiveClock startTime={task.session_start_time} />
+                  )}
+
+                  {showInProgress && (
+                    <div className="monitor-col">
+                      <span className="monitor-col-label">En cours · {inProgress.length}</span>
+                      {inProgress.length === 0 ? (
+                        <span className="monitor-col-empty">—</span>
+                      ) : (
+                        inProgress.map((task) => (
+                          <span key={task.id} className="monitor-task monitor-task--live">
+                            <span className="monitor-task-title">{task.title}</span>
+                            {task.session_start_time && <LiveClock startTime={task.session_start_time} />}
+                          </span>
+                        ))
+                      )}
                     </div>
-                  ))}
-              </td>
-              <td>{showDone && employee.done.map((task) => <div key={task.id}>{task.title}</div>)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  )}
+
+                  {showDone && (
+                    <div className="monitor-col">
+                      <span className="monitor-col-label">Effectuées · {employee.done.length}</span>
+                      {employee.done.length === 0 ? (
+                        <span className="monitor-col-empty">—</span>
+                      ) : (
+                        employee.done.slice(0, 3).map((task) => (
+                          <span key={task.id} className="monitor-task monitor-task--done">
+                            <IconCheckCircle />
+                            <span className="monitor-task-title">{task.title}</span>
+                          </span>
+                        ))
+                      )}
+                      {employee.done.length > 3 && <span className="monitor-more">+{employee.done.length - 3}</span>}
+                    </div>
+                  )}
+                </div>
+
+                <span className="monitor-card-cta">
+                  Voir le détail <IconArrowRight />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {selectedEmployeeId && (
-        <div style={{ marginTop: '20px' }}>
-          <EmployeeDetailPanel employeeId={selectedEmployeeId} onClose={() => setSelectedEmployeeId(null)} />
-        </div>
+        <EmployeeDetailPanel employeeId={selectedEmployeeId} onClose={() => setSelectedEmployeeId(null)} />
       )}
     </div>
   );

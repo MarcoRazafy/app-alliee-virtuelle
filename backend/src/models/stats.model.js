@@ -118,13 +118,16 @@ async function computeTeamStats(from, to) {
   };
 }
 
-// Mêmes métriques que computeTeamStats mais restreintes à un seul employé (son propre espace stats)
+// Mêmes métriques que computeTeamStats mais restreintes à un seul employé (son propre espace stats).
+// tasks_confirmed/total_tasks sont filtrés sur updated_at (date de confirmation), pas sur deadline :
+// cette page affiche aussi un détail par jour basé sur la date de confirmation (by_day plus bas),
+// les deux doivent compter les mêmes tâches sous peine de se contredire à l'écran.
 async function computeEmployeeStats(employeeId, from, to) {
   const summaryResult = await db.query(
     `SELECT
        COUNT(*) FILTER (WHERE status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
        COUNT(*)::INTEGER AS total_tasks
-     FROM tasks WHERE assigned_to = $1 AND deadline BETWEEN $2 AND $3`,
+     FROM tasks WHERE assigned_to = $1 AND updated_at::date BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
@@ -132,6 +135,14 @@ async function computeEmployeeStats(employeeId, from, to) {
     `SELECT COALESCE(SUM(duration_seconds), 0)::BIGINT AS total_seconds,
             COUNT(DISTINCT task_id)::INTEGER AS tasks_with_time
      FROM timelog WHERE employee_id = $1 AND start_time::date BETWEEN $2 AND $3`,
+    [employeeId, from, to]
+  );
+
+  // Chrono de connexion (présence), indépendant du chrono de tâche ci-dessus : même
+  // simplification que timeResult (filtre sur la date de début de la session).
+  const connectedResult = await db.query(
+    `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(logout_at, now()) - login_at))), 0)::BIGINT AS total_seconds
+     FROM user_sessions WHERE user_id = $1 AND login_at::date BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
@@ -145,6 +156,7 @@ async function computeEmployeeStats(employeeId, from, to) {
     completion_rate: computeCompletionRate(tasksConfirmed, totalTasks),
     average_time_per_task_seconds: tasksWithTime > 0 ? Math.round(totalSeconds / tasksWithTime) : 0,
     total_hours_worked_seconds: totalSeconds,
+    total_connected_seconds: Number(connectedResult.rows[0].total_seconds),
   };
 
   const confirmedByDayResult = await db.query(

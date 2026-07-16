@@ -1,0 +1,308 @@
+/* Grille calendrier (jours en colonnes, heures en lignes) pour la saisie du planning
+   par glisser-déposer. Couleurs directement sur les tokens partagés (tokens.css),
+   utilisable hors de tout wrapper spécifique (voir planning.css pour le même choix). */
+
+.cal-grid-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.cal-grid {
+  display: flex;
+  min-width: 720px;
+}
+
+.cal-hour-column {
+  flex: 0 0 52px;
+  border-right: 1px solid var(--color-border);
+}
+
+.cal-corner {
+  height: 56px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cal-hour-label {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 0 6px;
+  color: var(--color-text-muted);
+  font-size: 0.62rem;
+  transform: translateY(-6px);
+}
+
+.cal-day-column-wrap {
+  flex: 1;
+  min-width: 96px;
+  border-right: 1px solid var(--color-border);
+}
+
+.cal-day-column-wrap:last-child {
+  border-right: 0;
+}
+
+.cal-day-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 56px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--input-bg);
+}
+
+.cal-day-title {
+  color: var(--color-text-primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.cal-day-status-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cal-status-dot {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cal-status-dot--available {
+  background: var(--color-success);
+}
+
+.cal-status-dot--partial {
+  background: var(--color-warning);
+}
+
+.cal-status-dot--unavailable {
+  background: var(--color-text-muted);
+}
+
+.cal-status-dot--active {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 2px var(--color-bg-secondary), 0 0 0 3px var(--color-text-primary);
+}
+
+.cal-copy-select {
+  width: 100%;
+  margin-top: 2px;
+  padding: 1px 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+  font-size: 0.56rem;
+}
+
+.cal-day-column {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+}
+
+.cal-day-column--drawable {
+  cursor: crosshair;
+}
+
+.cal-day-column--blocked {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--input-bg),
+    var(--input-bg) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  cursor: not-allowed;
+}
+
+.cal-hour-row {
+  border-top: 1px solid var(--color-border);
+  pointer-events: none;
+}
+
+.cal-day-empty-hint {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: 0.62rem;
+  font-style: italic;
+  text-align: center;
+  pointer-events: none;
+}
+
+.cal-slot {
+  position: absolute;
+  /* left décalé de 8px pour laisser la place à la bande fine .cal-session-block
+     (chrono de connexion réel) sans jamais se superposer visuellement avec elle. */
+  left: 10px;
+  right: 2px;
+  overflow: hidden;
+  border-radius: 6px;
+  color: var(--color-on-accent);
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Chrono de connexion (présence), indépendant des plages de disponibilité déclarées :
+   une fine bande à gauche de la colonne, colorée uniquement sur les heures où
+   l'utilisateur était réellement connecté à l'application. Lecture seule (jamais éditable). */
+.cal-session-block {
+  position: absolute;
+  left: 2px;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--color-accent-lighter);
+  opacity: 0.85;
+}
+
+.cal-session-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.cal-session-legend-swatch {
+  display: inline-block;
+  width: 6px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--color-accent-lighter);
+  opacity: 0.85;
+}
+
+.cal-slot--available {
+  background: color-mix(in srgb, var(--color-success) 85%, transparent);
+}
+
+.cal-slot--partial {
+  background: color-mix(in srgb, var(--color-warning) 85%, transparent);
+}
+
+.cal-slot--preview {
+  background: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  border: 1px dashed var(--color-accent-lighter);
+  pointer-events: none;
+}
+
+.cal-slot--dragging {
+  z-index: 5;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.cal-slot-label {
+  display: block;
+  padding: 2px 4px;
+  font-size: 0.58rem;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cal-slot-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.cal-slot-handle--top {
+  top: 0;
+}
+
+.cal-slot-handle--bottom {
+  bottom: 0;
+}
+
+.cal-slot-delete {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-on-accent);
+  background: rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+
+.cal-slot-delete svg {
+  width: 9px;
+  height: 9px;
+}
+
+.cal-slot:hover .cal-slot-delete {
+  display: inline-flex;
+}
+
+.cal-notes-row {
+  display: flex;
+  min-width: 720px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cal-notes-row-spacer {
+  flex: 0 0 52px;
+  border-right: 1px solid var(--color-border);
+}
+
+.cal-note-cell {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+  min-width: 96px;
+  padding: 6px 6px;
+  border-right: 1px solid var(--color-border);
+}
+
+.cal-note-cell:last-child {
+  border-right: 0;
+}
+
+.cal-note-cell span {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cal-note-cell input {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  font-size: 0.62rem;
+}
+
+@media (max-width: 900px) {
+  .cal-day-column-wrap {
+    min-width: 84px;
+  }
+}

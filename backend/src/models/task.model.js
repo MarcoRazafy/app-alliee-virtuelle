@@ -32,10 +32,12 @@ async function findAssignedTasks(userId, { status, priority, deadline, listId } 
   }
 
   const result = await db.query(
-    `SELECT id, title, description, priority, status, deadline, list_id, parent_task_id, client_name, client_email
-     FROM tasks
+    `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.list_id, t.parent_task_id,
+            t.client_name, t.client_email, tl.name AS list_name
+     FROM tasks t
+     LEFT JOIN task_lists tl ON tl.id = t.list_id
      WHERE ${conditions.join(' AND ')}
-     ORDER BY deadline ASC`,
+     ORDER BY t.deadline ASC`,
     params
   );
   return result.rows;
@@ -261,9 +263,10 @@ async function findTimelogHistory(taskId) {
 async function findDailySelection(userId, date) {
   const result = await db.query(
     `SELECT s.task_id, s.selected_order, s.validated_at,
-            t.title, t.description, t.priority, t.status, t.deadline
+            t.title, t.description, t.priority, t.status, t.deadline, t.list_id, tl.name AS list_name
      FROM user_daily_selection s
      JOIN tasks t ON t.id = s.task_id
+     LEFT JOIN task_lists tl ON tl.id = t.list_id
      WHERE s.user_id = $1 AND s.date = $2
      ORDER BY s.selected_order ASC`,
     [userId, date]
@@ -420,7 +423,12 @@ async function computeEmployeeStats(userId) {
 
 async function findRecentAuditForUser(userId, limit = 10) {
   const result = await db.query(
-    `SELECT action, entity_id, timestamp FROM audit_log WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2`,
+    `SELECT a.action, a.entity_type, a.entity_id, a.timestamp, t.title AS task_title
+     FROM audit_log a
+     LEFT JOIN tasks t ON a.entity_type = 'task' AND t.id = a.entity_id
+     WHERE a.user_id = $1
+     ORDER BY a.timestamp DESC
+     LIMIT $2`,
     [userId, limit]
   );
   return result.rows;

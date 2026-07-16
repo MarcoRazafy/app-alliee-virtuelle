@@ -1,18 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
+import EmployeeLayout from '../components/employee/EmployeeLayout';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import { formatDurationShort } from '../utils/formatters';
+import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
+import { IconExternalLink } from '../components/icons';
 import { notifyError } from '../utils/toast';
-
-const STATUS_LABELS = {
-  VALIDEE: 'À faire',
-  EN_COURS: 'En cours',
-  A_REPRENDRE: 'À reprendre',
-  TERMINEE: 'Terminée',
-  CONFIRMEE: 'Confirmée',
-};
 
 function matchesDeadlineRange(deadline, range) {
   if (!range) return true;
@@ -89,27 +84,62 @@ function MyTasks() {
   const paginatedTasks = filteredTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   return (
-    <div>
-      <p>
-        <Link to="/dashboard">Retour au tableau de bord</Link>
-      </p>
-      <h1>Mes tâches</h1>
-
+    <EmployeeLayout
+      title="Mes tâches"
+      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Mes tâches' }]}
+      subtitle="Retrouvez et filtrez l'ensemble de vos tâches assignées"
+    >
       <SearchBar onChange={setFilters} />
 
-      <p>{filteredTasks.length} tâche(s) trouvée(s)</p>
-      {filteredTasks.length === 0 && <p>Aucune tâche.</p>}
+      <p className="results-count">{filteredTasks.length} tâche(s) trouvée(s)</p>
 
-      <ul>
-        {paginatedTasks.map((task) => (
-          <li key={task.id}>
-            {task.title} — {task.priority} — deadline {task.deadline} —{' '}
-            {STATUS_LABELS[task.displayStatus] || task.displayStatus}
-            {task.totalDuration != null && <span> — durée totale {formatDurationShort(task.totalDuration)}</span>}
-            <Link to={`/tasks/${task.id}`}> [+]</Link>
-          </li>
-        ))}
-      </ul>
+      <div className="side-card">
+        {filteredTasks.length === 0 && <div className="empty-state">Aucune tâche ne correspond à ces filtres.</div>}
+        {filteredTasks.length > 0 && (
+          <div className="task-table-wrap">
+            <table className="task-table">
+              <thead>
+                <tr>
+                  <th>Tâche</th>
+                  <th>Projet / Contexte</th>
+                  <th>Échéance</th>
+                  <th>Statut</th>
+                  <th>Priorité</th>
+                  <th>Durée totale</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedTasks.map((task) => (
+                  <tr key={task.id}>
+                    <td>
+                      <Link to={`/tasks/${task.id}`} className="task-table-title">
+                        {task.title}
+                      </Link>
+                    </td>
+                    <td>{task.list_name && <span className="task-table-project">{task.list_name}</span>}</td>
+                    <td>{formatRelativeDeadline(task.deadline)}</td>
+                    <td>
+                      <span className={`pill ${STATUS_PILL[task.displayStatus]?.className || ''}`}>
+                        {STATUS_PILL[task.displayStatus]?.label || task.displayStatus}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
+                    </td>
+                    <td>{task.totalDuration != null ? formatDurationShort(task.totalDuration) : '—'}</td>
+                    <td>
+                      <Link to={`/tasks/${task.id}`} className="icon-link-btn" aria-label="Ouvrir la tâche">
+                        <IconExternalLink />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {filteredTasks.length > 0 && (
         <Pagination
@@ -120,7 +150,7 @@ function MyTasks() {
           onItemsPerPageChange={setItemsPerPage}
         />
       )}
-    </div>
+    </EmployeeLayout>
   );
 }
 

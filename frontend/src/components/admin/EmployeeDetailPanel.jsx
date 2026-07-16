@@ -2,8 +2,29 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as userService from '../../services/userService';
 import * as taskService from '../../services/taskService';
-import { formatDurationShort, formatDateTime } from '../../utils/formatters';
+import { formatDurationShort, formatDateTime, formatDate } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
+import { IconX, IconChat, IconCheckCircle, IconClock } from '../icons';
+
+const STATUS_PILL = {
+  DECLAREE: { label: 'Déclarée', cls: 'declared' },
+  VALIDEE: { label: 'À faire', cls: 'todo' },
+  EN_COURS: { label: 'En cours', cls: 'progress' },
+  EN_PAUSE: { label: 'En pause', cls: 'paused' },
+  TERMINEE: { label: 'Terminée', cls: 'done' },
+  CONFIRMEE: { label: 'Confirmée', cls: 'confirmed' },
+};
+
+function Initials({ name }) {
+  const initials = (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  return <span className="emp-drawer-avatar">{initials || '?'}</span>;
+}
 
 function EmployeeDetailPanel({ employeeId, onClose }) {
   const [detail, setDetail] = useState(null);
@@ -23,6 +44,15 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Fermeture au clavier (Échap) — réflexe attendu sur un panneau superposé
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   async function handleConfirm(taskId) {
     try {
@@ -64,74 +94,137 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
     }
   }
 
-  if (!detail) {
-    return (
-      <div style={{ border: '1px solid black', padding: '10px' }}>
-        <p>Chargement...</p>
-        <button onClick={onClose}>Fermer</button>
-      </div>
-    );
-  }
-
-  const { user, stats, tasks, recent_activity: recentActivity } = detail;
-
   return (
-    <div style={{ border: '1px solid black', padding: '10px' }}>
-      <button onClick={onClose}>Fermer</button>
-      <h2>{user.full_name}</h2>
-      <p>{user.email}</p>
-      <p>Statut : {user.status}</p>
+    <>
+      <div className="emp-drawer-overlay" onClick={onClose} />
+      <aside className="emp-drawer" role="dialog" aria-label="Détail employé">
+        <button type="button" className="emp-drawer-close" onClick={onClose} aria-label="Fermer">
+          <IconX />
+        </button>
 
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '10px' }}>
-        <div>Tâches complétées : {stats.tasks_confirmed}</div>
-        <div>% complétion : {stats.completion_rate}%</div>
-        <div>Heures travaillées : {formatDurationShort(stats.hours_worked_seconds)}</div>
-        <div>Tâches en retard : {stats.tasks_late}</div>
-      </div>
+        {!detail ? (
+          <div className="admin-loading admin-loading--drawer">
+            <span className="admin-loading-spinner" />
+            <p>Chargement…</p>
+          </div>
+        ) : (
+          <>
+            <header className="emp-drawer-head">
+              <Initials name={detail.user.full_name} />
+              <div className="emp-drawer-identity">
+                <h2>{detail.user.full_name}</h2>
+                <p>{detail.user.email}</p>
+              </div>
+              <span className={`pill ${detail.user.status === 'ACTIF' ? 'pill--confirmed' : 'pill--paused'}`}>
+                {detail.user.status}
+              </span>
+            </header>
 
-      <button onClick={() => navigate('/admin/messaging', { state: { employeeId: user.id } })}>
-        Voir les messages
-      </button>
-
-      <h3>Tâches</h3>
-      <ul>
-        {tasks.map((task) => (
-          <li key={task.id} style={{ marginBottom: '10px' }}>
-            {task.title} — {task.priority} — {task.status} — deadline {task.deadline}
-            <div>
-              <button onClick={() => handleConfirm(task.id)} disabled={task.status !== 'TERMINEE'}>
-                Confirmer
-              </button>
-              <input
-                placeholder="Motif de renvoi"
-                value={motifs[task.id] || ''}
-                onChange={(e) => setMotifs({ ...motifs, [task.id]: e.target.value })}
-                disabled={task.status !== 'TERMINEE'}
-              />
-              <button onClick={() => handleReject(task.id)} disabled={task.status !== 'TERMINEE'}>
-                Renvoyer
-              </button>
-              <input
-                placeholder="Ajouter une note"
-                value={noteDrafts[task.id] || ''}
-                onChange={(e) => setNoteDrafts({ ...noteDrafts, [task.id]: e.target.value })}
-              />
-              <button onClick={() => handleAddNote(task.id)}>Ajouter la note</button>
+            <div className="emp-drawer-stats">
+              <div className="emp-drawer-stat">
+                <span className="emp-drawer-stat-value">{detail.stats.tasks_confirmed}</span>
+                <span className="emp-drawer-stat-label">Complétées</span>
+              </div>
+              <div className="emp-drawer-stat">
+                <span className="emp-drawer-stat-value">{detail.stats.completion_rate}%</span>
+                <span className="emp-drawer-stat-label">Complétion</span>
+              </div>
+              <div className="emp-drawer-stat">
+                <span className="emp-drawer-stat-value">{formatDurationShort(detail.stats.hours_worked_seconds)}</span>
+                <span className="emp-drawer-stat-label">Travaillé</span>
+              </div>
+              <div className="emp-drawer-stat">
+                <span className={`emp-drawer-stat-value${detail.stats.tasks_late > 0 ? ' emp-drawer-stat-value--late' : ''}`}>
+                  {detail.stats.tasks_late}
+                </span>
+                <span className="emp-drawer-stat-label">En retard</span>
+              </div>
             </div>
-          </li>
-        ))}
-      </ul>
 
-      <h3>Activité récente</h3>
-      {recentActivity.length === 0 && <p>Aucune activité récente.</p>}
-      <ul>
-        {recentActivity.map((entry, index) => (
-          <li key={index}>
-            {entry.action} — {formatDateTime(entry.timestamp)}
-          </li>
-        ))}
-      </ul>
-    </div>
+            <button
+              type="button"
+              className="btn-outline emp-drawer-msg"
+              onClick={() => navigate('/admin/messaging', { state: { employeeId: detail.user.id } })}
+            >
+              <IconChat />
+              Voir les messages
+            </button>
+
+            <section className="emp-drawer-section">
+              <h3 className="app-section-title">Tâches</h3>
+              {detail.tasks.length === 0 && <p className="emp-drawer-muted">Aucune tâche assignée.</p>}
+              <div className="emp-drawer-tasks">
+                {detail.tasks.map((task) => {
+                  const meta = STATUS_PILL[task.status] || { label: task.status, cls: 'declared' };
+                  const canReview = task.status === 'TERMINEE';
+                  return (
+                    <div key={task.id} className="emp-task-card">
+                      <div className="emp-task-top">
+                        <span className="emp-task-title">{task.title}</span>
+                        <span className={`pill pill--${meta.cls}`}>{meta.label}</span>
+                      </div>
+                      <div className="emp-task-meta">
+                        <span>{task.priority}</span>
+                        {task.deadline && (
+                          <span className="emp-task-deadline">
+                            <IconClock /> {formatDate(task.deadline)}
+                          </span>
+                        )}
+                      </div>
+
+                      {canReview && (
+                        <div className="emp-task-review">
+                          <button type="button" className="emp-task-confirm" onClick={() => handleConfirm(task.id)}>
+                            <IconCheckCircle /> Confirmer
+                          </button>
+                          <div className="emp-task-reject-row">
+                            <input
+                              type="text"
+                              placeholder="Motif de renvoi"
+                              value={motifs[task.id] || ''}
+                              onChange={(e) => setMotifs({ ...motifs, [task.id]: e.target.value })}
+                            />
+                            <button type="button" className="emp-task-reject" onClick={() => handleReject(task.id)}>
+                              Renvoyer
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="emp-task-note-row">
+                        <input
+                          type="text"
+                          placeholder="Ajouter une note…"
+                          value={noteDrafts[task.id] || ''}
+                          onChange={(e) => setNoteDrafts({ ...noteDrafts, [task.id]: e.target.value })}
+                        />
+                        <button type="button" className="emp-task-note-btn" onClick={() => handleAddNote(task.id)}>
+                          Noter
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="emp-drawer-section">
+              <h3 className="app-section-title">Activité récente</h3>
+              {detail.recent_activity.length === 0 && <p className="emp-drawer-muted">Aucune activité récente.</p>}
+              <ul className="emp-drawer-activity">
+                {detail.recent_activity.map((entry, index) => (
+                  <li key={index}>
+                    <span className="emp-activity-dot" />
+                    <span className="emp-activity-text">{entry.action}</span>
+                    <span className="emp-activity-time">{formatDateTime(entry.timestamp)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
+        )}
+      </aside>
+    </>
   );
 }
 

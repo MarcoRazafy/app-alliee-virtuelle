@@ -102,7 +102,11 @@ async function updateProfile(id, { firstName, lastName, phone, postalAddress, bi
 // Annuaire minimal pour démarrer une conversation : seuls les comptes actifs, sans données sensibles
 async function findActiveExcept(userId) {
   const result = await db.query(
-    `SELECT id, full_name, role FROM users WHERE id != $1 AND status = $2 ORDER BY full_name ASC`,
+    `SELECT u.id, u.full_name, u.role, (a.id IS NOT NULL) AS has_avatar
+     FROM users u
+     LEFT JOIN user_avatars a ON a.user_id = u.id
+     WHERE u.id != $1 AND u.status = $2
+     ORDER BY u.full_name ASC`,
     [userId, USER_STATUS.ACTIVE]
   );
   return result.rows;

@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const userModel = require('../models/user.model');
 const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
+const sessionModel = require('../models/session.model');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
 
@@ -90,6 +91,10 @@ async function login(req, res, next) {
 
     const token = generateToken(user);
 
+    // Chrono de connexion (présence) : indépendant du chrono de tâche, jamais visible
+    // à l'employé autrement que comme une plage colorée sur son planning de la semaine.
+    await sessionModel.startSession(user.id);
+
     res.status(200).json({
       token,
       user: {
@@ -128,6 +133,7 @@ async function me(req, res, next) {
       role: user.role,
       status: user.status,
       has_avatar: !!avatar,
+      created_at: user.created_at,
     });
   } catch (err) {
     next(err);
@@ -242,6 +248,9 @@ async function logout(req, res, next) {
         details: { sessionId: stopped.id, duration_seconds: stopped.duration_seconds },
       });
     }
+
+    // Ferme aussi le chrono de connexion (présence), indépendant du chrono de tâche ci-dessus.
+    await sessionModel.closeOpenSessions(req.user.id);
 
     res.status(200).json({ message: 'Déconnexion réussie' });
   } catch (err) {

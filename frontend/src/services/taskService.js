@@ -60,6 +60,10 @@ export function validateMyDay() {
   return api.post('/api/my-day/validate').then((res) => res.data);
 }
 
+export function getMyActivity() {
+  return api.get('/api/my-activity').then((res) => res.data);
+}
+
 export function getComments(taskId) {
   return api.get(`/api/tasks/${taskId}/comments`).then((res) => res.data);
 }
