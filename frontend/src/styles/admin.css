@@ -538,6 +538,11 @@
   font-weight: 700;
 }
 
+.emp-drawer-avatar--img {
+  object-fit: cover;
+  background: var(--input-bg);
+}
+
 .emp-drawer-identity {
   flex: 1;
   min-width: 0;
@@ -1313,8 +1318,10 @@
   border-color: var(--color-accent-light);
 }
 
+/* Indentation via padding (et non margin) : avec width:100% + box-sizing:border-box,
+   le padding reste dans la largeur du panneau, alors qu'une margin-left la ferait déborder. */
 .tree-list-item {
-  margin-left: 26px;
+  padding-left: 30px;
 }
 
 .tree-list-item .tree-icon {

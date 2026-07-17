@@ -1,8 +1,65 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as userService from '../../services/userService';
+import * as avatarService from '../../services/avatarService';
+import UserInfoPanel from '../../components/admin/UserInfoPanel';
 import { notifySuccess, notifyError, notifyInfo } from '../../utils/toast';
+import { IconSearch, IconCheckCircle, IconArrowRight } from '../../components/icons';
+import '../../styles/admin.css';
+import '../../styles/admin-users.css';
 
-function EmployeesTab() {
+const STATUS_FILTERS = [
+  { value: '', label: 'Tous' },
+  { value: 'ACTIF', label: 'Actifs' },
+  { value: 'SUSPENDU', label: 'Suspendus' },
+  { value: 'REFUSÉ', label: 'Refusés' },
+];
+
+const USER_STATUS_META = {
+  ACTIF: { label: 'Actif', cls: 'user-active' },
+  SUSPENDU: { label: 'Suspendu', cls: 'user-suspended' },
+  REFUSÉ: { label: 'Refusé', cls: 'user-refused' },
+  EN_ATTENTE: { label: 'En attente', cls: 'user-pending' },
+};
+
+function initialsOf(name) {
+  return (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase();
+}
+
+function UserAvatar({ user, size }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let obj;
+    if (user.has_avatar) {
+      avatarService
+        .getUserAvatarBlob(user.id)
+        .then((blob) => {
+          obj = URL.createObjectURL(blob);
+          setUrl(obj);
+        })
+        .catch(() => setUrl(null));
+    } else {
+      setUrl(null);
+    }
+    return () => {
+      if (obj) URL.revokeObjectURL(obj);
+    };
+  }, [user.id, user.has_avatar]);
+
+  const cls = `user-avatar${size === 'sm' ? ' user-avatar--sm' : ''}`;
+  return url ? (
+    <img src={url} alt={user.full_name} className={`${cls} user-avatar--img`} />
+  ) : (
+    <span className={cls}>{initialsOf(user.full_name) || '?'}</span>
+  );
+}
+
+function EmployeesTab({ onSelect }) {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -58,56 +115,102 @@ function EmployeesTab() {
     }
   }
 
-  function handleEdit() {
-    notifyInfo('Modification du profil bientôt disponible');
-  }
+  const stop = (e) => e.stopPropagation();
 
   return (
     <div>
-      <div>
-        <input placeholder="Rechercher (nom ou email)" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">Tous les statuts</option>
-          <option value="ACTIF">Actif</option>
-          <option value="SUSPENDU">Suspendu</option>
-          <option value="REFUSÉ">Refusé</option>
-        </select>
-        <input placeholder="Filtrer par poste" value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)} />
+      <div className="admin-filter-bar ausers-filters">
+        <div className="filter-search ausers-search">
+          <IconSearch />
+          <input placeholder="Rechercher un nom ou un email…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="filter-group">
+          <span className="filter-group-label">Statut</span>
+          {STATUS_FILTERS.map((o) => (
+            <button
+              key={o.value || 'all'}
+              type="button"
+              className={`filter-chip${statusFilter === o.value ? ' filter-chip--active' : ''}`}
+              onClick={() => setStatusFilter(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="filter-group">
+          <input
+            className="filter-select"
+            placeholder="Filtrer par poste"
+            value={positionFilter}
+            onChange={(e) => setPositionFilter(e.target.value)}
+          />
+        </div>
       </div>
 
-      <table border="1" cellPadding="6" style={{ marginTop: '10px' }}>
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Email</th>
-            <th>Statut</th>
-            <th>Poste</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredUsers.map((user) => (
-            <tr key={user.id}>
-              <td>{user.full_name}</td>
-              <td>{user.email}</td>
-              <td>{user.status}</td>
-              <td>{user.position}</td>
-              <td>
-                <button onClick={handleEdit}>Modifier</button>
-                <button onClick={() => handleSuspend(user)} disabled={user.status !== 'ACTIF'}>
-                  Suspendre
-                </button>
-                <button onClick={() => handleActivate(user)} disabled={user.status !== 'SUSPENDU'}>
-                  Activer
-                </button>
-                <button onClick={() => handlePromote(user)} disabled={user.role !== 'EMPLOYEE'}>
-                  Promouvoir admin
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {filteredUsers.length === 0 ? (
+        <div className="empty-state">Aucun utilisateur ne correspond à ces filtres.</div>
+      ) : (
+        <div className="task-table-wrap ausers-table-wrap">
+          <table className="task-table">
+            <thead>
+              <tr>
+                <th>Employé</th>
+                <th>Poste</th>
+                <th>Statut</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => {
+                const meta = USER_STATUS_META[user.status] || { label: user.status, cls: 'user-refused' };
+                return (
+                  <tr key={user.id} className="ausers-row" onClick={() => onSelect(user)}>
+                    <td>
+                      <span className="ausers-user-cell">
+                        <UserAvatar user={user} />
+                        <span className="ausers-user-text">
+                          <span className="ausers-user-name">{user.full_name}</span>
+                          <span className="ausers-user-email">{user.email}</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td>{user.position || '—'}</td>
+                    <td>
+                      <span className={`pill pill--${meta.cls}`}>{meta.label}</span>
+                    </td>
+                    <td onClick={stop}>
+                      <div className="ausers-actions">
+                        <button
+                          type="button"
+                          className="ausers-action-btn"
+                          onClick={() => notifyInfo('Modification du profil bientôt disponible')}
+                        >
+                          Modifier
+                        </button>
+                        {user.status === 'ACTIF' && (
+                          <button type="button" className="ausers-action-btn ausers-action-btn--warn" onClick={() => handleSuspend(user)}>
+                            Suspendre
+                          </button>
+                        )}
+                        {user.status === 'SUSPENDU' && (
+                          <button type="button" className="ausers-action-btn ausers-action-btn--ok" onClick={() => handleActivate(user)}>
+                            Activer
+                          </button>
+                        )}
+                        {user.role === 'EMPLOYEE' && (
+                          <button type="button" className="ausers-action-btn" onClick={() => handlePromote(user)}>
+                            Promouvoir
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -177,54 +280,61 @@ function PendingTab({ onCountChange }) {
     load();
   }
 
+  if (pending.length === 0) {
+    return <div className="empty-state">Aucune demande d'accès en attente. 🎉</div>;
+  }
+
   return (
     <div>
       {selectedIds.length > 0 && (
-        <div style={{ border: '1px solid black', padding: '10px', marginBottom: '10px' }}>
-          <p>{selectedIds.length} demande(s) sélectionnée(s)</p>
-          <button onClick={handleBulkApprove}>Approuver la sélection ({selectedIds.length})</button>
-          <input placeholder="Motif de refus (lot)" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} />
-          <button onClick={handleBulkReject}>Refuser la sélection ({selectedIds.length})</button>
+        <div className="validate-bulk ausers-bulk">
+          <span className="validate-bulk-count">{selectedIds.length} sélectionnée(s)</span>
+          <button type="button" className="btn-primary validate-bulk-confirm" onClick={handleBulkApprove}>
+            <IconCheckCircle />
+            Approuver ({selectedIds.length})
+          </button>
+          <div className="validate-bulk-reject">
+            <input className="form-input" placeholder="Motif de refus (lot)" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} />
+            <button type="button" className="btn-danger" onClick={handleBulkReject}>
+              Refuser ({selectedIds.length})
+            </button>
+          </div>
         </div>
       )}
 
-      {pending.length === 0 && <p>Aucune demande en attente.</p>}
-      {pending.length > 0 && (
-        <table border="1" cellPadding="6">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Nom</th>
-              <th>Email</th>
-              <th>Poste</th>
-              <th>Demandé le</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pending.map((user) => (
-              <tr key={user.id}>
-                <td>
-                  <input type="checkbox" checked={selectedIds.includes(user.id)} onChange={() => toggleSelect(user.id)} />
-                </td>
-                <td>{user.full_name}</td>
-                <td>{user.email}</td>
-                <td>{user.position}</td>
-                <td>{new Date(user.created_at).toLocaleDateString('fr-FR')}</td>
-                <td>
-                  <button onClick={() => handleApprove(user.id)}>Approuver</button>
-                  <input
-                    placeholder="Motif de refus"
-                    value={motifs[user.id] || ''}
-                    onChange={(e) => setMotifs({ ...motifs, [user.id]: e.target.value })}
-                  />
-                  <button onClick={() => handleReject(user.id)}>Refuser</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <div className="ausers-pending-list">
+        {pending.map((user) => (
+          <div key={user.id} className="ausers-pending-card">
+            <label className="ausers-pending-check">
+              <input type="checkbox" checked={selectedIds.includes(user.id)} onChange={() => toggleSelect(user.id)} />
+            </label>
+            <UserAvatar user={user} />
+            <div className="ausers-pending-info">
+              <span className="ausers-user-name">{user.full_name}</span>
+              <span className="ausers-user-email">{user.email}</span>
+              <span className="ausers-pending-meta">
+                {user.position || '—'} · demandé le {new Date(user.created_at).toLocaleDateString('fr-FR')}
+              </span>
+            </div>
+            <div className="ausers-pending-actions">
+              <button type="button" className="ausers-action-btn ausers-action-btn--ok" onClick={() => handleApprove(user.id)}>
+                Approuver
+              </button>
+              <div className="ausers-reject-row">
+                <input
+                  className="form-input"
+                  placeholder="Motif de refus"
+                  value={motifs[user.id] || ''}
+                  onChange={(e) => setMotifs({ ...motifs, [user.id]: e.target.value })}
+                />
+                <button type="button" className="ausers-action-btn ausers-action-btn--warn" onClick={() => handleReject(user.id)}>
+                  Refuser
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -232,6 +342,7 @@ function PendingTab({ onCountChange }) {
 function AdminUsers() {
   const [tab, setTab] = useState('employees');
   const [pendingCount, setPendingCount] = useState(0);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const refreshPendingCount = useCallback(() => {
     userService.getPendingUsers().then((data) => setPendingCount(data.length)).catch(() => {});
@@ -242,29 +353,29 @@ function AdminUsers() {
   }, [refreshPendingCount]);
 
   return (
-    <div>
-      <h1>Utilisateurs</h1>
-
-      <div>
-        <button onClick={() => setTab('employees')} disabled={tab === 'employees'}>
+    <div className="ausers-page">
+      <div className="ausers-tabs">
+        <button
+          type="button"
+          className={`ausers-tab${tab === 'employees' ? ' ausers-tab--active' : ''}`}
+          onClick={() => setTab('employees')}
+        >
           Employés
         </button>
-        <button onClick={() => setTab('pending')} disabled={tab === 'pending'}>
+        <button
+          type="button"
+          className={`ausers-tab${tab === 'pending' ? ' ausers-tab--active' : ''}`}
+          onClick={() => setTab('pending')}
+        >
           Demandes d'accès
-          {pendingCount > 0 && (
-            <span
-              style={{ backgroundColor: 'red', color: 'white', borderRadius: '10px', padding: '2px 6px', marginLeft: '6px' }}
-            >
-              {pendingCount}
-            </span>
-          )}
+          {pendingCount > 0 && <span className="ausers-tab-badge">{pendingCount}</span>}
         </button>
       </div>
 
-      <div style={{ marginTop: '10px' }}>
-        {tab === 'employees' && <EmployeesTab />}
-        {tab === 'pending' && <PendingTab onCountChange={setPendingCount} />}
-      </div>
+      {tab === 'employees' && <EmployeesTab onSelect={setSelectedUser} />}
+      {tab === 'pending' && <PendingTab onCountChange={setPendingCount} />}
+
+      {selectedUser && <UserInfoPanel user={selectedUser} onClose={() => setSelectedUser(null)} />}
     </div>
   );
 }
