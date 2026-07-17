@@ -147,9 +147,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
   const [globalMessages, setGlobalMessages] = useState([]);
   const [globalInput, setGlobalInput] = useState('');
   const [conversations, setConversations] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [openConversation, setOpenConversation] = useState(null);
   const [conversationMessages, setConversationMessages] = useState([]);
   const [replyText, setReplyText] = useState('');
+  const [openGroup, setOpenGroup] = useState(null);
+  const [groupMessages, setGroupMessages] = useState([]);
+  const [groupReplyText, setGroupReplyText] = useState('');
   const [activeChannel, setActiveChannel] = useState('global');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobilePanel, setMobilePanel] = useState('list');
@@ -163,6 +167,10 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
   const [newMessageText, setNewMessageText] = useState('');
   const [newMessageOpen, setNewMessageOpen] = useState(false);
 
+  const [groupCreateOpen, setGroupCreateOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupMemberIds, setGroupMemberIds] = useState([]);
+
   // Envoi groupé (admin uniquement)
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRecipientIds, setBulkRecipientIds] = useState([]);
@@ -170,14 +178,17 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
 
   const [loadingGlobal, setLoadingGlobal] = useState(true);
   const [loadingPrivate, setLoadingPrivate] = useState(false);
+  const [loadingGroup, setLoadingGroup] = useState(false);
   const [sending, setSending] = useState(false);
   const [pinnedMemberIds, setPinnedMemberIds] = useState([]);
 
   const pinStorageKey = user?.id ? `alliee.messaging.pins.${user.id}` : null;
 
   const previousConversationUnreadRef = useRef(null);
+  const previousGroupUnreadRef = useRef(null);
   const activeChannelRef = useRef(activeChannel);
   const openConversationRef = useRef(openConversation);
+  const openGroupRef = useRef(openGroup);
   const initialHandledRef = useRef(false);
 
   useEffect(() => {
@@ -187,6 +198,10 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
   useEffect(() => {
     openConversationRef.current = openConversation;
   }, [openConversation]);
+
+  useEffect(() => {
+    openGroupRef.current = openGroup;
+  }, [openGroup]);
 
   async function loadConversations() {
     try {
@@ -216,10 +231,25 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
     }
   }
 
+  async function loadGroups() {
+    try {
+      const data = await messageService.getMessageGroups();
+      setGroups(data);
+      return data;
+    } catch (error) {
+      setGroups([]);
+      notifyError(error.response?.data?.error || 'Impossible de charger les groupes');
+      return [];
+    }
+  }
+
   useEffect(() => {
     loadGlobalMessages({ goToLastPage: true });
     loadConversations().then((data) => {
       previousConversationUnreadRef.current = new Map(data.map((c) => [c.other_user_id, c.unread_count || 0]));
+    });
+    loadGroups().then((data) => {
+      previousGroupUnreadRef.current = new Map(data.map((group) => [group.id, group.unread_count || 0]));
     });
     userService
       .getUsers()
@@ -231,7 +261,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
   useEffect(() => {
     let cancelled = false;
     async function pollConversations() {
-      const data = await loadConversations();
+      const [data, groupData] = await Promise.all([loadConversations(), loadGroups()]);
       if (cancelled) return;
       const previous = previousConversationUnreadRef.current;
       if (previous) {
@@ -246,6 +276,18 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
         });
       }
       previousConversationUnreadRef.current = new Map(data.map((c) => [c.other_user_id, c.unread_count || 0]));
+
+      const previousGroups = previousGroupUnreadRef.current;
+      if (previousGroups) {
+        groupData.forEach((group) => {
+          const before = previousGroups.get(group.id) || 0;
+          const isOpenGroup = activeChannelRef.current === 'group' && openGroupRef.current?.id === group.id;
+          if ((group.unread_count || 0) > before && !isOpenGroup) {
+            notifyInfo(`Nouveau message dans ${group.name}`);
+          }
+        });
+      }
+      previousGroupUnreadRef.current = new Map(groupData.map((group) => [group.id, group.unread_count || 0]));
     }
     const interval = window.setInterval(pollConversations, 10000);
     return () => {
@@ -282,6 +324,20 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChannel, openConversation?.other_user_id]);
+
+  useEffect(() => {
+    if (activeChannel !== 'group' || !openGroup) return undefined;
+    const groupId = openGroup.id;
+    const interval = window.setInterval(async () => {
+      try {
+        const data = await messageService.getGroupMessages(groupId);
+        setGroupMessages((current) => (data.length !== current.length ? data : current));
+      } catch {
+        /* silencieux */
+      }
+    }, 6000);
+    return () => window.clearInterval(interval);
+  }, [activeChannel, openGroup?.id]);
 
   useEffect(() => {
     if (!pinStorageKey) return;
@@ -334,6 +390,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
       if (event.key === 'Escape') {
         setNewMessageOpen(false);
         setBulkOpen(false);
+        setGroupCreateOpen(false);
       }
     }
     document.addEventListener('keydown', handleEscape);
@@ -394,17 +451,34 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
     });
   }, [teamMembers, searchQuery]);
 
+  const filteredGroups = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return groups;
+    return groups.filter((group) => {
+      const memberNames = (group.members || []).map((member) => member.full_name).join(' ').toLowerCase();
+      return group.name.toLowerCase().includes(query) || memberNames.includes(query);
+    });
+  }, [groups, searchQuery]);
+
   const pinnedMembers = filteredMembers.filter((member) => pinnedMemberIds.includes(member.other_user_id));
   const unpinnedMembers = filteredMembers.filter((member) => !pinnedMemberIds.includes(member.other_user_id));
 
-  const visibleMessages = activeChannel === 'global' ? paginatedGlobalMessages : conversationMessages;
-  const activeTitle = activeChannel === 'global' ? 'Équipe — Général' : openConversation?.other_user_name || 'Conversation';
+  const visibleMessages =
+    activeChannel === 'global' ? paginatedGlobalMessages : activeChannel === 'group' ? groupMessages : conversationMessages;
+  const activeTitle =
+    activeChannel === 'global'
+      ? 'Équipe — Général'
+      : activeChannel === 'group'
+        ? openGroup?.name || 'Groupe'
+        : openConversation?.other_user_name || 'Conversation';
   const activeSubtitle =
     activeChannel === 'global'
       ? "Salon général de l'équipe"
-      : openConversation?.other_user_role === 'ADMIN'
-        ? 'Administrateur · Conversation privée'
-        : 'Membre de l’équipe · Conversation privée';
+      : activeChannel === 'group'
+        ? `${openGroup?.member_count || 0} membre${Number(openGroup?.member_count) > 1 ? 's' : ''} · Groupe privé`
+        : openConversation?.other_user_role === 'ADMIN'
+          ? 'Administrateur · Conversation privée'
+          : 'Membre de l’équipe · Conversation privée';
   const latestGlobalMessage = globalMessages[globalMessages.length - 1];
 
   useEffect(() => {
@@ -412,7 +486,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, 50);
     return () => window.clearTimeout(timer);
-  }, [activeChannel, conversationMessages, paginatedGlobalMessages]);
+  }, [activeChannel, conversationMessages, groupMessages, paginatedGlobalMessages]);
 
   function togglePinnedMember(memberId) {
     setPinnedMemberIds((current) => {
@@ -447,12 +521,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
     setActiveChannel('global');
     setOpenConversation(null);
     setConversationMessages([]);
+    setOpenGroup(null);
+    setGroupMessages([]);
     setMobilePanel('chat');
   }
 
   async function openConversationWith(conversation) {
     setActiveChannel('private');
     setOpenConversation(conversation);
+    setOpenGroup(null);
+    setGroupMessages([]);
     setMobilePanel('chat');
     setLoadingPrivate(true);
     try {
@@ -464,6 +542,27 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
       notifyError(error.response?.data?.error || 'Impossible de charger la conversation');
     } finally {
       setLoadingPrivate(false);
+    }
+  }
+
+  async function openGroupWith(group) {
+    setActiveChannel('group');
+    setOpenGroup(group);
+    setOpenConversation(null);
+    setConversationMessages([]);
+    setMobilePanel('chat');
+    setLoadingGroup(true);
+    try {
+      const messages = await messageService.getGroupMessages(group.id);
+      setGroupMessages(messages);
+      const updatedGroups = await loadGroups();
+      const refreshedGroup = updatedGroups.find((item) => item.id === group.id);
+      if (refreshedGroup) setOpenGroup(refreshedGroup);
+    } catch (error) {
+      setGroupMessages([]);
+      notifyError(error.response?.data?.error || 'Impossible de charger le groupe');
+    } finally {
+      setLoadingGroup(false);
     }
   }
 
@@ -508,6 +607,31 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
     }
   }
 
+  async function handleGroupReply() {
+    const content = groupReplyText.trim();
+    if (!content || !openGroup || sending) return;
+    setSending(true);
+    try {
+      const sentMessage = await messageService.sendGroupMessage(openGroup.id, content);
+      setGroupReplyText('');
+      setGroupMessages((current) => [
+        ...current,
+        { ...sentMessage, author_name: sentMessage.author_name || user?.full_name || 'Vous' },
+      ]);
+      const [messages, updatedGroups] = await Promise.all([
+        messageService.getGroupMessages(openGroup.id),
+        loadGroups(),
+      ]);
+      setGroupMessages(messages);
+      const refreshedGroup = updatedGroups.find((item) => item.id === openGroup.id);
+      if (refreshedGroup) setOpenGroup(refreshedGroup);
+    } catch (error) {
+      notifyError(requestErrorMessage(error, "Impossible d'envoyer le message au groupe"));
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function handleStartConversation(event) {
     event.preventDefault();
     const recipientId = newRecipientId;
@@ -528,6 +652,30 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
       }
     } catch (error) {
       notifyError(requestErrorMessage(error, "Impossible d'envoyer le message"));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function toggleGroupMember(id) {
+    setGroupMemberIds((current) => (current.includes(id) ? current.filter((memberId) => memberId !== id) : [...current, id]));
+  }
+
+  async function handleCreateGroup(event) {
+    event.preventDefault();
+    const name = groupName.trim();
+    if (name.length < 2 || groupMemberIds.length === 0 || sending) return;
+    setSending(true);
+    try {
+      const createdGroup = await messageService.createMessageGroup(name, groupMemberIds);
+      setGroupName('');
+      setGroupMemberIds([]);
+      setGroupCreateOpen(false);
+      notifySuccess(`Groupe « ${createdGroup.name} » créé`);
+      await loadGroups();
+      await openGroupWith(createdGroup);
+    } catch (error) {
+      notifyError(requestErrorMessage(error, 'Impossible de créer le groupe'));
     } finally {
       setSending(false);
     }
@@ -598,8 +746,38 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
     );
   }
 
+  function renderGroup(group) {
+    const isActive = activeChannel === 'group' && openGroup?.id === group.id;
+    return (
+      <button
+        type="button"
+        className={`conversation-item${isActive ? ' conversation-item--active' : ''}`}
+        onClick={() => openGroupWith(group)}
+        key={group.id}
+      >
+        <span className="conversation-avatar conversation-avatar--group"><UsersIcon /></span>
+        <span className="conversation-content">
+          <span className="conversation-name-row">
+            <strong>{group.name}</strong>
+            <time>{formatConversationTime(group.last_message_at)}</time>
+          </span>
+          <span className="conversation-preview-row">
+            <span className="conversation-preview">
+              {group.last_message_content || `${group.member_count} membres · Aucun message`}
+            </span>
+            {group.unread_count > 0 && (
+              <span className="conversation-unread" aria-label={`${group.unread_count} message(s) non lu(s)`}>
+                {group.unread_count > 99 ? '99+' : group.unread_count}
+              </span>
+            )}
+          </span>
+        </span>
+      </button>
+    );
+  }
+
   function renderMessages() {
-    const isLoading = activeChannel === 'global' ? loadingGlobal : loadingPrivate;
+    const isLoading = activeChannel === 'global' ? loadingGlobal : activeChannel === 'group' ? loadingGroup : loadingPrivate;
     if (isLoading) {
       return (
         <div className="messaging-state" role="status">
@@ -629,7 +807,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
               <ProfileAvatar name={message.author_name} avatarUrl={avatarUrls[message.author_id]} className="message-avatar" />
             )}
             <div className="message-bubble-wrap">
-              {!isOwnMessage && activeChannel === 'global' && <span className="message-author">{message.author_name}</span>}
+              {!isOwnMessage && activeChannel !== 'private' && <span className="message-author">{message.author_name}</span>}
               <div className={`message-bubble${isOwnMessage ? ' message-bubble--own' : ''}`}>
                 <p>{message.content}</p>
               </div>
@@ -653,6 +831,10 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
           </p>
         </div>
         <div className="messaging-toolbar-actions">
+          <button type="button" className="messaging-secondary-button" onClick={() => setGroupCreateOpen(true)}>
+            <UsersIcon />
+            Créer un groupe
+          </button>
           {enableBulk && (
             <button type="button" className="messaging-secondary-button" onClick={() => setBulkOpen(true)}>
               <UsersIcon />
@@ -670,8 +852,10 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
         <aside className="conversation-sidebar" aria-label="Liste des conversations">
           <div className="conversation-sidebar-header">
             <div>
-              <h2>Membres de l'équipe</h2>
-              <span>1 salon · {teamMembers.length} membre{teamMembers.length > 1 ? 's' : ''}</span>
+              <h2>Conversations</h2>
+              <span>
+                {groups.length} groupe{groups.length > 1 ? 's' : ''} · {teamMembers.length} membre{teamMembers.length > 1 ? 's' : ''}
+              </span>
             </div>
             <button
               type="button"
@@ -690,8 +874,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Rechercher un membre"
-              aria-label="Rechercher un membre"
+              placeholder="Rechercher un groupe ou un membre"
+              aria-label="Rechercher un groupe ou un membre"
             />
           </label>
 
@@ -711,6 +895,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
               </span>
             </button>
 
+            {filteredGroups.length > 0 && (
+              <>
+                <div className="conversation-section-label">Groupes</div>
+                {filteredGroups.map(renderGroup)}
+              </>
+            )}
+
             {pinnedMembers.length > 0 && (
               <>
                 <div className="conversation-section-label">Épinglés</div>
@@ -725,10 +916,10 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
               </>
             )}
 
-            {filteredMembers.length === 0 && searchQuery.trim() && (
+            {filteredMembers.length === 0 && filteredGroups.length === 0 && searchQuery.trim() && (
               <div className="conversation-empty">
                 <IconSearch />
-                <p>Aucun membre trouvé.</p>
+                <p>Aucun groupe ou membre trouvé.</p>
               </div>
             )}
           </div>
@@ -741,6 +932,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
             </button>
             {activeChannel === 'global' ? (
               <span className="conversation-avatar conversation-avatar--team"><IconChat /></span>
+            ) : activeChannel === 'group' ? (
+              <span className="conversation-avatar conversation-avatar--group"><UsersIcon /></span>
             ) : (
               <ProfileAvatar name={activeTitle} avatarUrl={avatarUrls[openConversation?.other_user_id]} className="conversation-avatar" />
             )}
@@ -790,6 +983,14 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
                 disabled={sending}
                 placeholder="Écrire dans le salon général..."
               />
+            ) : activeChannel === 'group' ? (
+              <MessageComposer
+                value={groupReplyText}
+                onChange={setGroupReplyText}
+                onSend={handleGroupReply}
+                disabled={sending || !openGroup}
+                placeholder={`Écrire dans ${openGroup?.name || 'le groupe'}...`}
+              />
             ) : (
               <MessageComposer
                 value={replyText}
@@ -803,6 +1004,95 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
           </div>
         </section>
       </div>
+
+      {groupCreateOpen && (
+        <div className="messaging-modal-backdrop" role="presentation" onMouseDown={() => setGroupCreateOpen(false)}>
+          <section
+            className="messaging-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-group-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="messaging-modal-header">
+              <div>
+                <span className="messaging-modal-icon"><UsersIcon /></span>
+                <div>
+                  <h2 id="create-group-title">Créer un groupe</h2>
+                  <p>Donnez un nom au groupe puis choisissez les personnes qui pourront y participer.</p>
+                </div>
+              </div>
+              <button type="button" className="messaging-modal-close" onClick={() => setGroupCreateOpen(false)} aria-label="Fermer la fenêtre">
+                <IconX />
+              </button>
+            </div>
+
+            <form className="messaging-modal-form" onSubmit={handleCreateGroup}>
+              <label>
+                <span>Nom du groupe</span>
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(event) => setGroupName(event.target.value)}
+                  placeholder="Ex. Dev"
+                  minLength="2"
+                  maxLength="100"
+                  autoFocus
+                  required
+                />
+              </label>
+
+              <div className="msg-bulk-recipients-head">
+                <span>Personnes sélectionnées ({groupMemberIds.length})</span>
+                <button
+                  type="button"
+                  className="msg-bulk-selectall"
+                  onClick={() =>
+                    setGroupMemberIds(
+                      groupMemberIds.length === availableUsers.length ? [] : availableUsers.map((member) => member.id)
+                    )
+                  }
+                >
+                  {groupMemberIds.length === availableUsers.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                </button>
+              </div>
+
+              <div className="msg-bulk-recipients">
+                {availableUsers.map((member) => (
+                  <label
+                    key={member.id}
+                    className={`msg-bulk-chip${groupMemberIds.includes(member.id) ? ' msg-bulk-chip--on' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={groupMemberIds.includes(member.id)}
+                      onChange={() => toggleGroupMember(member.id)}
+                    />
+                    {member.full_name}
+                  </label>
+                ))}
+                {availableUsers.length === 0 && <p className="messaging-modal-empty">Aucune personne active n'est disponible.</p>}
+              </div>
+
+              <p className="messaging-modal-hint">Vous serez automatiquement ajouté au groupe.</p>
+
+              <div className="messaging-modal-actions">
+                <button type="button" className="messaging-secondary-button" onClick={() => setGroupCreateOpen(false)}>
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="messaging-primary-button"
+                  disabled={groupName.trim().length < 2 || groupMemberIds.length === 0 || sending}
+                >
+                  <UsersIcon />
+                  {sending ? 'Création...' : 'Créer le groupe'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {newMessageOpen && (
         <div className="messaging-modal-backdrop" role="presentation" onMouseDown={() => setNewMessageOpen(false)}>

@@ -88,9 +88,11 @@ function Dashboard() {
 
     taskService.getTasks({ priority: 'URGENT' }).then(setUrgentTasks);
 
-    messageService
-      .getConversations()
-      .then((conversations) => setUnreadCount(conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)));
+    Promise.all([messageService.getConversations(), messageService.getMessageGroups()]).then(([conversations, groups]) => {
+      const privateUnread = conversations.reduce((sum, conversation) => sum + (conversation.unread_count || 0), 0);
+      const groupUnread = groups.reduce((sum, group) => sum + (group.unread_count || 0), 0);
+      setUnreadCount(privateUnread + groupUnread);
+    });
 
     const date = todayDateString();
     statsService.getMyStats(date, date).then((stats) => {
