@@ -40,12 +40,16 @@ RÈGLES STRICTES (à respecter impérativement) :
 Données actuelles de l'équipe (JSON) :
 `;
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function ask(req, res, next) {
   try {
-    const { question } = req.body;
+    const { question, session_id: sessionId } = req.body;
     if (!question || !question.trim()) {
       return res.status(400).json({ error: 'La question est requise' });
     }
+    // Le front envoie l'id de la conversation en cours ; sinon le modèle en génère un.
+    const validSessionId = sessionId && UUID_RE.test(sessionId) ? sessionId : null;
 
     const context = await buildContext();
 
@@ -58,6 +62,7 @@ async function ask(req, res, next) {
 
     const conversation = await aiModel.createConversation({
       adminId: req.user.id,
+      sessionId: validSessionId,
       question,
       answer,
       contextData: { period: context.period_analysee },
