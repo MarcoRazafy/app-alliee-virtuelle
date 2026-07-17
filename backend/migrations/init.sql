@@ -86,20 +86,42 @@ CREATE TABLE IF NOT EXISTS timelog (
 CREATE INDEX IF NOT EXISTS idx_timelog_task_id ON timelog(task_id);
 CREATE INDEX IF NOT EXISTS idx_timelog_employee_id ON timelog(employee_id);
 
--- 7. MESSAGES
+-- 7. MESSAGE_GROUPS
+CREATE TABLE IF NOT EXISTS message_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_message_groups_last_message_at ON message_groups(last_message_at DESC);
+
+CREATE TABLE IF NOT EXISTS message_group_members (
+    group_id UUID NOT NULL REFERENCES message_groups(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (group_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_message_group_members_user_id ON message_group_members(user_id);
+
+-- 8. MESSAGES
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    channel_type VARCHAR(50) CHECK (channel_type IN ('GLOBAL', 'PRIVATE')) DEFAULT 'GLOBAL',
+    channel_type VARCHAR(50) CHECK (channel_type IN ('GLOBAL', 'PRIVATE', 'GROUP')) DEFAULT 'GLOBAL',
     recipient_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    group_id UUID REFERENCES message_groups(id) ON DELETE CASCADE,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_messages_author_id ON messages(author_id);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_group_id ON messages(group_id);
 
--- 8. MESSAGE_CONVERSATIONS
+-- 9. MESSAGE_CONVERSATIONS
 CREATE TABLE IF NOT EXISTS message_conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     participant1_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -109,7 +131,7 @@ CREATE TABLE IF NOT EXISTS message_conversations (
 );
 CREATE INDEX IF NOT EXISTS idx_message_conversations_participant1 ON message_conversations(participant1_id);
 
--- 9. RESOURCES_FOLDERS
+-- 10. RESOURCES_FOLDERS
 CREATE TABLE IF NOT EXISTS resources_folders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
@@ -121,7 +143,7 @@ CREATE TABLE IF NOT EXISTS resources_folders (
 );
 CREATE INDEX IF NOT EXISTS idx_resources_folders_parent ON resources_folders(parent_folder_id);
 
--- 10. RESOURCES_FILES
+-- 11. RESOURCES_FILES
 CREATE TABLE IF NOT EXISTS resources_files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     folder_id UUID NOT NULL REFERENCES resources_folders(id) ON DELETE CASCADE,
@@ -134,7 +156,7 @@ CREATE TABLE IF NOT EXISTS resources_files (
 );
 CREATE INDEX IF NOT EXISTS idx_resources_files_folder_id ON resources_files(folder_id);
 
--- 11. RESOURCES_SHARES
+-- 12. RESOURCES_SHARES
 CREATE TABLE IF NOT EXISTS resources_shares (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     folder_id UUID NOT NULL REFERENCES resources_folders(id) ON DELETE CASCADE,
@@ -146,7 +168,7 @@ CREATE TABLE IF NOT EXISTS resources_shares (
 );
 CREATE INDEX IF NOT EXISTS idx_resources_shares_folder_id ON resources_shares(folder_id);
 
--- 12. AUDIT_LOG
+-- 13. AUDIT_LOG
 CREATE TABLE IF NOT EXISTS audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -159,7 +181,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
 
--- 13. USER_DAILY_SELECTION
+-- 14. USER_DAILY_SELECTION
 CREATE TABLE IF NOT EXISTS user_daily_selection (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -171,7 +193,7 @@ CREATE TABLE IF NOT EXISTS user_daily_selection (
 );
 CREATE INDEX IF NOT EXISTS idx_user_daily_selection_user_date ON user_daily_selection(user_id, date);
 
--- 14. AI_CONVERSATIONS
+-- 15. AI_CONVERSATIONS
 CREATE TABLE IF NOT EXISTS ai_conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
