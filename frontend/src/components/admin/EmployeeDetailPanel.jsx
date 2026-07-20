@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as userService from '../../services/userService';
 import * as taskService from '../../services/taskService';
+import * as avatarService from '../../services/avatarService';
 import { formatDurationShort, formatDateTime, formatDate } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { IconX, IconChat, IconCheckCircle, IconClock } from '../icons';
@@ -28,6 +29,7 @@ function Initials({ name }) {
 
 function EmployeeDetailPanel({ employeeId, onClose }) {
   const [detail, setDetail] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const [motifs, setMotifs] = useState({});
   const [noteDrafts, setNoteDrafts] = useState({});
   const navigate = useNavigate();
@@ -44,6 +46,25 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Charge la photo de profil si l'employé en a une
+  useEffect(() => {
+    let objectUrl;
+    if (detail?.user?.has_avatar) {
+      avatarService
+        .getUserAvatarBlob(detail.user.id)
+        .then((blob) => {
+          objectUrl = URL.createObjectURL(blob);
+          setAvatarUrl(objectUrl);
+        })
+        .catch(() => setAvatarUrl(null));
+    } else {
+      setAvatarUrl(null);
+    }
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [detail]);
 
   // Fermeture au clavier (Échap) — réflexe attendu sur un panneau superposé
   useEffect(() => {
@@ -110,7 +131,11 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
         ) : (
           <>
             <header className="emp-drawer-head">
-              <Initials name={detail.user.full_name} />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={detail.user.full_name} className="emp-drawer-avatar emp-drawer-avatar--img" />
+              ) : (
+                <Initials name={detail.user.full_name} />
+              )}
               <div className="emp-drawer-identity">
                 <h2>{detail.user.full_name}</h2>
                 <p>{detail.user.email}</p>

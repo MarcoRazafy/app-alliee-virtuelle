@@ -72,9 +72,14 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
 
     async function pollUnread() {
       try {
-        const conversations = await messageService.getConversations();
+        const [conversations, groups] = await Promise.all([
+          messageService.getConversations(),
+          messageService.getMessageGroups(),
+        ]);
         if (cancelled) return;
-        setUnreadCount(conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0));
+        const privateUnread = conversations.reduce((sum, conversation) => sum + (conversation.unread_count || 0), 0);
+        const groupUnread = groups.reduce((sum, group) => sum + (group.unread_count || 0), 0);
+        setUnreadCount(privateUnread + groupUnread);
 
         const previous = previousUnreadRef.current;
         if (previous && !location.pathname.startsWith('/messaging')) {

@@ -22,6 +22,8 @@ const STATUS_DOT_CLASS = {
   AVAILABLE: 'cal-status-dot--available',
   PARTIALLY_AVAILABLE: 'cal-status-dot--partial',
   UNAVAILABLE: 'cal-status-dot--unavailable',
+  LEAVE: 'cal-status-dot--leave',
+  SICK: 'cal-status-dot--sick',
 };
 
 function snapMinutes(minutes) {
@@ -113,7 +115,16 @@ function SessionBlock({ segment }) {
   );
 }
 
-function WeekCalendarGrid({ days, canEdit, onStatusChange, onSlotsChange, onCopyTo, onNoteChange, sessionSegmentsByDate }) {
+function WeekCalendarGrid({
+  days,
+  canEdit,
+  onStatusChange,
+  onSlotsChange,
+  onCopyTo,
+  onNoteChange,
+  sessionSegmentsByDate,
+  statusOptions = EMPLOYEE_STATUS_OPTIONS,
+}) {
   const [drag, setDrag] = useState(null);
   const columnRefs = useRef({});
 
@@ -217,14 +228,17 @@ function WeekCalendarGrid({ days, canEdit, onStatusChange, onSlotsChange, onCopy
 
         {days.map((day, dayIndex) => {
           const isDrawable = canEdit && HAS_SLOTS_STATUSES.includes(day.availability_status);
-          const isBlocked = canEdit && day.availability_status === 'UNAVAILABLE';
+          // Tout statut posé qui ne porte pas de plages (Indisponible / Congé / Maladie)
+          // s'affiche « bloqué » (hachuré) avec son libellé.
+          const isBlocked =
+            canEdit && day.availability_status && !HAS_SLOTS_STATUSES.includes(day.availability_status);
           return (
             <div className="cal-day-column-wrap" key={day.date}>
               <div className="cal-day-header">
                 <span className="cal-day-title">{formatDayLabel(day.date, dayIndex)}</span>
                 {canEdit ? (
                   <div className="cal-day-status-toggle" role="group" aria-label="Statut de disponibilité">
-                    {EMPLOYEE_STATUS_OPTIONS.map((option) => (
+                    {statusOptions.map((option) => (
                       <button
                         key={option.value}
                         type="button"
@@ -283,7 +297,9 @@ function WeekCalendarGrid({ days, canEdit, onStatusChange, onSlotsChange, onCopy
                 {!day.availability_status && canEdit && (
                   <div className="cal-day-empty-hint">Choisissez un statut</div>
                 )}
-                {isBlocked && <div className="cal-day-empty-hint">Indisponible</div>}
+                {isBlocked && (
+                  <div className="cal-day-empty-hint">{STATUS_LABELS[day.availability_status]}</div>
+                )}
 
                 {(sessionSegmentsByDate?.[day.date] || []).map((segment, segmentIndex) => (
                   <SessionBlock key={segmentIndex} segment={segment} />

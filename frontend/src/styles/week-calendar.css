@@ -90,6 +90,15 @@
   background: var(--color-text-muted);
 }
 
+/* Statuts réservés à l'admin (Congé = bleu planifié, Maladie = rouge subi) */
+.cal-status-dot--leave {
+  background: var(--color-info);
+}
+
+.cal-status-dot--sick {
+  background: var(--color-error);
+}
+
 .cal-status-dot--active {
   border-color: var(--color-text-primary);
   box-shadow: 0 0 0 2px var(--color-bg-secondary), 0 0 0 3px var(--color-text-primary);

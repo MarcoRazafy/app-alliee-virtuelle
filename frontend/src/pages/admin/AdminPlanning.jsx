@@ -1,126 +1,72 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as planningService from '../../services/planningService';
 import * as userService from '../../services/userService';
 import { notifyError, notifySuccess } from '../../utils/toast';
-import { IconAlert, IconTrash, IconX, IconCalendarWeek, IconUser, IconCheckCircle, IconClock } from '../../components/icons';
+import WeekCalendarGrid from '../../components/employee/WeekCalendarGrid';
+import { IconAlert, IconX, IconCalendarWeek, IconUser, IconCheckCircle, IconClock, IconSearch } from '../../components/icons';
 import {
   ADMIN_STATUS_OPTIONS,
   EFFECTIVE_STATUS_LABELS,
   EFFECTIVE_STATUS_PILL_CLASS,
   HAS_SLOTS_STATUSES,
-  formatDayLabel,
   formatWeekRange,
   formatDateTime,
   toDraftDays,
   toDateInputValue,
   getMondayOf,
+  timeToMinutes,
 } from '../../utils/planningFormat';
 import '../../styles/app.css';
 import '../../styles/planning.css';
+import '../../styles/week-calendar.css';
+import '../../styles/admin.css';
 import '../../styles/admin-planning.css';
 
 function todayDateInputValue() {
   return toDateInputValue(new Date());
 }
 
-function SummaryCards({ summary }) {
-  if (!summary) return null;
-  return (
-    <div className="stat-tile-grid admin-planning-summary">
-      <div className="stat-tile">
-        <span className="stat-tile-icon stat-tile-icon--blue">
-          <IconUser />
-        </span>
-        <div>
-          <div className="stat-tile-value">{summary.active_employees}</div>
-          <div className="stat-tile-label">Employés actifs</div>
-        </div>
-      </div>
-      <div className="stat-tile">
-        <span className="stat-tile-icon stat-tile-icon--green">
-          <IconCheckCircle />
-        </span>
-        <div>
-          <div className="stat-tile-value">{summary.submitted_count}</div>
-          <div className="stat-tile-label">Plannings soumis</div>
-        </div>
-      </div>
-      <div className="stat-tile">
-        <span className="stat-tile-icon stat-tile-icon--amber">
-          <IconAlert />
-        </span>
-        <div>
-          <div className="stat-tile-value">{summary.not_submitted_count}</div>
-          <div className="stat-tile-label">Plannings non soumis</div>
-        </div>
-      </div>
-      <div className="stat-tile">
-        <span className="stat-tile-icon stat-tile-icon--purple">
-          <IconClock />
-        </span>
-        <div>
-          <div className="stat-tile-value">{summary.available_today}</div>
-          <div className="stat-tile-label">Disponibles aujourd'hui</div>
-        </div>
-      </div>
-    </div>
-  );
+function initials(name) {
+  return (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase();
 }
 
-function AdminDayEditor({ day, index, onStatusChange, onSlotAdd, onSlotRemove, onSlotChange, onNoteChange }) {
-  const status = day.availability_status;
-  const showSlots = status && HAS_SLOTS_STATUSES.includes(status);
+function totalHoursOf(days) {
+  let minutes = 0;
+  days.forEach((day) => {
+    if (HAS_SLOTS_STATUSES.includes(day.availability_status)) {
+      day.time_slots.forEach((slot) => {
+        minutes += timeToMinutes(slot.end_time) - timeToMinutes(slot.start_time);
+      });
+    }
+  });
+  return Math.round((minutes / 60) * 10) / 10;
+}
 
+function SummaryCards({ summary }) {
+  if (!summary) return null;
+  const tiles = [
+    { icon: <IconUser />, value: summary.active_employees, label: 'Employés actifs' },
+    { icon: <IconCheckCircle />, value: summary.submitted_count, label: 'Plannings soumis' },
+    { icon: <IconAlert />, value: summary.not_submitted_count, label: 'Non soumis' },
+    { icon: <IconClock />, value: summary.available_today, label: "Disponibles aujourd'hui" },
+  ];
   return (
-    <div className="planning-day-card">
-      <div className="planning-day-header">
-        <span className="planning-day-name">{formatDayLabel(day.date, index)}</span>
-      </div>
-
-      <div className="planning-day-status-group" role="group" aria-label="Statut de disponibilité">
-        {ADMIN_STATUS_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            className={`filter-chip${status === option.value ? ' filter-chip--active' : ''}`}
-            onClick={() => onStatusChange(day.date, option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-
-      {showSlots && (
-        <div className="planning-slots">
-          {day.time_slots.map((slot, slotIndex) => (
-            <div className="planning-slot-row" key={slotIndex}>
-              <input
-                type="time"
-                value={slot.start_time}
-                onChange={(e) => onSlotChange(day.date, slotIndex, 'start_time', e.target.value)}
-              />
-              <span className="planning-slot-sep">à</span>
-              <input type="time" value={slot.end_time} onChange={(e) => onSlotChange(day.date, slotIndex, 'end_time', e.target.value)} />
-              <button
-                type="button"
-                className="icon-link-btn"
-                onClick={() => onSlotRemove(day.date, slotIndex)}
-                aria-label="Supprimer cette plage"
-              >
-                <IconTrash />
-              </button>
-            </div>
-          ))}
-          <button type="button" className="btn-outline planning-add-slot-btn" onClick={() => onSlotAdd(day.date)}>
-            + Ajouter une plage horaire
-          </button>
+    <div className="aplan-summary">
+      {tiles.map((tile) => (
+        <div className="aplan-kpi" key={tile.label}>
+          <span className="aplan-kpi-icon">{tile.icon}</span>
+          <div>
+            <strong>{tile.value}</strong>
+            <span>{tile.label}</span>
+          </div>
         </div>
-      )}
-
-      <label className="planning-day-note">
-        <span>Note (facultatif)</span>
-        <input type="text" value={day.note} onChange={(e) => onNoteChange(day.date, e.target.value)} />
-      </label>
+      ))}
     </div>
   );
 }
@@ -156,9 +102,13 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
     };
   }, [planningId]);
 
-  function updateDay(date, patch) {
-    setDraftDays((days) => days.map((day) => (day.date === date ? { ...day, ...patch } : day)));
-  }
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   function handleStatusChange(date, status) {
     setDraftDays((days) =>
@@ -170,30 +120,24 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
     );
   }
 
-  function handleSlotAdd(date) {
-    setDraftDays((days) =>
-      days.map((day) => (day.date === date ? { ...day, time_slots: [...day.time_slots, { start_time: '08:00', end_time: '12:00' }] } : day))
-    );
+  function handleSlotsChange(date, slots) {
+    setDraftDays((days) => days.map((day) => (day.date === date ? { ...day, time_slots: slots } : day)));
   }
 
-  function handleSlotRemove(date, index) {
-    setDraftDays((days) =>
-      days.map((day) => (day.date === date ? { ...day, time_slots: day.time_slots.filter((_, i) => i !== index) } : day))
-    );
-  }
-
-  function handleSlotChange(date, index, field, value) {
-    setDraftDays((days) =>
-      days.map((day) =>
-        day.date === date
-          ? { ...day, time_slots: day.time_slots.map((slot, i) => (i === index ? { ...slot, [field]: value } : slot)) }
+  function handleCopyTo(fromDate, toDate) {
+    setDraftDays((days) => {
+      const src = days.find((d) => d.date === fromDate);
+      if (!src) return days;
+      return days.map((day) =>
+        day.date === toDate
+          ? { ...day, availability_status: src.availability_status, time_slots: src.time_slots.map((s) => ({ ...s })) }
           : day
-      )
-    );
+      );
+    });
   }
 
   function handleNoteChange(date, note) {
-    updateDay(date, { note });
+    setDraftDays((days) => days.map((day) => (day.date === date ? { ...day, note } : day)));
   }
 
   async function handleToggleHistory() {
@@ -238,34 +182,43 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
     }
   }
 
+  const totalHours = totalHoursOf(draftDays);
+
   return (
-    <div className="admin-planning-modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="aplan-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
-        className="admin-planning-modal"
+        className="aplan-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="admin-planning-detail-title"
+        aria-labelledby="aplan-detail-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="admin-planning-modal-header">
-          <div>
-            <span className="admin-planning-modal-icon">
+        <header className="aplan-modal-head">
+          <span className="aplan-modal-avatar">{initials(detail?.user?.full_name)}</span>
+          <div className="aplan-modal-identity">
+            <h2 id="aplan-detail-title">{detail?.user ? detail.user.full_name : 'Détail du planning'}</h2>
+            <p>
               <IconCalendarWeek />
-            </span>
-            <div>
-              <h2 id="admin-planning-detail-title">
-                {detail?.user ? detail.user.full_name : 'Détail du planning'}
-              </h2>
-              <p>{detail ? formatWeekRange(detail.week_start_date, detail.week_end_date) : ''}</p>
-            </div>
+              {detail ? formatWeekRange(detail.week_start_date, detail.week_end_date) : ''}
+            </p>
           </div>
-          <button type="button" className="admin-planning-modal-close" onClick={onClose} aria-label="Fermer">
+          {detail && (
+            <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[detail.effective_status] || ''}`}>
+              {EFFECTIVE_STATUS_LABELS[detail.effective_status] || detail.effective_status}
+            </span>
+          )}
+          <button type="button" className="aplan-modal-close" onClick={onClose} aria-label="Fermer">
             <IconX />
           </button>
-        </div>
+        </header>
 
-        <div className="admin-planning-modal-body">
-          {loading && <div className="empty-state">Chargement...</div>}
+        <div className="aplan-modal-body">
+          {loading && (
+            <div className="admin-loading">
+              <span className="admin-loading-spinner" />
+              <p>Chargement du planning…</p>
+            </div>
+          )}
 
           {!loading && detail && (
             <>
@@ -279,9 +232,10 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 </div>
               )}
 
-              <div className="admin-planning-modal-status-row">
-                <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[detail.effective_status] || ''}`}>
-                  {EFFECTIVE_STATUS_LABELS[detail.effective_status] || detail.effective_status}
+              <div className="aplan-modal-toolbar">
+                <span className="aplan-modal-total">
+                  <IconClock />
+                  Total déclaré : <strong>{totalHours} h</strong>
                 </span>
                 <button type="button" className="app-link" onClick={handleToggleHistory}>
                   {showHistory ? "Masquer l'historique" : "Voir l'historique"}
@@ -289,16 +243,20 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
               </div>
 
               {showHistory && (
-                <div className="admin-planning-history">
-                  {!history && <p className="planning-day-empty">Chargement de l'historique...</p>}
+                <div className="aplan-history">
+                  {!history && <p className="planning-day-empty">Chargement de l'historique…</p>}
                   {history && history.length === 0 && <p className="planning-day-empty">Aucun historique.</p>}
                   {history && history.length > 0 && (
                     <ul>
                       {history.map((entry) => (
                         <li key={entry.id}>
-                          <strong>{entry.action}</strong> — {formatDateTime(entry.changed_at)}
-                          {entry.changed_by_name ? ` par ${entry.changed_by_name}` : ''}
-                          {entry.change_reason ? ` (motif : ${entry.change_reason})` : ''}
+                          <span className="aplan-history-dot" />
+                          <span className="aplan-history-text">
+                            <strong>{entry.action}</strong>
+                            {entry.changed_by_name ? ` par ${entry.changed_by_name}` : ''}
+                            {entry.change_reason ? ` — ${entry.change_reason}` : ''}
+                          </span>
+                          <span className="aplan-history-time">{formatDateTime(entry.changed_at)}</span>
                         </li>
                       ))}
                     </ul>
@@ -317,48 +275,49 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 </div>
               )}
 
-              <label className="planning-general-note">
+              <p className="aplan-modal-hint">
+                Glissez dans une colonne pour créer une plage, faites glisser ses bords pour l'ajuster. Les points de
+                couleur définissent le statut du jour.
+              </p>
+
+              <WeekCalendarGrid
+                days={draftDays}
+                canEdit
+                statusOptions={ADMIN_STATUS_OPTIONS}
+                onStatusChange={handleStatusChange}
+                onSlotsChange={handleSlotsChange}
+                onCopyTo={handleCopyTo}
+                onNoteChange={handleNoteChange}
+              />
+
+              <label className="planning-general-note aplan-note">
                 <span>Note générale (facultatif)</span>
                 <textarea rows="2" value={draftNote} onChange={(e) => setDraftNote(e.target.value)} />
               </label>
 
-              <div className="planning-days-grid">
-                {draftDays.map((day, index) => (
-                  <AdminDayEditor
-                    key={day.date}
-                    day={day}
-                    index={index}
-                    onStatusChange={handleStatusChange}
-                    onSlotAdd={handleSlotAdd}
-                    onSlotRemove={handleSlotRemove}
-                    onSlotChange={handleSlotChange}
-                    onNoteChange={handleNoteChange}
-                  />
-                ))}
-              </div>
-
-              <label className="planning-general-note">
+              <label className="planning-general-note aplan-note aplan-note--required">
                 <span>Motif de la modification (obligatoire)</span>
                 <textarea
                   rows="2"
                   value={changeReason}
                   onChange={(e) => setChangeReason(e.target.value)}
-                  placeholder="Ex : Absence imprévue, remplacement..."
+                  placeholder="Ex : Absence imprévue, remplacement…"
                   required
                 />
               </label>
-
-              <div className="admin-planning-modal-actions">
-                <button type="button" className="btn-outline" onClick={onClose}>
-                  Annuler
-                </button>
-                <button type="button" className="btn-primary" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
-                </button>
-              </div>
             </>
           )}
         </div>
+
+        <footer className="aplan-modal-foot">
+          <button type="button" className="btn-outline" onClick={onClose}>
+            Annuler
+          </button>
+          <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || loading}>
+            {saving && <span className="btn-spinner" />}
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+          </button>
+        </footer>
       </section>
     </div>
   );
@@ -470,14 +429,20 @@ function AdminPlanning() {
     loadTable(filters);
   }
 
-  return (
-    <div className="admin-planning-page">
-      <h1>Gestion des plannings</h1>
-      <p className="admin-planning-subtitle">Supervisez les disponibilités hebdomadaires de l'équipe.</p>
+  const hasFilters = useMemo(
+    () => filters.user_id || filters.search || filters.status || filters.availability_status || filters.submitted,
+    [filters]
+  );
 
+  function actionLabel(status) {
+    return status === 'SUBMITTED' || status === 'ADMIN_MODIFIED' ? 'Modifier' : 'Consulter';
+  }
+
+  return (
+    <div className="aplan-page">
       <SummaryCards summary={summary} />
 
-      <div className="admin-planning-filters filter-bar">
+      <div className="admin-filter-bar aplan-filters">
         <div className="filter-group">
           <span className="filter-group-label">Semaine</span>
           <input
@@ -499,37 +464,12 @@ function AdminPlanning() {
           </select>
         </div>
         <div className="filter-group">
-          <span className="filter-group-label">Recherche</span>
-          <input
-            type="text"
-            className="filter-select"
-            placeholder="Nom ou email"
-            value={filters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-          />
-        </div>
-        <div className="filter-group">
           <span className="filter-group-label">Statut</span>
           <select className="filter-select" value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)}>
             <option value="">Tous</option>
             <option value="DRAFT">Brouillon</option>
             <option value="SUBMITTED">Soumis</option>
             <option value="ADMIN_MODIFIED">Modifié par un admin</option>
-          </select>
-        </div>
-        <div className="filter-group">
-          <span className="filter-group-label">Disponibilité</span>
-          <select
-            className="filter-select"
-            value={filters.availability_status}
-            onChange={(e) => handleFilterChange('availability_status', e.target.value)}
-          >
-            <option value="">Toutes</option>
-            {ADMIN_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
           </select>
         </div>
         <div className="filter-group">
@@ -540,15 +480,38 @@ function AdminPlanning() {
             <option value="false">Non soumis</option>
           </select>
         </div>
+        <div className="filter-search aplan-search">
+          <IconSearch />
+          <input
+            type="text"
+            placeholder="Rechercher un employé…"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </div>
+        {hasFilters && (
+          <button
+            type="button"
+            className="admin-filter-reset"
+            onClick={() =>
+              setFilters((c) => ({ ...c, user_id: '', search: '', status: '', availability_status: '', submitted: '' }))
+            }
+          >
+            Réinitialiser
+          </button>
+        )}
       </div>
 
-      <div className="side-card">
-        <div className="side-card-header">
-          <p className="side-card-title">Plannings de la semaine</p>
-        </div>
-        {loadingTable && <div className="empty-state">Chargement...</div>}
-        {!loadingTable && plannings.length === 0 && <div className="empty-state">Aucun planning ne correspond à ces filtres.</div>}
-        {!loadingTable && plannings.length > 0 && (
+      <section className="aplan-panel">
+        <header className="aplan-panel-head">
+          <h2>Plannings de la semaine</h2>
+          <span className="aplan-panel-count">{plannings.length}</span>
+        </header>
+        {loadingTable ? (
+          <div className="admin-loading"><span className="admin-loading-spinner" /><p>Chargement…</p></div>
+        ) : plannings.length === 0 ? (
+          <div className="empty-state">Aucun planning ne correspond à ces filtres.</div>
+        ) : (
           <div className="task-table-wrap">
             <table className="task-table">
               <thead>
@@ -557,17 +520,21 @@ function AdminPlanning() {
                   <th>Poste</th>
                   <th>Semaine</th>
                   <th>Statut</th>
-                  <th>Heures dispo.</th>
+                  <th>Heures</th>
                   <th>Soumis le</th>
-                  <th>Dernière modif.</th>
-                  <th />
+                  <th aria-label="Action" />
                 </tr>
               </thead>
               <tbody>
                 {plannings.map((row) => (
-                  <tr key={row.planning_id}>
-                    <td>{row.full_name}</td>
-                    <td>{row.position}</td>
+                  <tr key={row.planning_id} className="aplan-row" onClick={() => setSelectedPlanningId(row.planning_id)}>
+                    <td>
+                      <span className="aplan-row-name">
+                        <span className="aplan-row-avatar">{initials(row.full_name)}</span>
+                        {row.full_name}
+                      </span>
+                    </td>
+                    <td>{row.position || '—'}</td>
                     <td>{formatWeekRange(row.week_start_date, row.week_end_date)}</td>
                     <td>
                       <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[row.effective_status] || ''}`}>
@@ -576,10 +543,16 @@ function AdminPlanning() {
                     </td>
                     <td>{row.total_hours} h</td>
                     <td>{row.submitted_at ? formatDateTime(row.submitted_at) : '—'}</td>
-                    <td>{row.updated_at ? formatDateTime(row.updated_at) : '—'}</td>
                     <td>
-                      <button type="button" className="app-link" onClick={() => setSelectedPlanningId(row.planning_id)}>
-                        Consulter
+                      <button
+                        type="button"
+                        className="aplan-action"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPlanningId(row.planning_id);
+                        }}
+                      >
+                        {actionLabel(row.effective_status)}
                       </button>
                     </td>
                   </tr>
@@ -588,83 +561,82 @@ function AdminPlanning() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="side-card">
-        <div className="side-card-header">
-          <p className="side-card-title">Plannings non soumis</p>
-        </div>
-        {nonSubmitted.length === 0 && <div className="empty-state">Tous les employés actifs ont soumis leur planning.</div>}
-        {nonSubmitted.length > 0 && (
-          <div className="task-table-wrap">
-            <table className="task-table">
-              <thead>
-                <tr>
-                  <th>Employé</th>
-                  <th>Poste</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {nonSubmitted.map((employee) => (
-                  <tr key={employee.user_id}>
-                    <td>{employee.full_name}</td>
-                    <td>{employee.position}</td>
-                    <td>
-                      {employee.planning_id ? (
-                        <button type="button" className="app-link" onClick={() => setSelectedPlanningId(employee.planning_id)}>
-                          Consulter
-                        </button>
-                      ) : (
-                        <button type="button" className="app-link" onClick={() => handleCreateForNonSubmitted(employee)}>
-                          Créer un planning
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <div className="aplan-two-col">
+        <section className="aplan-panel">
+          <header className="aplan-panel-head">
+            <h2>Plannings non soumis</h2>
+            {nonSubmitted.length > 0 && <span className="aplan-panel-count aplan-panel-count--warn">{nonSubmitted.length}</span>}
+          </header>
+          {nonSubmitted.length === 0 ? (
+            <div className="empty-state">Tous les employés actifs ont soumis leur planning. 🎉</div>
+          ) : (
+            <ul className="aplan-nonsubmitted">
+              {nonSubmitted.map((employee) => (
+                <li key={employee.user_id}>
+                  <span className="aplan-row-avatar">{initials(employee.full_name)}</span>
+                  <span className="aplan-nonsubmitted-info">
+                    <strong>{employee.full_name}</strong>
+                    <span>{employee.position || '—'}</span>
+                  </span>
+                  {employee.planning_id ? (
+                    <button type="button" className="aplan-action" onClick={() => setSelectedPlanningId(employee.planning_id)}>
+                      Consulter
+                    </button>
+                  ) : (
+                    <button type="button" className="aplan-action aplan-action--create" onClick={() => handleCreateForNonSubmitted(employee)}>
+                      + Créer
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      <div className="side-card">
-        <div className="side-card-header">
-          <p className="side-card-title">Recherche de disponibilité</p>
-        </div>
-        <form className="admin-planning-availability-form" onSubmit={handleSearchAvailability}>
-          <label>
-            <span>Date</span>
-            <input type="date" value={availabilityDate} onChange={(e) => setAvailabilityDate(e.target.value)} required />
-          </label>
-          <label>
-            <span>Heure de début</span>
-            <input type="time" value={availabilityStart} onChange={(e) => setAvailabilityStart(e.target.value)} required />
-          </label>
-          <label>
-            <span>Heure de fin</span>
-            <input type="time" value={availabilityEnd} onChange={(e) => setAvailabilityEnd(e.target.value)} required />
-          </label>
-          <button type="submit" className="btn-primary" disabled={availabilityLoading}>
-            {availabilityLoading ? 'Recherche...' : 'Rechercher'}
-          </button>
-        </form>
+        <section className="aplan-panel">
+          <header className="aplan-panel-head">
+            <h2>Recherche de disponibilité</h2>
+          </header>
+          <form className="aplan-availability-form" onSubmit={handleSearchAvailability}>
+            <label>
+              <span>Date</span>
+              <input type="date" value={availabilityDate} onChange={(e) => setAvailabilityDate(e.target.value)} required />
+            </label>
+            <div className="aplan-availability-times">
+              <label>
+                <span>Début</span>
+                <input type="time" value={availabilityStart} onChange={(e) => setAvailabilityStart(e.target.value)} required />
+              </label>
+              <label>
+                <span>Fin</span>
+                <input type="time" value={availabilityEnd} onChange={(e) => setAvailabilityEnd(e.target.value)} required />
+              </label>
+            </div>
+            <button type="submit" className="btn-primary" disabled={availabilityLoading}>
+              {availabilityLoading ? 'Recherche…' : 'Rechercher les disponibles'}
+            </button>
+          </form>
 
-        {availabilityResults && (
-          <div className="admin-planning-availability-results">
-            {availabilityResults.length === 0 && <p className="planning-day-empty">Aucun employé disponible sur ce créneau.</p>}
-            {availabilityResults.length > 0 && (
-              <ul>
-                {availabilityResults.map((employee) => (
-                  <li key={employee.user_id}>
-                    {employee.full_name} — {employee.position}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+          {availabilityResults && (
+            <div className="aplan-availability-results">
+              {availabilityResults.length === 0 ? (
+                <p className="planning-day-empty">Aucun employé disponible sur ce créneau.</p>
+              ) : (
+                <div className="aplan-availability-chips">
+                  {availabilityResults.map((employee) => (
+                    <span className="aplan-availability-chip" key={employee.user_id}>
+                      <span className="aplan-row-avatar aplan-row-avatar--sm">{initials(employee.full_name)}</span>
+                      {employee.full_name}
+                      <small>{employee.position}</small>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
       </div>
 
       {selectedPlanningId && (

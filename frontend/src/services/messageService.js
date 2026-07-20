@@ -25,3 +25,19 @@ export function sendPrivateMessage(userId, content) {
 export function sendMessageToMultiple(userIds, content) {
   return Promise.all(userIds.map((userId) => sendPrivateMessage(userId, content)));
 }
+
+export function getMessageGroups() {
+  return api.get('/api/message-groups').then((res) => res.data);
+}
+
+export function createMessageGroup(name, memberIds) {
+  return api.post('/api/message-groups', { name, member_ids: memberIds }).then((res) => res.data);
+}
+
+export function getGroupMessages(groupId) {
+  return api.get(`/api/message-groups/${groupId}/messages`).then((res) => res.data);
+}
+
+export function sendGroupMessage(groupId, content) {
+  return api.post(`/api/message-groups/${groupId}/messages`, { content }).then((res) => res.data);
+}

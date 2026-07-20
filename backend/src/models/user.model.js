@@ -133,7 +133,9 @@ async function findAllFiltered({ status, role, search } = {}) {
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await db.query(
-    `SELECT id, email, full_name, position, role, status, created_at
+    `SELECT id, email, full_name, first_name, last_name, username,
+            phone_number, position, postal_address, birth_date, role, status, created_at,
+            EXISTS (SELECT 1 FROM user_avatars av WHERE av.user_id = users.id) AS has_avatar
      FROM users
      ${where}
      ORDER BY full_name ASC`,
