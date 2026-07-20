@@ -272,6 +272,30 @@ async function findActiveEmployees() {
   return result.rows;
 }
 
+// Détail jour par jour d'une semaine (pour l'assistant IA) : une ligne par (employé, jour)
+// avec la disponibilité et les créneaux horaires. Une seule requête pour toute la semaine.
+async function listDayAvailabilityForWeek(weekStartDate) {
+  const result = await db.query(
+    `SELECT u.full_name, pd.planning_date, pd.availability_status,
+            COALESCE(
+              json_agg(
+                json_build_object('debut', to_char(pts.start_time, 'HH24:MI'), 'fin', to_char(pts.end_time, 'HH24:MI'))
+                ORDER BY pts.start_time
+              ) FILTER (WHERE pts.id IS NOT NULL),
+              '[]'
+            ) AS creneaux
+     FROM weekly_plannings wp
+     JOIN users u ON u.id = wp.user_id
+     JOIN planning_days pd ON pd.planning_id = wp.id
+     LEFT JOIN planning_time_slots pts ON pts.planning_day_id = pd.id
+     WHERE wp.week_start_date = $1
+     GROUP BY u.full_name, pd.planning_date, pd.availability_status
+     ORDER BY u.full_name ASC, pd.planning_date ASC`,
+    [weekStartDate]
+  );
+  return result.rows;
+}
+
 async function countActiveEmployees() {
   const result = await db.query(`SELECT COUNT(*)::INTEGER AS total FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF'`);
   return result.rows[0].total;
@@ -347,6 +371,7 @@ module.exports = {
   findEmployeeHistory,
   listPlanningsForAdmin,
   findActiveEmployees,
+  listDayAvailabilityForWeek,
   countActiveEmployees,
   countSubmittedForWeek,
   countAvailableToday,

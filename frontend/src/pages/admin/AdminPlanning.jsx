@@ -26,6 +26,13 @@ function todayDateInputValue() {
   return toDateInputValue(new Date());
 }
 
+// Décale une date (chaîne YYYY-MM-DD) de n jours et renvoie une chaîne YYYY-MM-DD.
+function shiftDays(dateString, days) {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() + days);
+  return toDateInputValue(date);
+}
+
 function initials(name) {
   return (name || '')
     .split(' ')
@@ -153,10 +160,7 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
   }
 
   async function handleSave() {
-    if (!changeReason.trim()) {
-      setErrors(['Le motif de la modification est obligatoire.']);
-      return;
-    }
+    // Le motif est facultatif : aucune validation bloquante côté client.
     setSaving(true);
     setErrors([]);
     try {
@@ -227,7 +231,10 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                   <IconAlert />
                   <span>
                     Modifié par {detail.planning.last_modified_by_name || 'un administrateur'} le{' '}
-                    {formatDateTime(detail.planning.admin_modified_at)}. Motif : {detail.planning.last_admin_change_reason}
+                    {formatDateTime(detail.planning.admin_modified_at)}
+                    {detail.planning.last_admin_change_reason
+                      ? `. Motif : ${detail.planning.last_admin_change_reason}`
+                      : ''}
                   </span>
                 </div>
               )}
@@ -295,14 +302,13 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 <textarea rows="2" value={draftNote} onChange={(e) => setDraftNote(e.target.value)} />
               </label>
 
-              <label className="planning-general-note aplan-note aplan-note--required">
-                <span>Motif de la modification (obligatoire)</span>
+              <label className="planning-general-note aplan-note">
+                <span>Motif de la modification (facultatif)</span>
                 <textarea
                   rows="2"
                   value={changeReason}
                   onChange={(e) => setChangeReason(e.target.value)}
-                  placeholder="Ex : Absence imprévue, remplacement…"
-                  required
+                  placeholder="Ex : Absence imprévue, remplacement… (optionnel)"
                 />
               </label>
             </>
@@ -394,6 +400,10 @@ function AdminPlanning() {
     handleFilterChange('week_start_date', getMondayOf(value));
   }
 
+  // Raccourcis de semaine (lundi de la semaine courante / suivante).
+  const currentWeekStart = getMondayOf(todayDateInputValue());
+  const nextWeekStart = shiftDays(currentWeekStart, 7);
+
   async function handleCreateForNonSubmitted(employee) {
     try {
       const result = await planningService.createAdminPlanningForUser({
@@ -445,6 +455,20 @@ function AdminPlanning() {
       <div className="admin-filter-bar aplan-filters">
         <div className="filter-group">
           <span className="filter-group-label">Semaine</span>
+          <button
+            type="button"
+            className={`filter-chip${filters.week_start_date === currentWeekStart ? ' filter-chip--active' : ''}`}
+            onClick={() => handleFilterChange('week_start_date', currentWeekStart)}
+          >
+            Cette semaine
+          </button>
+          <button
+            type="button"
+            className={`filter-chip${filters.week_start_date === nextWeekStart ? ' filter-chip--active' : ''}`}
+            onClick={() => handleFilterChange('week_start_date', nextWeekStart)}
+          >
+            Semaine prochaine
+          </button>
           <input
             type="date"
             className="filter-select"

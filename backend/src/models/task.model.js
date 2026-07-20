@@ -11,7 +11,9 @@ const TASK_STATUS = {
 
 // DECLAREE n'est pas encore visible à l'employé (DECISIONS.md)
 async function findAssignedTasks(userId, { status, priority, deadline, listId } = {}) {
-  const conditions = ['assigned_to = $1', "status != 'DECLAREE'"];
+  // On masque les tâches DECLAREE (préparées par l'admin), sauf celles que
+  // l'employé a lui-même proposées : il doit voir sa proposition en attente.
+  const conditions = ['assigned_to = $1', "(status != 'DECLAREE' OR created_by = $1)"];
   const params = [userId];
 
   if (status) {
@@ -101,6 +103,7 @@ async function create({
   parentTaskId,
   clientName,
   clientEmail,
+  status,
 }) {
   const result = await db.query(
     `INSERT INTO tasks (
@@ -117,7 +120,7 @@ async function create({
       priority,
       deadline,
       startDate || null,
-      TASK_STATUS.DECLARED,
+      status || TASK_STATUS.DECLARED,
       listId || null,
       parentTaskId || null,
       clientName || null,

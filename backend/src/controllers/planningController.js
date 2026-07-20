@@ -484,10 +484,7 @@ async function adminUpdatePlanning(req, res, next) {
     const { planningId } = req.params;
     const { change_reason: changeReason, general_note: generalNote, days } = req.body;
 
-    if (!changeReason || !changeReason.trim()) {
-      return res.status(400).json({ error: 'Le motif de la modification est obligatoire.' });
-    }
-
+    // Le motif est désormais facultatif : une modification peut être enregistrée sans motif.
     const planning = await planningModel.findPlanningById(planningId);
     if (!planning) {
       return res.status(404).json({ error: 'Planning introuvable.' });
@@ -500,7 +497,7 @@ async function adminUpdatePlanning(req, res, next) {
       return res.status(400).json({ errors });
     }
 
-    const trimmedReason = changeReason.trim();
+    const trimmedReason = changeReason && changeReason.trim() ? changeReason.trim() : null;
 
     const updatedPlanning = await db.withTransaction(async (client) => {
       const before = await planningModel.fullSnapshot(planning.id, client);
