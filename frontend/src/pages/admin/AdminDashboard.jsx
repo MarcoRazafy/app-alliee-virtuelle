@@ -160,7 +160,7 @@ function AdminDashboard() {
           <div className="admin-kpi-copy">
             <p>Employés actifs</p>
             <strong>{activeCount}</strong>
-            <span className="admin-kpi-hint">en train de travailler maintenant</span>
+            <span className="admin-kpi-hint">connectés en ce moment</span>
           </div>
         </div>
         <div className="admin-kpi-card admin-kpi-card--blue">
@@ -234,7 +234,8 @@ function AdminDashboard() {
           {visibleEmployees.map((employee) => {
             const todo = byPriority(employee.todo);
             const inProgress = byPriority(employee.in_progress);
-            const isActive = employee.in_progress.length > 0;
+            // "Actif" = connecté à son compte (session ouverte), plus besoin d'avoir démarré une tâche.
+            const isActive = employee.is_connected;
 
             return (
               <button
