@@ -36,7 +36,9 @@ router.delete('/tasks/:id/attachments/:fileId', taskController.deleteAttachment)
 router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 
 // Admin
-router.post('/tasks', authMiddleware.requireRole('ADMIN'), taskController.createTask);
+// Création ouverte à tous : un admin crée une tâche directement actionnable ;
+// un employé crée une proposition (DECLAREE) que l'admin doit valider.
+router.post('/tasks', taskController.createTask);
 router.post('/tasks/:id/validate', authMiddleware.requireRole('ADMIN'), taskController.validateTask);
 router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskController.confirmTask);
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);

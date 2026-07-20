@@ -6,9 +6,9 @@ const { isValidTitle, isValidPriority, isFutureDate, isValidEmail } = require('.
 
 function canAccessTask(task, user) {
   if (user.role === 'ADMIN') return true;
-  // Une tâche DECLAREE n'est pas encore visible à l'employé, y compris pour ses
-  // sous-ressources (sous-tâches, commentaires, pièces jointes) — cf. getTask/getTaskDetail
-  if (task.status === taskModel.TASK_STATUS.DECLARED) return false;
+  // Une tâche DECLAREE reste invisible aux employés, SAUF à celui qui l'a créée
+  // (proposition en attente de validation par l'admin) : il doit pouvoir la suivre.
+  if (task.status === taskModel.TASK_STATUS.DECLARED) return task.created_by === user.id;
   return task.assigned_to === user.id;
 }
 
@@ -126,43 +126,54 @@ async function createTask(req, res, next) {
       client_name: clientName,
       client_email: clientEmail,
     } = req.body;
+    const isAdmin = req.user.role === 'ADMIN';
+
+    // Un employé ne peut créer une tâche que pour lui-même ; l'admin assigne librement.
+    const targetAssignee = isAdmin ? assigned_to : req.user.id;
+
     const errors = [];
 
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!isFutureDate(deadline)) errors.push("La deadline doit être postérieure à aujourd'hui");
-    if (!assigned_to) errors.push('assigned_to est requis');
-    if (clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
+    if (isAdmin && !assigned_to) errors.push('assigned_to est requis');
+    if (isAdmin && clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
 
     if (errors.length > 0) {
       return res.status(400).json({ errors });
     }
 
-    const assignee = await userModel.findById(assigned_to);
+    const assignee = await userModel.findById(targetAssignee);
     if (!assignee) {
       return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
     }
 
     // list_id et parent_task_id sont optionnels (tâche "libre" hors hiérarchie)
-    if (parentTaskId) {
+    if (isAdmin && parentTaskId) {
       const parentTask = await taskModel.findById(parentTaskId);
       if (!parentTask) {
         return res.status(400).json({ error: 'Tâche parente introuvable' });
       }
     }
 
+    // Une tâche créée par un admin est directement actionnable (pas d'auto-validation).
+    // Une tâche créée par un employé passe en DECLAREE : l'admin doit la valider
+    // avant que l'employé puisse la démarrer.
+    const initialStatus = isAdmin ? taskModel.TASK_STATUS.VALIDATED : taskModel.TASK_STATUS.DECLARED;
+
     const task = await taskModel.create({
       title,
       description,
-      assignedTo: assigned_to,
+      assignedTo: targetAssignee,
       createdBy: req.user.id,
       priority,
       deadline,
-      startDate: start_date,
-      listId,
-      parentTaskId,
-      clientName,
-      clientEmail,
+      startDate: isAdmin ? start_date : null,
+      listId: isAdmin ? listId : null,
+      parentTaskId: isAdmin ? parentTaskId : null,
+      clientName: isAdmin ? clientName : null,
+      clientEmail: isAdmin ? clientEmail : null,
+      status: initialStatus,
     });
 
     await taskModel.recordAudit({
@@ -172,13 +183,15 @@ async function createTask(req, res, next) {
       entityId: task.id,
       details: {
         title,
-        assigned_to,
+        assigned_to: targetAssignee,
         priority,
         deadline,
-        list_id: listId || null,
-        parent_task_id: parentTaskId || null,
-        client_name: clientName || null,
-        client_email: clientEmail || null,
+        status: initialStatus,
+        created_as: isAdmin ? 'ADMIN' : 'EMPLOYEE_PROPOSAL',
+        list_id: isAdmin ? listId || null : null,
+        parent_task_id: isAdmin ? parentTaskId || null : null,
+        client_name: isAdmin ? clientName || null : null,
+        client_email: isAdmin ? clientEmail || null : null,
       },
     });
 

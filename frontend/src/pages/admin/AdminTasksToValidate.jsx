@@ -127,7 +127,7 @@ function AdminTasksToValidate() {
   async function handleValidateOne(id) {
     try {
       await taskService.validateTask(id);
-      notifySuccess("Tâche validée : elle est maintenant visible par l'employé");
+      notifySuccess("Tâche validée : l'employé peut maintenant la démarrer");
       await load();
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de valider la tâche');
@@ -330,7 +330,7 @@ function AdminTasksToValidate() {
                     <div className="validate-card-actions">
                       <button type="button" className="btn-primary validate-action-validate" onClick={() => handleValidateOne(task.id)}>
                         <IconArrowRight />
-                        Valider (rendre visible à l'employé)
+                        Valider (autoriser le démarrage)
                       </button>
                     </div>
                   )}
