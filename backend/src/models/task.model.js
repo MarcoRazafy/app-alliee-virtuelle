@@ -11,9 +11,8 @@ const TASK_STATUS = {
 
 // DECLAREE n'est pas encore visible à l'employé (DECISIONS.md)
 async function findAssignedTasks(userId, { status, priority, deadline, listId } = {}) {
-  // On masque les tâches DECLAREE (préparées par l'admin), sauf celles que
-  // l'employé a lui-même proposées : il doit voir sa proposition en attente.
-  const conditions = ['assigned_to = $1', "(status != 'DECLAREE' OR created_by = $1)"];
+  // Les propositions DECLAREE restent masquées jusqu'à l'approbation admin.
+  const conditions = ['assigned_to = $1', "status != 'DECLAREE'"];
   const params = [userId];
 
   if (status) {
@@ -440,7 +439,9 @@ async function findRecentAuditForUser(userId, limit = 10) {
 // Suivi en temps réel : employés actifs, tâches réellement en cours (session active), tâches en retard
 async function computeRealtimeDashboard() {
   const employeesResult = await db.query(
-    `SELECT id, full_name, position FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF' ORDER BY full_name ASC`
+    `SELECT u.id, u.full_name, u.position,
+            EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = u.id) AS has_avatar
+     FROM users u WHERE u.role = 'EMPLOYEE' AND u.status = 'ACTIF' ORDER BY u.full_name ASC`
   );
 
   const statsResult = await db.query(`

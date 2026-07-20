@@ -25,7 +25,7 @@ function MyDay() {
       try {
         const [allTasks, myDay] = await Promise.all([taskService.getTasks(), taskService.getMyDay()]);
 
-        // Une tâche pas encore terminée (VALIDEE ou EN_COURS) reste sélectionnable pour aujourd'hui
+        // Une tâche pas encore terminée (DECLAREE ou EN_COURS) reste sélectionnable pour aujourd'hui
         const selectableTasks = allTasks.filter((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
 
         const selectedIds = new Set(myDay.map((item) => item.task_id));

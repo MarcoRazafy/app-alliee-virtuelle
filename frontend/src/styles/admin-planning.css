@@ -150,6 +150,8 @@
   font-weight: 700;
 }
 
+.aplan-row-avatar--image { object-fit: cover; }
+
 .aplan-row-avatar--sm {
   width: 24px;
   height: 24px;

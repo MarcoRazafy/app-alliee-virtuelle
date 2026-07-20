@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as planningService from '../../services/planningService';
 import * as userService from '../../services/userService';
+import * as avatarService from '../../services/avatarService';
 import { notifyError, notifySuccess } from '../../utils/toast';
 import WeekCalendarGrid from '../../components/employee/WeekCalendarGrid';
 import { IconAlert, IconX, IconCalendarWeek, IconUser, IconCheckCircle, IconClock, IconSearch } from '../../components/icons';
@@ -339,6 +340,7 @@ function AdminPlanning() {
     submitted: '',
   });
   const [employees, setEmployees] = useState([]);
+  const [avatarUrls, setAvatarUrls] = useState({});
   const [summary, setSummary] = useState(null);
   const [plannings, setPlannings] = useState([]);
   const [nonSubmitted, setNonSubmitted] = useState([]);
@@ -364,6 +366,27 @@ function AdminPlanning() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAvatars = async () => {
+      const entries = await Promise.all(
+        employees.filter((employee) => employee.has_avatar).map(async (employee) => {
+          try {
+            const blob = await avatarService.getUserAvatarBlob(employee.id);
+            return [employee.id, URL.createObjectURL(blob)];
+          } catch { return null; }
+        })
+      );
+      if (!cancelled) setAvatarUrls(Object.fromEntries(entries.filter(Boolean)));
+    };
+    loadAvatars();
+    return () => { cancelled = true; };
+  }, [employees]);
+
+  function employeeAvatar(userId, name) {
+    return avatarUrls[userId] ? <img src={avatarUrls[userId]} alt="" className="aplan-row-avatar aplan-row-avatar--image" /> : <span className="aplan-row-avatar">{initials(name)}</span>;
+  }
 
   function loadTable(activeFilters) {
     setLoadingTable(true);
@@ -554,7 +577,7 @@ function AdminPlanning() {
                   <tr key={row.planning_id} className="aplan-row" onClick={() => setSelectedPlanningId(row.planning_id)}>
                     <td>
                       <span className="aplan-row-name">
-                        <span className="aplan-row-avatar">{initials(row.full_name)}</span>
+                        {employeeAvatar(row.user_id, row.full_name)}
                         {row.full_name}
                       </span>
                     </td>
@@ -599,7 +622,7 @@ function AdminPlanning() {
             <ul className="aplan-nonsubmitted">
               {nonSubmitted.map((employee) => (
                 <li key={employee.user_id}>
-                  <span className="aplan-row-avatar">{initials(employee.full_name)}</span>
+                  {employeeAvatar(employee.user_id, employee.full_name)}
                   <span className="aplan-nonsubmitted-info">
                     <strong>{employee.full_name}</strong>
                     <span>{employee.position || '—'}</span>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as dashboardService from '../../services/dashboardService';
+import * as avatarService from '../../services/avatarService';
 import EmployeeDetailPanel from '../../components/admin/EmployeeDetailPanel';
 import { formatClock, formatDurationShort } from '../../utils/formatters';
 import { notifyError } from '../../utils/toast';
@@ -44,7 +45,7 @@ function LiveClock({ startTime }) {
   return <span className="monitor-chrono-value">{formatClock(elapsed)}</span>;
 }
 
-function Initials({ name }) {
+function Initials({ name, avatarUrl }) {
   const initials = (name || '')
     .split(' ')
     .filter(Boolean)
@@ -52,7 +53,7 @@ function Initials({ name }) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
-  return <span className="monitor-avatar">{initials || '?'}</span>;
+  return avatarUrl ? <img src={avatarUrl} alt="" className="monitor-avatar monitor-avatar--image" /> : <span className="monitor-avatar">{initials || '?'}</span>;
 }
 
 function AdminDashboard() {
@@ -63,6 +64,7 @@ function AdminDashboard() {
   const [query, setQuery] = useState('');
   const [lastUpdate, setLastUpdate] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [avatarUrls, setAvatarUrls] = useState({});
 
   function load() {
     setRefreshing(true);
@@ -81,6 +83,17 @@ function AdminDashboard() {
     const poll = setInterval(load, 10000);
     return () => clearInterval(poll);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Le tableau de bord reçoit parfois des données anciennes sans `has_avatar`;
+    // on tente donc le même chargement que dans la page Planning pour chaque employé.
+    Promise.all((data?.employees || []).map(async (employee) => {
+      try { return [employee.id, URL.createObjectURL(await avatarService.getUserAvatarBlob(employee.id))]; }
+      catch { return null; }
+    })).then((entries) => { if (!cancelled) setAvatarUrls(Object.fromEntries(entries.filter(Boolean))); });
+    return () => { cancelled = true; };
+  }, [data?.employees]);
 
   function resetFilters() {
     setStatusFilter('');
@@ -231,11 +244,11 @@ function AdminDashboard() {
                 onClick={() => setSelectedEmployeeId(employee.id)}
               >
                 <div className="monitor-card-head">
-                  <Initials name={employee.full_name} />
+                  <Initials name={employee.full_name} avatarUrl={avatarUrls[employee.id]} />
                   <div className="monitor-card-identity">
                     <span className="monitor-card-name">{employee.full_name}</span>
                     <span className="monitor-card-position">{employee.position || 'Employé'}</span>
-                  </div>
+      </div>
                   <span className={`monitor-status${isActive ? ' monitor-status--active' : ''}`}>
                     <span className="monitor-status-dot" />
                     {isActive ? 'En activité' : 'Au repos'}

@@ -142,7 +142,7 @@ RÈGLES STRICTES (à respecter impérativement) :
 
 Le JSON ci-dessous est un instantané en lecture seule de la base de données. Il contient :
 - "equipe" et "effectif_actif" : la liste des employés actifs (nom, poste).
-- "taches_par_employe" : pour chaque employé, le nombre total de tâches et la répartition par statut (DECLAREE, VALIDEE, EN_COURS, TERMINEE, CONFIRMEE).
+- "taches_par_employe" : pour chaque employé, le nombre total de tâches et la répartition par statut (DECLAREE, EN_COURS, TERMINEE, CONFIRMEE).
 - "plannings_semaine_courante" et "plannings_semaine_prochaine" : pour chaque employé, le statut du planning, les heures déclarées, s'il est soumis, ET le détail "jours" (un objet par jour avec "jour" en français ex "samedi", "date", "disponibilite" et "creneaux" horaires).
 - "statistiques_equipe", "suivi_temps_reel", "taches_en_retard" : indicateurs agrégés.
 Statuts de planning : DRAFT (brouillon), SUBMITTED (soumis), ADMIN_MODIFIED (modifié par un admin), LOCKED, NOT_SUBMITTED.
