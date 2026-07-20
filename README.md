@@ -15,7 +15,7 @@ Une plateforme centralisée pour administrer les tâches, suivre le temps en dir
 ### Fonctionnalités principales
 - ✅ Gestion des tâches (créer, assigner, valider)
 - ✅ Chronométrage en temps réel par employé
-- ✅ Workflow statuts défini (Déclarée → Validée → En cours → Terminée → Confirmée)
+- ✅ Workflow statuts défini (Déclarée → En cours → Terminée → Confirmée)
 - ✅ Messagerie (chat global + conversations privées)
 - ✅ Gestion des ressources (dossiers, fichiers, partages)
 - ✅ Statistiques et rapports

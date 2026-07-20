@@ -6,9 +6,7 @@ const { isValidTitle, isValidPriority, isFutureDate, isValidEmail } = require('.
 
 function canAccessTask(task, user) {
   if (user.role === 'ADMIN') return true;
-  // Une tâche DECLAREE reste invisible aux employés, SAUF à celui qui l'a créée
-  // (proposition en attente de validation par l'admin) : il doit pouvoir la suivre.
-  if (task.status === taskModel.TASK_STATUS.DECLARED) return task.created_by === user.id;
+  if (task.status === taskModel.TASK_STATUS.DECLARED) return false;
   return task.assigned_to === user.id;
 }
 
@@ -38,11 +36,7 @@ async function getTask(req, res, next) {
 
     const isOwner = task.assigned_to === req.user.id;
     const isAdmin = req.user.role === 'ADMIN';
-
-    // Une tâche DECLAREE n'est pas encore visible à l'employé (DECISIONS.md)
-    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) {
-      return res.status(404).json({ error: 'Tâche introuvable' });
-    }
+    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) return res.status(404).json({ error: 'Tâche introuvable' });
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
@@ -63,6 +57,15 @@ async function getTask(req, res, next) {
   }
 }
 
+async function validateTask(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+    if (task.status !== taskModel.TASK_STATUS.DECLARED) return res.status(409).json({ error: 'Seules les tâches déclarées peuvent être validées' });
+    return res.json(await taskModel.updateStatus(task.id, taskModel.TASK_STATUS.VALIDATED));
+  } catch (err) { return next(err); }
+}
+
 async function getTaskDetail(req, res, next) {
   try {
     const { id } = req.params;
@@ -72,9 +75,6 @@ async function getTaskDetail(req, res, next) {
     }
 
     const isAdmin = req.user.role === 'ADMIN';
-    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) {
-      return res.status(404).json({ error: 'Tâche introuvable' });
-    }
     if (!canAccessTask(task, req.user)) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
@@ -156,9 +156,8 @@ async function createTask(req, res, next) {
       }
     }
 
-    // Une tâche créée par un admin est directement actionnable (pas d'auto-validation).
-    // Une tâche créée par un employé passe en DECLAREE : l'admin doit la valider
-    // avant que l'employé puisse la démarrer.
+    // Une tâche admin est immédiatement disponible ; une proposition employé
+    // attend l'approbation admin avant d'être visible et démarrable.
     const initialStatus = isAdmin ? taskModel.TASK_STATUS.VALIDATED : taskModel.TASK_STATUS.DECLARED;
 
     const task = await taskModel.create({
@@ -492,47 +491,6 @@ async function completeTask(req, res, next) {
   }
 }
 
-async function validateTask(req, res, next) {
-  try {
-    const { id } = req.params;
-    const task = await taskModel.findById(id);
-
-    if (!task) {
-      return res.status(404).json({ error: 'Tâche introuvable' });
-    }
-    if (task.status !== taskModel.TASK_STATUS.DECLARED) {
-      return res.status(400).json({ error: 'Seule une tâche Déclarée peut être validée' });
-    }
-
-    await db.withTransaction(async (client) => {
-      await taskModel.updateStatus(id, taskModel.TASK_STATUS.VALIDATED, client);
-      await taskModel.recordHistory(
-        {
-          taskId: id,
-          fieldChanged: 'status',
-          oldValue: task.status,
-          newValue: taskModel.TASK_STATUS.VALIDATED,
-          changedBy: req.user.id,
-        },
-        client
-      );
-      await taskModel.recordAudit(
-        {
-          userId: req.user.id,
-          action: 'VALIDATE_TASK',
-          entityType: 'task',
-          entityId: id,
-        },
-        client
-      );
-    });
-
-    res.status(200).json({ status: taskModel.TASK_STATUS.VALIDATED });
-  } catch (err) {
-    next(err);
-  }
-}
-
 async function confirmTask(req, res, next) {
   try {
     const { id } = req.params;
@@ -546,7 +504,20 @@ async function confirmTask(req, res, next) {
     }
 
     await db.withTransaction(async (client) => {
-      await taskModel.updateStatus(id, taskModel.TASK_STATUS.CONFIRMED, client);
+      // Revalide le statut dans la transaction : un autre administrateur peut
+      // avoir confirmé ou renvoyé la tâche entre findById() et cette écriture.
+      const updated = await client.query(
+        `UPDATE tasks
+         SET status = $1, updated_at = now()
+         WHERE id = $2 AND status = $3
+         RETURNING id, status`,
+        [taskModel.TASK_STATUS.CONFIRMED, id, taskModel.TASK_STATUS.DONE]
+      );
+      if (updated.rowCount === 0) {
+        const conflict = new Error('La tâche n’est plus au statut Terminée');
+        conflict.status = 409;
+        throw conflict;
+      }
       await taskModel.recordHistory(
         {
           taskId: id,
@@ -815,6 +786,7 @@ module.exports = {
   listTasks,
   getTask,
   getTaskDetail,
+  validateTask,
   getSubtasks,
   createTask,
   startTimelog,
@@ -825,7 +797,6 @@ module.exports = {
   validateMyDay,
   getMyActivity,
   completeTask,
-  validateTask,
   confirmTask,
   rejectTask,
   getComments,

@@ -293,6 +293,7 @@
   font-size: 14px;
   font-weight: 700;
 }
+.monitor-avatar--image { object-fit: cover; }
 
 .monitor-card-identity {
   flex: 1;
@@ -1645,6 +1646,16 @@
 .validate-card-check {
   flex-shrink: 0;
   padding-top: 2px;
+}
+
+.validate-card-check--empty {
+  width: 16px;
+}
+
+.validate-page button:disabled,
+.validate-page input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .validate-card-body {

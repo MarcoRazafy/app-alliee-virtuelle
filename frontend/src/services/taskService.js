@@ -1,5 +1,9 @@
 import api from './api';
 
+export function validateTask(id) {
+  return api.post(`/api/tasks/${id}/validate`).then((res) => res.data);
+}
+
 export function getTasks(filters = {}) {
   return api.get('/api/tasks', { params: filters }).then((res) => res.data);
 }
@@ -18,10 +22,6 @@ export function getSubtasks(id) {
 
 export function createTask(payload) {
   return api.post('/api/tasks', payload).then((res) => res.data);
-}
-
-export function validateTask(id) {
-  return api.post(`/api/tasks/${id}/validate`).then((res) => res.data);
 }
 
 export function confirmTask(id) {

@@ -5,12 +5,12 @@ import AttachmentUpload from '../../components/AttachmentUpload';
 import CommentSection from '../../components/CommentSection';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconCheckCircle, IconX, IconArrowRight, IconSearch } from '../../components/icons';
+import { IconCheckCircle, IconX, IconSearch, IconArrowRight } from '../../components/icons';
 import '../../styles/admin.css';
 
 const STATUS_META = {
   DECLAREE: { label: 'Déclarée', pill: 'declared' },
-  VALIDEE: { label: 'Validée', pill: 'todo' },
+  VALIDEE: { label: 'À faire', pill: 'todo' },
   EN_COURS: { label: 'En cours', pill: 'progress' },
   TERMINEE: { label: 'Terminée', pill: 'done' },
   CONFIRMEE: { label: 'Confirmée', pill: 'confirmed' },
@@ -21,11 +21,31 @@ const STATUS_FILTERS = [
   { value: 'DECLAREE', label: 'Déclarée' },
   { value: 'TERMINEE', label: 'Terminée' },
   { value: 'EN_COURS', label: 'En cours' },
-  { value: 'VALIDEE', label: 'Validée' },
+  { value: 'VALIDEE', label: 'À faire' },
   { value: 'CONFIRMEE', label: 'Confirmée' },
 ];
 
 const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAIBLE: 'faible' };
+const ACTIONABLE_STATUSES = new Set(['DECLAREE', 'TERMINEE']);
+
+function isActionableTask(task) {
+  return ACTIONABLE_STATUSES.has(task.status);
+}
+
+function bulkResultMessage(results, actionLabel) {
+  const failures = results.filter((result) => result.status === 'rejected');
+  const successCount = results.length - failures.length;
+
+  if (failures.length === 0) {
+    return { success: true, message: `${successCount} tâche(s) ${actionLabel}(s)` };
+  }
+
+  const firstReason = failures[0].reason?.response?.data?.error;
+  return {
+    success: false,
+    message: `${successCount} réussie(s), ${failures.length} échec(s).${firstReason ? ` ${firstReason}` : ''}`,
+  };
+}
 
 function matchesDeadlineRange(deadline, range) {
   if (!range) return true;
@@ -59,13 +79,18 @@ function AdminTasksToValidate() {
   const [detailTaskId, setDetailTaskId] = useState(null);
   const [detailTask, setDetailTask] = useState(null);
   const [motifs, setMotifs] = useState({});
+  const [pendingAction, setPendingAction] = useState(null);
 
   async function load() {
     try {
       const data = await taskService.getTasks();
       setTasks(data);
+      const actionableIds = new Set(data.filter(isActionableTask).map((task) => task.id));
+      setSelectedIds((current) => current.filter((id) => actionableIds.has(id)));
+      return data;
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
+      return null;
     }
   }
 
@@ -92,18 +117,30 @@ function AdminTasksToValidate() {
 
   const filteredTasks = useMemo(
     () =>
-      tasks.filter((task) => {
+      tasks
+        .filter((task) => {
         const matchesStatus = !statusFilter || task.status === statusFilter;
         const matchesPriority = !priorityFilter || task.priority === priorityFilter;
         const matchesEmployee = !employeeFilter || task.assigned_to === employeeFilter;
         const matchesDeadline = matchesDeadlineRange(task.deadline, deadlineFilter);
         return matchesStatus && matchesPriority && matchesEmployee && matchesDeadline;
-      }),
+        })
+        .sort((a, b) => {
+          const updatedA = new Date(a.updated_at || a.updatedAt || a.created_at || a.createdAt || 0).getTime();
+          const updatedB = new Date(b.updated_at || b.updatedAt || b.created_at || b.createdAt || 0).getTime();
+          return updatedB - updatedA;
+        }),
     [tasks, statusFilter, priorityFilter, employeeFilter, deadlineFilter]
   );
 
   const hasFilters = statusFilter || priorityFilter || employeeFilter || deadlineFilter;
-  const allVisibleSelected = filteredTasks.length > 0 && filteredTasks.every((t) => selectedIds.includes(t.id));
+  const actionableFilteredTasks = filteredTasks.filter(isActionableTask);
+  const selectedTasks = tasks.filter((task) => selectedIds.includes(task.id));
+  const selectedDoneIds = selectedTasks.filter((task) => task.status === 'TERMINEE').map((task) => task.id);
+  const selectedDeclaredIds = selectedTasks.filter((task) => task.status === 'DECLAREE').map((task) => task.id);
+  const allVisibleSelected =
+    actionableFilteredTasks.length > 0 && actionableFilteredTasks.every((task) => selectedIds.includes(task.id));
+  const isProcessing = pendingAction !== null;
 
   function resetFilters() {
     setStatusFilter('');
@@ -113,34 +150,38 @@ function AdminTasksToValidate() {
   }
 
   function toggleSelect(id) {
+    const task = tasks.find((item) => item.id === id);
+    if (!task || !isActionableTask(task) || isProcessing) return;
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function toggleSelectAll() {
     if (allVisibleSelected) {
-      setSelectedIds([]);
+      const visibleIds = new Set(actionableFilteredTasks.map((task) => task.id));
+      setSelectedIds((current) => current.filter((id) => !visibleIds.has(id)));
     } else {
-      setSelectedIds(filteredTasks.map((t) => t.id));
-    }
-  }
-
-  async function handleValidateOne(id) {
-    try {
-      await taskService.validateTask(id);
-      notifySuccess("Tâche validée : l'employé peut maintenant la démarrer");
-      await load();
-    } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de valider la tâche');
+      setSelectedIds((current) => [...new Set([...current, ...actionableFilteredTasks.map((task) => task.id)])]);
     }
   }
 
   async function handleConfirmOne(id) {
+    setPendingAction(`confirm:${id}`);
     try {
+      // Relecture juste avant l'action : la liste peut être ancienne (autre admin,
+      // validation automatique ou changement depuis un autre onglet).
+      const current = await taskService.getTask(id);
+      if (current.status !== 'TERMINEE') {
+        throw Object.assign(new Error('Statut changé'), {
+          response: { data: { error: `La tâche n'est plus terminée (statut actuel : ${current.status})` } },
+        });
+      }
       await taskService.confirmTask(id);
       notifySuccess('Tâche confirmée');
       await load();
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de confirmer la tâche');
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -150,45 +191,80 @@ function AdminTasksToValidate() {
       notifyError('Le motif est requis pour renvoyer une tâche');
       return;
     }
+    setPendingAction(`reject:${id}`);
     try {
       await taskService.rejectTask(id, motif);
       notifySuccess("Tâche renvoyée à l'employé");
       await load();
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de renvoyer la tâche');
+    } finally {
+      setPendingAction(null);
     }
   }
 
+  async function handleValidateOne(id) {
+    setPendingAction(`validate:${id}`);
+    try { await taskService.validateTask(id); notifySuccess('Tâche validée'); await load(); }
+    catch (err) { notifyError(err.response?.data?.error || 'Impossible de valider la tâche'); }
+    finally { setPendingAction(null); }
+  }
+
   async function handleBulkConfirm() {
-    if (!window.confirm(`Confirmer ${selectedIds.length} tâche(s) sélectionnée(s) ?`)) return;
+    if (selectedDoneIds.length === 0 || isProcessing) return;
+    if (!window.confirm(`Confirmer ${selectedDoneIds.length} tâche(s) terminée(s) ?`)) return;
+
+    setPendingAction('bulk-confirm');
     try {
-      await Promise.all(selectedIds.map((id) => taskService.confirmTask(id)));
-      notifySuccess(`${selectedIds.length} tâche(s) confirmée(s)`);
-      setSelectedIds([]);
+      // La sélection peut contenir un statut devenu obsolète depuis le dernier
+      // chargement. On relit la liste avant d'envoyer les confirmations afin de ne
+      // transmettre au backend que les tâches encore TERMINEE.
+      const latestTasks = await taskService.getTasks();
+      const selectedSet = new Set(selectedDoneIds);
+      const confirmableIds = latestTasks
+        .filter((task) => selectedSet.has(task.id) && task.status === 'TERMINEE')
+        .map((task) => task.id);
+      const staleIds = selectedDoneIds.filter((id) => !confirmableIds.includes(id));
+
+      const results = await Promise.allSettled(confirmableIds.map((id) => taskService.confirmTask(id)));
+      const outcome = bulkResultMessage(results, 'confirmée');
+      const staleMessage = staleIds.length
+        ? ` ${staleIds.length} tâche(s) ignorée(s) : leur statut a changé entre le chargement et la confirmation.`
+        : '';
+      if (outcome.success && staleIds.length === 0) notifySuccess(outcome.message);
+      else if (outcome.success) notifyError(`${outcome.message}.${staleMessage}`);
+      else notifyError(`${outcome.message}${staleMessage}`);
       await load();
     } catch (err) {
-      notifyError("Certaines tâches n'ont pas pu être confirmées (statut invalide ?)");
-      await load();
+      notifyError(err.response?.data?.error || 'Impossible de recharger les tâches avant confirmation');
+    } finally {
+      setPendingAction(null);
     }
   }
 
   async function handleBulkReject() {
+    if (selectedDoneIds.length === 0 || isProcessing) return;
     if (!bulkMotif.trim()) {
       notifyError('Le motif est requis pour le renvoi groupé');
       return;
     }
-    if (!window.confirm(`Le motif "${bulkMotif}" sera appliqué aux ${selectedIds.length} tâches sélectionnées. Continuer ?`)) {
+    if (!window.confirm(`Le motif "${bulkMotif}" sera appliqué aux ${selectedDoneIds.length} tâches terminées. Continuer ?`)) {
       return;
     }
+
+    setPendingAction('bulk-reject');
     try {
-      await Promise.all(selectedIds.map((id) => taskService.rejectTask(id, bulkMotif)));
-      notifySuccess(`${selectedIds.length} tâche(s) renvoyée(s)`);
-      setSelectedIds([]);
-      setBulkMotif('');
+      const results = await Promise.allSettled(selectedDoneIds.map((id) => taskService.rejectTask(id, bulkMotif)));
+      const outcome = bulkResultMessage(results, 'renvoyée');
+      if (outcome.success) {
+        notifySuccess(outcome.message);
+        setBulkMotif('');
+      } else {
+        notifyError(outcome.message);
+      }
       await load();
-    } catch (err) {
-      notifyError("Certaines tâches n'ont pas pu être renvoyées (statut invalide ?)");
-      await load();
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -241,8 +317,13 @@ function AdminTasksToValidate() {
 
       <div className="validate-listhead">
         <label className="validate-selectall">
-          <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} disabled={filteredTasks.length === 0} />
-          Tout sélectionner
+          <input
+            type="checkbox"
+            checked={allVisibleSelected}
+            onChange={toggleSelectAll}
+            disabled={actionableFilteredTasks.length === 0 || isProcessing}
+          />
+          Sélectionner les tâches actionnables
         </label>
         <span className="validate-count">
           {filteredTasks.length} tâche{filteredTasks.length > 1 ? 's' : ''}
@@ -252,21 +333,36 @@ function AdminTasksToValidate() {
       {selectedIds.length > 0 && (
         <div className="validate-bulk">
           <span className="validate-bulk-count">{selectedIds.length} sélectionnée(s)</span>
-          <button type="button" className="btn-primary validate-bulk-confirm" onClick={handleBulkConfirm}>
-            <IconCheckCircle />
-            Confirmer ({selectedIds.length})
-          </button>
-          <div className="validate-bulk-reject">
-            <input
-              className="form-input"
-              placeholder="Motif (appliqué à toute la sélection)"
-              value={bulkMotif}
-              onChange={(e) => setBulkMotif(e.target.value)}
-            />
-            <button type="button" className="btn-danger" onClick={handleBulkReject}>
-              Renvoyer ({selectedIds.length})
+          {selectedDoneIds.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="btn-primary validate-bulk-confirm"
+                onClick={handleBulkConfirm}
+                disabled={isProcessing}
+              >
+                <IconCheckCircle />
+                {pendingAction === 'bulk-confirm' ? 'Confirmation…' : `Confirmer (${selectedDoneIds.length})`}
+              </button>
+              <div className="validate-bulk-reject">
+                <input
+                  className="form-input"
+                  placeholder="Motif pour les tâches terminées"
+                  value={bulkMotif}
+                  onChange={(e) => setBulkMotif(e.target.value)}
+                  disabled={isProcessing}
+                />
+                <button type="button" className="btn-danger" onClick={handleBulkReject} disabled={isProcessing}>
+                  {pendingAction === 'bulk-reject' ? 'Renvoi…' : `Renvoyer (${selectedDoneIds.length})`}
+                </button>
+              </div>
+            </>
+          )}
+          {selectedDeclaredIds.length > 0 && (
+            <button type="button" className="btn-primary" onClick={async () => { await Promise.all(selectedDeclaredIds.map((id) => taskService.validateTask(id))); await load(); }} disabled={isProcessing}>
+              <IconArrowRight /> Valider ({selectedDeclaredIds.length})
             </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -276,14 +372,23 @@ function AdminTasksToValidate() {
         <div className="validate-list">
           {filteredTasks.map((task) => {
             const meta = STATUS_META[task.status] || { label: task.status, pill: 'declared' };
-            const canValidate = task.status === 'DECLAREE';
             const canReview = task.status === 'TERMINEE';
+            const canValidate = task.status === 'DECLAREE';
             const selected = selectedIds.includes(task.id);
             return (
               <div key={task.id} className={`validate-card${selected ? ' validate-card--selected' : ''}`}>
-                <label className="validate-card-check">
-                  <input type="checkbox" checked={selected} onChange={() => toggleSelect(task.id)} />
-                </label>
+                {isActionableTask(task) ? (
+                  <label className="validate-card-check" aria-label={`Sélectionner la tâche ${task.title}`}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleSelect(task.id)}
+                      disabled={isProcessing}
+                    />
+                  </label>
+                ) : (
+                  <span className="validate-card-check validate-card-check--empty" aria-hidden="true" />
+                )}
 
                 <div className="validate-card-body">
                   <div className="validate-card-top">
@@ -306,11 +411,19 @@ function AdminTasksToValidate() {
                     <span>Échéance : {task.deadline ? formatDate(task.deadline) : '—'}</span>
                   </div>
 
+                  {canValidate && (
+                    <div className="validate-card-actions"><button type="button" className="validate-action-confirm" onClick={() => handleValidateOne(task.id)} disabled={isProcessing}><IconArrowRight /> Valider</button></div>
+                  )}
                   {canReview && (
                     <div className="validate-card-actions">
-                      <button type="button" className="validate-action-confirm" onClick={() => handleConfirmOne(task.id)}>
+                      <button
+                        type="button"
+                        className="validate-action-confirm"
+                        onClick={() => handleConfirmOne(task.id)}
+                        disabled={isProcessing}
+                      >
                         <IconCheckCircle />
-                        Confirmer
+                        {pendingAction === `confirm:${task.id}` ? 'Confirmation…' : 'Confirmer'}
                       </button>
                       <div className="validate-reject-row">
                         <input
@@ -318,22 +431,20 @@ function AdminTasksToValidate() {
                           placeholder="Motif de renvoi"
                           value={motifs[task.id] || ''}
                           onChange={(e) => setMotifs({ ...motifs, [task.id]: e.target.value })}
+                          disabled={isProcessing}
                         />
-                        <button type="button" className="validate-action-reject" onClick={() => handleRejectOne(task.id)}>
-                          Renvoyer
+                        <button
+                          type="button"
+                          className="validate-action-reject"
+                          onClick={() => handleRejectOne(task.id)}
+                          disabled={isProcessing}
+                        >
+                          {pendingAction === `reject:${task.id}` ? 'Renvoi…' : 'Renvoyer'}
                         </button>
                       </div>
                     </div>
                   )}
 
-                  {canValidate && (
-                    <div className="validate-card-actions">
-                      <button type="button" className="btn-primary validate-action-validate" onClick={() => handleValidateOne(task.id)}>
-                        <IconArrowRight />
-                        Valider (autoriser le démarrage)
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             );
