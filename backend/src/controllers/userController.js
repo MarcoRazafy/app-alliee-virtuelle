@@ -205,10 +205,11 @@ async function getUserDetail(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    const [stats, tasks, recentActivity] = await Promise.all([
+    const [stats, tasks, recentActivity, avatar] = await Promise.all([
       taskModel.computeEmployeeStats(id),
       taskModel.findTasksForEmployee(id),
       taskModel.findRecentAuditForUser(id, 10),
+      avatarModel.findByUserId(id),
     ]);
 
     res.status(200).json({
@@ -218,6 +219,7 @@ async function getUserDetail(req, res, next) {
         email: user.email,
         position: user.position,
         status: user.status,
+        has_avatar: !!avatar,
       },
       stats,
       tasks,

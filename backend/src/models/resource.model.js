@@ -20,13 +20,15 @@ async function findFolderById(folderId) {
 }
 
 async function findFilesByFolder(folderId) {
+  // On ne remonte pas la colonne content (potentiellement lourde) dans la liste :
+  // le contenu d'un document est chargé à la demande via findFileById.
   const result = await db.query(
-    `SELECT f.id, f.file_name, f.file_path, f.file_type, f.file_size, f.created_at, f.created_by,
-            u.full_name AS created_by_name
+    `SELECT f.id, f.file_name, f.file_type, f.file_size, f.kind, f.mime_type,
+            f.created_at, f.updated_at, f.created_by, u.full_name AS created_by_name
      FROM resources_files f
      JOIN users u ON u.id = f.created_by
      WHERE f.folder_id = $1
-     ORDER BY f.file_name ASC`,
+     ORDER BY f.kind DESC, f.file_name ASC`,
     [folderId]
   );
   return result.rows;
@@ -61,18 +63,47 @@ async function deleteFolder(id) {
   await db.query('DELETE FROM resources_folders WHERE id = $1', [id]);
 }
 
-async function createFile({ folderId, fileName, filePath, fileType, fileSize, createdBy }) {
+async function createFile({ folderId, fileName, filePath, fileType, fileSize, mimeType, createdBy }) {
   const result = await db.query(
-    `INSERT INTO resources_files (folder_id, file_name, file_path, file_type, file_size, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, file_name, file_type, file_size, created_at`,
-    [folderId, fileName, filePath, fileType, fileSize, createdBy]
+    `INSERT INTO resources_files (folder_id, file_name, file_path, file_type, file_size, mime_type, kind, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, 'FILE', $7)
+     RETURNING id, file_name, file_type, file_size, kind, mime_type, created_at, updated_at`,
+    [folderId, fileName, filePath, fileType, fileSize, mimeType || null, createdBy]
   );
   return result.rows[0];
 }
 
+async function createDocument({ folderId, fileName, content, createdBy }) {
+  const result = await db.query(
+    `INSERT INTO resources_files (folder_id, file_name, file_type, kind, content, created_by)
+     VALUES ($1, $2, 'Document', 'DOCUMENT', $3, $4)
+     RETURNING id, file_name, file_type, file_size, kind, content, created_at, updated_at`,
+    [folderId, fileName, content || '', createdBy]
+  );
+  return result.rows[0];
+}
+
+async function updateDocument(id, { fileName, content }) {
+  const result = await db.query(
+    `UPDATE resources_files
+     SET file_name = COALESCE($2, file_name),
+         content = COALESCE($3, content),
+         updated_at = now()
+     WHERE id = $1 AND kind = 'DOCUMENT'
+     RETURNING id, file_name, file_type, file_size, kind, content, created_at, updated_at`,
+    [id, fileName ?? null, content ?? null]
+  );
+  return result.rows[0] || null;
+}
+
 async function findFileById(id) {
-  const result = await db.query('SELECT * FROM resources_files WHERE id = $1', [id]);
+  const result = await db.query(
+    `SELECT f.*, u.full_name AS created_by_name
+     FROM resources_files f
+     JOIN users u ON u.id = f.created_by
+     WHERE f.id = $1`,
+    [id]
+  );
   return result.rows[0] || null;
 }
 
@@ -127,6 +158,8 @@ module.exports = {
   countFilesInFolder,
   deleteFolder,
   createFile,
+  createDocument,
+  updateDocument,
   findFileById,
   deleteFile,
   createShares,

@@ -1,243 +1,453 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
 import * as avatarService from '../../services/avatarService';
 import useAuthStore from '../../store/authStore';
 import { notifySuccess, notifyError } from '../../utils/toast';
+import '../../styles/profile-page.css';
+
+function Icon({ type }) {
+  const common = { viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': true };
+
+  const paths = {
+    user: (
+      <>
+        <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M5.5 20c.5-4 2.7-6 6.5-6s6 2 6.5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </>
+    ),
+    camera: (
+      <>
+        <path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4v-10Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <circle cx="12" cy="13.5" r="3" stroke="currentColor" strokeWidth="1.8" />
+      </>
+    ),
+    save: (
+      <>
+        <path d="M5 4h12l2 2v14H5V4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M8 4v6h8V4M8 20v-6h8v6" stroke="currentColor" strokeWidth="1.8" />
+      </>
+    ),
+    check: (
+      <>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+        <path d="m8 12 2.5 2.5L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    ),
+    calendar: (
+      <>
+        <rect x="3.5" y="5.5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M7 3v5M17 3v5M3.5 10h17" stroke="currentColor" strokeWidth="1.8" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 3 19 6v5c0 4.4-2.5 7.5-7 10-4.5-2.5-7-5.6-7-10V6l7-3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" />
+      </>
+    ),
+    mail: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </>
+    ),
+  };
+
+  return <svg {...common}>{paths[type] || paths.user}</svg>;
+}
+
+function MetricCard({ icon, label, value, helper, variant = 'blue' }) {
+  return (
+    <article className={`profile-metric profile-metric--${variant}`}>
+      <span className="profile-metric-icon"><Icon type={icon} /></span>
+      <div>
+        <p>{label}</p>
+        <strong>{value}</strong>
+        <small>{helper}</small>
+      </div>
+    </article>
+  );
+}
 
 function AdminProfile() {
   const changePassword = useAuthStore((state) => state.changePassword);
   const updateProfile = useAuthStore((state) => state.updateProfile);
-  const logout = useAuthStore((state) => state.logout);
-  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState(null);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [alertsEnabled, setAlertsEnabled] = useState(true);
-  const [profileForm, setProfileForm] = useState({
+  const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
+
+  const [form, setForm] = useState({
     first_name: '',
     last_name: '',
     phone: '',
     postal_address: '',
     birth_date: '',
   });
-  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: '',
+  });
+
+  const fullName = useMemo(() => {
+    if (!profile) return 'Administrateur';
+    return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Administrateur';
+  }, [profile]);
 
   useEffect(() => {
-    api.get('/api/auth/me').then((res) => {
-      setProfile(res.data);
-      setProfileForm({
-        first_name: res.data.first_name || '',
-        last_name: res.data.last_name || '',
-        phone: res.data.phone || '',
-        postal_address: res.data.postal_address || '',
-        birth_date: res.data.birth_date ? res.data.birth_date.slice(0, 10) : '',
-      });
-      if (res.data.has_avatar) {
-        avatarService.getMyAvatarBlob().then((blob) => setAvatarUrl(URL.createObjectURL(blob)));
-      }
-    });
+    let objectUrl;
+    api
+      .get('/api/auth/me')
+      .then((res) => {
+        setProfile(res.data);
+        setForm({
+          first_name: res.data.first_name || '',
+          last_name: res.data.last_name || '',
+          phone: res.data.phone || '',
+          postal_address: res.data.postal_address || '',
+          birth_date: res.data.birth_date ? String(res.data.birth_date).slice(0, 10) : '',
+        });
+        if (res.data.has_avatar) {
+          return avatarService.getMyAvatarBlob();
+        }
+        return null;
+      })
+      .then((blob) => {
+        if (!blob) return;
+        objectUrl = URL.createObjectURL(blob);
+        setAvatarUrl(objectUrl);
+      })
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger le profil'))
+      .finally(() => setLoading(false));
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, []);
 
-  // Libère l'URL objet précédente à chaque remplacement (et au démontage) pour éviter une fuite mémoire
-  useEffect(() => {
-    return () => {
-      if (avatarUrl) URL.revokeObjectURL(avatarUrl);
-    };
-  }, [avatarUrl]);
-
-  async function handleAvatarChange(e) {
-    const file = e.target.files[0];
+  async function handleAvatarChange(event) {
+    const file = event.target.files?.[0];
     if (!file) return;
-    try {
-      await avatarService.uploadAvatar(file);
-      const blob = await avatarService.getMyAvatarBlob();
-      setAvatarUrl(URL.createObjectURL(blob));
-      notifySuccess('Photo de profil mise à jour');
-    } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'importer la photo");
+
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      notifyError('La photo doit être au format PNG ou JPEG');
+      event.target.value = '';
+      return;
     }
-  }
-
-  function resetPasswordForm() {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-  }
-
-  function handleProfileChange(e) {
-    setProfileForm({ ...profileForm, [e.target.name]: e.target.value });
-  }
-
-  async function handleProfileSubmit(e) {
-    e.preventDefault();
-    const result = await updateProfile(profileForm);
-    if (result.success) {
-      setProfile((prev) => ({ ...prev, ...result.user }));
-      notifySuccess('Profil mis à jour');
-    } else {
-      notifyError(result.message);
-    }
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    if (newPassword !== confirmPassword) {
-      notifyError('Les mots de passe ne correspondent pas');
+    if (file.size > 5 * 1024 * 1024) {
+      notifyError('La photo ne doit pas dépasser 5 Mo');
+      event.target.value = '';
       return;
     }
 
-    const result = await changePassword(currentPassword, newPassword);
-    if (result.success) {
-      notifySuccess('Mot de passe mis à jour');
-      resetPasswordForm();
-    } else {
-      notifyError(result.message);
+    setUploadingAvatar(true);
+    try {
+      await avatarService.uploadAvatar(file);
+      const blob = await avatarService.getMyAvatarBlob();
+      setAvatarUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return URL.createObjectURL(blob);
+      });
+      setProfile((current) => ({ ...current, has_avatar: true }));
+      notifySuccess('Photo de profil mise à jour');
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Impossible d'importer la photo");
+    } finally {
+      setUploadingAvatar(false);
+      event.target.value = '';
     }
   }
 
-  async function handleLogout() {
-    await logout();
-    navigate('/login');
+  async function handleProfileSubmit(event) {
+    event.preventDefault();
+    setSavingProfile(true);
+    try {
+      const result = await updateProfile(form);
+      if (result.success) {
+        setProfile((prev) => ({ ...prev, ...result.user }));
+        notifySuccess('Profil mis à jour');
+      } else {
+        notifyError(result.message);
+      }
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
-  if (!profile) {
-    return <p>Chargement...</p>;
+  async function handlePasswordSubmit(event) {
+    event.preventDefault();
+
+    if (passwordForm.new_password.length < 8) {
+      notifyError('Le nouveau mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      notifyError('La confirmation du mot de passe ne correspond pas');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const result = await changePassword(passwordForm.current_password, passwordForm.new_password);
+      if (result.success) {
+        setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+        setShowPasswordForm(false);
+        notifySuccess('Mot de passe mis à jour');
+      } else {
+        notifyError(result.message);
+      }
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
+  const joinedAt = profile?.created_at
+    ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(
+        new Date(profile.created_at)
+      )
+    : '—';
+
+  if (loading) {
+    return (
+      <div className="profile-page-loading" role="status">
+        <span />
+        Chargement du profil…
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h1>Mon profil</h1>
-
-      <h2>Photo de profil</h2>
-      <div>
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt="Photo de profil"
-            style={{ width: '96px', height: '96px', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <div
-            style={{
-              width: '96px',
-              height: '96px',
-              borderRadius: '50%',
-              backgroundColor: '#ccc',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '32px',
-            }}
-          >
-            {profile.full_name?.[0] || '?'}
+    <section className="employee-profile-page">
+      <div className="profile-top-grid">
+        <article className="profile-hero-card">
+          <div className="profile-avatar-wrap">
+            <div className="profile-large-avatar">
+              {avatarUrl ? <img src={avatarUrl} alt={`Photo de ${fullName}`} /> : <Icon type="user" />}
+            </div>
+            <button
+              type="button"
+              className="profile-camera-button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              aria-label="Modifier la photo de profil"
+            >
+              <Icon type="camera" />
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" onChange={handleAvatarChange} hidden />
           </div>
-        )}
-        <input type="file" accept="image/png,image/jpeg" onChange={handleAvatarChange} />
+
+          <div className="profile-identity">
+            <h1>{fullName}</h1>
+            <div className="profile-badges">
+              <span className="profile-role-badge"><Icon type="check" /> Administrateur</span>
+              <span className="profile-status-badge"><Icon type="check" /> Compte actif</span>
+            </div>
+            <p><Icon type="mail" /> {profile?.email || 'Adresse courriel non disponible'}</p>
+            <p><Icon type="user" /> {profile?.position || 'Poste non renseigné'}</p>
+
+            <div className="profile-hero-actions">
+              <button
+                type="button"
+                className="profile-secondary-button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+              >
+                <Icon type="camera" />
+                {uploadingAvatar ? 'Envoi…' : 'Modifier la photo'}
+              </button>
+              <button type="submit" form="admin-profile-form" className="profile-primary-button" disabled={savingProfile}>
+                <Icon type="save" />
+                {savingProfile ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <div className="profile-metrics-grid">
+          <MetricCard
+            icon="calendar"
+            label="Membre depuis"
+            value={joinedAt}
+            helper="Date de création du compte"
+            variant="sky"
+          />
+          <MetricCard icon="shield" label="Rôle" value="Administrateur" helper="Accès complet" variant="blue" />
+          <MetricCard icon="check" label="Statut" value="Actif" helper="Compte vérifié" variant="cyan" />
+        </div>
       </div>
 
-      <p>Nom complet : {profile.full_name}</p>
-      <p>Email : {profile.email}</p>
-      <p>Nom d'utilisateur : {profile.username}</p>
-      <p>Téléphone : {profile.phone}</p>
-      <p>Rôle : Administrateur</p>
-      <p>Poste : {profile.position}</p>
-      {profile.postal_address && <p>Adresse postale : {profile.postal_address}</p>}
-      {profile.birth_date && <p>Date de naissance : {profile.birth_date.slice(0, 10)}</p>}
+      <div className="profile-content-grid">
+        <div className="profile-column">
+          <article className="profile-panel">
+            <header className="profile-panel-header">
+              <span><Icon type="user" /></span>
+              <div>
+                <p>Informations</p>
+                <h2>Informations personnelles</h2>
+              </div>
+            </header>
 
-      <label>
-        <input type="checkbox" checked={alertsEnabled} onChange={(e) => setAlertsEnabled(e.target.checked)} />
-        Notifications d'alerte (échéances manquées/dépassées)
-      </label>
+            <form id="admin-profile-form" className="profile-form" onSubmit={handleProfileSubmit}>
+              <div className="profile-form-grid">
+                <label>
+                  <span>Prénom</span>
+                  <input
+                    type="text"
+                    value={form.first_name}
+                    onChange={(e) => setForm((c) => ({ ...c, first_name: e.target.value }))}
+                    required
+                  />
+                </label>
 
-      <h2>Modifier mes informations</h2>
-      <form onSubmit={handleProfileSubmit}>
-        <div>
-          <label htmlFor="first_name">Prénom</label>
-          <input
-            id="first_name"
-            name="first_name"
-            value={profileForm.first_name}
-            onChange={handleProfileChange}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="last_name">Nom</label>
-          <input id="last_name" name="last_name" value={profileForm.last_name} onChange={handleProfileChange} required />
-        </div>
-        <div>
-          <label htmlFor="phone">Téléphone</label>
-          <input id="phone" name="phone" value={profileForm.phone} onChange={handleProfileChange} required />
-        </div>
-        <div>
-          <label htmlFor="postal_address">Adresse postale</label>
-          <input
-            id="postal_address"
-            name="postal_address"
-            value={profileForm.postal_address}
-            onChange={handleProfileChange}
-          />
-        </div>
-        <div>
-          <label htmlFor="birth_date">Date de naissance</label>
-          <input
-            id="birth_date"
-            name="birth_date"
-            type="date"
-            value={profileForm.birth_date}
-            onChange={handleProfileChange}
-          />
-        </div>
-        <button type="submit">Enregistrer mes informations</button>
-      </form>
+                <label>
+                  <span>Nom</span>
+                  <input
+                    type="text"
+                    value={form.last_name}
+                    onChange={(e) => setForm((c) => ({ ...c, last_name: e.target.value }))}
+                    required
+                  />
+                </label>
 
-      <h2>Changer mon mot de passe</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="currentPassword">Ancien mot de passe</label>
-          <input
-            id="currentPassword"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="newPassword">Nouveau mot de passe</label>
-          <input
-            id="newPassword"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="confirmPassword">Confirmer le nouveau mot de passe</label>
-          <input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
+                <label>
+                  <span>Adresse courriel</span>
+                  <input type="email" value={profile?.email || ''} disabled />
+                </label>
+
+                <label>
+                  <span>Téléphone</span>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm((c) => ({ ...c, phone: e.target.value }))}
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Nom d’utilisateur</span>
+                  <input type="text" value={profile?.username || ''} disabled />
+                </label>
+
+                <label>
+                  <span>Date de naissance</span>
+                  <input
+                    type="date"
+                    value={form.birth_date}
+                    onChange={(e) => setForm((c) => ({ ...c, birth_date: e.target.value }))}
+                  />
+                </label>
+
+                <label className="profile-form-full">
+                  <span>Adresse postale</span>
+                  <input
+                    type="text"
+                    value={form.postal_address}
+                    onChange={(e) => setForm((c) => ({ ...c, postal_address: e.target.value }))}
+                    placeholder="Votre adresse"
+                  />
+                </label>
+              </div>
+            </form>
+          </article>
         </div>
 
-        <button type="submit">Enregistrer les modifications</button>
-        <button type="button" onClick={resetPasswordForm}>
-          Annuler
-        </button>
-      </form>
+        <div className="profile-column">
+          <article className="profile-panel">
+            <header className="profile-panel-header">
+              <span><Icon type="shield" /></span>
+              <div>
+                <p>Sécurité</p>
+                <h2>Sécurité du compte</h2>
+              </div>
+            </header>
 
-      <button onClick={handleLogout} style={{ backgroundColor: 'red', color: 'white' }}>
-        Se déconnecter
-      </button>
-    </div>
+            <div className="profile-security-summary">
+              <label>
+                <span>Poste</span>
+                <input type="text" value={profile?.position || 'Non renseigné'} disabled />
+              </label>
+
+              <button
+                type="button"
+                className="profile-outline-button"
+                onClick={() => setShowPasswordForm((current) => !current)}
+              >
+                <Icon type="lock" />
+                {showPasswordForm ? 'Fermer le formulaire' : 'Changer le mot de passe'}
+              </button>
+            </div>
+
+            {showPasswordForm && (
+              <form className="profile-password-form" onSubmit={handlePasswordSubmit}>
+                <label>
+                  <span>Mot de passe actuel</span>
+                  <input
+                    type={showPasswords ? 'text' : 'password'}
+                    value={passwordForm.current_password}
+                    onChange={(e) => setPasswordForm((c) => ({ ...c, current_password: e.target.value }))}
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Nouveau mot de passe</span>
+                  <input
+                    type={showPasswords ? 'text' : 'password'}
+                    value={passwordForm.new_password}
+                    onChange={(e) => setPasswordForm((c) => ({ ...c, new_password: e.target.value }))}
+                    minLength={8}
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span>Confirmer le mot de passe</span>
+                  <input
+                    type={showPasswords ? 'text' : 'password'}
+                    value={passwordForm.confirm_password}
+                    onChange={(e) => setPasswordForm((c) => ({ ...c, confirm_password: e.target.value }))}
+                    minLength={8}
+                    required
+                  />
+                </label>
+
+                <label className="profile-show-passwords">
+                  <input type="checkbox" checked={showPasswords} onChange={(e) => setShowPasswords(e.target.checked)} />
+                  Afficher les mots de passe
+                </label>
+
+                <button type="submit" className="profile-primary-button" disabled={changingPassword}>
+                  <Icon type="shield" />
+                  {changingPassword ? 'Mise à jour…' : 'Mettre à jour le mot de passe'}
+                </button>
+              </form>
+            )}
+          </article>
+
+          <article className="profile-help-card">
+            <span><Icon type="shield" /></span>
+            <div>
+              <strong>Protection des données</strong>
+              <p>Vos informations personnelles sont accessibles uniquement depuis votre compte authentifié.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
   );
 }
 
