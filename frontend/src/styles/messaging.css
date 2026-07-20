@@ -211,6 +211,35 @@
   color: var(--msg-muted);
 }
 
+/* Bandeau de filtre (piloté par le sous-menu Messagerie de la sidebar) */
+.conversation-filter-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 2px 0 8px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--msg-primary) 40%, transparent);
+  border-radius: 10px;
+  background: var(--msg-primary-soft);
+  color: var(--msg-text);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.conversation-filter-notice:hover {
+  border-color: var(--msg-primary);
+}
+
+.conversation-filter-clear {
+  color: var(--msg-primary-strong);
+  font-weight: 700;
+}
+
 .conversation-list {
   flex: 1 1 auto;
   height: 0;

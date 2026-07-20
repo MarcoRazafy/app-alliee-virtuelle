@@ -277,3 +277,38 @@ export const IconCalendarWeek = (props) =>
     </>,
     props
   );
+
+export const IconUsers = (props) =>
+  base(
+    <>
+      <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 19c1-3 3.3-4.5 6-4.5s5 1.5 6 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M16 5.5a3.2 3.2 0 010 5.8M18 19c-.3-1.4-.9-2.6-1.8-3.6 1.9.3 3.6 1.6 4.3 3.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
+export const IconSparkle = (props) =>
+  base(
+    <path
+      d="M12 3l1.6 5.2a3 3 0 002.2 2.2L21 12l-5.2 1.6a3 3 0 00-2.2 2.2L12 21l-1.6-5.2a3 3 0 00-2.2-2.2L3 12l5.2-1.6a3 3 0 002.2-2.2L12 3z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />,
+    props
+  );
+
+export const IconSettings = (props) =>
+  base(
+    <>
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M12 2.5l1.5 2.4 2.8-.6.6 2.8 2.4 1.5-1 2.6 1 2.6-2.4 1.5-.6 2.8-2.8-.6L12 21.5l-1.5-2.4-2.8.6-.6-2.8L4.7 15.4l1-2.6-1-2.6 2.4-1.5.6-2.8 2.8.6L12 2.5z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </>,
+    props
+  );

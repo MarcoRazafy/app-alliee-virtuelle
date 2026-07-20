@@ -140,7 +140,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
   );
 }
 
-function MessagingView({ enableBulk = false, initialRecipientId = null }) {
+function MessagingView({ enableBulk = false, initialRecipientId = null, initialChannel = null, channelNonce = null }) {
   const user = useAuthStore((state) => state.user);
   const messagesEndRef = useRef(null);
 
@@ -157,6 +157,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
   const [activeChannel, setActiveChannel] = useState('global');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobilePanel, setMobilePanel] = useState('list');
+  // Filtre de la liste piloté par le sous-menu sidebar (?canal=) : 'all' | 'groups' | 'members'
+  const [listFilter, setListFilter] = useState('all');
 
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -576,6 +578,23 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRecipientId, availableUsers, teamMembers]);
 
+  // Canal ciblé via le sous-menu sidebar (?canal=global|equipe|groupes).
+  // channelNonce (location.key) change à chaque navigation → réapplique même sur le même canal.
+  useEffect(() => {
+    if (!initialChannel || initialRecipientId) return;
+    if (initialChannel === 'global') {
+      setListFilter('all');
+      openGlobalChannel();
+    } else if (initialChannel === 'groupes') {
+      setListFilter('groups');
+      setMobilePanel('list');
+    } else if (initialChannel === 'equipe') {
+      setListFilter('members');
+      setMobilePanel('list');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialChannel, channelNonce]);
+
   async function handleReply() {
     const content = replyText.trim();
     if (!content || !openConversation || sending) return;
@@ -879,41 +898,72 @@ function MessagingView({ enableBulk = false, initialRecipientId = null }) {
             />
           </label>
 
-          <div className="conversation-list">
+          {listFilter !== 'all' && (
             <button
               type="button"
-              className={`conversation-item${activeChannel === 'global' ? ' conversation-item--active' : ''}`}
-              onClick={openGlobalChannel}
+              className="conversation-filter-notice"
+              onClick={() => setListFilter('all')}
             >
-              <span className="conversation-avatar conversation-avatar--team"><IconChat /></span>
-              <span className="conversation-content">
-                <span className="conversation-name-row">
-                  <strong>Équipe — Général</strong>
-                  <time>{formatConversationTime(latestGlobalMessage?.created_at)}</time>
-                </span>
-                <span className="conversation-preview">{latestGlobalMessage?.content || "Salon général de l'équipe"}</span>
-              </span>
+              <span>{listFilter === 'groups' ? 'Groupes uniquement' : 'Équipe uniquement'}</span>
+              <span className="conversation-filter-clear">Tout afficher</span>
             </button>
+          )}
 
-            {filteredGroups.length > 0 && (
+          <div className="conversation-list">
+            {listFilter === 'all' && (
+              <button
+                type="button"
+                className={`conversation-item${activeChannel === 'global' ? ' conversation-item--active' : ''}`}
+                onClick={openGlobalChannel}
+              >
+                <span className="conversation-avatar conversation-avatar--team"><IconChat /></span>
+                <span className="conversation-content">
+                  <span className="conversation-name-row">
+                    <strong>Équipe — Général</strong>
+                    <time>{formatConversationTime(latestGlobalMessage?.created_at)}</time>
+                  </span>
+                  <span className="conversation-preview">{latestGlobalMessage?.content || "Salon général de l'équipe"}</span>
+                </span>
+              </button>
+            )}
+
+            {listFilter !== 'members' && filteredGroups.length > 0 && (
               <>
                 <div className="conversation-section-label">Groupes</div>
                 {filteredGroups.map(renderGroup)}
               </>
             )}
 
-            {pinnedMembers.length > 0 && (
+            {listFilter === 'groups' && filteredGroups.length === 0 && (
+              <div className="conversation-empty">
+                <UsersIcon />
+                <p>Aucun groupe pour le moment.</p>
+                <button type="button" className="messaging-secondary-button" onClick={() => setGroupCreateOpen(true)}>
+                  <UsersIcon />
+                  Créer un groupe
+                </button>
+              </div>
+            )}
+
+            {listFilter !== 'groups' && pinnedMembers.length > 0 && (
               <>
                 <div className="conversation-section-label">Épinglés</div>
                 {pinnedMembers.map(renderMember)}
               </>
             )}
 
-            {unpinnedMembers.length > 0 && (
+            {listFilter !== 'groups' && unpinnedMembers.length > 0 && (
               <>
                 <div className="conversation-section-label">Tous les membres</div>
                 {unpinnedMembers.map(renderMember)}
               </>
+            )}
+
+            {listFilter !== 'groups' && filteredMembers.length === 0 && listFilter === 'members' && (
+              <div className="conversation-empty">
+                <IconSearch />
+                <p>Aucun membre à afficher.</p>
+              </div>
             )}
 
             {filteredMembers.length === 0 && filteredGroups.length === 0 && searchQuery.trim() && (
