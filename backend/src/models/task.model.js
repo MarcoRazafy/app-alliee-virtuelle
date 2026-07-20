@@ -446,8 +446,6 @@ async function computeRealtimeDashboard() {
 
   const statsResult = await db.query(`
     SELECT
-      (SELECT COUNT(DISTINCT employee_id) FROM timelog
-       WHERE end_time IS NULL AND start_time::date = CURRENT_DATE)::INTEGER AS active_employees,
       (SELECT COUNT(*) FROM tasks t WHERE t.status = 'EN_COURS'
        AND EXISTS (SELECT 1 FROM timelog tl WHERE tl.task_id = t.id AND tl.end_time IS NULL))::INTEGER AS tasks_in_progress,
       (SELECT COUNT(*) FROM tasks WHERE deadline < CURRENT_DATE AND status != 'CONFIRMEE')::INTEGER AS tasks_late
@@ -456,7 +454,7 @@ async function computeRealtimeDashboard() {
   // 3 requêtes groupées sur tous les employés plutôt que 3 requêtes par employé (N+1)
   const employeeIds = employeesResult.rows.map((employee) => employee.id);
 
-  const [todoResult, inProgressResult, doneResult] = await Promise.all([
+  const [todoResult, inProgressResult, doneResult, connectedResult] = await Promise.all([
     db.query(
       `SELECT id, assigned_to, title, priority FROM tasks
        WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE' ORDER BY deadline ASC`,
@@ -476,7 +474,15 @@ async function computeRealtimeDashboard() {
        WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')`,
       [employeeIds]
     ),
+    // "Actif" = connecté à son compte : au moins une session de présence ouverte (logout_at NULL).
+    db.query(
+      `SELECT DISTINCT user_id FROM user_sessions
+       WHERE logout_at IS NULL AND user_id = ANY($1::uuid[])`,
+      [employeeIds]
+    ),
   ]);
+
+  const connectedIds = new Set(connectedResult.rows.map((row) => row.user_id));
 
   function groupByAssignee(rows) {
     const map = new Map();
@@ -495,6 +501,7 @@ async function computeRealtimeDashboard() {
     id: employee.id,
     full_name: employee.full_name,
     position: employee.position,
+    is_connected: connectedIds.has(employee.id),
     todo: (todoByEmployee.get(employee.id) || []).map((row) => ({
       id: row.id,
       title: row.title,
@@ -517,7 +524,7 @@ async function computeRealtimeDashboard() {
 
   return {
     stats: {
-      active_employees: stats.active_employees,
+      active_employees: connectedIds.size,
       tasks_in_progress: stats.tasks_in_progress,
       tasks_late: stats.tasks_late,
     },
