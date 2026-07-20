@@ -15,7 +15,6 @@ import {
   IconSparkle,
   IconUser,
   IconUsers,
-  IconSettings,
   IconChat,
   IconFolder,
   IconLogout,
@@ -62,7 +61,7 @@ const NAV_GROUPS = [
     label: 'Administrer',
     items: [
       { to: '/admin/assistant', label: 'Assistant IA', subtitle: 'Analyse et recommandations', icon: IconSparkle },
-      { to: '/admin/users', label: 'Utilisateurs', subtitle: 'Comptes et rôles', icon: IconSettings },
+      { to: '/admin/profile', label: 'Profil', subtitle: 'Vos informations', icon: IconUser },
     ],
   },
 ];
@@ -74,7 +73,6 @@ const NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
 // titre/sous-titre d'en-tête cohérent (sinon le header retomberait sur le 1er item).
 const EXTRA_TITLES = {
   '/admin/create-task': { label: 'Créer une tâche', subtitle: 'Nouvelle tâche à assigner' },
-  '/admin/profile': { label: 'Mon profil', subtitle: 'Vos informations' },
 };
 
 function AdminLayout({ children }) {

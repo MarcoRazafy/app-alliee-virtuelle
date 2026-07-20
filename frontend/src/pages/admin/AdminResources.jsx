@@ -1,18 +1,48 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as resourceService from '../../services/resourceService';
 import * as userService from '../../services/userService';
 import { formatBytes } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
+import DocumentEditor from '../../components/resources/DocumentEditor';
+import ResourceViewer from '../../components/resources/ResourceViewer';
+import {
+  IconFolder,
+  IconFileText,
+  IconTrash,
+  IconUsers,
+  IconPencil,
+  IconSearch,
+  IconX,
+  IconDownload,
+  IconArrowRight,
+} from '../../components/icons';
+import '../../styles/resources.css';
+
+const TABS = [
+  { value: 'INTERNE', label: 'Interne' },
+  { value: 'CLIENT', label: 'Client' },
+];
+
+const PERMISSION_LABELS = {
+  LECTURE_SEULE: 'Lecture seule',
+  LECTURE_ECRITURE: 'Lecture-écriture',
+};
 
 function AdminResources() {
   const [tab, setTab] = useState('INTERNE');
   const [folders, setFolders] = useState([]);
+  const [loadingFolders, setLoadingFolders] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [files, setFiles] = useState([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [fileSearch, setFileSearch] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [viewerFile, setViewerFile] = useState(null);
+  const [editor, setEditor] = useState(null); // { document } (édition) ou { document: null } (création)
+  const uploadInputRef = useRef(null);
 
   const [newFolderName, setNewFolderName] = useState('');
-  const [newFile, setNewFile] = useState({ file_name: '', file_type: '', file_size: '' });
 
   const [renamingFolderId, setRenamingFolderId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
@@ -25,32 +55,43 @@ function AdminResources() {
   const [shares, setShares] = useState([]);
 
   function loadFolders() {
+    setLoadingFolders(true);
     resourceService
       .getFolders(tab)
       .then(setFolders)
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'));
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
+      .finally(() => setLoadingFolders(false));
   }
 
   useEffect(() => {
     setSelectedFolder(null);
     setFiles([]);
     setSelectedFileIds([]);
+    setFileSearch('');
     loadFolders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   useEffect(() => {
-    userService.getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' }).then(setEmployees);
+    userService
+      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
+      .then(setEmployees)
+      .catch(() => setEmployees([]));
   }, []);
 
   async function openFolder(folder) {
     setSelectedFolder(folder);
     setSelectedFileIds([]);
+    setFileSearch('');
+    setLoadingFiles(true);
     try {
       const data = await resourceService.getFolderFiles(folder.id);
       setFiles(data);
     } catch (err) {
+      setFiles([]);
       notifyError(err.response?.data?.error || 'Impossible de charger les fichiers');
+    } finally {
+      setLoadingFiles(false);
     }
   }
 
@@ -100,23 +141,49 @@ function AdminResources() {
     }
   }
 
-  async function handleAddFile(e) {
-    e.preventDefault();
-    if (!newFile.file_name.trim() || !selectedFolder) return;
+  async function refreshFiles() {
+    if (!selectedFolder) return;
     try {
-      await resourceService.createFile(selectedFolder.id, {
-        file_name: newFile.file_name,
-        file_type: newFile.file_type,
-        file_size: Number(newFile.file_size) || 0,
-      });
-      notifySuccess('Fichier ajouté');
-      setNewFile({ file_name: '', file_type: '', file_size: '' });
       const data = await resourceService.getFolderFiles(selectedFolder.id);
       setFiles(data);
       loadFolders();
     } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'ajouter le fichier");
+      notifyError(err.response?.data?.error || 'Impossible de recharger les fichiers');
     }
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !selectedFolder) return;
+    setUploading(true);
+    try {
+      await resourceService.uploadFile(selectedFolder.id, file);
+      notifySuccess('Fichier importé');
+      await refreshFiles();
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Impossible d'importer le fichier");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function openViewer(file) {
+    setViewerFile(file);
+  }
+
+  function openNewDocument() {
+    setEditor({ document: null });
+  }
+
+  function openEditDocument(doc) {
+    setViewerFile(null);
+    setEditor({ document: doc });
+  }
+
+  async function handleEditorSaved() {
+    setEditor(null);
+    await refreshFiles();
   }
 
   function toggleFileSelect(id) {
@@ -185,171 +252,396 @@ function AdminResources() {
   }
 
   const shareFolderName = folders.find((f) => f.id === shareFolderId)?.name;
+  const filteredFiles = files.filter((file) =>
+    file.file_name.toLowerCase().includes(fileSearch.trim().toLowerCase())
+  );
 
   return (
-    <div>
-      <h1>Ressources</h1>
-
-      <div>
-        <button onClick={() => setTab('INTERNE')} disabled={tab === 'INTERNE'}>
-          Interne
-        </button>
-        <button onClick={() => setTab('CLIENT')} disabled={tab === 'CLIENT'}>
-          Client
-        </button>
+    <section className="resources-page">
+      <div className="resources-tabs" role="tablist" aria-label="Type de ressources">
+        {TABS.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.value}
+            className={`filter-chip${tab === item.value ? ' filter-chip--active' : ''}`}
+            onClick={() => setTab(item.value)}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
-      <p>
-        Ressources &gt; {tab === 'INTERNE' ? 'Interne' : 'Client'}
-        {selectedFolder && (
-          <>
-            {' '}
-            &gt; <button onClick={() => setSelectedFolder(selectedFolder)}>{selectedFolder.name}</button>
-          </>
-        )}
-      </p>
+      <div className="resources-shell">
+        <aside className="side-card resources-folder-panel">
+          <div className="side-card-header">
+            <p className="side-card-title">Dossiers</p>
+            <span className="resources-count-pill">{folders.length}</span>
+          </div>
 
-      <div style={{ display: 'flex', gap: '20px' }}>
-        <div style={{ flex: 1, border: '1px solid black', padding: '10px' }}>
-          <h2>Dossiers</h2>
-          <form onSubmit={handleCreateFolder}>
-            <input placeholder="Nom du nouveau dossier" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} />
-            <button type="submit">Ajouter un dossier</button>
+          <form className="resources-create-form" onSubmit={handleCreateFolder}>
+            <input
+              className="form-input"
+              placeholder="Nouveau dossier..."
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+            />
+            <button type="submit" className="btn-primary" disabled={!newFolderName.trim()}>
+              Ajouter
+            </button>
           </form>
 
-          <ul>
-            {folders.map((folder) => (
-              <li key={folder.id} style={{ marginBottom: '8px' }}>
-                {renamingFolderId === folder.id ? (
-                  <span>
-                    <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
-                    <button onClick={() => handleRename(folder.id)}>Valider</button>
-                    <button onClick={() => setRenamingFolderId(null)}>Annuler</button>
-                  </span>
-                ) : (
-                  <span>
-                    <button onClick={() => openFolder(folder)}>
-                      {folder.name} ({folder.file_count} fichiers)
-                    </button>
-                    <button onClick={() => startRename(folder)}>Renommer</button>
-                    <button onClick={() => handleDeleteFolder(folder)}>Supprimer</button>
-                    <button onClick={() => openShareModal(folder)}>Partager</button>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+          {loadingFolders && <div className="empty-state">Chargement...</div>}
+          {!loadingFolders && folders.length === 0 && (
+            <div className="empty-state">Aucun dossier dans cet espace.</div>
+          )}
 
-        <div style={{ flex: 2, border: '1px solid black', padding: '10px' }}>
-          <h2>Fichiers</h2>
-          {!selectedFolder && <p>Sélectionnez un dossier.</p>}
+          {!loadingFolders && folders.length > 0 && (
+            <ul className="resources-folder-list">
+              {folders.map((folder) => (
+                <li key={folder.id}>
+                  {renamingFolderId === folder.id ? (
+                    <form
+                      className="resources-rename-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleRename(folder.id);
+                      }}
+                    >
+                      <input
+                        className="form-input"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        autoFocus
+                      />
+                      <button type="submit" className="btn-primary btn-sm">
+                        OK
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline btn-sm"
+                        onClick={() => setRenamingFolderId(null)}
+                      >
+                        Annuler
+                      </button>
+                    </form>
+                  ) : (
+                    <div
+                      className={`resources-folder-row${
+                        selectedFolder?.id === folder.id ? ' resources-folder-row--active' : ''
+                      }`}
+                    >
+                      <button type="button" className="resources-folder-item" onClick={() => openFolder(folder)}>
+                        <span className="resources-folder-icon">
+                          <IconFolder />
+                        </span>
+                        <span className="resources-folder-info">
+                          <strong>{folder.name}</strong>
+                          <span>
+                            {folder.file_count} fichier{Number(folder.file_count) > 1 ? 's' : ''}
+                          </span>
+                        </span>
+                      </button>
+                      <div className="resources-folder-actions">
+                        <button
+                          type="button"
+                          className="icon-link-btn"
+                          onClick={() => startRename(folder)}
+                          aria-label="Renommer le dossier"
+                          title="Renommer"
+                        >
+                          <IconPencil />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-link-btn"
+                          onClick={() => openShareModal(folder)}
+                          aria-label="Partager le dossier"
+                          title="Partager"
+                        >
+                          <IconUsers />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-link-btn icon-link-btn--danger"
+                          onClick={() => handleDeleteFolder(folder)}
+                          aria-label="Supprimer le dossier"
+                          title="Supprimer"
+                        >
+                          <IconTrash />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
+
+        <div className="side-card resources-files-panel">
+          <div className="side-card-header">
+            <p className="side-card-title">{selectedFolder ? selectedFolder.name : 'Fichiers'}</p>
+            {selectedFolder && selectedFileIds.length > 0 && (
+              <button type="button" className="btn-danger btn-sm" onClick={handleDeleteSelection}>
+                <IconTrash /> Supprimer ({selectedFileIds.length})
+              </button>
+            )}
+          </div>
+
+          {!selectedFolder && (
+            <div className="empty-state">Sélectionnez un dossier pour gérer ses fichiers.</div>
+          )}
+
           {selectedFolder && (
             <>
-              <form onSubmit={handleAddFile}>
+              <div className="resources-file-actions">
                 <input
-                  placeholder="Nom du fichier"
-                  value={newFile.file_name}
-                  onChange={(e) => setNewFile({ ...newFile, file_name: e.target.value })}
+                  ref={uploadInputRef}
+                  type="file"
+                  hidden
+                  onChange={handleUpload}
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt"
                 />
-                <input
-                  placeholder="Type (PDF, DOCX...)"
-                  value={newFile.file_type}
-                  onChange={(e) => setNewFile({ ...newFile, file_type: e.target.value })}
-                />
-                <input
-                  placeholder="Taille (octets)"
-                  type="number"
-                  value={newFile.file_size}
-                  onChange={(e) => setNewFile({ ...newFile, file_size: e.target.value })}
-                />
-                <button type="submit">Ajouter le fichier</button>
-              </form>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => uploadInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  <IconDownload /> {uploading ? 'Import…' : 'Importer un fichier'}
+                </button>
+                <button type="button" className="btn-outline" onClick={openNewDocument}>
+                  <IconPencil /> Nouveau document
+                </button>
+              </div>
 
-              {selectedFileIds.length > 0 && (
-                <button onClick={handleDeleteSelection}>Supprimer la sélection ({selectedFileIds.length})</button>
+              <label className="filter-search resources-search">
+                <IconSearch />
+                <input
+                  type="search"
+                  placeholder="Rechercher un fichier..."
+                  value={fileSearch}
+                  onChange={(e) => setFileSearch(e.target.value)}
+                  aria-label="Rechercher un fichier"
+                />
+              </label>
+
+              {loadingFiles && <div className="empty-state">Chargement...</div>}
+              {!loadingFiles && filteredFiles.length === 0 && (
+                <div className="empty-state">
+                  {fileSearch.trim()
+                    ? 'Aucun fichier ne correspond à cette recherche.'
+                    : 'Ce dossier est vide. Importez un fichier ou créez un document.'}
+                </div>
               )}
 
-              {files.length === 0 && <p>Aucun fichier.</p>}
-              {files.length > 0 && (
-                <table border="1" cellPadding="6">
-                  <thead>
-                    <tr>
-                      <th></th>
-                      <th>Nom</th>
-                      <th>Type</th>
-                      <th>Taille</th>
-                      <th>Créé par</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {files.map((file) => (
-                      <tr key={file.id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={selectedFileIds.includes(file.id)}
-                            onChange={() => toggleFileSelect(file.id)}
-                          />
-                        </td>
-                        <td>{file.file_name}</td>
-                        <td>{file.file_type}</td>
-                        <td>{formatBytes(file.file_size)}</td>
-                        <td>{file.created_by_name}</td>
-                        <td>{new Date(file.created_at).toLocaleDateString('fr-FR')}</td>
+              {!loadingFiles && filteredFiles.length > 0 && (
+                <div className="task-table-wrap">
+                  <table className="task-table">
+                    <thead>
+                      <tr>
+                        <th className="resources-check-col" />
+                        <th>Nom</th>
+                        <th>Type</th>
+                        <th>Taille</th>
+                        <th>Ajouté par</th>
+                        <th className="resources-actions-col" />
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filteredFiles.map((file) => (
+                        <tr key={file.id} className={selectedFileIds.includes(file.id) ? 'is-selected' : ''}>
+                          <td className="resources-check-col">
+                            <input
+                              type="checkbox"
+                              checked={selectedFileIds.includes(file.id)}
+                              onChange={() => toggleFileSelect(file.id)}
+                              aria-label={`Sélectionner ${file.file_name}`}
+                            />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="resources-file-name-cell resources-file-name-btn"
+                              onClick={() => openViewer(file)}
+                            >
+                              <span className="resources-file-icon">
+                                {file.kind === 'DOCUMENT' ? <IconPencil /> : <IconFileText />}
+                              </span>
+                              {file.file_name}
+                            </button>
+                          </td>
+                          <td>{file.file_type || '—'}</td>
+                          <td>{file.kind === 'DOCUMENT' ? '—' : formatBytes(file.file_size)}</td>
+                          <td>{file.created_by_name}</td>
+                          <td className="resources-actions-col">
+                            <div className="resources-row-actions">
+                              {file.kind === 'DOCUMENT' && (
+                                <button
+                                  type="button"
+                                  className="icon-link-btn"
+                                  onClick={() => openEditDocument(file)}
+                                  aria-label="Éditer le document"
+                                  title="Éditer"
+                                >
+                                  <IconPencil />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="icon-link-btn"
+                                onClick={() => openViewer(file)}
+                                aria-label="Ouvrir"
+                                title="Ouvrir"
+                              >
+                                <IconArrowRight />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </>
           )}
         </div>
       </div>
 
+      {editor && (
+        <DocumentEditor
+          folderId={selectedFolder?.id}
+          document={editor.document}
+          onClose={() => setEditor(null)}
+          onSaved={handleEditorSaved}
+        />
+      )}
+
+      {viewerFile && (
+        <ResourceViewer
+          file={viewerFile}
+          canManage
+          onClose={() => setViewerFile(null)}
+          onEdit={openEditDocument}
+        />
+      )}
+
       {shareFolderId && (
-        <div style={{ border: '1px solid black', padding: '10px', marginTop: '20px' }}>
-          <h2>Partager "{shareFolderName}"</h2>
-          <form onSubmit={handleShare}>
-            {employees.map((emp) => (
-              <label key={emp.id} style={{ marginRight: '10px' }}>
-                <input type="checkbox" checked={shareUserIds.includes(emp.id)} onChange={() => toggleShareUser(emp.id)} />
-                {emp.full_name}
-              </label>
-            ))}
-            <div>
-              <select value={sharePermission} onChange={(e) => setSharePermission(e.target.value)}>
-                <option value="LECTURE_SEULE">Lecture seule</option>
-                <option value="LECTURE_ECRITURE">Lecture-écriture</option>
-              </select>
-              <label>
-                Expiration (optionnelle) :
-                <input type="date" value={shareExpiresAt} onChange={(e) => setShareExpiresAt(e.target.value)} />
-              </label>
-              <button type="submit" disabled={shareUserIds.length === 0}>
-                Partager
-              </button>
-              <button type="button" onClick={() => setShareFolderId(null)}>
-                Fermer
+        <div className="resources-modal-backdrop" role="presentation" onMouseDown={() => setShareFolderId(null)}>
+          <div
+            className="resources-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="resources-modal-head">
+              <div>
+                <p className="resources-modal-eyebrow">Partage de dossier</p>
+                <h2 id="share-title">{shareFolderName}</h2>
+              </div>
+              <button
+                type="button"
+                className="resources-modal-close"
+                onClick={() => setShareFolderId(null)}
+                aria-label="Fermer"
+              >
+                <IconX />
               </button>
             </div>
-          </form>
 
-          <h3>Partages existants</h3>
-          {shares.length === 0 && <p>Aucun partage.</p>}
-          <ul>
-            {shares.map((share) => (
-              <li key={share.id}>
-                {share.shared_with_name} — {share.permission_type}
-                {share.expires_at && <span> — expire le {new Date(share.expires_at).toLocaleDateString('fr-FR')}</span>}
-                <button onClick={() => handleRevoke(share.id)}>Révoquer</button>
-              </li>
-            ))}
-          </ul>
+            <form className="resources-modal-body" onSubmit={handleShare}>
+              <p className="resources-modal-label">
+                Employés ({shareUserIds.length} sélectionné{shareUserIds.length > 1 ? 's' : ''})
+              </p>
+              <div className="resources-share-members">
+                {employees.length === 0 && <p className="empty-state">Aucun employé actif.</p>}
+                {employees.map((emp) => (
+                  <label
+                    key={emp.id}
+                    className={`resources-member-chip${
+                      shareUserIds.includes(emp.id) ? ' resources-member-chip--on' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={shareUserIds.includes(emp.id)}
+                      onChange={() => toggleShareUser(emp.id)}
+                    />
+                    {emp.full_name}
+                  </label>
+                ))}
+              </div>
+
+              <div className="resources-modal-row">
+                <label className="form-field">
+                  <span className="form-label">Permission</span>
+                  <select
+                    className="form-select"
+                    value={sharePermission}
+                    onChange={(e) => setSharePermission(e.target.value)}
+                  >
+                    <option value="LECTURE_SEULE">Lecture seule</option>
+                    <option value="LECTURE_ECRITURE">Lecture-écriture</option>
+                  </select>
+                </label>
+                <label className="form-field">
+                  <span className="form-label">Expiration (optionnelle)</span>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={shareExpiresAt}
+                    onChange={(e) => setShareExpiresAt(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div className="resources-modal-foot">
+                <button type="button" className="btn-outline" onClick={() => setShareFolderId(null)}>
+                  Fermer
+                </button>
+                <button type="submit" className="btn-primary" disabled={shareUserIds.length === 0}>
+                  Partager
+                </button>
+              </div>
+            </form>
+
+            <div className="resources-share-existing">
+              <p className="resources-modal-label">Partages existants</p>
+              {shares.length === 0 && <p className="empty-state">Aucun partage pour l'instant.</p>}
+              {shares.length > 0 && (
+                <ul className="resources-share-list">
+                  {shares.map((share) => (
+                    <li key={share.id}>
+                      <span className="resources-share-info">
+                        <strong>{share.shared_with_name}</strong>
+                        <span>
+                          {PERMISSION_LABELS[share.permission_type] || share.permission_type}
+                          {share.expires_at &&
+                            ` · expire le ${new Date(share.expires_at).toLocaleDateString('fr-FR')}`}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        className="icon-link-btn icon-link-btn--danger"
+                        onClick={() => handleRevoke(share.id)}
+                        aria-label="Révoquer le partage"
+                        title="Révoquer"
+                      >
+                        <IconX />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

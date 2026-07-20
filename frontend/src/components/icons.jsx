@@ -278,6 +278,15 @@ export const IconCalendarWeek = (props) =>
     props
   );
 
+export const IconPencil = (props) =>
+  base(
+    <>
+      <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </>,
+    props
+  );
+
 export const IconUsers = (props) =>
   base(
     <>
