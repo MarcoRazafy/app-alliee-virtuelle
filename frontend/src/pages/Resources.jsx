@@ -3,7 +3,8 @@ import EmployeeLayout from '../components/employee/EmployeeLayout';
 import * as resourceService from '../services/resourceService';
 import { formatBytes } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
-import { IconFolder, IconFileText, IconDownload, IconSearch } from '../components/icons';
+import ResourceViewer from '../components/resources/ResourceViewer';
+import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil } from '../components/icons';
 import '../styles/resources.css';
 
 const TABS = [
@@ -19,6 +20,7 @@ function Resources() {
   const [files, setFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [search, setSearch] = useState('');
+  const [viewerFile, setViewerFile] = useState(null);
 
   useEffect(() => {
     setSelectedFolder(null);
@@ -149,27 +151,37 @@ function Resources() {
                           <th>Type</th>
                           <th>Taille</th>
                           <th>Ajouté le</th>
-                          <th />
+                          <th className="resources-actions-col" />
                         </tr>
                       </thead>
                       <tbody>
                         {filteredFiles.map((file) => (
                           <tr key={file.id}>
                             <td>
-                              <span className="resources-file-name-cell">
+                              <button
+                                type="button"
+                                className="resources-file-name-cell resources-file-name-btn"
+                                onClick={() => setViewerFile(file)}
+                              >
                                 <span className="resources-file-icon">
-                                  <IconFileText />
+                                  {file.kind === 'DOCUMENT' ? <IconPencil /> : <IconFileText />}
                                 </span>
                                 {file.file_name}
-                              </span>
+                              </button>
                             </td>
                             <td>{file.file_type || '—'}</td>
-                            <td>{formatBytes(file.file_size)}</td>
+                            <td>{file.kind === 'DOCUMENT' ? '—' : formatBytes(file.file_size)}</td>
                             <td>{new Date(file.created_at).toLocaleDateString('fr-FR')}</td>
-                            <td>
-                              <a href={file.file_path} download className="icon-link-btn" aria-label="Télécharger">
-                                <IconDownload />
-                              </a>
+                            <td className="resources-actions-col">
+                              <button
+                                type="button"
+                                className="icon-link-btn"
+                                onClick={() => setViewerFile(file)}
+                                aria-label="Ouvrir"
+                                title="Ouvrir"
+                              >
+                                <IconArrowRight />
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -181,6 +193,8 @@ function Resources() {
             )}
           </div>
         </div>
+
+        {viewerFile && <ResourceViewer file={viewerFile} onClose={() => setViewerFile(null)} />}
       </section>
     </EmployeeLayout>
   );
