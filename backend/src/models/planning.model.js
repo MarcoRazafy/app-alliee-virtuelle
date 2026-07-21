@@ -267,7 +267,9 @@ async function listPlanningsForAdmin(filters = {}) {
 
 async function findActiveEmployees() {
   const result = await db.query(
-    `SELECT id, full_name, position FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF' ORDER BY full_name ASC`
+    `SELECT id, full_name, position,
+            EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = users.id) AS has_avatar
+     FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF' ORDER BY full_name ASC`
   );
   return result.rows;
 }
@@ -292,6 +294,26 @@ async function listDayAvailabilityForWeek(weekStartDate) {
      GROUP BY u.full_name, pd.planning_date, pd.availability_status
      ORDER BY u.full_name ASC, pd.planning_date ASC`,
     [weekStartDate]
+  );
+  return result.rows;
+}
+
+// Disponibilité déclarée d'un jour donné, par utilisateur (page présence) : statut + créneaux.
+async function findDayAvailabilityByUserForDate(dateString) {
+  const result = await db.query(
+    `SELECT wp.user_id, pd.availability_status,
+            COALESCE(
+              json_agg(
+                json_build_object('start', to_char(pts.start_time, 'HH24:MI'), 'end', to_char(pts.end_time, 'HH24:MI'))
+                ORDER BY pts.start_time
+              ) FILTER (WHERE pts.id IS NOT NULL),
+              '[]'
+            ) AS slots
+     FROM weekly_plannings wp
+     JOIN planning_days pd ON pd.planning_id = wp.id AND pd.planning_date = $1
+     LEFT JOIN planning_time_slots pts ON pts.planning_day_id = pd.id
+     GROUP BY wp.user_id, pd.availability_status`,
+    [dateString]
   );
   return result.rows;
 }
@@ -372,6 +394,7 @@ module.exports = {
   listPlanningsForAdmin,
   findActiveEmployees,
   listDayAvailabilityForWeek,
+  findDayAvailabilityByUserForDate,
   countActiveEmployees,
   countSubmittedForWeek,
   countAvailableToday,

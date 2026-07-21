@@ -10,6 +10,13 @@ export function getMySessionsForWeek(weekStartDate) {
   return api.get('/api/sessions/week', { params: { week_start_date: weekStartDate } }).then((res) => res.data);
 }
 
+// Sessions de connexion d'un employé donné (admin) — pour superposer sa présence sur le planning.
+export function getUserSessionsForWeek(userId, weekStartDate) {
+  return api
+    .get('/api/sessions/admin/week', { params: { user_id: userId, week_start_date: weekStartDate } })
+    .then((res) => res.data);
+}
+
 // Session de connexion actuellement ouverte (pour le chrono flottant) : { login_at: string|null }.
 export function getMyCurrentSession() {
   return api.get('/api/sessions/current').then((res) => res.data);

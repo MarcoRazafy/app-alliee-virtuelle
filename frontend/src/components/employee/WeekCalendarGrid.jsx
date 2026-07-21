@@ -101,16 +101,39 @@ function SlotBlock({ day, slot, slotIndex, canEdit, drag, onHandlePointerDown, o
   );
 }
 
-function SessionBlock({ segment }) {
+// Tolérance (minutes) avant qu'une connexion soit considérée "en retard" par rapport au 1er créneau.
+const SESSION_LATE_GRACE = 10;
+
+// Statut de connexion d'un jour, pour colorer la bande de session :
+// - 'ontime' (vert) : connecté à l'heure sur un jour planifié
+// - 'late'   (ambre) : 1re connexion après le début du créneau planifié (+ tolérance)
+// - 'off'    (bleu)  : connecté hors planning (jour non planifié)
+function daySessionVariant(day, segments) {
+  if (!segments || segments.length === 0) return 'off';
+  const planned = HAS_SLOTS_STATUSES.includes(day.availability_status) && day.time_slots.length > 0;
+  if (!planned) return 'off';
+  const plannedStart = Math.min(...day.time_slots.map((s) => timeToMinutes(s.start_time)));
+  // On ne retient que les connexions qui atteignent réellement le créneau (fin après l'heure planifiée).
+  // Sinon une connexion brève AVANT le début (app ouverte en avance) ferait passer un vrai retard pour "à l'heure".
+  const reaching = segments.filter((s) => timeToMinutes(s.end_time) > plannedStart);
+  if (reaching.length === 0) return 'late';
+  const firstStart = Math.min(...reaching.map((s) => timeToMinutes(s.start_time)));
+  return firstStart <= plannedStart + SESSION_LATE_GRACE ? 'ontime' : 'late';
+}
+
+const SESSION_VARIANT_LABEL = { ontime: 'à l’heure', late: 'en retard', off: 'hors planning' };
+
+function SessionBlock({ segment, variant = 'off' }) {
   const startMinutes = timeToMinutes(segment.start_time);
   const endMinutes = timeToMinutes(segment.end_time);
   const top = (startMinutes / 60) * ROW_HEIGHT;
   const height = Math.max(4, ((endMinutes - startMinutes) / 60) * ROW_HEIGHT);
+  const endLabel = toTimeInputValue(segment.end_time === '24:00' ? '23:59' : segment.end_time);
   return (
     <div
-      className="cal-session-block"
+      className={`cal-session-block cal-session-block--${variant}${segment.is_live ? ' cal-session-block--live' : ''}`}
       style={{ top: `${top}px`, height: `${height}px` }}
-      title={`Connecté de ${toTimeInputValue(segment.start_time)} à ${toTimeInputValue(segment.end_time === '24:00' ? '23:59' : segment.end_time)}`}
+      title={`Connecté ${toTimeInputValue(segment.start_time)}–${endLabel} (${SESSION_VARIANT_LABEL[variant]})${segment.is_live ? ' · en cours' : ''}`}
     />
   );
 }
@@ -301,9 +324,13 @@ function WeekCalendarGrid({
                   <div className="cal-day-empty-hint">{STATUS_LABELS[day.availability_status]}</div>
                 )}
 
-                {(sessionSegmentsByDate?.[day.date] || []).map((segment, segmentIndex) => (
-                  <SessionBlock key={segmentIndex} segment={segment} />
-                ))}
+                {(() => {
+                  const daySegments = sessionSegmentsByDate?.[day.date] || [];
+                  const variant = daySessionVariant(day, daySegments);
+                  return daySegments.map((segment, segmentIndex) => (
+                    <SessionBlock key={segmentIndex} segment={segment} variant={variant} />
+                  ));
+                })()}
 
                 {day.time_slots.map((slot, slotIndex) => (
                   <SlotBlock

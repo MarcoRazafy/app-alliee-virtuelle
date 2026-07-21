@@ -169,33 +169,74 @@
 
 /* Chrono de connexion (présence), indépendant des plages de disponibilité déclarées :
    une fine bande à gauche de la colonne, colorée uniquement sur les heures où
-   l'utilisateur était réellement connecté à l'application. Lecture seule (jamais éditable). */
+   l'utilisateur était réellement connecté. Couleur = état vs planning :
+   vert = à l'heure, ambre = en retard, bleu = hors planning. Lecture seule. */
 .cal-session-block {
   position: absolute;
   left: 2px;
-  width: 6px;
+  width: 7px;
   border-radius: 3px;
   background: var(--color-accent-lighter);
-  opacity: 0.85;
+  /* Contour sombre : garantit que la bande se détache toujours du créneau adjacent,
+     même quand ils sont de la même couleur (ex : présence à l'heure sur créneau disponible). */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.cal-session-block--ontime { background: var(--color-success); }
+.cal-session-block--late { background: var(--color-error); }
+.cal-session-block--off { background: var(--color-accent-lighter); }
+
+/* Session encore en cours (connexion "en direct") : pastille pulsante au pied de la bande. */
+.cal-session-block--live::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: inherit;
+  animation: cal-session-pulse 1.5s ease-out infinite;
+}
+
+@keyframes cal-session-pulse {
+  0% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  70% { box-shadow: 0 0 0 6px transparent; opacity: 0.6; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+}
+
+.cal-session-block--live {
+  color: inherit;
 }
 
 .cal-session-legend {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+  flex-wrap: wrap;
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.72rem;
 }
 
+.cal-session-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .cal-session-legend-swatch {
   display: inline-block;
   width: 6px;
-  height: 16px;
+  height: 14px;
   border-radius: 3px;
   background: var(--color-accent-lighter);
-  opacity: 0.85;
 }
+
+.cal-session-legend-swatch--ontime { background: var(--color-success); }
+.cal-session-legend-swatch--late { background: var(--color-error); }
+.cal-session-legend-swatch--off { background: var(--color-accent-lighter); }
 
 .cal-slot--available {
   background: color-mix(in srgb, var(--color-success) 85%, transparent);

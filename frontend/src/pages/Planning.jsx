@@ -130,6 +130,28 @@ function Planning() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Suivi temps réel : rafraîchit périodiquement les sessions de connexion pour que la
+  // bande de présence s'étende et change de couleur en direct (à l'heure / en retard).
+  useEffect(() => {
+    const weekStart = currentWeek?.week_start_date;
+    if (!weekStart) return undefined;
+    function refresh() {
+      sessionService
+        .getMySessionsForWeek(weekStart)
+        .then((segments) => {
+          const byDate = {};
+          segments.forEach((segment) => {
+            if (!byDate[segment.date]) byDate[segment.date] = [];
+            byDate[segment.date].push(segment);
+          });
+          setSessionSegmentsByDate(byDate);
+        })
+        .catch(() => {});
+    }
+    const interval = window.setInterval(refresh, 15000);
+    return () => window.clearInterval(interval);
+  }, [currentWeek?.week_start_date]);
+
   async function loadMyPlannings(weekStartDate) {
     setLoadingList(true);
     try {
@@ -342,7 +364,10 @@ function Planning() {
               <AdminModifiedAlert planning={currentWeek.admin_modified ? currentWeek.planning : null} />
 
               <p className="cal-session-legend">
-                <span className="cal-session-legend-swatch" /> Temps de connexion réel (indépendant des tâches)
+                Connexion réelle :
+                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> à l'heure</span>
+                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--late" /> en retard</span>
+                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
               </p>
 
               <WeekCalendarGrid

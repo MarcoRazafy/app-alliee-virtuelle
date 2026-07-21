@@ -21,7 +21,7 @@ import AdminListView from './pages/admin/AdminListView';
 import AdminTasksToValidate from './pages/admin/AdminTasksToValidate';
 import AdminLateTasks from './pages/admin/AdminLateTasks';
 import AdminStatistics from './pages/admin/AdminStatistics';
-import AdminPlanning from './pages/admin/AdminPlanning';
+import AdminPlanningPresence from './pages/admin/AdminPlanningPresence';
 import AdminAssistant from './pages/admin/AdminAssistant';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminMessaging from './pages/admin/AdminMessaging';
@@ -139,7 +139,7 @@ function App() {
         <Route path="/admin/validate" element={<AdminRoute><AdminTasksToValidate /></AdminRoute>} />
         <Route path="/admin/late" element={<AdminRoute><AdminLateTasks /></AdminRoute>} />
         <Route path="/admin/stats" element={<AdminRoute><AdminStatistics /></AdminRoute>} />
-        <Route path="/admin/planning" element={<AdminRoute><AdminPlanning /></AdminRoute>} />
+        <Route path="/admin/planning" element={<AdminRoute><AdminPlanningPresence /></AdminRoute>} />
         <Route path="/admin/assistant" element={<AdminRoute><AdminAssistant /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
         <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />

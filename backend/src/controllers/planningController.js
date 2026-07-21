@@ -1,5 +1,7 @@
+const { DateTime } = require('luxon');
 const db = require('../config/database');
 const planningModel = require('../models/planning.model');
+const sessionModel = require('../models/session.model');
 const planningDates = require('../utils/planningDates');
 
 const ALL_AVAILABILITY_STATUSES = Object.values(planningDates.AVAILABILITY_STATUS);
@@ -632,6 +634,137 @@ async function adminPlanningHistory(req, res, next) {
   }
 }
 
+// ---------- Présence : croise le planning déclaré du jour avec les sessions de connexion réelles ----------
+
+const ATTENDANCE_HAS_SLOTS = ['AVAILABLE', 'PARTIALLY_AVAILABLE'];
+const ATTENDANCE_GRACE_MINUTES = 10; // tolérance avant d'être compté "en retard"
+
+function hmToMin(hm) {
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minToHm(min) {
+  if (min == null) return null;
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+async function adminAttendance(req, res, next) {
+  try {
+    const dateString = req.query.date || planningDates.formatDate(planningDates.nowInPlanningZone());
+    const employees = await planningModel.findActiveEmployees();
+    const userIds = employees.map((e) => e.id);
+
+    const dayStart = planningDates.parsePlanningDate(dateString);
+    const dayEnd = dayStart.plus({ days: 1 });
+    const now = planningDates.nowInPlanningZone();
+    const isToday = dateString === planningDates.formatDate(now);
+
+    const [planningRows, sessionRows] = await Promise.all([
+      planningModel.findDayAvailabilityByUserForDate(dateString),
+      sessionModel.findSessionsForUsersOverlapping(userIds, dayStart.toISO(), dayEnd.toISO()),
+    ]);
+
+    const planningByUser = new Map(planningRows.map((r) => [r.user_id, r]));
+    const sessionsByUser = new Map();
+    sessionRows.forEach((s) => {
+      if (!sessionsByUser.has(s.user_id)) sessionsByUser.set(s.user_id, []);
+      sessionsByUser.get(s.user_id).push(s);
+    });
+
+    const toMin = (dt) => dt.diff(dayStart, 'minutes').minutes;
+
+    const results = employees.map((emp) => {
+      const planning = planningByUser.get(emp.id);
+      const status = planning ? planning.availability_status : null;
+      const scheduled = status != null && ATTENDANCE_HAS_SLOTS.includes(status);
+      const slots = ((planning && planning.slots) || []).map((s) => ({ start: hmToMin(s.start), end: hmToMin(s.end) }));
+      const plannedMinutes = slots.reduce((a, s) => a + Math.max(0, s.end - s.start), 0);
+      const plannedStart = slots.length ? Math.min(...slots.map((s) => s.start)) : null;
+
+      // Intervalles de connexion réels, ramenés à des minutes depuis minuit (fuseau planning).
+      const intervals = (sessionsByUser.get(emp.id) || [])
+        .map((s) => {
+          const login = DateTime.fromJSDate(s.login_at, { zone: planningDates.PLANNING_TIMEZONE });
+          const logout = s.logout_at
+            ? DateTime.fromJSDate(s.logout_at, { zone: planningDates.PLANNING_TIMEZONE })
+            : isToday
+              ? now
+              : dayEnd;
+          return { a: Math.max(0, toMin(login)), b: Math.min(24 * 60, toMin(logout)) };
+        })
+        .filter((iv) => iv.b > iv.a);
+
+      const present = intervals.length > 0;
+      const connectedMinutes = intervals.reduce((a, iv) => a + (iv.b - iv.a), 0);
+
+      // Heure d'arrivée "au poste" : première connexion qui atteint réellement l'heure planifiée
+      // (intervalle encore actif après plannedStart). On ignore ainsi les connexions brèves AVANT
+      // l'heure prévue (app ouverte en avance, session résiduelle) qui, sinon, masqueraient un vrai
+      // retard en faisant croire à une arrivée à l'heure. Sans heure planifiée, on garde la 1re connexion.
+      const reaching = plannedStart != null ? intervals.filter((iv) => iv.b > plannedStart) : intervals;
+      const arrival = reaching.length ? Math.min(...reaching.map((iv) => iv.a)) : null;
+
+      // Recouvrement entre le temps réellement connecté et les créneaux planifiés.
+      let overlapMinutes = 0;
+      slots.forEach((sl) => {
+        intervals.forEach((iv) => {
+          overlapMinutes += Math.max(0, Math.min(sl.end, iv.b) - Math.max(sl.start, iv.a));
+        });
+      });
+      const accomplishment =
+        scheduled && plannedMinutes > 0 ? Math.min(100, Math.round((overlapMinutes / plannedMinutes) * 100)) : null;
+
+      let presenceStatus;
+      if (!scheduled) {
+        presenceStatus = 'off'; // repos / congé / maladie / non planifié
+      } else if (!present) {
+        presenceStatus = 'absent';
+      } else if (plannedStart != null && (arrival === null || arrival > plannedStart + ATTENDANCE_GRACE_MINUTES)) {
+        // Connecté seulement avant l'heure planifiée (arrival === null) ou arrivé après la tolérance → en retard.
+        presenceStatus = 'late';
+      } else {
+        presenceStatus = 'present';
+      }
+
+      return {
+        id: emp.id,
+        full_name: emp.full_name,
+        position: emp.position,
+        has_avatar: emp.has_avatar,
+        availability_status: status,
+        scheduled,
+        presence_status: presenceStatus,
+        accomplishment,
+        planned_minutes: Math.round(plannedMinutes),
+        connected_minutes: Math.round(connectedMinutes),
+        planned_start: minToHm(plannedStart),
+        first_login: minToHm(arrival ?? (present ? Math.min(...intervals.map((iv) => iv.a)) : null)),
+        late_minutes: presenceStatus === 'late' && arrival != null ? Math.max(0, Math.round(arrival - plannedStart)) : 0,
+        is_connected_now: (sessionsByUser.get(emp.id) || []).some((s) => !s.logout_at),
+      };
+    });
+
+    const scheduledResults = results.filter((r) => r.scheduled);
+    const summary = {
+      total: results.length,
+      present: results.filter((r) => r.presence_status === 'present').length,
+      late: results.filter((r) => r.presence_status === 'late').length,
+      absent: results.filter((r) => r.presence_status === 'absent').length,
+      off: results.filter((r) => r.presence_status === 'off').length,
+      avg_accomplishment: scheduledResults.length
+        ? Math.round(scheduledResults.reduce((a, r) => a + (r.accomplishment || 0), 0) / scheduledResults.length)
+        : null,
+    };
+
+    res.status(200).json({ date: dateString, summary, employees: results });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getCurrentWeek,
   getNextWeek,
@@ -649,4 +782,5 @@ module.exports = {
   adminNonSubmitted,
   adminAvailabilitySearch,
   adminPlanningHistory,
+  adminAttendance,
 };
