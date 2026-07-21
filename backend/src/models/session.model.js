@@ -38,6 +38,21 @@ async function findSessionsOverlappingRange(userId, rangeStartIso, rangeEndIso) 
   return result.rows;
 }
 
+// Version groupée de findSessionsOverlappingRange pour plusieurs utilisateurs (page présence).
+async function findSessionsForUsersOverlapping(userIds, rangeStartIso, rangeEndIso) {
+  if (!userIds || userIds.length === 0) return [];
+  const result = await db.query(
+    `SELECT user_id, login_at, logout_at
+     FROM user_sessions
+     WHERE user_id = ANY($1::uuid[])
+       AND login_at < $3
+       AND COALESCE(logout_at, now()) > $2
+     ORDER BY login_at ASC`,
+    [userIds, rangeStartIso, rangeEndIso]
+  );
+  return result.rows;
+}
+
 // Session actuellement ouverte (s'il y en a une) : utilisé pour le chrono flottant, qui
 // affiche la durée de connexion écoulée depuis login_at.
 async function findOpenSession(userId) {
@@ -52,5 +67,6 @@ module.exports = {
   startSession,
   closeOpenSessions,
   findSessionsOverlappingRange,
+  findSessionsForUsersOverlapping,
   findOpenSession,
 };

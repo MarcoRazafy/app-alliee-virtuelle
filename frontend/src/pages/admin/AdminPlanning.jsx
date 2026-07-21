@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import * as planningService from '../../services/planningService';
 import * as userService from '../../services/userService';
 import * as avatarService from '../../services/avatarService';
+import * as sessionService from '../../services/sessionService';
 import { notifyError, notifySuccess } from '../../utils/toast';
 import WeekCalendarGrid from '../../components/employee/WeekCalendarGrid';
 import { IconAlert, IconX, IconCalendarWeek, IconUser, IconCheckCircle, IconClock, IconSearch } from '../../components/icons';
@@ -89,6 +90,7 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
   const [errors, setErrors] = useState([]);
   const [history, setHistory] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [sessionSegmentsByDate, setSessionSegmentsByDate] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +111,29 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
       cancelled = true;
     };
   }, [planningId]);
+
+  // Présence réelle de l'employé sur cette semaine, superposée au calendrier + suivi temps réel.
+  useEffect(() => {
+    const userId = detail?.user?.id;
+    const weekStart = detail?.week_start_date;
+    if (!userId || !weekStart) return undefined;
+    function refresh() {
+      sessionService
+        .getUserSessionsForWeek(userId, weekStart)
+        .then((segments) => {
+          const byDate = {};
+          segments.forEach((segment) => {
+            if (!byDate[segment.date]) byDate[segment.date] = [];
+            byDate[segment.date].push(segment);
+          });
+          setSessionSegmentsByDate(byDate);
+        })
+        .catch(() => {});
+    }
+    refresh();
+    const interval = window.setInterval(refresh, 15000);
+    return () => window.clearInterval(interval);
+  }, [detail?.user?.id, detail?.week_start_date]);
 
   useEffect(() => {
     function onKey(e) {
@@ -296,7 +321,15 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 onSlotsChange={handleSlotsChange}
                 onCopyTo={handleCopyTo}
                 onNoteChange={handleNoteChange}
+                sessionSegmentsByDate={sessionSegmentsByDate}
               />
+
+              <p className="cal-session-legend">
+                Connexion réelle :
+                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> à l'heure</span>
+                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--late" /> en retard</span>
+                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
+              </p>
 
               <label className="planning-general-note aplan-note">
                 <span>Note générale (facultatif)</span>

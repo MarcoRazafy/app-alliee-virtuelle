@@ -1,0 +1,354 @@
+/* Présence et planning — onglets + page Présence (croise planning déclaré et
+   sessions de connexion réelles). Réutilise tokens + shell admin. */
+
+/* --- Onglets wrapper --- */
+
+.pp-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pp-tab {
+  position: relative;
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 18px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.pp-tab:hover {
+  color: var(--color-text-secondary);
+}
+
+.pp-tab--active {
+  color: var(--color-text-primary);
+}
+
+.pp-tab--active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+}
+
+/* --- Barre d'outils présence --- */
+
+.pres-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.pres-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.pres-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-accent-lighter);
+  margin: 0 0 5px;
+}
+
+.pres-sub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.pres-toolbar-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.pres-date {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.pres-date input {
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  padding: 8px 11px;
+}
+
+[data-theme='dark'] .pres-date input { color-scheme: dark; }
+[data-theme='light'] .pres-date input { color-scheme: light; }
+
+/* --- KPIs --- */
+
+.pres-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.pres-kpi {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--glass-overlay), transparent 45%), var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--card-shadow);
+}
+
+/* Icônes présence = statuts sémantiques (règle d'icônes : couleur autorisée) */
+.pres-kpi-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  color: var(--color-text-secondary);
+}
+
+.pres-kpi-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.pres-kpi--present .pres-kpi-icon { color: var(--color-success); }
+.pres-kpi--late .pres-kpi-icon { color: var(--color-warning); }
+.pres-kpi--absent .pres-kpi-icon { color: var(--color-error); }
+
+.pres-kpi strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+.pres-kpi span {
+  display: block;
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.pres-kpi-acc-label {
+  font-size: 13px !important;
+  font-weight: 700;
+}
+
+.pres-kpi-ring {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: conic-gradient(var(--color-accent-lighter) calc(var(--val) * 1%), var(--input-bg) 0);
+}
+
+.pres-kpi-ring::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--color-bg-secondary);
+}
+
+.pres-kpi-ring span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* --- Table --- */
+
+.pres-table-wrap {
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: linear-gradient(180deg, var(--glass-overlay), transparent 40%), var(--color-bg-secondary);
+  padding: 6px 18px;
+}
+
+.pres-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.pres-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  color: var(--color-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+  object-fit: cover;
+}
+
+.pres-avatar--img {
+  background: var(--input-bg);
+}
+
+.pres-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pres-user-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--color-text-primary);
+}
+
+.pres-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success) 30%, transparent);
+}
+
+.pres-user-pos {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* --- Badge de présence --- */
+
+.pres-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pres-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pres-badge--present { background: rgba(34, 197, 94, 0.14); color: var(--color-success); }
+.pres-badge--late { background: rgba(245, 158, 11, 0.14); color: var(--color-warning); }
+.pres-badge--absent { background: rgba(239, 68, 68, 0.14); color: var(--color-error); }
+.pres-badge--off { background: var(--input-bg); color: var(--color-text-muted); }
+
+/* --- Arrivée --- */
+
+.pres-arrival {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pres-arrival-planned {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.pres-late-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-warning);
+}
+
+/* --- Accomplissement --- */
+
+.pres-acc {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 140px;
+}
+
+.pres-acc-track {
+  flex: 1;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.pres-acc-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-accent-lighter);
+  transition: width 0.4s ease;
+}
+
+.pres-acc-fill.pres-acc--high { background: var(--color-success); }
+.pres-acc-fill.pres-acc--mid { background: var(--color-warning); }
+.pres-acc-fill.pres-acc--low { background: var(--color-error); }
+
+.pres-acc-val {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+}
+
+.pres-muted {
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 1080px) {
+  .pres-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .pres-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

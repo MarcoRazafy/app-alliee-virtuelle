@@ -36,7 +36,7 @@ const NAV_GROUPS = [
       { to: '/admin/validate', label: 'À valider', subtitle: 'Déclarations et livraisons à contrôler', icon: IconCheckCircle, badgeKey: 'toValidate' },
       { to: '/admin/late', label: 'En retard', subtitle: 'Échéances dépassées', icon: IconAlert, badgeKey: 'late' },
       { to: '/admin/users', label: 'Équipe', subtitle: "Membres de l'équipe", icon: IconUsers },
-      { to: '/admin/planning', label: 'Plannings', subtitle: 'Disponibilités des employés', icon: IconCalendarWeek },
+      { to: '/admin/planning', label: 'Présence et planning', subtitle: 'Disponibilités et présence des employés', icon: IconCalendarWeek },
       { to: '/admin/stats', label: 'Statistiques', subtitle: "Performance de l'équipe", icon: IconBarChart },
     ],
   },
