@@ -349,6 +349,170 @@
   display: none;
 }
 
+/* Logo "marque seule" (le pictogramme) : affiché uniquement quand le rail est replié. */
+.sidebar-logo-mark {
+  display: none;
+  width: 40px;
+  height: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Rail repliable façon Slack : la sidebar est réduite à ses icônes et se
+   déploie en overlay au survol (ou au focus clavier) SANS pousser le contenu
+   (marge droite négative = l'espace occupé reste celui du rail).
+   Comportement desktop uniquement : en mobile la sidebar reste un drawer plein.
+--------------------------------------------------------------------------- */
+@media (min-width: 901px) {
+  .sidebar--rail {
+    width: 76px;
+    padding: 22px 12px;
+    transition: width 0.18s ease, margin-right 0.18s ease, padding 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  /* --- État replié : on masque le texte, on centre les icônes --- */
+  .sidebar--rail .sidebar-logo {
+    display: none;
+  }
+  .sidebar--rail .sidebar-logo-mark {
+    display: block;
+    margin: 0 auto;
+  }
+  .sidebar--rail .sidebar-brand {
+    margin-bottom: 22px;
+  }
+  .sidebar--rail .sidebar-role-tag,
+  .sidebar--rail .sidebar-group-label,
+  .sidebar--rail .sidebar-link > span:not(.sidebar-badge),
+  .sidebar--rail .sidebar-link-main > span,
+  .sidebar--rail .sidebar-logout span,
+  .sidebar--rail .sidebar-expand-btn,
+  .sidebar--rail .sidebar-sublinks,
+  .sidebar--rail .sidebar-lock-icon,
+  .sidebar--rail .sidebar-cta-title,
+  .sidebar--rail .sidebar-cta-link {
+    display: none;
+  }
+
+  /* Carte CTA (espace employé) réduite à son icône quand le rail est replié. */
+  .sidebar--rail .sidebar-cta {
+    padding: 14px 0;
+    text-align: center;
+  }
+  .sidebar--rail .sidebar-cta-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+
+  .sidebar--rail .sidebar-link,
+  .sidebar--rail .sidebar-link-main,
+  .sidebar--rail .sidebar-logout {
+    justify-content: center;
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+    position: relative;
+  }
+
+  /* Badge → pastille compacte ancrée sur l'icône quand le rail est replié. */
+  .sidebar--rail .sidebar-badge {
+    position: absolute;
+    top: 3px;
+    right: 12px;
+    margin-left: 0;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  /* --- Déploiement au survol / focus clavier : overlay, sans décaler le contenu --- */
+  .sidebar--rail:hover,
+  .sidebar--rail:focus-within {
+    width: 236px;
+    margin-right: -160px; /* 76 - 236 : l'espace réellement occupé reste = rail */
+    padding: 28px 16px;
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.4);
+    z-index: 60;
+  }
+
+  .sidebar--rail:hover .sidebar-logo,
+  .sidebar--rail:focus-within .sidebar-logo {
+    display: block;
+  }
+  .sidebar--rail:hover .sidebar-logo-mark,
+  .sidebar--rail:focus-within .sidebar-logo-mark {
+    display: none;
+  }
+  .sidebar--rail:hover .sidebar-brand,
+  .sidebar--rail:focus-within .sidebar-brand {
+    margin-bottom: 28px;
+  }
+  .sidebar--rail:hover .sidebar-role-tag,
+  .sidebar--rail:focus-within .sidebar-role-tag,
+  .sidebar--rail:hover .sidebar-group-label,
+  .sidebar--rail:focus-within .sidebar-group-label {
+    display: block;
+  }
+  .sidebar--rail:hover .sidebar-link > span:not(.sidebar-badge),
+  .sidebar--rail:focus-within .sidebar-link > span:not(.sidebar-badge),
+  .sidebar--rail:hover .sidebar-link-main > span,
+  .sidebar--rail:focus-within .sidebar-link-main > span,
+  .sidebar--rail:hover .sidebar-logout span,
+  .sidebar--rail:focus-within .sidebar-logout span {
+    display: inline;
+  }
+  .sidebar--rail:hover .sidebar-expand-btn,
+  .sidebar--rail:focus-within .sidebar-expand-btn {
+    display: inline-flex;
+  }
+  .sidebar--rail:hover .sidebar-sublinks,
+  .sidebar--rail:focus-within .sidebar-sublinks {
+    display: flex;
+  }
+  .sidebar--rail:hover .sidebar-lock-icon,
+  .sidebar--rail:focus-within .sidebar-lock-icon {
+    display: block;
+  }
+  .sidebar--rail:hover .sidebar-cta-title,
+  .sidebar--rail:focus-within .sidebar-cta-title {
+    display: block;
+  }
+  .sidebar--rail:hover .sidebar-cta-link,
+  .sidebar--rail:focus-within .sidebar-cta-link {
+    display: flex;
+  }
+  .sidebar--rail:hover .sidebar-cta,
+  .sidebar--rail:focus-within .sidebar-cta {
+    padding: 16px;
+    text-align: left;
+  }
+  .sidebar--rail:hover .sidebar-cta-icon,
+  .sidebar--rail:focus-within .sidebar-cta-icon {
+    display: inline-flex;
+    justify-content: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .sidebar--rail:hover .sidebar-link,
+  .sidebar--rail:focus-within .sidebar-link,
+  .sidebar--rail:hover .sidebar-link-main,
+  .sidebar--rail:focus-within .sidebar-link-main,
+  .sidebar--rail:hover .sidebar-logout,
+  .sidebar--rail:focus-within .sidebar-logout {
+    justify-content: flex-start;
+    gap: 12px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .sidebar--rail:hover .sidebar-badge,
+  .sidebar--rail:focus-within .sidebar-badge {
+    position: static;
+    margin-left: auto;
+    padding: 1px 7px;
+    font-size: 11px;
+  }
+}
+
 @media (max-width: 900px) {
   .mobile-menu-btn {
     display: inline-flex;

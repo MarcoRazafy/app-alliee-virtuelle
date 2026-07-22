@@ -10,6 +10,7 @@ import {
   IconChecklist,
   IconCheckCircle,
   IconAlert,
+  IconBell,
   IconBarChart,
   IconCalendarWeek,
   IconSparkle,
@@ -32,9 +33,10 @@ const NAV_GROUPS = [
     label: 'Piloter',
     items: [
       { to: '/admin', label: "Vue d'ensemble", subtitle: "Activité de l'équipe en direct", icon: IconWorkspace, end: true },
-      { to: '/admin/lists', label: 'Tâches', subtitle: 'Toutes les tâches', icon: IconChecklist },
-      { to: '/admin/validate', label: 'À valider', subtitle: 'Déclarations et livraisons à contrôler', icon: IconCheckCircle, badgeKey: 'toValidate' },
+      { to: '/admin/lists', label: 'Projets', subtitle: 'Toutes les tâches', icon: IconChecklist },
+      { to: '/admin/validate', label: 'Tâches', subtitle: 'Déclarations et livraisons à contrôler', icon: IconCheckCircle, badgeKey: 'toValidate' },
       { to: '/admin/late', label: 'En retard', subtitle: 'Échéances dépassées', icon: IconAlert, badgeKey: 'late' },
+      { to: '/admin/task-requests', label: 'Demandes de tâche', subtitle: 'Tâches supplémentaires à approuver', icon: IconBell, badgeKey: 'taskRequests' },
       { to: '/admin/users', label: 'Équipe', subtitle: "Membres de l'équipe", icon: IconUsers },
       { to: '/admin/planning', label: 'Présence et planning', subtitle: 'Disponibilités et présence des employés', icon: IconCalendarWeek },
       { to: '/admin/stats', label: 'Statistiques', subtitle: "Performance de l'équipe", icon: IconBarChart },
@@ -76,7 +78,7 @@ const EXTRA_TITLES = {
 };
 
 function AdminLayout({ children }) {
-  const [badges, setBadges] = useState({ toValidate: 0, late: 0 });
+  const [badges, setBadges] = useState({ toValidate: 0, late: 0, taskRequests: 0 });
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -114,6 +116,9 @@ function AdminLayout({ children }) {
       );
       taskService.getLateTasks().then((tasks) => {
         setBadges((prev) => ({ ...prev, late: tasks.length }));
+      });
+      taskService.getExtraTaskRequests('PENDING').then((reqs) => {
+        setBadges((prev) => ({ ...prev, taskRequests: reqs.length }));
       });
     }
     loadBadges();
@@ -193,7 +198,7 @@ function AdminLayout({ children }) {
   return (
     <div className="shell">
       {mobileNavOpen && <div className="sidebar-overlay" onClick={() => setMobileNavOpen(false)} />}
-      <aside className={`sidebar${mobileNavOpen ? ' sidebar--mobile-open' : ''}`}>
+      <aside className={`sidebar sidebar--rail${mobileNavOpen ? ' sidebar--mobile-open' : ''}`}>
         <button
           type="button"
           className="sidebar-close-btn"

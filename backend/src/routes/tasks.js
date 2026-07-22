@@ -10,6 +10,14 @@ router.use(authMiddleware);
 // Routes statiques déclarées avant /tasks/:id pour éviter tout conflit de matching
 router.get('/tasks/late', authMiddleware.requireRole('ADMIN'), taskController.getLateTasks);
 
+// Demandes de tâche supplémentaire (après validation de la journée).
+// Déclarées ici, avant /tasks/:id, sinon "extra-requests" serait pris pour un :id.
+router.post('/tasks/extra-requests', taskController.createExtraTaskRequest);
+router.get('/tasks/extra-requests/me', taskController.getMyExtraTaskRequests);
+router.get('/tasks/extra-requests', authMiddleware.requireRole('ADMIN'), taskController.listExtraTaskRequests);
+router.post('/tasks/extra-requests/:id/approve', authMiddleware.requireRole('ADMIN'), taskController.approveExtraTaskRequest);
+router.post('/tasks/extra-requests/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectExtraTaskRequest);
+
 // Employé
 router.get('/tasks', taskController.listTasks);
 router.get('/tasks/:id', taskController.getTask);

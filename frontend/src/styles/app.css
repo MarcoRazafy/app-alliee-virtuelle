@@ -189,6 +189,16 @@
   color: var(--color-accent-lighter);
 }
 
+/* Variante "succès" (journée validée) : vert sémantique. */
+.info-banner--success {
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 32%, transparent);
+}
+
+.info-banner--success svg {
+  color: var(--color-success);
+}
+
 /* --- Colonnes glisser-déposer --- */
 
 .dnd-columns {
@@ -323,6 +333,90 @@
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+/* Puce d'échéance sur la carte de tâche : aide l'employé à repérer et prioriser
+   les tâches urgentes. Couleur graduée selon l'urgence (sémantique uniquement). */
+.task-card-deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-muted) 16%, transparent);
+}
+
+.task-card-deadline svg {
+  flex-shrink: 0;
+}
+
+/* En retard / échéance aujourd'hui → rouge ; bientôt (≤ 3 j) → ambre ; sinon neutre. */
+.task-card-deadline--overdue,
+.task-card-deadline--today {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
+}
+
+.task-card-deadline--soon {
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+}
+
+/* Carte "demandable" : journée validée, l'employé peut demander la tâche (pas verrouillée
+   visuellement contrairement aux autres, car son bouton doit rester cliquable). */
+.task-card--requestable {
+  cursor: default;
+}
+
+.task-request-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.task-request-btn {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-accent);
+  background: transparent;
+  color: var(--color-accent-lighter);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.task-request-btn:hover {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.task-request-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.task-request-chip--pending {
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+}
+
+.task-request-chip--rejected {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
+  cursor: help;
 }
 
 /* --- Actions --- */
