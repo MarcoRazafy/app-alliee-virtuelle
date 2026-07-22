@@ -20,6 +20,7 @@ import AdminCreateTask from './pages/admin/AdminCreateTask';
 import AdminListView from './pages/admin/AdminListView';
 import AdminTasksToValidate from './pages/admin/AdminTasksToValidate';
 import AdminLateTasks from './pages/admin/AdminLateTasks';
+import AdminTaskRequests from './pages/admin/AdminTaskRequests';
 import AdminStatistics from './pages/admin/AdminStatistics';
 import AdminPlanningPresence from './pages/admin/AdminPlanningPresence';
 import AdminAssistant from './pages/admin/AdminAssistant';
@@ -138,6 +139,7 @@ function App() {
         <Route path="/admin/lists" element={<AdminRoute><AdminListView /></AdminRoute>} />
         <Route path="/admin/validate" element={<AdminRoute><AdminTasksToValidate /></AdminRoute>} />
         <Route path="/admin/late" element={<AdminRoute><AdminLateTasks /></AdminRoute>} />
+        <Route path="/admin/task-requests" element={<AdminRoute><AdminTaskRequests /></AdminRoute>} />
         <Route path="/admin/stats" element={<AdminRoute><AdminStatistics /></AdminRoute>} />
         <Route path="/admin/planning" element={<AdminRoute><AdminPlanningPresence /></AdminRoute>} />
         <Route path="/admin/assistant" element={<AdminRoute><AdminAssistant /></AdminRoute>} />

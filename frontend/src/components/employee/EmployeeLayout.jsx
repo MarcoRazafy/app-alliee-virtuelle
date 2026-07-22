@@ -174,7 +174,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
   return (
     <div className="shell">
       {mobileNavOpen && <div className="sidebar-overlay" onClick={() => setMobileNavOpen(false)} />}
-      <aside className={`sidebar${mobileNavOpen ? ' sidebar--mobile-open' : ''}`}>
+      <aside className={`sidebar sidebar--rail${mobileNavOpen ? ' sidebar--mobile-open' : ''}`}>
         <button
           type="button"
           className="sidebar-close-btn"
@@ -184,6 +184,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
           <IconX />
         </button>
         <div className="sidebar-brand">
+          <img src="/logo-mark.png" alt="" aria-hidden="true" className="sidebar-logo-mark" />
           <img src="/logo.png" alt="L'Alliée Virtuelle" className="sidebar-logo" />
         </div>
 

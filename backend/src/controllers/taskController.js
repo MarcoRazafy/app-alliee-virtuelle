@@ -2,6 +2,7 @@ const fs = require('fs');
 const db = require('../config/database');
 const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
+const extraTaskRequestModel = require('../models/extraTaskRequest.model');
 const { isValidTitle, isValidPriority, isFutureDate, isValidEmail } = require('../utils/validators');
 
 function canAccessTask(task, user) {
@@ -782,10 +783,123 @@ async function deleteAttachment(req, res, next) {
   }
 }
 
+// --- Demandes de tâche supplémentaire ---
+
+// L'employé (journée déjà validée) demande à travailler une tâche précise de plus.
+async function createExtraTaskRequest(req, res, next) {
+  try {
+    const { task_id: taskId, message } = req.body;
+    if (!taskId) {
+      return res.status(400).json({ error: 'task_id est requis' });
+    }
+
+    const date = todayDateString();
+
+    // La demande n'a de sens qu'après avoir validé sa journée.
+    const selection = await taskModel.findDailySelection(req.user.id, date);
+    const dayValidated = selection.length > 0 && selection.every((row) => row.validated_at);
+    if (!dayValidated) {
+      return res.status(400).json({ error: "Validez d'abord votre journée avant de demander une tâche supplémentaire" });
+    }
+
+    const task = await taskModel.findById(taskId);
+    if (!task || task.assigned_to !== req.user.id) {
+      return res.status(400).json({ error: 'Tâche invalide ou non assignée' });
+    }
+    // On ne demande que des tâches encore actionnables (pas déjà terminées/confirmées).
+    if (![taskModel.TASK_STATUS.VALIDATED, taskModel.TASK_STATUS.IN_PROGRESS].includes(task.status)) {
+      return res.status(400).json({ error: "Cette tâche n'est pas disponible" });
+    }
+    if (selection.some((row) => row.task_id === taskId)) {
+      return res.status(400).json({ error: 'Cette tâche est déjà dans votre journée' });
+    }
+    const existing = await extraTaskRequestModel.findPending(req.user.id, taskId, date);
+    if (existing) {
+      return res.status(409).json({ error: 'Une demande est déjà en attente pour cette tâche' });
+    }
+
+    const request = await extraTaskRequestModel.create({ userId: req.user.id, taskId, date, message });
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'REQUEST_EXTRA_TASK',
+      entityType: 'extra_task_requests',
+      entityId: request.id,
+      details: { task_id: taskId, date },
+    });
+    res.status(201).json(request);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Statut des demandes de l'employé pour aujourd'hui (pour afficher en attente / refusée).
+async function getMyExtraTaskRequests(req, res, next) {
+  try {
+    const requests = await extraTaskRequestModel.findByUserForDate(req.user.id, todayDateString());
+    res.status(200).json(requests);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Liste admin (par défaut : en attente ; ?status= pour l'historique).
+async function listExtraTaskRequests(req, res, next) {
+  try {
+    const { status } = req.query;
+    const requests = await extraTaskRequestModel.findForAdmin({ status });
+    res.status(200).json(requests);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function approveExtraTaskRequest(req, res, next) {
+  try {
+    const request = await extraTaskRequestModel.approve(req.params.id, req.user.id);
+    if (!request) {
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée' });
+    }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'APPROVE_EXTRA_TASK',
+      entityType: 'extra_task_requests',
+      entityId: request.id,
+      details: { task_id: request.task_id, target_user: request.user_id },
+    });
+    res.status(200).json({ ...request, status: 'APPROVED' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function rejectExtraTaskRequest(req, res, next) {
+  try {
+    const request = await extraTaskRequestModel.reject(req.params.id, req.user.id, req.body?.note);
+    if (!request) {
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée' });
+    }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'REJECT_EXTRA_TASK',
+      entityType: 'extra_task_requests',
+      entityId: request.id,
+      details: { task_id: request.task_id, target_user: request.user_id },
+    });
+    res.status(200).json(request);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listTasks,
   getTask,
   getTaskDetail,
+  createExtraTaskRequest,
+  getMyExtraTaskRequests,
+  listExtraTaskRequests,
+  approveExtraTaskRequest,
+  rejectExtraTaskRequest,
   validateTask,
   getSubtasks,
   createTask,
