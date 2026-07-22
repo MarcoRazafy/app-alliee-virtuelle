@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconX } from '../icons';
 import {
   EMPLOYEE_STATUS_OPTIONS,
@@ -11,6 +11,11 @@ import {
   toTimeInputValue,
   slotsOverlap,
 } from '../../utils/planningFormat';
+import {
+  computeWeekPresence,
+  formatPresenceMinutes,
+  PRESENCE_VARIANT_LABELS,
+} from '../../utils/presenceMetrics';
 import { notifyError } from '../../utils/toast';
 
 const ROW_HEIGHT = 32; // px par heure
@@ -101,40 +106,115 @@ function SlotBlock({ day, slot, slotIndex, canEdit, drag, onHandlePointerDown, o
   );
 }
 
-// Tolérance (minutes) avant qu'une connexion soit considérée "en retard" par rapport au 1er créneau.
-const SESSION_LATE_GRACE = 10;
-
-// Statut de connexion d'un jour, pour colorer la bande de session :
-// - 'ontime' (vert) : connecté à l'heure sur un jour planifié
-// - 'late'   (ambre) : 1re connexion après le début du créneau planifié (+ tolérance)
-// - 'off'    (bleu)  : connecté hors planning (jour non planifié)
-function daySessionVariant(day, segments) {
-  if (!segments || segments.length === 0) return 'off';
-  const planned = HAS_SLOTS_STATUSES.includes(day.availability_status) && day.time_slots.length > 0;
-  if (!planned) return 'off';
-  const plannedStart = Math.min(...day.time_slots.map((s) => timeToMinutes(s.start_time)));
-  // On ne retient que les connexions qui atteignent réellement le créneau (fin après l'heure planifiée).
-  // Sinon une connexion brève AVANT le début (app ouverte en avance) ferait passer un vrai retard pour "à l'heure".
-  const reaching = segments.filter((s) => timeToMinutes(s.end_time) > plannedStart);
-  if (reaching.length === 0) return 'late';
-  const firstStart = Math.min(...reaching.map((s) => timeToMinutes(s.start_time)));
-  return firstStart <= plannedStart + SESSION_LATE_GRACE ? 'ontime' : 'late';
-}
-
-const SESSION_VARIANT_LABEL = { ontime: 'à l’heure', late: 'en retard', off: 'hors planning' };
-
-function SessionBlock({ segment, variant = 'off' }) {
-  const startMinutes = timeToMinutes(segment.start_time);
-  const endMinutes = timeToMinutes(segment.end_time);
-  const top = (startMinutes / 60) * ROW_HEIGHT;
-  const height = Math.max(4, ((endMinutes - startMinutes) / 60) * ROW_HEIGHT);
-  const endLabel = toTimeInputValue(segment.end_time === '24:00' ? '23:59' : segment.end_time);
+function PresenceBlock({ segment }) {
+  const top = (segment.start / 60) * ROW_HEIGHT;
+  const height = Math.max(4, ((segment.end - segment.start) / 60) * ROW_HEIGHT);
+  const startLabel = minutesToTime(segment.start);
+  const endLabel = minutesToTime(segment.end);
+  const variantLabel = PRESENCE_VARIANT_LABELS[segment.variant] || 'Présence';
   return (
     <div
-      className={`cal-session-block cal-session-block--${variant}${segment.is_live ? ' cal-session-block--live' : ''}`}
+      className={`cal-session-block cal-session-block--${segment.variant}${segment.isLive ? ' cal-session-block--live' : ''}`}
       style={{ top: `${top}px`, height: `${height}px` }}
-      title={`Connecté ${toTimeInputValue(segment.start_time)}–${endLabel} (${SESSION_VARIANT_LABEL[variant]})${segment.is_live ? ' · en cours' : ''}`}
+      title={`${variantLabel} · ${startLabel}–${endLabel}${segment.isLive ? ' · en cours' : ''}`}
+      aria-hidden="true"
     />
+  );
+}
+
+function PresenceDaySummary({ summary, expanded, onToggle }) {
+  let detailText = summary.firstConnection ? `Connexion ${summary.firstConnection}` : 'Aucune connexion';
+  if (summary.status.label === 'À venir' || summary.status.label === 'En attente') {
+    detailText = summary.plannedIntervals[0] ? `Prévu ${minutesToTime(summary.plannedIntervals[0].start)}` : 'À venir';
+  } else if (summary.status.label === 'Non planifié') {
+    detailText = 'Aucun créneau';
+  }
+  return (
+    <button
+      type="button"
+      className={`cal-presence-summary cal-presence-summary--${summary.status.variant}`}
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-label={`${summary.status.label}. ${detailText}. ${formatPresenceMinutes(summary.connectedMinutes)} connectées sur ${formatPresenceMinutes(summary.plannedMinutes)} planifiées. Afficher le détail.`}
+    >
+      <span className="cal-presence-summary-dot" aria-hidden="true" />
+      <span className="cal-presence-summary-copy">
+        <strong>{summary.status.label}</strong>
+        <span>{detailText}</span>
+      </span>
+    </button>
+  );
+}
+
+function PresenceDetailPanel({ day, dayIndex, summary, onClose, panelRef }) {
+  const plannedSlots = summary.plannedIntervals.map(
+    (interval) => `${minutesToTime(interval.start)}–${minutesToTime(interval.end)}`
+  );
+  const actualSessions = summary.sessionIntervals.map(
+    (interval) => `${minutesToTime(interval.start)}–${minutesToTime(interval.end)}${interval.isLive ? ' · en cours' : ''}`
+  );
+  const timelineSegments = [...summary.displaySegments, ...summary.missingSegments]
+    .sort((first, second) => first.start - second.start || first.end - second.end);
+
+  return (
+    <section
+      ref={panelRef}
+      className="cal-presence-detail"
+      aria-labelledby={`presence-detail-${day.date}`}
+      tabIndex="-1"
+    >
+      <header className="cal-presence-detail-head">
+        <div>
+          <p className="cal-presence-detail-kicker">Détail de présence</p>
+          <h3 id={`presence-detail-${day.date}`}>{formatDayLabel(day.date, dayIndex)}</h3>
+        </div>
+        <button type="button" className="cal-presence-detail-close" onClick={onClose} aria-label="Fermer le détail de présence">
+          <IconX />
+        </button>
+      </header>
+
+      <div className="cal-presence-detail-status">
+        <span className={`cal-presence-detail-badge cal-presence-detail-badge--${summary.status.variant}`}>
+          <span aria-hidden="true" /> {summary.status.label}
+        </span>
+        {summary.delayMinutes > 10 && <strong>{formatPresenceMinutes(summary.delayMinutes)} de retard</strong>}
+      </div>
+
+      <dl className="cal-presence-detail-metrics">
+        <div><dt>Planifié</dt><dd>{formatPresenceMinutes(summary.plannedMinutes)}</dd></div>
+        <div><dt>Connecté</dt><dd>{formatPresenceMinutes(summary.connectedMinutes)}</dd></div>
+        <div><dt>Couvert</dt><dd>{formatPresenceMinutes(summary.coveredMinutes)}</dd></div>
+        <div><dt>Hors planning</dt><dd>{formatPresenceMinutes(summary.outsideMinutes)}</dd></div>
+        <div><dt>Non couvert à cette heure</dt><dd>{formatPresenceMinutes(summary.missedMinutes)}</dd></div>
+      </dl>
+
+      <div className="cal-presence-detail-ranges">
+        <div>
+          <h4>Créneaux planifiés</h4>
+          {plannedSlots.length > 0 ? <p>{plannedSlots.join(' · ')}</p> : <p>Aucun créneau planifié.</p>}
+        </div>
+        <div>
+          <h4>Connexions enregistrées</h4>
+          {actualSessions.length > 0 ? <p>{actualSessions.join(' · ')}</p> : <p>Aucune connexion enregistrée.</p>}
+        </div>
+      </div>
+
+      {timelineSegments.length > 0 && (
+        <div className="cal-presence-detail-timeline">
+          <h4>Lecture de la ligne de présence</h4>
+          <ul>
+            {timelineSegments.map((segment, index) => (
+              <li key={`${segment.variant}-${segment.start}-${segment.end}-${index}`}>
+                <span className={`cal-presence-timeline-mark cal-presence-timeline-mark--${segment.variant}`} aria-hidden="true" />
+                <strong>{minutesToTime(segment.start)}–{minutesToTime(segment.end)}</strong>
+                <span>{PRESENCE_VARIANT_LABELS[segment.variant]}</span>
+                {segment.isLive && <em>En cours</em>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -149,7 +229,32 @@ function WeekCalendarGrid({
   statusOptions = EMPLOYEE_STATUS_OPTIONS,
 }) {
   const [drag, setDrag] = useState(null);
+  const [selectedPresenceDate, setSelectedPresenceDate] = useState(null);
   const columnRefs = useRef({});
+  const presenceDetailRef = useRef(null);
+  const presenceTriggerRef = useRef(null);
+  const hasPresenceData = sessionSegmentsByDate !== undefined;
+  const presenceWeek = useMemo(
+    () => (hasPresenceData ? computeWeekPresence(days, sessionSegmentsByDate || {}) : null),
+    [days, hasPresenceData, sessionSegmentsByDate]
+  );
+  const selectedPresenceDay = selectedPresenceDate
+    ? days.find((day) => day.date === selectedPresenceDate)
+    : null;
+  const selectedPresenceIndex = selectedPresenceDay ? days.indexOf(selectedPresenceDay) : -1;
+  const selectedPresenceSummary = selectedPresenceDate ? presenceWeek?.days[selectedPresenceDate] : null;
+
+  useEffect(() => {
+    if (!selectedPresenceDate || !presenceDetailRef.current) return;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    presenceDetailRef.current.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+    presenceDetailRef.current.focus({ preventScroll: true });
+  }, [selectedPresenceDate]);
+
+  function closePresenceDetail() {
+    setSelectedPresenceDate(null);
+    window.requestAnimationFrame(() => presenceTriggerRef.current?.focus());
+  }
 
   function minutesFromEvent(date, clientY) {
     const el = columnRefs.current[date];
@@ -238,8 +343,9 @@ function WeekCalendarGrid({
   }
 
   return (
-    <div className="cal-grid-wrap">
-      <div className="cal-grid">
+    <div className="cal-calendar">
+      <div className="cal-grid-wrap">
+        <div className={`cal-grid${hasPresenceData ? ' cal-grid--presence' : ''}`}>
         <div className="cal-hour-column">
           <div className="cal-corner" />
           {HOURS.map((hour) => (
@@ -251,6 +357,7 @@ function WeekCalendarGrid({
 
         {days.map((day, dayIndex) => {
           const isDrawable = canEdit && HAS_SLOTS_STATUSES.includes(day.availability_status);
+          const presenceSummary = presenceWeek?.days[day.date];
           // Tout statut posé qui ne porte pas de plages (Indisponible / Congé / Maladie)
           // s'affiche « bloqué » (hachuré) avec son libellé.
           const isBlocked =
@@ -301,6 +408,17 @@ function WeekCalendarGrid({
                     </span>
                   )
                 )}
+                {presenceSummary && (
+                  <PresenceDaySummary
+                    summary={presenceSummary}
+                    expanded={selectedPresenceDate === day.date}
+                    onToggle={(event) => {
+                      presenceTriggerRef.current = event.currentTarget;
+                      if (selectedPresenceDate === day.date) closePresenceDetail();
+                      else setSelectedPresenceDate(day.date);
+                    }}
+                  />
+                )}
               </div>
 
               <div
@@ -324,13 +442,13 @@ function WeekCalendarGrid({
                   <div className="cal-day-empty-hint">{STATUS_LABELS[day.availability_status]}</div>
                 )}
 
-                {(() => {
-                  const daySegments = sessionSegmentsByDate?.[day.date] || [];
-                  const variant = daySessionVariant(day, daySegments);
-                  return daySegments.map((segment, segmentIndex) => (
-                    <SessionBlock key={segmentIndex} segment={segment} variant={variant} />
-                  ));
-                })()}
+                {presenceSummary?.missingSegments.map((segment, segmentIndex) => (
+                  <PresenceBlock key={`missing-${segmentIndex}`} segment={segment} />
+                ))}
+
+                {presenceSummary?.displaySegments.map((segment, segmentIndex) => (
+                  <PresenceBlock key={`presence-${segmentIndex}`} segment={segment} />
+                ))}
 
                 {day.time_slots.map((slot, slotIndex) => (
                   <SlotBlock
@@ -363,24 +481,35 @@ function WeekCalendarGrid({
             </div>
           );
         })}
+        </div>
+
+        {onNoteChange && (
+          <div className="cal-notes-row">
+            <div className="cal-notes-row-spacer" />
+            {days.map((day, index) => (
+              <label className="cal-note-cell" key={day.date}>
+                <span>{formatDayLabel(day.date, index).slice(0, 3)}</span>
+                <input
+                  type="text"
+                  value={day.note || ''}
+                  onChange={(event) => onNoteChange(day.date, event.target.value)}
+                  disabled={!canEdit}
+                  placeholder="Note"
+                />
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
-      {onNoteChange && (
-        <div className="cal-notes-row">
-          <div className="cal-notes-row-spacer" />
-          {days.map((day, index) => (
-            <label className="cal-note-cell" key={day.date}>
-              <span>{formatDayLabel(day.date, index).slice(0, 3)}</span>
-              <input
-                type="text"
-                value={day.note || ''}
-                onChange={(event) => onNoteChange(day.date, event.target.value)}
-                disabled={!canEdit}
-                placeholder="Note"
-              />
-            </label>
-          ))}
-        </div>
+      {selectedPresenceDay && selectedPresenceSummary && (
+        <PresenceDetailPanel
+          day={selectedPresenceDay}
+          dayIndex={selectedPresenceIndex}
+          summary={selectedPresenceSummary}
+          onClose={closePresenceDetail}
+          panelRef={presenceDetailRef}
+        />
       )}
     </div>
   );

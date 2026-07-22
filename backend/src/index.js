@@ -13,6 +13,7 @@ const aiRoutes = require('./routes/ai');
 const hierarchyRoutes = require('./routes/hierarchy');
 const planningRoutes = require('./routes/planning');
 const sessionRoutes = require('./routes/sessions');
+const sessionModel = require('./models/session.model');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -42,3 +43,12 @@ app.use(errorHandler);
 app.listen(env.port, () => {
   console.log(`API démarrée sur http://localhost:${env.port}`);
 });
+
+// Nettoyage autonome des navigateurs fermés : présence et tâche sont clôturées
+// même si aucun utilisateur ne rouvre l'application et si aucun admin ne consulte la page.
+const presenceCleanupTimer = setInterval(() => {
+  sessionModel.expireStaleSessions().catch((err) => {
+    console.error('Impossible de nettoyer les sessions de présence expirées', err);
+  });
+}, env.presenceCleanupIntervalSeconds * 1000);
+presenceCleanupTimer.unref();

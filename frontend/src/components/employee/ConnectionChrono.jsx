@@ -14,7 +14,7 @@ function ConnectionChrono() {
   useEffect(() => {
     let cancelled = false;
     sessionService
-      .getMyCurrentSession()
+      .heartbeatSession()
       .then((data) => {
         if (!cancelled && data.login_at) setLoginAt(new Date(data.login_at).getTime());
       })

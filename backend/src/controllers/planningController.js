@@ -2,7 +2,9 @@ const { DateTime } = require('luxon');
 const db = require('../config/database');
 const planningModel = require('../models/planning.model');
 const sessionModel = require('../models/session.model');
+const userModel = require('../models/user.model');
 const planningDates = require('../utils/planningDates');
+const { computeAttendanceMetrics } = require('../utils/attendanceMetrics');
 
 const ALL_AVAILABILITY_STATUSES = Object.values(planningDates.AVAILABILITY_STATUS);
 const EMPLOYEE_AVAILABILITY_STATUSES = planningDates.EMPLOYEE_AVAILABILITY_STATUSES;
@@ -637,11 +639,93 @@ async function adminPlanningHistory(req, res, next) {
 // ---------- Présence : croise le planning déclaré du jour avec les sessions de connexion réelles ----------
 
 const ATTENDANCE_HAS_SLOTS = ['AVAILABLE', 'PARTIALLY_AVAILABLE'];
-const ATTENDANCE_GRACE_MINUTES = 10; // tolérance avant d'être compté "en retard"
+const MANUAL_ATTENDANCE_STATUSES = new Set(['present', 'late', 'absent']);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function hmToMin(hm) {
   const [h, m] = hm.split(':').map(Number);
   return h * 60 + m;
+}
+
+function elapsedMinutesForDate(dateString, now) {
+  const todayString = planningDates.formatDate(now);
+  if (dateString < todayString) return 24 * 60;
+  if (dateString > todayString) return 0;
+  return now.hour * 60 + now.minute + now.second / 60;
+}
+
+function buildAttendanceResult({ employee, planning, sessionRows, override, dateString, dayStart, now }) {
+  const availabilityStatus = planning ? planning.availability_status : null;
+  const scheduled = availabilityStatus != null && ATTENDANCE_HAS_SLOTS.includes(availabilityStatus);
+  const slots = ((planning && planning.slots) || []).map((slot) => ({
+    start: hmToMin(slot.start),
+    end: hmToMin(slot.end),
+  }));
+  const plannedStart = slots.length ? Math.min(...slots.map((slot) => slot.start)) : null;
+  const toMin = (dateTime) => dateTime.diff(dayStart, 'minutes').minutes;
+
+  const intervals = (sessionRows || [])
+    .map((session) => {
+      const login = DateTime.fromJSDate(session.login_at, { zone: planningDates.PLANNING_TIMEZONE });
+      const effectiveLogout = DateTime.fromJSDate(session.effective_logout_at, {
+        zone: planningDates.PLANNING_TIMEZONE,
+      });
+      return {
+        start: Math.max(0, toMin(login)),
+        end: Math.min(24 * 60, toMin(effectiveLogout)),
+        isLive: Boolean(session.is_live),
+      };
+    })
+    .filter((interval) => interval.end > interval.start);
+
+  const metrics = computeAttendanceMetrics({
+    slots: scheduled ? slots : [],
+    sessions: intervals,
+    elapsedLimit: elapsedMinutesForDate(dateString, now),
+  });
+  const automaticStatus = metrics.status;
+  const finalStatus = override?.status || automaticStatus;
+  const lateMinutes = override
+    ? override.status === 'late'
+      ? Number(override.late_minutes) || 0
+      : 0
+    : automaticStatus === 'late'
+      ? Math.round(metrics.delayMinutes)
+      : 0;
+
+  return {
+    id: employee.id,
+    full_name: employee.full_name,
+    position: employee.position,
+    has_avatar: employee.has_avatar,
+    date: dateString,
+    availability_status: availabilityStatus,
+    scheduled,
+    calculated_presence_status: automaticStatus,
+    presence_status: finalStatus,
+    manual_correction: override
+      ? {
+          id: override.id,
+          status: override.status,
+          late_minutes: Number(override.late_minutes) || 0,
+          reason: override.reason || null,
+          corrected_by: override.corrected_by,
+          corrected_by_name: override.corrected_by_name || null,
+          corrected_at: override.corrected_at,
+        }
+      : null,
+    accomplishment:
+      scheduled && !['upcoming', 'waiting'].includes(automaticStatus) ? metrics.accomplishment : null,
+    planned_minutes: Math.round(metrics.plannedMinutes),
+    connected_minutes: Math.round(metrics.connectedMinutes),
+    covered_minutes: Math.round(metrics.coveredMinutes),
+    missed_minutes: Math.round(metrics.missedMinutes),
+    outside_minutes: Math.round(metrics.outsideMinutes),
+    planned_start: minToHm(plannedStart),
+    first_login: minToHm(metrics.firstConnection),
+    late_minutes: lateMinutes,
+    is_connected_now: metrics.isLive,
+  };
 }
 
 function minToHm(min) {
@@ -658,13 +742,16 @@ async function adminAttendance(req, res, next) {
     const userIds = employees.map((e) => e.id);
 
     const dayStart = planningDates.parsePlanningDate(dateString);
+    if (!dayStart.isValid) {
+      return res.status(400).json({ error: 'La date doit respecter le format YYYY-MM-DD.' });
+    }
     const dayEnd = dayStart.plus({ days: 1 });
     const now = planningDates.nowInPlanningZone();
-    const isToday = dateString === planningDates.formatDate(now);
-
-    const [planningRows, sessionRows] = await Promise.all([
+    await sessionModel.expireStaleSessions();
+    const [planningRows, sessionRows, overrideRows] = await Promise.all([
       planningModel.findDayAvailabilityByUserForDate(dateString),
       sessionModel.findSessionsForUsersOverlapping(userIds, dayStart.toISO(), dayEnd.toISO()),
+      planningModel.findAttendanceOverridesForDate(dateString),
     ]);
 
     const planningByUser = new Map(planningRows.map((r) => [r.user_id, r]));
@@ -673,93 +760,218 @@ async function adminAttendance(req, res, next) {
       if (!sessionsByUser.has(s.user_id)) sessionsByUser.set(s.user_id, []);
       sessionsByUser.get(s.user_id).push(s);
     });
+    const overridesByUser = new Map(overrideRows.map((row) => [row.user_id, row]));
 
-    const toMin = (dt) => dt.diff(dayStart, 'minutes').minutes;
+    const results = employees.map((employee) =>
+      buildAttendanceResult({
+        employee,
+        planning: planningByUser.get(employee.id),
+        sessionRows: sessionsByUser.get(employee.id) || [],
+        override: overridesByUser.get(employee.id),
+        dateString,
+        dayStart,
+        now,
+      })
+    );
 
-    const results = employees.map((emp) => {
-      const planning = planningByUser.get(emp.id);
-      const status = planning ? planning.availability_status : null;
-      const scheduled = status != null && ATTENDANCE_HAS_SLOTS.includes(status);
-      const slots = ((planning && planning.slots) || []).map((s) => ({ start: hmToMin(s.start), end: hmToMin(s.end) }));
-      const plannedMinutes = slots.reduce((a, s) => a + Math.max(0, s.end - s.start), 0);
-      const plannedStart = slots.length ? Math.min(...slots.map((s) => s.start)) : null;
-
-      // Intervalles de connexion réels, ramenés à des minutes depuis minuit (fuseau planning).
-      const intervals = (sessionsByUser.get(emp.id) || [])
-        .map((s) => {
-          const login = DateTime.fromJSDate(s.login_at, { zone: planningDates.PLANNING_TIMEZONE });
-          const logout = s.logout_at
-            ? DateTime.fromJSDate(s.logout_at, { zone: planningDates.PLANNING_TIMEZONE })
-            : isToday
-              ? now
-              : dayEnd;
-          return { a: Math.max(0, toMin(login)), b: Math.min(24 * 60, toMin(logout)) };
-        })
-        .filter((iv) => iv.b > iv.a);
-
-      const present = intervals.length > 0;
-      const connectedMinutes = intervals.reduce((a, iv) => a + (iv.b - iv.a), 0);
-
-      // Heure d'arrivée "au poste" : première connexion qui atteint réellement l'heure planifiée
-      // (intervalle encore actif après plannedStart). On ignore ainsi les connexions brèves AVANT
-      // l'heure prévue (app ouverte en avance, session résiduelle) qui, sinon, masqueraient un vrai
-      // retard en faisant croire à une arrivée à l'heure. Sans heure planifiée, on garde la 1re connexion.
-      const reaching = plannedStart != null ? intervals.filter((iv) => iv.b > plannedStart) : intervals;
-      const arrival = reaching.length ? Math.min(...reaching.map((iv) => iv.a)) : null;
-
-      // Recouvrement entre le temps réellement connecté et les créneaux planifiés.
-      let overlapMinutes = 0;
-      slots.forEach((sl) => {
-        intervals.forEach((iv) => {
-          overlapMinutes += Math.max(0, Math.min(sl.end, iv.b) - Math.max(sl.start, iv.a));
-        });
-      });
-      const accomplishment =
-        scheduled && plannedMinutes > 0 ? Math.min(100, Math.round((overlapMinutes / plannedMinutes) * 100)) : null;
-
-      let presenceStatus;
-      if (!scheduled) {
-        presenceStatus = 'off'; // repos / congé / maladie / non planifié
-      } else if (!present) {
-        presenceStatus = 'absent';
-      } else if (plannedStart != null && (arrival === null || arrival > plannedStart + ATTENDANCE_GRACE_MINUTES)) {
-        // Connecté seulement avant l'heure planifiée (arrival === null) ou arrivé après la tolérance → en retard.
-        presenceStatus = 'late';
-      } else {
-        presenceStatus = 'present';
-      }
-
-      return {
-        id: emp.id,
-        full_name: emp.full_name,
-        position: emp.position,
-        has_avatar: emp.has_avatar,
-        availability_status: status,
-        scheduled,
-        presence_status: presenceStatus,
-        accomplishment,
-        planned_minutes: Math.round(plannedMinutes),
-        connected_minutes: Math.round(connectedMinutes),
-        planned_start: minToHm(plannedStart),
-        first_login: minToHm(arrival ?? (present ? Math.min(...intervals.map((iv) => iv.a)) : null)),
-        late_minutes: presenceStatus === 'late' && arrival != null ? Math.max(0, Math.round(arrival - plannedStart)) : 0,
-        is_connected_now: (sessionsByUser.get(emp.id) || []).some((s) => !s.logout_at),
-      };
-    });
-
-    const scheduledResults = results.filter((r) => r.scheduled);
+    const assessedResults = results.filter(
+      (result) => result.scheduled && !['upcoming', 'waiting'].includes(result.presence_status)
+    );
     const summary = {
       total: results.length,
       present: results.filter((r) => r.presence_status === 'present').length,
       late: results.filter((r) => r.presence_status === 'late').length,
+      partial: results.filter((r) => r.presence_status === 'partial').length,
+      outside: results.filter((r) => r.presence_status === 'outside').length,
       absent: results.filter((r) => r.presence_status === 'absent').length,
+      pending: results.filter((r) => ['upcoming', 'waiting'].includes(r.presence_status)).length,
       off: results.filter((r) => r.presence_status === 'off').length,
-      avg_accomplishment: scheduledResults.length
-        ? Math.round(scheduledResults.reduce((a, r) => a + (r.accomplishment || 0), 0) / scheduledResults.length)
+      avg_accomplishment: assessedResults.length
+        ? Math.round(assessedResults.reduce((a, r) => a + (r.accomplishment || 0), 0) / assessedResults.length)
         : null,
     };
 
     res.status(200).json({ date: dateString, summary, employees: results });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function adminSetAttendanceOverride(req, res, next) {
+  try {
+    const { userId } = req.params;
+    const { date, status, late_minutes: requestedLateMinutes, reason } = req.body || {};
+    if (!UUID_PATTERN.test(userId)) {
+      return res.status(400).json({ error: 'Identifiant employé invalide.' });
+    }
+    const day = planningDates.parsePlanningDate(date);
+    if (!date || !day.isValid || planningDates.formatDate(day) !== date) {
+      return res.status(400).json({ error: 'La date doit respecter le format YYYY-MM-DD.' });
+    }
+    if (date > planningDates.formatDate(planningDates.nowInPlanningZone())) {
+      return res.status(400).json({ error: 'Une présence future ne peut pas être corrigée.' });
+    }
+
+    const employee = await userModel.findById(userId);
+    if (!employee || employee.role !== userModel.USER_ROLE.EMPLOYEE) {
+      return res.status(404).json({ error: 'Employé introuvable.' });
+    }
+
+    if (status == null || status === 'automatic') {
+      const removed = await db.withTransaction(async (client) => {
+        const deleted = await planningModel.deleteAttendanceOverride(userId, date, client);
+        await planningModel.recordAudit(
+          {
+            userId: req.user.id,
+            action: 'RESET_ATTENDANCE_OVERRIDE',
+            entityType: 'attendance_override',
+            entityId: userId,
+            details: { employee_id: userId, date, previous: deleted },
+          },
+          client
+        );
+        return deleted;
+      });
+      return res.status(200).json({ automatic: true, removed: Boolean(removed) });
+    }
+
+    if (!MANUAL_ATTENDANCE_STATUSES.has(status)) {
+      return res.status(400).json({ error: 'Le statut doit être présent, en retard, absent ou automatique.' });
+    }
+    const lateMinutes = status === 'late' ? Number(requestedLateMinutes) : 0;
+    if (status === 'late' && (!Number.isInteger(lateMinutes) || lateMinutes < 1 || lateMinutes > 1440)) {
+      return res.status(400).json({ error: 'Le nombre de minutes de retard doit être compris entre 1 et 1440.' });
+    }
+    const normalizedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (normalizedReason.length > 500) {
+      return res.status(400).json({ error: 'Le motif ne peut pas dépasser 500 caractères.' });
+    }
+
+    const correction = await db.withTransaction(async (client) => {
+      const updated = await planningModel.upsertAttendanceOverride(
+        {
+          userId,
+          date,
+          status,
+          lateMinutes,
+          reason: normalizedReason,
+          correctedBy: req.user.id,
+        },
+        client
+      );
+      await planningModel.recordAudit(
+        {
+          userId: req.user.id,
+          action: 'SET_ATTENDANCE_OVERRIDE',
+          entityType: 'attendance_override',
+          entityId: userId,
+          details: { employee_id: userId, date, status, late_minutes: lateMinutes, reason: normalizedReason || null },
+        },
+        client
+      );
+      return updated;
+    });
+    res.status(200).json(correction);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function adminAttendanceStats(req, res, next) {
+  try {
+    const { userId } = req.params;
+    const month = req.query.month || planningDates.formatDate(planningDates.nowInPlanningZone()).slice(0, 7);
+    if (!UUID_PATTERN.test(userId)) {
+      return res.status(400).json({ error: 'Identifiant employé invalide.' });
+    }
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return res.status(400).json({ error: 'Le mois doit respecter le format YYYY-MM.' });
+    }
+
+    const employee = await userModel.findById(userId);
+    if (!employee || employee.role !== userModel.USER_ROLE.EMPLOYEE) {
+      return res.status(404).json({ error: 'Employé introuvable.' });
+    }
+
+    const monthStart = planningDates.parsePlanningDate(`${month}-01`);
+    const monthEnd = monthStart.plus({ months: 1 });
+    const now = planningDates.nowInPlanningZone();
+    const tomorrow = now.startOf('day').plus({ days: 1 });
+    const assessedEnd = monthEnd < tomorrow ? monthEnd : tomorrow;
+
+    await sessionModel.expireStaleSessions({ userId });
+    const [planningRows, sessionRows, overrideRows] = await Promise.all([
+      planningModel.findDayAvailabilityForUserRange(
+        userId,
+        planningDates.formatDate(monthStart),
+        planningDates.formatDate(monthEnd)
+      ),
+      sessionModel.findSessionsForUsersOverlapping([userId], monthStart.toISO(), monthEnd.toISO()),
+      planningModel.findAttendanceOverridesForUserRange(
+        userId,
+        planningDates.formatDate(monthStart),
+        planningDates.formatDate(monthEnd)
+      ),
+    ]);
+
+    const planningByDate = new Map(planningRows.map((row) => [toDateString(row.planning_date), row]));
+    const overrideByDate = new Map(overrideRows.map((row) => [toDateString(row.attendance_date), row]));
+    const days = [];
+
+    for (let cursor = monthStart; cursor < assessedEnd; cursor = cursor.plus({ days: 1 })) {
+      const dateString = planningDates.formatDate(cursor);
+      const planning = planningByDate.get(dateString);
+      const override = overrideByDate.get(dateString);
+      const scheduled = planning && ATTENDANCE_HAS_SLOTS.includes(planning.availability_status);
+      if (!scheduled && !override) continue;
+
+      const dayEnd = cursor.plus({ days: 1 });
+      const relevantSessions = sessionRows.filter((session) => {
+        const login = DateTime.fromJSDate(session.login_at, { zone: planningDates.PLANNING_TIMEZONE });
+        const logout = DateTime.fromJSDate(session.effective_logout_at, { zone: planningDates.PLANNING_TIMEZONE });
+        return login < dayEnd && logout > cursor;
+      });
+      days.push(
+        buildAttendanceResult({
+          employee,
+          planning,
+          sessionRows: relevantSessions,
+          override,
+          dateString,
+          dayStart: cursor,
+          now,
+        })
+      );
+    }
+
+    const summary = {
+      present: days.filter((day) => day.presence_status === 'present').length,
+      late: days.filter((day) => day.presence_status === 'late').length,
+      absent: days.filter((day) => day.presence_status === 'absent').length,
+      partial: days.filter((day) => day.presence_status === 'partial').length,
+      outside: days.filter((day) => day.presence_status === 'outside').length,
+      pending: days.filter((day) => ['waiting', 'upcoming'].includes(day.presence_status)).length,
+      total_late_minutes: days.reduce(
+        (total, day) => total + (day.presence_status === 'late' ? day.late_minutes : 0),
+        0
+      ),
+    };
+    summary.average_late_minutes = summary.late
+      ? Math.round(summary.total_late_minutes / summary.late)
+      : 0;
+    summary.assessed_days = summary.present + summary.late + summary.absent + summary.partial + summary.outside;
+
+    res.status(200).json({
+      employee: {
+        id: employee.id,
+        full_name: employee.full_name,
+        position: employee.position,
+        has_avatar: Boolean(employee.has_avatar),
+      },
+      month,
+      summary,
+      days: days.reverse(),
+    });
   } catch (err) {
     next(err);
   }
@@ -783,4 +995,6 @@ module.exports = {
   adminAvailabilitySearch,
   adminPlanningHistory,
   adminAttendance,
+  adminSetAttendanceOverride,
+  adminAttendanceStats,
 };

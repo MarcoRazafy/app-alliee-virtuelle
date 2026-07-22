@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { closeSessionOnUnload } from './services/sessionService';
+import { heartbeatSession, signalSessionDisconnect } from './services/sessionService';
+import { getToken } from './services/auth';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -39,12 +40,21 @@ function AdminRoute({ children }) {
 }
 
 function App() {
-  // Chrono de connexion (présence), indépendant du chrono de tâche : ferme la session
-  // ouverte quand l'utilisateur ferme l'onglet/le navigateur (pagehide ne se déclenche
-  // pas sur une navigation interne React Router, seulement au déchargement réel de la page).
+  // Une actualisation ne doit jamais interrompre la présence. Tant qu'un token existe,
+  // l'application rafraîchit la session ; le backend borne automatiquement une session
+  // abandonnée après l'arrêt des heartbeats.
   useEffect(() => {
-    window.addEventListener('pagehide', closeSessionOnUnload);
-    return () => window.removeEventListener('pagehide', closeSessionOnUnload);
+    function heartbeat() {
+      if (!getToken()) return;
+      heartbeatSession().catch(() => {});
+    }
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 20000);
+    window.addEventListener('pagehide', signalSessionDisconnect);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('pagehide', signalSessionDisconnect);
+    };
   }, []);
 
   return (

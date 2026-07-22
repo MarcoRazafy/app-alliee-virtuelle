@@ -15,10 +15,10 @@ async function buildWeekSegments(userId, requestedDate) {
       // pg renvoie les TIMESTAMPTZ sous forme d'objets Date : splitRangeIntoDaySegments attend des chaînes ISO.
       const segs = planningDates.splitRangeIntoDaySegments(
         session.login_at.toISOString(),
-        (session.logout_at ? session.logout_at.toISOString() : null) || planningDates.nowInPlanningZone().toISO()
+        session.effective_logout_at.toISOString()
       );
-      // Session encore ouverte → le dernier segment est "en direct" (bordure de connexion en cours).
-      if (!session.logout_at && segs.length > 0) {
+      // Seul un heartbeat récent marque réellement la session "en direct".
+      if (session.is_live && segs.length > 0) {
         segs[segs.length - 1].is_live = true;
       }
       return segs;
@@ -57,14 +57,35 @@ async function getUserSessionsForWeekAdmin(req, res, next) {
   }
 }
 
-// POST /api/sessions/close — ferme le chrono de connexion en cours, indépendamment du
-// chrono de tâche. Appelé à la fermeture de l'application (au-delà de la déconnexion
-// explicite, déjà gérée dans authController.logout) via un envoi "keepalive" au déchargement
-// de la page : ne doit donc avoir AUCUN effet de bord sur le chrono de tâche (timelog).
+// POST /api/sessions/close — fermeture explicite de secours, indépendante du chrono de tâche.
+// La déconnexion standard passe déjà par authController.logout ; la fermeture du navigateur
+// est, elle, gérée par l'expiration du heartbeat et n'appelle plus cette route.
 async function closeMySession(req, res, next) {
   try {
     await sessionModel.closeOpenSessions(req.user.id);
     res.status(200).json({ closed: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/sessions/heartbeat — crée ou rafraîchit l'unique session de présence ouverte.
+// Ce mécanisme résiste aux rechargements et borne automatiquement les sessions abandonnées.
+async function heartbeatMySession(req, res, next) {
+  try {
+    const session = await sessionModel.heartbeatSession(req.user.id);
+    res.status(200).json({ login_at: session.login_at, last_seen_at: session.last_seen_at });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/sessions/disconnect — signal best-effort envoyé avec fetch keepalive au
+// pagehide. La fermeture effective est différée pour distinguer un rechargement.
+async function requestMyDisconnect(req, res, next) {
+  try {
+    await sessionModel.requestDisconnect(req.user.id);
+    res.status(202).json({ pending: true });
   } catch (err) {
     next(err);
   }
@@ -81,4 +102,11 @@ async function getMyCurrentSession(req, res, next) {
   }
 }
 
-module.exports = { getMySessionsForWeek, getUserSessionsForWeekAdmin, closeMySession, getMyCurrentSession };
+module.exports = {
+  getMySessionsForWeek,
+  getUserSessionsForWeekAdmin,
+  closeMySession,
+  heartbeatMySession,
+  requestMyDisconnect,
+  getMyCurrentSession,
+};

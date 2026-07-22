@@ -4,8 +4,8 @@ import WeekCalendarGrid from '../components/employee/WeekCalendarGrid';
 import * as planningService from '../services/planningService';
 import * as sessionService from '../services/sessionService';
 import { notifyError, notifySuccess } from '../utils/toast';
-import { formatDurationShort } from '../utils/formatters';
-import { IconAlert, IconCheckCircle, IconCalendarWeek } from '../components/icons';
+import { IconAlert, IconCheckCircle, IconCalendarWeek, IconClock, IconTrendingUp } from '../components/icons';
+import { computeWeekPresence, formatPresenceMinutes } from '../utils/presenceMetrics';
 import {
   EMPLOYEE_STATUS_OPTIONS,
   EFFECTIVE_STATUS_LABELS,
@@ -18,7 +18,6 @@ import {
   computeTotalHours,
   slotsOverlap,
   generateWeekOptions,
-  timeToMinutes,
 } from '../utils/planningFormat';
 import '../styles/planning.css';
 import '../styles/week-calendar.css';
@@ -36,6 +35,58 @@ function AdminModifiedAlert({ planning }) {
         </p>
         {planning.last_admin_change_reason && <p>Motif : {planning.last_admin_change_reason}</p>}
       </div>
+    </div>
+  );
+}
+
+function PresenceSummaryCards({ summary, loading }) {
+  if (loading) {
+    return <div className="presence-kpi-loading" role="status">Calcul de la présence en cours…</div>;
+  }
+  if (!summary) return null;
+
+  const lateValue = summary.lateDays > 0
+    ? `${summary.lateDays} j · ${formatPresenceMinutes(summary.lateMinutes)}`
+    : 'Aucun';
+  const cards = [
+    {
+      icon: <IconCalendarWeek />,
+      value: formatPresenceMinutes(summary.plannedMinutes),
+      label: 'Temps planifié',
+      hint: 'Créneaux déclarés pour la semaine',
+    },
+    {
+      icon: <IconClock />,
+      value: formatPresenceMinutes(summary.connectedMinutes),
+      label: 'Temps connecté',
+      hint: 'Toutes les connexions, planning compris ou non',
+    },
+    {
+      icon: <IconCheckCircle />,
+      value: formatPresenceMinutes(summary.coveredMinutes),
+      label: 'Temps couvert',
+      hint: 'Connexion réellement comprise dans les créneaux',
+    },
+    {
+      icon: <IconTrendingUp />,
+      value: lateValue,
+      label: 'Retards',
+      hint: 'Tolérance de 10 minutes incluse',
+    },
+  ];
+
+  return (
+    <div className="presence-kpi-grid" aria-label="Synthèse de présence de la semaine">
+      {cards.map((card) => (
+        <article className="presence-kpi-card" key={card.label}>
+          <span className="presence-kpi-icon" aria-hidden="true">{card.icon}</span>
+          <div>
+            <strong>{card.value}</strong>
+            <span>{card.label}</span>
+            <small>{card.hint}</small>
+          </div>
+        </article>
+      ))}
     </div>
   );
 }
@@ -93,6 +144,9 @@ function Planning() {
   // Chrono de connexion (présence), indépendant du chrono de tâche : uniquement affiché
   // sur la semaine actuelle (lecture seule), une semaine future ne pouvant avoir de connexion réelle.
   const [sessionSegmentsByDate, setSessionSegmentsByDate] = useState({});
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  const [hasSessionSnapshot, setHasSessionSnapshot] = useState(false);
+  const [sessionsError, setSessionsError] = useState('');
 
   const [myPlannings, setMyPlannings] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -117,8 +171,11 @@ function Planning() {
               byDate[segment.date].push(segment);
             });
             setSessionSegmentsByDate(byDate);
+            setHasSessionSnapshot(true);
+            setSessionsError('');
           })
-          .catch(() => setSessionSegmentsByDate({}));
+          .catch(() => setSessionsError('Impossible de charger la présence. Aucun statut d’absence n’est déduit.'))
+          .finally(() => setSessionsLoaded(true));
       } catch (err) {
         notifyError(err.response?.data?.error || 'Impossible de charger le planning');
       } finally {
@@ -145,8 +202,10 @@ function Planning() {
             byDate[segment.date].push(segment);
           });
           setSessionSegmentsByDate(byDate);
+          setHasSessionSnapshot(true);
+          setSessionsError('');
         })
-        .catch(() => {});
+        .catch(() => setSessionsError('La présence en direct ne peut pas être actualisée. Les dernières données valides restent affichées.'));
     }
     const interval = window.setInterval(refresh, 15000);
     return () => window.clearInterval(interval);
@@ -171,17 +230,12 @@ function Planning() {
 
   const canEdit = Boolean(nextWeek?.can_edit);
 
-  // Statistique du chrono de connexion pour la semaine affichée, calculée à partir des
-  // segments déjà récupérés pour le calendrier (aucun appel réseau supplémentaire).
-  const totalConnectedSeconds = useMemo(() => {
-    let minutes = 0;
-    Object.values(sessionSegmentsByDate).forEach((segments) => {
-      segments.forEach((segment) => {
-        minutes += timeToMinutes(segment.end_time) - timeToMinutes(segment.start_time);
-      });
-    });
-    return minutes * 60;
-  }, [sessionSegmentsByDate]);
+  // Tous les indicateurs sont dérivés des mêmes segments que la grille. Les sessions qui
+  // se chevauchent sont fusionnées et ne sont donc jamais comptées deux fois.
+  const presenceSummary = useMemo(
+    () => (currentWeek && hasSessionSnapshot ? computeWeekPresence(currentWeek.days, sessionSegmentsByDate) : null),
+    [currentWeek, sessionSegmentsByDate, hasSessionSnapshot]
+  );
 
   function handleStatusChange(date, status) {
     setDraftDays((days) =>
@@ -363,24 +417,31 @@ function Planning() {
 
               <AdminModifiedAlert planning={currentWeek.admin_modified ? currentWeek.planning : null} />
 
-              <p className="cal-session-legend">
-                Connexion réelle :
-                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> à l'heure</span>
-                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--late" /> en retard</span>
-                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
+              <p className="cal-session-legend" aria-label="Légende de présence réelle">
+                Présence réelle :
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> conforme</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--late" /> retard</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--missing" /> non couvert</span>
               </p>
+
+              <PresenceSummaryCards summary={presenceSummary} loading={!sessionsLoaded} />
+
+              {sessionsError && (
+                <div className="info-banner info-banner--planning-error" role="alert">
+                  <IconAlert />
+                  <span>{sessionsError}</span>
+                </div>
+              )}
 
               <WeekCalendarGrid
                 days={currentWeek.days}
                 canEdit={false}
                 onNoteChange={() => {}}
-                sessionSegmentsByDate={sessionSegmentsByDate}
+                sessionSegmentsByDate={hasSessionSnapshot ? sessionSegmentsByDate : undefined}
               />
 
               <p className="planning-total-hours">Total : {currentWeek.total_hours} h disponibles</p>
-              <p className="planning-total-hours planning-total-hours--connection">
-                Temps de connexion cette semaine : {formatDurationShort(totalConnectedSeconds)}
-              </p>
             </div>
 
             <div className="side-card planning-week-card">

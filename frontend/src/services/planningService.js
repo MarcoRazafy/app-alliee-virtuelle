@@ -79,3 +79,20 @@ export function getAdminPlanningHistory(planningId, params = {}) {
 export function getAdminAttendance(date) {
   return api.get('/api/planning/admin/attendance', { params: date ? { date } : {} }).then((res) => res.data);
 }
+
+export function setAdminAttendanceOverride(userId, { date, status, lateMinutes, reason }) {
+  return api
+    .put(`/api/planning/admin/attendance/${userId}`, {
+      date,
+      status,
+      late_minutes: lateMinutes,
+      reason,
+    })
+    .then((res) => res.data);
+}
+
+export function getAdminAttendanceStats(userId, month) {
+  return api
+    .get(`/api/planning/admin/attendance/${userId}/stats`, { params: month ? { month } : {} })
+    .then((res) => res.data);
+}
