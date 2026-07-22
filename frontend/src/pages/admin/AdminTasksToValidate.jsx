@@ -3,6 +3,7 @@ import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import AttachmentUpload from '../../components/AttachmentUpload';
 import CommentSection from '../../components/CommentSection';
+import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconCheckCircle, IconX, IconSearch, IconArrowRight } from '../../components/icons';
@@ -68,6 +69,8 @@ function matchesDeadlineRange(deadline, range) {
 }
 
 function AdminTasksToValidate() {
+  const [activeTab, setActiveTab] = useState('validate'); // 'validate' | 'late'
+  const [lateCount, setLateCount] = useState(0);
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -100,6 +103,10 @@ function AdminTasksToValidate() {
       .getAllUsers({ role: 'EMPLOYEE' })
       .then(setEmployees)
       .catch(() => setEmployees([]));
+    taskService
+      .getLateTasks()
+      .then((late) => setLateCount(late.length))
+      .catch(() => setLateCount(0));
   }, []);
 
   useEffect(() => {
@@ -270,6 +277,28 @@ function AdminTasksToValidate() {
 
   return (
     <div className="validate-page">
+      <div className="atv-tabs">
+        <button
+          type="button"
+          className={`atv-tab${activeTab === 'validate' ? ' atv-tab--active' : ''}`}
+          onClick={() => setActiveTab('validate')}
+        >
+          À valider
+        </button>
+        <button
+          type="button"
+          className={`atv-tab${activeTab === 'late' ? ' atv-tab--active' : ''}`}
+          onClick={() => setActiveTab('late')}
+        >
+          En retard
+          {lateCount > 0 && <span className="atv-tab-badge">{lateCount}</span>}
+        </button>
+      </div>
+
+      {activeTab === 'late' ? (
+        <AdminLateTasks />
+      ) : (
+        <>
       <div className="admin-filter-bar">
         <div className="filter-group">
           <span className="filter-group-label">Statut</span>
@@ -450,6 +479,8 @@ function AdminTasksToValidate() {
             );
           })}
         </div>
+      )}
+        </>
       )}
 
       {detailTask && (

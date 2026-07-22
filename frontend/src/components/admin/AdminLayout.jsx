@@ -9,7 +9,6 @@ import {
   IconWorkspace,
   IconChecklist,
   IconCheckCircle,
-  IconAlert,
   IconBell,
   IconBarChart,
   IconCalendarWeek,
@@ -35,7 +34,6 @@ const NAV_GROUPS = [
       { to: '/admin', label: "Vue d'ensemble", subtitle: "Activité de l'équipe en direct", icon: IconWorkspace, end: true },
       { to: '/admin/lists', label: 'Projets', subtitle: 'Toutes les tâches', icon: IconChecklist },
       { to: '/admin/validate', label: 'Tâches', subtitle: 'Déclarations et livraisons à contrôler', icon: IconCheckCircle, badgeKey: 'toValidate' },
-      { to: '/admin/late', label: 'En retard', subtitle: 'Échéances dépassées', icon: IconAlert, badgeKey: 'late' },
       { to: '/admin/task-requests', label: 'Demandes de tâche', subtitle: 'Tâches supplémentaires à approuver', icon: IconBell, badgeKey: 'taskRequests' },
       { to: '/admin/users', label: 'Équipe', subtitle: "Membres de l'équipe", icon: IconUsers },
       { to: '/admin/planning', label: 'Présence et planning', subtitle: 'Disponibilités et présence des employés', icon: IconCalendarWeek },
@@ -78,7 +76,7 @@ const EXTRA_TITLES = {
 };
 
 function AdminLayout({ children }) {
-  const [badges, setBadges] = useState({ toValidate: 0, late: 0, taskRequests: 0 });
+  const [badges, setBadges] = useState({ toValidate: 0, taskRequests: 0 });
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -114,9 +112,6 @@ function AdminLayout({ children }) {
           setBadges((prev) => ({ ...prev, toValidate: declared.length + done.length }));
         }
       );
-      taskService.getLateTasks().then((tasks) => {
-        setBadges((prev) => ({ ...prev, late: tasks.length }));
-      });
       taskService.getExtraTaskRequests('PENDING').then((reqs) => {
         setBadges((prev) => ({ ...prev, taskRequests: reqs.length }));
       });
@@ -208,6 +203,7 @@ function AdminLayout({ children }) {
           <IconX />
         </button>
         <div className="sidebar-brand">
+          <img src="/logo-mark.png" alt="" aria-hidden="true" className="sidebar-logo-mark" />
           <img src="/logo.png" alt="L'Alliée Virtuelle" className="sidebar-logo" />
         </div>
 
