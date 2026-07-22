@@ -90,7 +90,8 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
   const [errors, setErrors] = useState([]);
   const [history, setHistory] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [sessionSegmentsByDate, setSessionSegmentsByDate] = useState({});
+  const [sessionSegmentsByDate, setSessionSegmentsByDate] = useState(undefined);
+  const [sessionError, setSessionError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +118,8 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
     const userId = detail?.user?.id;
     const weekStart = detail?.week_start_date;
     if (!userId || !weekStart) return undefined;
+    setSessionSegmentsByDate(undefined);
+    setSessionError('');
     function refresh() {
       sessionService
         .getUserSessionsForWeek(userId, weekStart)
@@ -127,8 +130,9 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
             byDate[segment.date].push(segment);
           });
           setSessionSegmentsByDate(byDate);
+          setSessionError('');
         })
-        .catch(() => {});
+        .catch(() => setSessionError('Impossible de charger la présence. Aucun statut d’absence n’est déduit.'));
     }
     refresh();
     const interval = window.setInterval(refresh, 15000);
@@ -313,6 +317,13 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 couleur définissent le statut du jour.
               </p>
 
+              {sessionError && (
+                <div className="info-banner info-banner--planning-error" role="alert">
+                  <IconAlert />
+                  <span>{sessionError}</span>
+                </div>
+              )}
+
               <WeekCalendarGrid
                 days={draftDays}
                 canEdit
@@ -324,11 +335,12 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 sessionSegmentsByDate={sessionSegmentsByDate}
               />
 
-              <p className="cal-session-legend">
-                Connexion réelle :
-                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> à l'heure</span>
-                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--late" /> en retard</span>
-                <span><span className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
+              <p className="cal-session-legend" aria-label="Légende de présence réelle">
+                Présence réelle :
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> conforme</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--late" /> retard</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--missing" /> non couvert</span>
               </p>
 
               <label className="planning-general-note aplan-note">

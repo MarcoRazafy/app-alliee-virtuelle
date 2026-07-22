@@ -9,6 +9,13 @@ module.exports = {
   mistralApiKey: process.env.MISTRAL_API_KEY,
   mistralModel: process.env.MISTRAL_MODEL || 'mistral-medium',
   planningTimezone: process.env.PLANNING_TIMEZONE || 'Indian/Antananarivo',
+  // Le frontend envoie un heartbeat toutes les 20 secondes. Après ce délai, une session
+  // ouverte sans activité récente n'est plus considérée en ligne ni prolongée indéfiniment.
+  presenceHeartbeatTimeoutSeconds: Math.max(45, Number(process.env.PRESENCE_HEARTBEAT_TIMEOUT_SECONDS) || 60),
+  // pagehide est aussi émis lors d'un simple rechargement. Cette courte tolérance laisse
+  // le nouveau document annuler la demande avant de clôturer réellement présence + tâche.
+  presenceDisconnectGraceSeconds: Math.max(20, Number(process.env.PRESENCE_DISCONNECT_GRACE_SECONDS) || 30),
+  presenceCleanupIntervalSeconds: Math.max(5, Number(process.env.PRESENCE_CLEANUP_INTERVAL_SECONDS) || 10),
   // Bascule de TEST uniquement : force la fenêtre de saisie employé (samedi/dimanche) à
   // rester ouverte en permanence, pour pouvoir qualifier l'interface sans attendre le week-end.
   // Doit rester à false hors environnement de test/démo (voir .env.example).

@@ -1,10 +1,8 @@
 import api from './api';
 import { getToken } from './auth';
-
 // Chrono de connexion (présence) : indépendant du chrono de tâche. Le login/logout
-// explicite est déjà géré côté backend (authController) ; ce service ne fait que lire
-// les périodes de connexion et signaler une fermeture d'application "silencieuse" (fermeture
-// d'onglet/navigateur sans clic sur Déconnexion).
+// explicite est déjà géré côté backend (authController). Le heartbeat prolonge l'unique
+// session ouverte tant que l'application est réellement active.
 
 export function getMySessionsForWeek(weekStartDate) {
   return api.get('/api/sessions/week', { params: { week_start_date: weekStartDate } }).then((res) => res.data);
@@ -22,21 +20,20 @@ export function getMyCurrentSession() {
   return api.get('/api/sessions/current').then((res) => res.data);
 }
 
-// Appelé au déchargement de la page (fermeture d'onglet/navigateur). keepalive permet à la
-// requête de survivre à la navigation qui suit immédiatement ; les en-têtes personnalisés
-// (Authorization) restent supportés par fetch, contrairement à navigator.sendBeacon.
-export function closeSessionOnUnload() {
+export function heartbeatSession() {
+  return api.post('/api/sessions/heartbeat').then((res) => res.data);
+}
+
+// fetch keepalive est adapté au pagehide, contrairement à une requête XHR classique.
+// Le backend applique une tolérance : un simple rechargement annule cette demande au
+// heartbeat suivant et ne fragmente donc pas la présence.
+export function signalSessionDisconnect() {
   const token = getToken();
   if (!token) return;
-
-  const baseURL = api.defaults.baseURL || '';
-  try {
-    fetch(`${baseURL}/api/sessions/close`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      keepalive: true,
-    });
-  } catch {
-    // La page se ferme de toute façon : une erreur ici ne doit jamais bloquer la fermeture.
-  }
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  fetch(`${baseUrl}/api/sessions/disconnect`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    keepalive: true,
+  }).catch(() => {});
 }

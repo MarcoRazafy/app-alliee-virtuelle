@@ -318,6 +318,93 @@ async function findDayAvailabilityByUserForDate(dateString) {
   return result.rows;
 }
 
+// Même projection que ci-dessus, mais bornée à un employé et une période pour la
+// fiche statistique mensuelle de présence.
+async function findDayAvailabilityForUserRange(userId, startDate, endDate) {
+  const result = await db.query(
+    `SELECT pd.planning_date, pd.availability_status,
+            COALESCE(
+              json_agg(
+                json_build_object('start', to_char(pts.start_time, 'HH24:MI'), 'end', to_char(pts.end_time, 'HH24:MI'))
+                ORDER BY pts.start_time
+              ) FILTER (WHERE pts.id IS NOT NULL),
+              '[]'
+            ) AS slots
+     FROM weekly_plannings wp
+     JOIN planning_days pd ON pd.planning_id = wp.id
+     LEFT JOIN planning_time_slots pts ON pts.planning_day_id = pd.id
+     WHERE wp.user_id = $1
+       AND pd.planning_date >= $2
+       AND pd.planning_date < $3
+     GROUP BY pd.planning_date, pd.availability_status
+     ORDER BY pd.planning_date ASC`,
+    [userId, startDate, endDate]
+  );
+  return result.rows;
+}
+
+async function findAttendanceOverridesForDate(dateString) {
+  const result = await db.query(
+    `SELECT ao.id, ao.user_id, ao.attendance_date, ao.status, ao.late_minutes,
+            ao.reason, ao.corrected_by, ao.corrected_at, ao.updated_at,
+            admin.full_name AS corrected_by_name
+     FROM attendance_overrides ao
+     LEFT JOIN users admin ON admin.id = ao.corrected_by
+     WHERE ao.attendance_date = $1`,
+    [dateString]
+  );
+  return result.rows;
+}
+
+async function findAttendanceOverridesForUserRange(userId, startDate, endDate) {
+  const result = await db.query(
+    `SELECT ao.id, ao.user_id, ao.attendance_date, ao.status, ao.late_minutes,
+            ao.reason, ao.corrected_by, ao.corrected_at, ao.updated_at,
+            admin.full_name AS corrected_by_name
+     FROM attendance_overrides ao
+     LEFT JOIN users admin ON admin.id = ao.corrected_by
+     WHERE ao.user_id = $1
+       AND ao.attendance_date >= $2
+       AND ao.attendance_date < $3
+     ORDER BY ao.attendance_date DESC`,
+    [userId, startDate, endDate]
+  );
+  return result.rows;
+}
+
+async function upsertAttendanceOverride(
+  { userId, date, status, lateMinutes, reason, correctedBy },
+  client = db
+) {
+  const result = await client.query(
+    `INSERT INTO attendance_overrides (
+       user_id, attendance_date, status, late_minutes, reason, corrected_by
+     )
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (user_id, attendance_date)
+     DO UPDATE SET status = EXCLUDED.status,
+                   late_minutes = EXCLUDED.late_minutes,
+                   reason = EXCLUDED.reason,
+                   corrected_by = EXCLUDED.corrected_by,
+                   corrected_at = now(),
+                   updated_at = now()
+     RETURNING id, user_id, attendance_date, status, late_minutes, reason,
+               corrected_by, corrected_at, updated_at`,
+    [userId, date, status, lateMinutes, reason || null, correctedBy]
+  );
+  return result.rows[0];
+}
+
+async function deleteAttendanceOverride(userId, date, client = db) {
+  const result = await client.query(
+    `DELETE FROM attendance_overrides
+     WHERE user_id = $1 AND attendance_date = $2
+     RETURNING id, status, late_minutes, reason`,
+    [userId, date]
+  );
+  return result.rows[0] || null;
+}
+
 async function countActiveEmployees() {
   const result = await db.query(`SELECT COUNT(*)::INTEGER AS total FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF'`);
   return result.rows[0].total;
@@ -395,6 +482,11 @@ module.exports = {
   findActiveEmployees,
   listDayAvailabilityForWeek,
   findDayAvailabilityByUserForDate,
+  findDayAvailabilityForUserRange,
+  findAttendanceOverridesForDate,
+  findAttendanceOverridesForUserRange,
+  upsertAttendanceOverride,
+  deleteAttendanceOverride,
   countActiveEmployees,
   countSubmittedForWeek,
   countAvailableToday,
