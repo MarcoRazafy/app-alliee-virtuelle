@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as aiService from '../../services/aiService';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
-import { notifyError } from '../../utils/toast';
+import { notifyError, notifySuccess } from '../../utils/toast';
 import '../../styles/admin-assistant.css';
 
 const SUGGESTIONS = [
@@ -17,6 +17,10 @@ function newId() {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
+}
+
+function isImageType(type) {
+  return typeof type === 'string' && type.startsWith('image/');
 }
 
 /* ---------- Rendu Markdown léger (l'assistant renvoie du markdown : **gras**, listes…) ---------- */
@@ -159,22 +163,63 @@ function PlusIcon() {
   );
 }
 
-function ExchangeBubbles({ entry }) {
+function PencilIcon() {
   return (
-    <>
-      <div className="ai-msg ai-msg--user">
-        <div className="ai-bubble ai-bubble--user">{entry.question}</div>
-      </div>
-      <div className="ai-msg ai-msg--bot">
-        <span className="ai-msg-avatar">
-          <RobotIcon />
-        </span>
-        <div className="ai-bubble ai-bubble--bot">
-          <Markdown text={entry.answer} />
-          <span className="ai-bubble-time">{formatDateTime(entry.created_at)}</span>
-        </div>
-      </div>
-    </>
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 20h4l10-10-4-4L4 16v4Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="m13.5 6.5 4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PaperclipIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20 12l-7.5 7.5a4 4 0 0 1-5.7-5.7l7.6-7.6a2.6 2.6 0 0 1 3.7 3.7l-7.6 7.6a1.2 1.2 0 0 1-1.7-1.7l6.8-6.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="8.5" cy="9.5" r="1.4" stroke="currentColor" strokeWidth="1.5" />
+      <path d="m5 17 4.5-4.5 3 3L16 12l3 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -184,7 +229,18 @@ function AdminAssistant() {
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null);
   const [activeSessionId, setActiveSessionId] = useState(() => newId());
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameText, setRenameText] = useState('');
+  const [pendingFile, setPendingFile] = useState(null);
+  const [attachmentUrls, setAttachmentUrls] = useState({});
+  const [recognizing, setRecognizing] = useState(false);
+
   const messagesRef = useRef(null);
+  const fileRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const attachmentFetchedRef = useRef(new Set());
 
   function loadHistory() {
     return aiService
@@ -207,7 +263,13 @@ function AdminAssistant() {
     });
     const list = [...map.entries()].map(([id, rows]) => {
       const sorted = [...rows].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      return { id, messages: sorted, title: sorted[0].question, lastAt: sorted[sorted.length - 1].created_at };
+      const titled = sorted.find((r) => r.title);
+      return {
+        id,
+        messages: sorted,
+        title: titled?.title || sorted[0].question,
+        lastAt: sorted[sorted.length - 1].created_at,
+      };
     });
     list.sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
     return list;
@@ -222,15 +284,33 @@ function AdminAssistant() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [activeMessages.length, loading, activeSessionId]);
 
+  // Récupère les blobs des pièces jointes image (sans annulation : voir messagerie).
+  useEffect(() => {
+    activeMessages
+      .filter((m) => m.has_attachment && isImageType(m.attachment_type) && !attachmentFetchedRef.current.has(m.id))
+      .forEach(async (m) => {
+        attachmentFetchedRef.current.add(m.id);
+        try {
+          const url = URL.createObjectURL(await aiService.getConversationAttachmentBlob(m.id));
+          setAttachmentUrls((current) => ({ ...current, [m.id]: url }));
+        } catch {
+          attachmentFetchedRef.current.delete(m.id);
+        }
+      });
+  }, [activeMessages]);
+
   async function handleSubmit(e) {
     e.preventDefault();
     const q = question.trim();
-    if (!q || loading) return;
+    if ((!q && !pendingFile) || loading) return;
     setLoading(true);
-    setPending(q);
+    setPending(q || (pendingFile ? `📎 ${pendingFile.name}` : ''));
+    const fileToSend = pendingFile;
     setQuestion('');
+    setPendingFile(null);
+    if (fileRef.current) fileRef.current.value = '';
     try {
-      await aiService.askAssistant(q, activeSessionId);
+      await aiService.askAssistant(q || 'Analyse ce fichier.', activeSessionId, fileToSend);
       await loadHistory();
     } catch (err) {
       notifyError(err.response?.data?.error || "Impossible d'interroger l'assistant");
@@ -245,11 +325,184 @@ function AdminAssistant() {
     setActiveSessionId(newId());
     setQuestion('');
     setPending(null);
+    setPendingFile(null);
   }
 
   function handleSelectSession(id) {
     setActiveSessionId(id);
     setQuestion('');
+    setEditingId(null);
+  }
+
+  function startEdit(entry) {
+    setEditingId(entry.id);
+    setEditText(entry.question);
+  }
+  async function saveEdit(id) {
+    const q = editText.trim();
+    if (!q) return;
+    setEditingId(null);
+    setLoading(true);
+    setPending(q);
+    try {
+      await aiService.editConversation(id, q);
+      await loadHistory();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de modifier le message');
+    } finally {
+      setLoading(false);
+      setPending(null);
+    }
+  }
+  async function handleDeleteExchange(id) {
+    if (!window.confirm('Supprimer cet échange ?')) return;
+    try {
+      await aiService.deleteConversation(id);
+      await loadHistory();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de supprimer');
+    }
+  }
+
+  function startRename(session, e) {
+    e.stopPropagation();
+    setRenamingId(session.id);
+    setRenameText(session.title);
+  }
+  async function saveRename(id) {
+    const title = renameText.trim();
+    setRenamingId(null);
+    if (!title) return;
+    try {
+      await aiService.renameSession(id, title);
+      await loadHistory();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de renommer');
+    }
+  }
+  async function handleDeleteSession(id, e) {
+    e.stopPropagation();
+    if (!window.confirm('Supprimer toute cette discussion ?')) return;
+    try {
+      await aiService.deleteSession(id);
+      if (id === activeSessionId) setActiveSessionId(newId());
+      await loadHistory();
+      notifySuccess('Discussion supprimée');
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de supprimer la discussion');
+    }
+  }
+
+  async function downloadAttachment(entry) {
+    try {
+      const blob = await aiService.getConversationAttachmentBlob(entry.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = entry.attachment_name || 'piece-jointe';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      notifyError('Impossible de télécharger la pièce jointe');
+    }
+  }
+
+  function pickFile(imagesOnly) {
+    if (!fileRef.current) return;
+    fileRef.current.setAttribute('accept', imagesOnly ? 'image/png,image/jpeg' : 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx');
+    fileRef.current.click();
+  }
+
+  // Dictée vocale (Web Speech API — écrit dans le champ).
+  function toggleDictation() {
+    if (recognizing) {
+      recognitionRef.current?.stop();
+      setRecognizing(false);
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      notifyError("La dictée vocale n'est pas supportée par ce navigateur");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = 'fr-FR';
+    rec.interimResults = true;
+    rec.continuous = false;
+    const base = question ? question + ' ' : '';
+    rec.onresult = (event) => {
+      let txt = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) txt += event.results[i][0].transcript;
+      setQuestion(base + txt);
+    };
+    rec.onend = () => setRecognizing(false);
+    rec.onerror = () => setRecognizing(false);
+    recognitionRef.current = rec;
+    setRecognizing(true);
+    rec.start();
+  }
+
+  function renderAttachment(entry) {
+    if (!entry.has_attachment) return null;
+    if (isImageType(entry.attachment_type)) {
+      return attachmentUrls[entry.id] ? (
+        <a href={attachmentUrls[entry.id]} target="_blank" rel="noreferrer" className="ai-attach-image">
+          <img src={attachmentUrls[entry.id]} alt={entry.attachment_name || ''} />
+        </a>
+      ) : (
+        <div className="ai-attach-loading"><ImageIcon /> Chargement…</div>
+      );
+    }
+    return (
+      <button type="button" className="ai-attach-file" onClick={() => downloadAttachment(entry)}>
+        <PaperclipIcon />
+        <span className="ai-attach-name">{entry.attachment_name}</span>
+        <DownloadIcon />
+      </button>
+    );
+  }
+
+  function ExchangeBubbles({ entry }) {
+    const isEditing = editingId === entry.id;
+    return (
+      <>
+        <div className="ai-msg ai-msg--user">
+          <div className="ai-user-wrap">
+            {isEditing ? (
+              <div className="ai-edit">
+                <textarea value={editText} onChange={(ev) => setEditText(ev.target.value)} rows={2} autoFocus />
+                <div className="ai-edit-actions">
+                  <button type="button" className="ai-edit-cancel" onClick={() => setEditingId(null)}>Annuler</button>
+                  <button type="button" className="ai-edit-save" onClick={() => saveEdit(entry.id)} disabled={!editText.trim()}>
+                    Regénérer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="ai-bubble ai-bubble--user">
+                {renderAttachment(entry)}
+                {entry.question && <span>{entry.question}</span>}
+              </div>
+            )}
+            {!isEditing && (
+              <div className="ai-msg-actions">
+                <button type="button" onClick={() => startEdit(entry)} title="Modifier" aria-label="Modifier"><PencilIcon /></button>
+                <button type="button" onClick={() => handleDeleteExchange(entry.id)} title="Supprimer" aria-label="Supprimer"><TrashIcon /></button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="ai-msg ai-msg--bot">
+          <span className="ai-msg-avatar">
+            <RobotIcon />
+          </span>
+          <div className="ai-bubble ai-bubble--bot">
+            <Markdown text={entry.answer} />
+            <span className="ai-bubble-time">{formatDateTime(entry.created_at)}</span>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -263,20 +516,37 @@ function AdminAssistant() {
         <div className="ai-session-list">
           {sessions.length === 0 && <p className="ai-session-empty">Aucune conversation pour le moment.</p>}
           {sessions.map((s) => (
-            <button
+            <div
               key={s.id}
-              type="button"
               className={`ai-session-item${s.id === activeSessionId ? ' ai-session-item--active' : ''}`}
               onClick={() => handleSelectSession(s.id)}
+              role="button"
+              tabIndex={0}
             >
               <span className="ai-session-icon">
                 <RobotIcon />
               </span>
               <span className="ai-session-body">
-                <span className="ai-session-title">{s.title}</span>
+                {renamingId === s.id ? (
+                  <input
+                    className="ai-session-rename"
+                    value={renameText}
+                    onChange={(e) => setRenameText(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveRename(s.id); if (e.key === 'Escape') setRenamingId(null); }}
+                    onBlur={() => saveRename(s.id)}
+                    autoFocus
+                  />
+                ) : (
+                  <span className="ai-session-title">{s.title}</span>
+                )}
                 <span className="ai-session-time">{formatRelativeTime(s.lastAt)}</span>
               </span>
-            </button>
+              <span className="ai-session-tools">
+                <button type="button" onClick={(e) => startRename(s, e)} title="Renommer" aria-label="Renommer"><PencilIcon /></button>
+                <button type="button" onClick={(e) => handleDeleteSession(s.id, e)} title="Supprimer" aria-label="Supprimer"><TrashIcon /></button>
+              </span>
+            </div>
           ))}
         </div>
       </aside>
@@ -356,20 +626,32 @@ function AdminAssistant() {
         </div>
 
         <form className="ai-input-bar" onSubmit={handleSubmit}>
-          <div className="ai-input-field">
-            <span className="ai-input-glyph">
-              <RobotIcon />
-            </span>
-            <input
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Posez votre question à l'assistant…"
-              disabled={loading}
-            />
+          {pendingFile && (
+            <div className="ai-input-file">
+              {isImageType(pendingFile.type) ? <ImageIcon /> : <PaperclipIcon />}
+              <span className="ai-input-file-name">{pendingFile.name}</span>
+              <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ''; }} aria-label="Retirer">
+                <XIcon />
+              </button>
+            </div>
+          )}
+          <div className="ai-input-row">
+            <input ref={fileRef} type="file" hidden onChange={(e) => setPendingFile(e.target.files?.[0] || null)} />
+            <button type="button" className="ai-input-icon" onClick={() => pickFile(false)} disabled={loading} title="Pièce jointe" aria-label="Pièce jointe"><PaperclipIcon /></button>
+            <button type="button" className="ai-input-icon" onClick={() => pickFile(true)} disabled={loading} title="Photo" aria-label="Photo"><ImageIcon /></button>
+            <button type="button" className={`ai-input-icon${recognizing ? ' ai-input-icon--rec' : ''}`} onClick={toggleDictation} disabled={loading} title="Dicter" aria-label="Dicter"><MicIcon /></button>
+            <div className="ai-input-field">
+              <input
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder={recognizing ? 'Parlez…' : "Posez votre question à l'assistant…"}
+                disabled={loading}
+              />
+            </div>
+            <button type="submit" className="ai-send" disabled={loading || (!question.trim() && !pendingFile)} aria-label="Envoyer">
+              {loading ? <span className="ai-send-spinner" /> : <SendIcon />}
+            </button>
           </div>
-          <button type="submit" className="ai-send" disabled={loading || !question.trim()} aria-label="Envoyer">
-            {loading ? <span className="ai-send-spinner" /> : <SendIcon />}
-          </button>
         </form>
       </div>
     </div>

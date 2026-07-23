@@ -43,17 +43,7 @@ const NAV_GROUPS = [
   {
     label: 'Collaborer',
     items: [
-      {
-        to: '/admin/messaging',
-        label: 'Messagerie',
-        subtitle: 'Échanges avec les employés',
-        icon: IconChat,
-        children: [
-          { label: 'Global', canal: 'global', to: '/admin/messaging?canal=global' },
-          { label: 'Équipe', canal: 'equipe', to: '/admin/messaging?canal=equipe' },
-          { label: 'Groupes', canal: 'groupes', to: '/admin/messaging?canal=groupes' },
-        ],
-      },
+      { to: '/admin/messaging', label: 'Messagerie', subtitle: 'Échanges avec les employés', icon: IconChat },
       { to: '/admin/resources', label: 'Ressources', subtitle: 'Documents partagés', icon: IconFolder },
     ],
   },
