@@ -150,6 +150,8 @@
   font-weight: 700;
 }
 
+.aplan-row-avatar--image { object-fit: cover; }
+
 .aplan-row-avatar--sm {
   width: 24px;
   height: 24px;
@@ -381,8 +383,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   border: 1px solid var(--color-border);
   background: var(--color-bg-secondary);
@@ -410,6 +412,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.aplan-modal-toolbar .app-link {
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  color: var(--color-accent-lighter);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-family);
 }
 
 .aplan-modal-total {

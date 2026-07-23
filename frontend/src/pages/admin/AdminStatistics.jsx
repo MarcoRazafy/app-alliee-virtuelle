@@ -4,6 +4,7 @@ import * as taskService from '../../services/taskService';
 import { formatDurationShort } from '../../utils/formatters';
 import { notifyError, notifyInfo } from '../../utils/toast';
 import '../../styles/admin-stats.css';
+import { PageSkeleton } from '../../components/Skeleton';
 
 const PRESETS = [
   { id: 'day', label: "Aujourd'hui" },
@@ -479,6 +480,8 @@ function AdminStatistics() {
     { key: 'completion_rate', label: '% complétion' },
     { key: 'hours_worked_seconds', label: 'Heures' },
   ];
+
+  if (loading && !stats) return <PageSkeleton variant="stats" />;
 
   return (
     <div className="astat-page">

@@ -1,7 +1,20 @@
+const { DateTime } = require('luxon');
 const taskModel = require('../models/task.model');
 const statsModel = require('../models/stats.model');
 const aiModel = require('../models/ai.model');
+const userModel = require('../models/user.model');
+const planningModel = require('../models/planning.model');
+const planningDates = require('../utils/planningDates');
 const mistral = require('../config/mistral');
+
+const TASK_STATUSES = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
+const WEEKDAYS_FR = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+
+// Nom du jour de la semaine (français) à partir d'une date 'YYYY-MM-DD', sans dépendre du fuseau serveur.
+function weekdayFr(dateString) {
+  const dt = DateTime.fromISO(dateString);
+  return dt.isValid ? WEEKDAYS_FR[dt.weekday - 1] : null;
+}
 
 function defaultRange() {
   const to = new Date().toISOString().slice(0, 10);
@@ -10,20 +23,110 @@ function defaultRange() {
   return { from: fromDate.toISOString().slice(0, 10), to };
 }
 
-// Contexte en lecture seule uniquement : aucune fonction d'écriture n'est exposée à l'assistant
+// Agrège les tâches par employé et par statut (comptes compacts, pas de dump brut).
+function summarizeTasksByEmployee(tasks, nameById) {
+  const agg = new Map();
+  for (const task of tasks) {
+    const key = task.assigned_to || 'non_assigne';
+    if (!agg.has(key)) {
+      const row = { employe: nameById.get(task.assigned_to) || 'Non assigné', total: 0 };
+      TASK_STATUSES.forEach((s) => {
+        row[s] = 0;
+      });
+      agg.set(key, row);
+    }
+    const row = agg.get(key);
+    row.total += 1;
+    if (row[task.status] !== undefined) row[task.status] += 1;
+  }
+  return [...agg.values()].sort((a, b) => b.total - a.total);
+}
+
+const toDateString = planningDates.formatDbDate;
+
+// Fusionne le résumé hebdo (statut, heures, soumis) avec le détail jour par jour
+// (disponibilité + créneaux), regroupé par employé.
+function mergePlanningWeek(weekRows, dayRows) {
+  const byName = new Map();
+  for (const r of weekRows) {
+    byName.set(r.full_name, {
+      employe: r.full_name,
+      poste: r.position || null,
+      statut: r.status,
+      soumis: !!r.submitted_at,
+      heures_declarees: Math.round(Number(r.total_hours || 0) * 100) / 100,
+      jours: [],
+    });
+  }
+  for (const d of dayRows) {
+    const dateStr = toDateString(d.planning_date);
+    let entry = byName.get(d.full_name);
+    if (!entry) {
+      entry = { employe: d.full_name, jours: [] };
+      byName.set(d.full_name, entry);
+    }
+    entry.jours.push({
+      jour: weekdayFr(dateStr),
+      date: dateStr,
+      disponibilite: d.availability_status,
+      creneaux: d.creneaux || [],
+    });
+  }
+  for (const entry of byName.values()) {
+    entry.jours.sort((a, b) => a.date.localeCompare(b.date));
+  }
+  return [...byName.values()];
+}
+
+// Contexte en LECTURE SEULE : instantané enrichi de la base (équipe, tâches, plannings).
+// Aucune fonction d'écriture n'est exposée à l'assistant.
 async function buildContext() {
   const { from, to } = defaultRange();
-  const [teamStats, realtime, lateTasks] = await Promise.all([
+  const now = planningDates.nowInPlanningZone();
+  const currentWeekStart = planningDates.formatDate(planningDates.getCurrentWeekStart(now));
+  const nextWeekStart = planningDates.formatDate(planningDates.getNextWeekStart(now));
+
+  const [
+    teamStats,
+    realtime,
+    lateTasks,
+    employees,
+    allTasks,
+    currentPlannings,
+    nextPlannings,
+    currentDays,
+    nextDays,
+  ] = await Promise.all([
     statsModel.computeTeamStats(from, to),
     taskModel.computeRealtimeDashboard(),
     taskModel.findLateTasks(),
+    userModel.findAllFiltered({ role: 'EMPLOYEE', status: 'ACTIF' }),
+    taskModel.findAllTasks({}),
+    planningModel.listPlanningsForAdmin({ weekStartDate: currentWeekStart }),
+    planningModel.listPlanningsForAdmin({ weekStartDate: nextWeekStart }),
+    planningModel.listDayAvailabilityForWeek(currentWeekStart),
+    planningModel.listDayAvailabilityForWeek(nextWeekStart),
   ]);
 
+  const nameById = new Map(employees.map((e) => [e.id, e.full_name]));
+
   return {
+    date_du_jour: planningDates.formatDate(now),
     period_analysee: { from, to },
     statistiques_equipe: teamStats,
     suivi_temps_reel: realtime,
     taches_en_retard: lateTasks,
+    equipe: employees.map((e) => ({ nom: e.full_name, poste: e.position || null, statut: e.status })),
+    effectif_actif: employees.length,
+    taches_par_employe: summarizeTasksByEmployee(allTasks, nameById),
+    plannings_semaine_courante: {
+      semaine_du: currentWeekStart,
+      employes: mergePlanningWeek(currentPlannings, currentDays),
+    },
+    plannings_semaine_prochaine: {
+      semaine_du: nextWeekStart,
+      employes: mergePlanningWeek(nextPlannings, nextDays),
+    },
   };
 }
 
@@ -37,28 +140,47 @@ RÈGLES STRICTES (à respecter impérativement) :
 - Précise toujours la période analysée dans ta réponse.
 - Réponds en français, de façon concise et factuelle, en te basant uniquement sur les données ci-dessous.
 
+Le JSON ci-dessous est un instantané en lecture seule de la base de données. Il contient :
+- "equipe" et "effectif_actif" : la liste des employés actifs (nom, poste).
+- "taches_par_employe" : pour chaque employé, le nombre total de tâches et la répartition par statut (DECLAREE, EN_COURS, TERMINEE, CONFIRMEE).
+- "plannings_semaine_courante" et "plannings_semaine_prochaine" : pour chaque employé, le statut du planning, les heures déclarées, s'il est soumis, ET le détail "jours" (un objet par jour avec "jour" en français ex "samedi", "date", "disponibilite" et "creneaux" horaires).
+- "statistiques_equipe", "suivi_temps_reel", "taches_en_retard" : indicateurs agrégés.
+Statuts de planning : DRAFT (brouillon), SUBMITTED (soumis), ADMIN_MODIFIED (modifié par un admin), LOCKED, NOT_SUBMITTED.
+Disponibilité d'un jour : AVAILABLE (disponible), PARTIALLY_AVAILABLE (partiellement), UNAVAILABLE (indisponible), LEAVE (congé), SICK (maladie). Un employé "travaille" un jour si sa disponibilité est AVAILABLE ou PARTIALLY_AVAILABLE avec au moins un créneau. Utilise le champ "jours" pour toute question sur un jour précis (ex : qui travaille samedi).
+
 Données actuelles de l'équipe (JSON) :
 `;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Génère une réponse Mistral pour une question (avec mention éventuelle d'une pièce jointe).
+async function generateAnswer(question, attachmentName) {
+  const context = await buildContext();
+  const userContent = attachmentName
+    ? `${question}\n\n[L'utilisateur a joint un fichier nommé « ${attachmentName} ». Tu ne peux pas ouvrir son contenu ; base-toi sur le nom et la question.]`
+    : question;
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT + JSON.stringify(context) },
+    { role: 'user', content: userContent },
+  ];
+  const answer = await mistral.askMistral(messages);
+  return { answer, context };
+}
+
 async function ask(req, res, next) {
   try {
-    const { question, session_id: sessionId } = req.body;
-    if (!question || !question.trim()) {
+    const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
+    const sessionId = req.body.session_id;
+    if (!question) {
       return res.status(400).json({ error: 'La question est requise' });
     }
     // Le front envoie l'id de la conversation en cours ; sinon le modèle en génère un.
     const validSessionId = sessionId && UUID_RE.test(sessionId) ? sessionId : null;
+    const attachment = req.file
+      ? { path: req.file.path, name: req.file.originalname, type: req.file.mimetype }
+      : null;
 
-    const context = await buildContext();
-
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT + JSON.stringify(context) },
-      { role: 'user', content: question },
-    ];
-
-    const answer = await mistral.askMistral(messages);
+    const { answer, context } = await generateAnswer(question, attachment?.name);
 
     const conversation = await aiModel.createConversation({
       adminId: req.user.id,
@@ -66,6 +188,7 @@ async function ask(req, res, next) {
       question,
       answer,
       contextData: { period: context.period_analysee },
+      attachment,
     });
 
     res.status(200).json(conversation);
@@ -84,4 +207,70 @@ async function getHistory(req, res, next) {
   }
 }
 
-module.exports = { ask, getHistory };
+// Édition d'un message : nouvelle question → nouvelle réponse générée.
+async function editConversation(req, res, next) {
+  try {
+    const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
+    if (!conversation) return res.status(404).json({ error: 'Échange introuvable' });
+    const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
+    if (!question) return res.status(400).json({ error: 'La question est requise' });
+    const { answer } = await generateAnswer(question, conversation.attachment_name);
+    const updated = await aiModel.updateConversation(req.params.id, req.user.id, { question, answer });
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteConversation(req, res, next) {
+  try {
+    const count = await aiModel.deleteConversation(req.params.id, req.user.id);
+    if (count === 0) return res.status(404).json({ error: 'Échange introuvable' });
+    res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteSession(req, res, next) {
+  try {
+    const count = await aiModel.deleteSession(req.params.sessionId, req.user.id);
+    res.status(200).json({ deleted: count });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function renameSession(req, res, next) {
+  try {
+    const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+    if (!title) return res.status(400).json({ error: 'Le titre est requis' });
+    const count = await aiModel.renameSession(req.params.sessionId, req.user.id, title.slice(0, 120));
+    if (count === 0) return res.status(404).json({ error: 'Discussion introuvable' });
+    res.status(200).json({ title: title.slice(0, 120) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getConversationAttachment(req, res, next) {
+  try {
+    const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
+    if (!conversation || !conversation.attachment_path) {
+      return res.status(404).json({ error: 'Pièce jointe introuvable' });
+    }
+    res.sendFile(conversation.attachment_path);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  ask,
+  getHistory,
+  editConversation,
+  deleteConversation,
+  deleteSession,
+  renameSession,
+  getConversationAttachment,
+};

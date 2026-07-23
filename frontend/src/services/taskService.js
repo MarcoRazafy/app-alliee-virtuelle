@@ -1,5 +1,9 @@
 import api from './api';
 
+export function validateTask(id) {
+  return api.post(`/api/tasks/${id}/validate`).then((res) => res.data);
+}
+
 export function getTasks(filters = {}) {
   return api.get('/api/tasks', { params: filters }).then((res) => res.data);
 }
@@ -18,10 +22,6 @@ export function getSubtasks(id) {
 
 export function createTask(payload) {
   return api.post('/api/tasks', payload).then((res) => res.data);
-}
-
-export function validateTask(id) {
-  return api.post(`/api/tasks/${id}/validate`).then((res) => res.data);
 }
 
 export function confirmTask(id) {
@@ -62,6 +62,28 @@ export function validateMyDay() {
 
 export function getMyActivity() {
   return api.get('/api/my-activity').then((res) => res.data);
+}
+
+// --- Demandes de tâche supplémentaire ---
+
+export function createExtraTaskRequest(taskId, message) {
+  return api.post('/api/tasks/extra-requests', { task_id: taskId, message }).then((res) => res.data);
+}
+
+export function getMyExtraTaskRequests() {
+  return api.get('/api/tasks/extra-requests/me').then((res) => res.data);
+}
+
+export function getExtraTaskRequests(status) {
+  return api.get('/api/tasks/extra-requests', { params: status ? { status } : {} }).then((res) => res.data);
+}
+
+export function approveExtraTaskRequest(id) {
+  return api.post(`/api/tasks/extra-requests/${id}/approve`).then((res) => res.data);
+}
+
+export function rejectExtraTaskRequest(id, note) {
+  return api.post(`/api/tasks/extra-requests/${id}/reject`, { note }).then((res) => res.data);
 }
 
 export function getComments(taskId) {

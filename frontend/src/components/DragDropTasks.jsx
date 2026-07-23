@@ -11,7 +11,67 @@ const PRIORITY_DOT_CLASS = {
   FAIBLE: 'priority-dot--faible',
 };
 
-function DraggableTask({ task, index, column, order, moveTask, disabled }) {
+// Calcule l'urgence d'une deadline (date) par rapport à aujourd'hui, en raisonnant en jours
+// calendaires locaux. On parse d'abord un éventuel préfixe "YYYY-MM-DD" pour éviter les décalages
+// de fuseau (une colonne SQL `date` sérialisée en ISO minuit UTC peut basculer d'un jour).
+function deadlineInfo(raw) {
+  if (!raw) return null;
+  const m = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let target;
+  if (m) {
+    target = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  } else {
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return null;
+    target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((target - startToday) / 86400000);
+
+  if (diffDays < 0) return { urgency: 'overdue', label: `Retard ${Math.abs(diffDays)} j`, diffDays };
+  if (diffDays === 0) return { urgency: 'today', label: "Aujourd'hui", diffDays };
+  if (diffDays === 1) return { urgency: 'soon', label: 'Demain', diffDays };
+  if (diffDays <= 3) return { urgency: 'soon', label: `Dans ${diffDays} j`, diffDays };
+  return { urgency: 'normal', label: target.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), diffDays };
+}
+
+function IconClock() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 7.5V12l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RequestControl({ task, requestState, onRequest }) {
+  if (requestState?.status === 'PENDING') {
+    return <span className="task-request-chip task-request-chip--pending">En attente</span>;
+  }
+  if (requestState?.status === 'REJECTED') {
+    return (
+      <span className="task-request-actions">
+        <span
+          className="task-request-chip task-request-chip--rejected"
+          title={requestState.admin_note ? `Motif : ${requestState.admin_note}` : 'Demande refusée'}
+        >
+          Refusée
+        </span>
+        <button type="button" className="task-request-btn" onClick={() => onRequest(task)}>
+          Redemander
+        </button>
+      </span>
+    );
+  }
+  return (
+    <button type="button" className="task-request-btn" onClick={() => onRequest(task)}>
+      Demander
+    </button>
+  );
+}
+
+function DraggableTask({ task, index, column, order, moveTask, disabled, requestable, requestState, onRequest }) {
   const ref = useRef(null);
 
   const [, drop] = useDrop({
@@ -32,20 +92,40 @@ function DraggableTask({ task, index, column, order, moveTask, disabled }) {
 
   drag(drop(ref));
 
+  // Une carte "demandable" (journée validée, colonne disponible) reste visuellement active
+  // — surlignée non verrouillée — car son bouton doit être cliquable.
+  const locked = disabled && !requestable;
+  const dl = deadlineInfo(task.deadline);
+
   return (
     <div
       ref={ref}
-      className={`task-card${isDragging ? ' task-card--dragging' : ''}${disabled ? ' task-card--locked' : ''}`}
+      className={`task-card${isDragging ? ' task-card--dragging' : ''}${locked ? ' task-card--locked' : ''}${
+        requestable ? ' task-card--requestable' : ''
+      }`}
     >
       {order != null && <span className="task-order-badge">{order}</span>}
       <span className={`priority-dot ${PRIORITY_DOT_CLASS[task.priority] || 'priority-dot--normale'}`} />
       <span className="task-card-title">{task.title}</span>
-      <span className="task-card-priority">{task.priority}</span>
+      {dl && (
+        <span
+          className={`task-card-deadline task-card-deadline--${dl.urgency}`}
+          title={`Échéance : ${task.deadline ? new Date(task.deadline).toLocaleDateString('fr-FR') : ''}`}
+        >
+          <IconClock />
+          {dl.label}
+        </span>
+      )}
+      {requestable ? (
+        <RequestControl task={task} requestState={requestState} onRequest={onRequest} />
+      ) : (
+        <span className="task-card-priority">{task.priority}</span>
+      )}
     </div>
   );
 }
 
-function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disabled }) {
+function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disabled, requestable, requestsByTaskId, onRequestTask }) {
   const ref = useRef(null);
   const [{ isOver }, drop] = useDrop({
     accept: ITEM_TYPE,
@@ -77,13 +157,16 @@ function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disable
           order={showOrder ? index + 1 : null}
           moveTask={moveTask}
           disabled={disabled}
+          requestable={requestable}
+          requestState={requestsByTaskId?.[task.id]}
+          onRequest={onRequestTask}
         />
       ))}
     </div>
   );
 }
 
-function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated }) {
+function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated, requestsByTaskId, onRequestTask }) {
   function moveTask(fromColumn, fromIndex, toColumn, toIndex) {
     if (validated) return;
 
@@ -109,6 +192,9 @@ function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated }) {
           moveTask={moveTask}
           emptyLabel="Aucune tâche disponible."
           disabled={validated}
+          requestable={validated && !!onRequestTask}
+          requestsByTaskId={requestsByTaskId}
+          onRequestTask={onRequestTask}
         />
         <Column
           title="Mes tâches aujourd'hui"

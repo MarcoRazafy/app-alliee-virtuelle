@@ -4,6 +4,7 @@ import * as taskService from '../../services/taskService';
 import { notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconAlert, IconSearch, IconExternalLink, IconChevronDown } from '../../components/icons';
+import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/admin.css';
 
 const STATUS_META = {
@@ -25,6 +26,7 @@ function lateSeverity(days) {
 
 function AdminLateTasks() {
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [sortDirection, setSortDirection] = useState('desc');
   const [query, setQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -33,7 +35,8 @@ function AdminLateTasks() {
     taskService
       .getLateTasks()
       .then(setTasks)
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches en retard'));
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches en retard'))
+      .finally(() => setLoading(false));
   }, []);
 
   function toggleSort() {
@@ -57,6 +60,8 @@ function AdminLateTasks() {
 
   const maxDays = tasks.reduce((max, t) => Math.max(max, t.days_late), 0);
   const hasFilters = query.trim() || priorityFilter;
+
+  if (loading) return <PageSkeleton variant="table" />;
 
   return (
     <div className="late-page">

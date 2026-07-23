@@ -12,6 +12,13 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'image/png',
   'image/jpeg',
+  // Messages vocaux (MediaRecorder) et audio
+  'audio/webm',
+  'audio/ogg',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/wav',
+  'audio/x-wav',
 ];
 
 // path.basename() retire tout composant de chemin (../, /) d'un nom de fichier fourni par le client ;

@@ -292,14 +292,7 @@ function Profile() {
     : '—';
 
   if (loading) {
-    return (
-      <EmployeeLayout title="Profil" subtitle="Gérez vos informations personnelles et vos préférences">
-        <div className="profile-page-loading" role="status">
-          <span />
-          Chargement du profil…
-        </div>
-      </EmployeeLayout>
-    );
+    return <EmployeeLayout title="Profil" subtitle="Gérez vos informations personnelles et vos préférences" skeleton="form" />;
   }
 
   return (

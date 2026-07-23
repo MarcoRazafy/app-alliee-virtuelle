@@ -73,7 +73,7 @@ INSERT INTO tasks (title, description, assigned_to, created_by, priority, status
 SELECT 'Mettre à jour la FAQ', 'Ajouter les nouvelles questions fréquentes du support',
        (SELECT id FROM users WHERE email = 'karim.haddad@alliee.test'),
        (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'NORMALE', 'VALIDEE', CURRENT_DATE + INTERVAL '5 days', CURRENT_DATE
+       'NORMALE', 'DECLAREE', CURRENT_DATE + INTERVAL '5 days', CURRENT_DATE
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Mettre à jour la FAQ');
 
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
@@ -88,7 +88,7 @@ INSERT INTO tasks (title, description, assigned_to, created_by, priority, status
 SELECT 'Créer les visuels campagne', 'Bannières et visuels réseaux sociaux pour la campagne de rentrée',
        (SELECT id FROM users WHERE email = 'sophie.martin@alliee.test'),
        (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'HAUTE', 'VALIDEE', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE
+       'HAUTE', 'DECLAREE', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Créer les visuels campagne');
 
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)

@@ -15,14 +15,14 @@ INSERT INTO tasks (title, description, assigned_to, created_by, priority, status
 SELECT 'Réviser le plan marketing', 'Mettre à jour le plan marketing du trimestre',
        (SELECT id FROM users WHERE email = 'ucan.mih@gmail.com'),
        (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'NORMALE', 'VALIDEE', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE
+       'NORMALE', 'DECLAREE', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Réviser le plan marketing');
 
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
 SELECT 'Répondre aux tickets support', 'Traiter les tickets ouverts dans la file support',
        (SELECT id FROM users WHERE email = 'ucan.mih@gmail.com'),
        (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'URGENT', 'VALIDEE', CURRENT_DATE + INTERVAL '1 day', CURRENT_DATE
+       'URGENT', 'DECLAREE', CURRENT_DATE + INTERVAL '1 day', CURRENT_DATE
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Répondre aux tickets support');
 
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)

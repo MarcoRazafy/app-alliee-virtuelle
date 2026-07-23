@@ -4,6 +4,7 @@ import * as avatarService from '../../services/avatarService';
 import UserInfoPanel from '../../components/admin/UserInfoPanel';
 import { notifySuccess, notifyError, notifyInfo } from '../../utils/toast';
 import { IconSearch, IconCheckCircle, IconArrowRight } from '../../components/icons';
+import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/admin.css';
 import '../../styles/admin-users.css';
 
@@ -61,6 +62,7 @@ function UserAvatar({ user, size }) {
 
 function EmployeesTab({ onSelect }) {
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [positionFilter, setPositionFilter] = useState('');
@@ -69,7 +71,8 @@ function EmployeesTab({ onSelect }) {
     userService
       .getAllUsers({ role: 'EMPLOYEE', search, status: statusFilter || undefined })
       .then(setUsers)
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les utilisateurs'));
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les utilisateurs'))
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -116,6 +119,8 @@ function EmployeesTab({ onSelect }) {
   }
 
   const stop = (e) => e.stopPropagation();
+
+  if (loading && users.length === 0) return <PageSkeleton variant="table" />;
 
   return (
     <div>

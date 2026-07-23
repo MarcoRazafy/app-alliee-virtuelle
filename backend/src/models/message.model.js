@@ -1,24 +1,58 @@
 const db = require('../config/database');
 
-async function findGlobalMessages() {
+// Colonnes d'un message enrichies pour l'affichage. Un message supprimé (deleted_at) masque
+// son contenu et sa pièce jointe. `m` = alias de la table messages, `u` = auteur.
+const MSG_COLS = `
+  m.id, m.author_id, u.full_name AS author_name, m.channel_type,
+  CASE WHEN m.deleted_at IS NOT NULL THEN NULL ELSE m.content END AS content,
+  m.created_at, m.edited_at, m.deleted_at,
+  CASE WHEN m.deleted_at IS NOT NULL THEN NULL ELSE m.attachment_name END AS attachment_name,
+  CASE WHEN m.deleted_at IS NOT NULL THEN NULL ELSE m.attachment_type END AS attachment_type,
+  CASE WHEN m.deleted_at IS NOT NULL THEN NULL ELSE m.attachment_size END AS attachment_size,
+  (m.attachment_path IS NOT NULL AND m.deleted_at IS NULL) AS has_attachment
+`;
+
+// Réactions agrégées par emoji (count + mine = l'utilisateur courant a réagi). userParam = placeholder $N.
+function reactionsSql(userParam) {
+  return `COALESCE((
+    SELECT json_agg(json_build_object('emoji', e.emoji, 'count', e.count, 'mine', e.mine) ORDER BY e.emoji)
+    FROM (
+      SELECT emoji, COUNT(*)::int AS count, bool_or(user_id = ${userParam}) AS mine
+      FROM message_reactions WHERE message_id = m.id GROUP BY emoji
+    ) e
+  ), '[]'::json) AS reactions`;
+}
+
+// Aperçu de conversation : gère les messages supprimés et les pièces jointes seules.
+function previewSql(subWhere) {
+  return `(SELECT CASE
+      WHEN deleted_at IS NOT NULL THEN 'Message supprimé'
+      WHEN content IS NOT NULL AND content <> '' THEN content
+      WHEN attachment_path IS NOT NULL THEN '📎 Pièce jointe'
+      ELSE NULL END
+    FROM messages WHERE ${subWhere} ORDER BY created_at DESC LIMIT 1)`;
+}
+
+async function findGlobalMessages(userId) {
   const result = await db.query(
-    `SELECT m.id, m.content, m.created_at, m.author_id, u.full_name AS author_name
+    `SELECT ${MSG_COLS}, ${reactionsSql('$1')}
      FROM messages m
      JOIN users u ON u.id = m.author_id
      WHERE m.channel_type = 'GLOBAL'
-     ORDER BY m.created_at ASC`
+     ORDER BY m.created_at ASC`,
+    [userId]
   );
   return result.rows;
 }
 
-async function createGlobalMessage(authorId, content) {
+async function createGlobalMessage(authorId, content, attachment = null) {
   const result = await db.query(
-    `INSERT INTO messages (author_id, content, channel_type)
-     VALUES ($1, $2, 'GLOBAL')
-     RETURNING id, content, created_at, author_id`,
-    [authorId, content]
+    `INSERT INTO messages (author_id, content, channel_type, attachment_path, attachment_name, attachment_type, attachment_size)
+     VALUES ($1, $2, 'GLOBAL', $3, $4, $5, $6)
+     RETURNING id`,
+    [authorId, content || null, attachment?.path || null, attachment?.name || null, attachment?.type || null, attachment?.size || null]
   );
-  return result.rows[0];
+  return findEnrichedMessageById(result.rows[0].id, authorId);
 }
 
 async function findConversationsForUser(userId) {
@@ -28,12 +62,10 @@ async function findConversationsForUser(userId) {
        other.id AS other_user_id,
        other.full_name AS other_user_name,
        c.last_message_at,
-       (SELECT content FROM messages
-        WHERE channel_type = 'PRIVATE'
-          AND ((author_id = $1 AND recipient_id = other.id) OR (author_id = other.id AND recipient_id = $1))
-        ORDER BY created_at DESC LIMIT 1) AS last_message_content,
+       ${previewSql(`channel_type = 'PRIVATE'
+          AND ((author_id = $1 AND recipient_id = other.id) OR (author_id = other.id AND recipient_id = $1))`)} AS last_message_content,
        (SELECT COUNT(*)::INTEGER FROM messages
-        WHERE channel_type = 'PRIVATE' AND recipient_id = $1 AND author_id = other.id AND is_read = FALSE) AS unread_count
+        WHERE channel_type = 'PRIVATE' AND recipient_id = $1 AND author_id = other.id AND is_read = FALSE AND deleted_at IS NULL) AS unread_count
      FROM message_conversations c
      JOIN users other ON other.id = CASE WHEN c.participant1_id = $1 THEN c.participant2_id ELSE c.participant1_id END
      WHERE c.participant1_id = $1 OR c.participant2_id = $1
@@ -69,7 +101,7 @@ async function touchConversation(conversationId) {
 
 async function findPrivateMessages(userId, otherUserId) {
   const result = await db.query(
-    `SELECT m.id, m.content, m.created_at, m.author_id, m.is_read, u.full_name AS author_name
+    `SELECT ${MSG_COLS}, m.is_read, ${reactionsSql('$1')}
      FROM messages m
      JOIN users u ON u.id = m.author_id
      WHERE m.channel_type = 'PRIVATE'
@@ -88,14 +120,14 @@ async function markAsRead(userId, otherUserId) {
   );
 }
 
-async function createPrivateMessage(authorId, recipientId, content) {
+async function createPrivateMessage(authorId, recipientId, content, attachment = null) {
   const result = await db.query(
-    `INSERT INTO messages (author_id, recipient_id, content, channel_type, is_read)
-     VALUES ($1, $2, $3, 'PRIVATE', FALSE)
-     RETURNING id, content, created_at, author_id, recipient_id`,
-    [authorId, recipientId, content]
+    `INSERT INTO messages (author_id, recipient_id, content, channel_type, is_read, attachment_path, attachment_name, attachment_type, attachment_size)
+     VALUES ($1, $2, $3, 'PRIVATE', FALSE, $4, $5, $6, $7)
+     RETURNING id`,
+    [authorId, recipientId, content || null, attachment?.path || null, attachment?.name || null, attachment?.type || null, attachment?.size || null]
   );
-  return result.rows[0];
+  return findEnrichedMessageById(result.rows[0].id, authorId);
 }
 
 const GROUP_CARD_SELECT = `
@@ -106,6 +138,7 @@ const GROUP_CARD_SELECT = `
     creator.full_name AS created_by_name,
     g.last_message_at,
     g.created_at,
+    (g.avatar_path IS NOT NULL) AS has_avatar,
     (SELECT COUNT(*)::INTEGER
      FROM message_group_members member_count
      WHERE member_count.group_id = g.id) AS member_count,
@@ -126,16 +159,13 @@ const GROUP_CARD_SELECT = `
        WHERE member_list.group_id = g.id),
       '[]'::json
     ) AS members,
-    (SELECT group_message.content
-     FROM messages group_message
-     WHERE group_message.channel_type = 'GROUP' AND group_message.group_id = g.id
-     ORDER BY group_message.created_at DESC
-     LIMIT 1) AS last_message_content,
+    ${previewSql(`channel_type = 'GROUP' AND group_id = g.id`)} AS last_message_content,
     (SELECT COUNT(*)::INTEGER
      FROM messages unread_message
      WHERE unread_message.channel_type = 'GROUP'
        AND unread_message.group_id = g.id
        AND unread_message.author_id != $1
+       AND unread_message.deleted_at IS NULL
        AND unread_message.created_at > membership.last_read_at) AS unread_count
   FROM message_groups g
   JOIN message_group_members membership
@@ -160,12 +190,12 @@ async function findGroupForUser(groupId, userId) {
   return result.rows[0] || null;
 }
 
-async function createGroup({ name, creatorId, memberIds }, client = db) {
+async function createGroup({ name, creatorId, memberIds, avatarPath = null }, client = db) {
   const groupResult = await client.query(
-    `INSERT INTO message_groups (name, created_by)
-     VALUES ($1, $2)
+    `INSERT INTO message_groups (name, created_by, avatar_path)
+     VALUES ($1, $2, $3)
      RETURNING id, name, created_by, last_message_at, created_at`,
-    [name, creatorId]
+    [name, creatorId, avatarPath]
   );
   const group = groupResult.rows[0];
 
@@ -180,14 +210,26 @@ async function createGroup({ name, creatorId, memberIds }, client = db) {
   return group;
 }
 
-async function findGroupMessages(groupId) {
+// Chemin de l'avatar d'un groupe, uniquement si l'utilisateur en est membre.
+async function findGroupAvatarForMember(groupId, userId) {
   const result = await db.query(
-    `SELECT m.id, m.content, m.created_at, m.author_id, u.full_name AS author_name
+    `SELECT g.avatar_path
+     FROM message_groups g
+     JOIN message_group_members m ON m.group_id = g.id AND m.user_id = $2
+     WHERE g.id = $1`,
+    [groupId, userId]
+  );
+  return result.rows[0]?.avatar_path || null;
+}
+
+async function findGroupMessages(groupId, userId) {
+  const result = await db.query(
+    `SELECT ${MSG_COLS}, ${reactionsSql('$2')}
      FROM messages m
      JOIN users u ON u.id = m.author_id
      WHERE m.channel_type = 'GROUP' AND m.group_id = $1
      ORDER BY m.created_at ASC`,
-    [groupId]
+    [groupId, userId]
   );
   return result.rows;
 }
@@ -201,24 +243,72 @@ async function markGroupAsRead(groupId, userId) {
   );
 }
 
-async function createGroupMessage(groupId, authorId, content, client = db) {
-  const result = await client.query(
-    `WITH inserted AS (
-       INSERT INTO messages (author_id, content, channel_type, group_id)
-       VALUES ($1, $2, 'GROUP', $3)
-       RETURNING id, content, created_at, author_id, group_id
-     )
-     SELECT inserted.*, author.full_name AS author_name
-     FROM inserted
-     JOIN users author ON author.id = inserted.author_id`,
-    [authorId, content, groupId]
+async function createGroupMessage(groupId, authorId, content, attachment = null, client = db) {
+  const inserted = await client.query(
+    `INSERT INTO messages (author_id, content, channel_type, group_id, attachment_path, attachment_name, attachment_type, attachment_size)
+     VALUES ($1, $2, 'GROUP', $3, $4, $5, $6, $7)
+     RETURNING id`,
+    [authorId, content || null, groupId, attachment?.path || null, attachment?.name || null, attachment?.type || null, attachment?.size || null]
   );
   await client.query('UPDATE message_groups SET last_message_at = now(), updated_at = now() WHERE id = $1', [groupId]);
   await client.query(
     'UPDATE message_group_members SET last_read_at = now() WHERE group_id = $1 AND user_id = $2',
     [groupId, authorId]
   );
-  return result.rows[0];
+  return findEnrichedMessageById(inserted.rows[0].id, authorId, client);
+}
+
+// --- Message unique (édition / suppression / réactions) ---
+
+// Ligne brute (pour vérifier l'auteur, le type, le chemin de la pièce jointe).
+async function findRawMessageById(id) {
+  const result = await db.query(
+    `SELECT id, author_id, channel_type, group_id, recipient_id, deleted_at, attachment_path, attachment_name, attachment_type
+     FROM messages WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+// Message enrichi (comme dans les listes) pour renvoyer après édition/réaction.
+async function findEnrichedMessageById(id, userId, client = db) {
+  const result = await client.query(
+    `SELECT ${MSG_COLS}, ${reactionsSql('$2')}
+     FROM messages m JOIN users u ON u.id = m.author_id
+     WHERE m.id = $1`,
+    [id, userId]
+  );
+  return result.rows[0] || null;
+}
+
+async function updateMessageContent(id, content, userId) {
+  await db.query(
+    `UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL`,
+    [id, content]
+  );
+  return findEnrichedMessageById(id, userId);
+}
+
+async function softDeleteMessage(id) {
+  await db.query(`UPDATE messages SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`, [id]);
+}
+
+// Ajoute la réaction, ou la retire si elle existait déjà (toggle). Renvoie le message enrichi.
+async function toggleReaction(messageId, userId, emoji) {
+  const inserted = await db.query(
+    `INSERT INTO message_reactions (message_id, user_id, emoji)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (message_id, user_id, emoji) DO NOTHING
+     RETURNING id`,
+    [messageId, userId, emoji]
+  );
+  if (inserted.rowCount === 0) {
+    await db.query(
+      `DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3`,
+      [messageId, userId, emoji]
+    );
+  }
+  return findEnrichedMessageById(messageId, userId);
 }
 
 module.exports = {
@@ -234,7 +324,13 @@ module.exports = {
   findGroupsForUser,
   findGroupForUser,
   createGroup,
+  findGroupAvatarForMember,
   findGroupMessages,
   markGroupAsRead,
   createGroupMessage,
+  findRawMessageById,
+  findEnrichedMessageById,
+  updateMessageContent,
+  softDeleteMessage,
+  toggleReaction,
 };

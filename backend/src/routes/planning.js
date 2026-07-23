@@ -11,6 +11,17 @@ router.use(authMiddleware);
 router.get('/planning/admin/non-submitted', authMiddleware.requireRole('ADMIN'), planningController.adminNonSubmitted);
 router.get('/planning/admin/availability', authMiddleware.requireRole('ADMIN'), planningController.adminAvailabilitySearch);
 router.get('/planning/admin/summary', authMiddleware.requireRole('ADMIN'), planningController.adminGetPlanningSummary);
+router.get('/planning/admin/attendance', authMiddleware.requireRole('ADMIN'), planningController.adminAttendance);
+router.get(
+  '/planning/admin/attendance/:userId/stats',
+  authMiddleware.requireRole('ADMIN'),
+  planningController.adminAttendanceStats
+);
+router.put(
+  '/planning/admin/attendance/:userId',
+  authMiddleware.requireRole('ADMIN'),
+  planningController.adminSetAttendanceOverride
+);
 router.get('/planning/admin/:planningId/history', authMiddleware.requireRole('ADMIN'), planningController.adminPlanningHistory);
 router.get('/planning/admin/:planningId', authMiddleware.requireRole('ADMIN'), planningController.adminGetPlanningDetail);
 router.put('/planning/admin/:planningId', authMiddleware.requireRole('ADMIN'), planningController.adminUpdatePlanning);
