@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
+import AnimatedNumber from '../components/AnimatedNumber';
 import * as statsService from '../services/statsService';
 import { formatDurationShort } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
@@ -151,9 +152,10 @@ function CompletionRing({ value }) {
           r={radius}
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
+          style={{ '--ring-start': circumference, '--ring-offset': dashOffset }}
         />
       </svg>
-      <span>{safeValue}%</span>
+      <AnimatedNumber value={safeValue} format={(current) => `${Math.round(current)}%`} />
     </div>
   );
 }
@@ -208,7 +210,15 @@ function ActivityChart({ rows }) {
           return (
             <g key={row.date}>
               <title>{`${formatLongDate(row.date)} — ${row.tasks_confirmed} tâche(s) confirmée(s), ${formatDurationShort(row.hours_worked_seconds)}`}</title>
-              <rect className="employee-stats-chart-bar" x={x} y={y} width={barWidth} height={Math.max(2, barHeight)} rx="6" />
+              <rect
+                className="employee-stats-chart-bar"
+                x={x}
+                y={y}
+                width={barWidth}
+                height={Math.max(2, barHeight)}
+                rx="6"
+                style={{ '--chart-delay': `${index * 45}ms` }}
+              />
               {(index % labelEvery === 0 || index === displayedRows.length - 1) && (
                 <text className="employee-stats-chart-label" x={padding.left + step * index + step / 2} y={height - 19} textAnchor="middle">
                   {formatDate(row.date)}
@@ -218,9 +228,9 @@ function ActivityChart({ rows }) {
           );
         })}
 
-        <path className="employee-stats-chart-line" d={path} />
-        {points.map((point) => (
-          <g key={`point-${point.row.date}`}>
+        <path className="employee-stats-chart-line" d={path} pathLength="1" />
+        {points.map((point, index) => (
+          <g key={`point-${point.row.date}`} className="employee-stats-chart-point-group" style={{ '--chart-delay': `${300 + index * 35}ms` }}>
             <circle className="employee-stats-chart-point-halo" cx={point.x} cy={point.y} r="7" />
             <circle className="employee-stats-chart-point" cx={point.x} cy={point.y} r="3.5" />
           </g>
@@ -230,13 +240,13 @@ function ActivityChart({ rows }) {
   );
 }
 
-function StatCard({ icon, label, value, helper, variant }) {
+function StatCard({ icon, label, value, format, helper, variant }) {
   return (
     <article className={`employee-stats-kpi-card employee-stats-kpi-card--${variant}`}>
       <span className="employee-stats-kpi-icon"><Icon type={icon} /></span>
       <div className="employee-stats-kpi-copy">
         <p>{label}</p>
-        <strong>{value}</strong>
+        <AnimatedNumber as="strong" value={value} format={format} />
         <span>{helper}</span>
       </div>
     </article>
@@ -412,7 +422,11 @@ function MyStats() {
                 <CompletionRing value={summary.completion_rate} />
                 <div className="employee-stats-kpi-copy">
                   <p>Taux de complétion</p>
-                  <strong>{summary.completion_rate ?? 0}%</strong>
+                  <AnimatedNumber
+                    as="strong"
+                    value={summary.completion_rate ?? 0}
+                    format={(value) => `${Math.round(value)}%`}
+                  />
                   <span>Basé sur les tâches confirmées</span>
                 </div>
               </article>
@@ -420,7 +434,8 @@ function MyStats() {
               <StatCard
                 icon="timer"
                 label="Temps moyen par tâche"
-                value={formatDurationShort(summary.average_time_per_task_seconds || 0)}
+                value={summary.average_time_per_task_seconds || 0}
+                format={(value) => formatDurationShort(Math.round(value))}
                 helper="Moyenne des tâches chronométrées"
                 variant="average"
               />
@@ -428,7 +443,8 @@ function MyStats() {
               <StatCard
                 icon="clock"
                 label="Temps travaillé total"
-                value={formatDurationShort(summary.total_hours_worked_seconds || 0)}
+                value={summary.total_hours_worked_seconds || 0}
+                format={(value) => formatDurationShort(Math.round(value))}
                 helper="Somme des sessions terminées"
                 variant="time"
               />
@@ -436,7 +452,8 @@ function MyStats() {
               <StatCard
                 icon="login"
                 label="Temps de connexion"
-                value={formatDurationShort(summary.total_connected_seconds || 0)}
+                value={summary.total_connected_seconds || 0}
+                format={(value) => formatDurationShort(Math.round(value))}
                 helper="Indépendant du temps travaillé sur les tâches"
                 variant="connection"
               />
@@ -474,13 +491,17 @@ function MyStats() {
                 <div className="employee-stats-insight-list">
                   <div className="employee-stats-insight-item">
                     <span>Jours avec activité</span>
-                    <strong>{insights.activeDays}</strong>
+                    <AnimatedNumber as="strong" value={insights.activeDays} />
                     <small>{insights.regularity}% de la période sélectionnée</small>
                   </div>
 
                   <div className="employee-stats-insight-item">
                     <span>Moyenne par jour actif</span>
-                    <strong>{formatDurationShort(insights.dailyAverageSeconds)}</strong>
+                    <AnimatedNumber
+                      as="strong"
+                      value={insights.dailyAverageSeconds}
+                      format={(value) => formatDurationShort(Math.round(value))}
+                    />
                     <small>Temps travaillé enregistré</small>
                   </div>
 
@@ -549,7 +570,7 @@ function MyStats() {
                             <td>{formatDurationShort(day.hours_worked_seconds)}</td>
                             <td>
                               <div className="employee-stats-time-progress" aria-label={`${progress}% du jour le plus travaillé`}>
-                                <span style={{ width: `${progress}%` }} />
+                                <span style={{ width: `${progress}%`, '--progress-scale': progress / 100 }} />
                               </div>
                             </td>
                           </tr>

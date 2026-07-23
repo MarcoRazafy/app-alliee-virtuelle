@@ -8,7 +8,20 @@
   position: relative;
   overflow: hidden;
   font-family: var(--font-family);
-  background: radial-gradient(ellipse at top left, var(--color-bg-primary-alt) 0%, var(--color-bg-primary) 55%);
+  /* Photo d'équipe (public/themeImagelogin.jpeg) en arrière-plan plein cadre, sous un voile
+     dégradé (couleur du thème) pour garder la carte et le texte lisibles. Thème-aware :
+     en thème clair le voile devient clair, en thème sombre il reste sombre. */
+  background-image:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-bg-primary) 70%, transparent),
+      color-mix(in srgb, var(--color-bg-primary) 84%, transparent)
+    ),
+    url('/themeImagelogin.jpeg');
+  background-repeat: no-repeat, no-repeat;
+  background-size: cover, cover;
+  background-position: center, center;
+  background-attachment: fixed, fixed;
   color: var(--color-text-primary);
 }
 

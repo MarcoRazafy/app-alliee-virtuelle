@@ -1,0 +1,178 @@
+/* Mouvement transversal de l'application.
+   Les animations restent brèves et n'utilisent que transform/opacity pour éviter
+   les recalculs de mise en page sur les dashboards riches en données. */
+
+:root {
+  --motion-fast: 150ms;
+  --motion-base: 240ms;
+  --motion-slow: 420ms;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-route-stage {
+  animation: route-stage-in var(--motion-slow) var(--motion-ease-out) both;
+}
+
+@keyframes route-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Retour tactile/souris : chaque clic produit une réponse courte et interruptible. */
+:where(button, a, [role='button']) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, a, [role='button']):active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  transition-duration: 80ms !important;
+}
+
+:where(button, a, [role='button']):active:not(:disabled) > svg {
+  transform: rotate(-5deg) scale(0.94);
+  transition: transform 80ms ease-out;
+}
+
+:where(button, a, input, select, textarea, [role='button']):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-accent-light) 38%, transparent);
+  outline-offset: 2px;
+}
+
+/* Apparition légère des surfaces principales, sans rebond sur les tableaux denses. */
+.app-route-stage :where(
+  .side-card,
+  .stat-tile,
+  .admin-kpi-card,
+  .monitor-card,
+  .presence-kpi-card,
+  .profile-panel,
+  .profile-hero-card,
+  .lists-panel,
+  .resources-folder-panel,
+  .resources-files-panel
+) {
+  animation: surface-reveal var(--motion-slow) var(--motion-ease-out) both;
+}
+
+.app-route-stage :where(
+  .admin-kpi-grid,
+  .employee-stats-kpi-grid,
+  .astat-kpi-grid,
+  .presence-kpi-grid,
+  .stat-tile-grid
+) > :nth-child(2) { animation-delay: 55ms; }
+
+.app-route-stage :where(
+  .admin-kpi-grid,
+  .employee-stats-kpi-grid,
+  .astat-kpi-grid,
+  .presence-kpi-grid,
+  .stat-tile-grid
+) > :nth-child(3) { animation-delay: 100ms; }
+
+.app-route-stage :where(
+  .admin-kpi-grid,
+  .employee-stats-kpi-grid,
+  .astat-kpi-grid,
+  .presence-kpi-grid,
+  .stat-tile-grid
+) > :nth-child(4) { animation-delay: 145ms; }
+
+.app-route-stage :where(
+  .admin-kpi-grid,
+  .employee-stats-kpi-grid,
+  .astat-kpi-grid,
+  .presence-kpi-grid,
+  .stat-tile-grid
+) > :nth-child(5) { animation-delay: 190ms; }
+
+@keyframes surface-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Menus, fenêtres et tiroirs gardent une continuité spatiale. */
+:where(
+  .modal-backdrop,
+  .messaging-modal-backdrop,
+  .resources-modal-backdrop,
+  .aplan-modal-backdrop,
+  .emp-drawer-overlay
+) {
+  animation: overlay-fade-in var(--motion-base) ease-out both;
+}
+
+:where(.modal-card, .messaging-modal, .resources-modal, .aplan-modal) {
+  animation: dialog-pop-in 280ms var(--motion-ease-out) both;
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Icônes d'actualisation : rotation uniquement au survol ou pendant le chargement. */
+:where(.astat-refresh, .employee-stats-refresh-button):hover:not(:disabled) svg {
+  transform: rotate(160deg);
+  transition: transform var(--motion-base) var(--motion-ease-standard);
+}
+
+:where(.stat-tile-value, .admin-kpi-copy strong, .presence-kpi-card strong) {
+  font-variant-numeric: tabular-nums;
+}
+
+.route-access-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  font-family: var(--font-family);
+  animation: route-stage-in var(--motion-base) ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  :where(button, a, [role='button']):active:not(:disabled),
+  :where(button, a, [role='button']):active:not(:disabled) > svg {
+    transform: none;
+  }
+}

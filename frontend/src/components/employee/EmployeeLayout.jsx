@@ -338,7 +338,9 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
           </div>
         </header>
 
-        <main className="shell-content">{skeleton ? <PageSkeleton variant={skeleton} /> : children}</main>
+        <main key={location.pathname} className="shell-content app-route-stage">
+          {skeleton ? <PageSkeleton variant={skeleton} /> : children}
+        </main>
       </div>
 
       <ConnectionChrono />
