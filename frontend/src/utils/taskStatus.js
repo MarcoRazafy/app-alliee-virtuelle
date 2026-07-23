@@ -1,5 +1,6 @@
 export const STATUS_PILL = {
   DECLAREE: { label: 'Déclarée', className: 'pill--declared' },
+  DECLAREE: { label: 'Déclarée', className: 'pill--declared' },
   VALIDEE: { label: 'À faire', className: 'pill--todo' },
   EN_COURS: { label: 'En cours', className: 'pill--progress' },
   // Statut synthétique calculé côté front (EN_COURS sans session de chrono active)

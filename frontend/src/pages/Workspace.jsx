@@ -33,6 +33,7 @@ function Workspace() {
   const [pendingTaskId, setPendingTaskId] = useState(null);
   const [secondsWorkedToday, setSecondsWorkedToday] = useState(0);
   const [showTip, setShowTip] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const loadDay = useCallback(async () => {
     const selection = await taskService.getMyDay();
@@ -64,7 +65,7 @@ function Workspace() {
   }, []);
 
   useEffect(() => {
-    loadDay();
+    loadDay().finally(() => setLoading(false));
     loadStatsToday();
   }, [loadDay, loadStatsToday]);
 
@@ -134,6 +135,7 @@ function Workspace() {
       title="Mon espace"
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Mon espace' }]}
       subtitle="Vue d'aujourd'hui et suivi de vos tâches sélectionnées"
+      skeleton={loading ? 'cards' : null}
     >
       <div className="workspace-grid">
         <div className="workspace-main">

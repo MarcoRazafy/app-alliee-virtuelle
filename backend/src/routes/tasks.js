@@ -10,6 +10,14 @@ router.use(authMiddleware);
 // Routes statiques déclarées avant /tasks/:id pour éviter tout conflit de matching
 router.get('/tasks/late', authMiddleware.requireRole('ADMIN'), taskController.getLateTasks);
 
+// Demandes de tâche supplémentaire (après validation de la journée).
+// Déclarées ici, avant /tasks/:id, sinon "extra-requests" serait pris pour un :id.
+router.post('/tasks/extra-requests', taskController.createExtraTaskRequest);
+router.get('/tasks/extra-requests/me', taskController.getMyExtraTaskRequests);
+router.get('/tasks/extra-requests', authMiddleware.requireRole('ADMIN'), taskController.listExtraTaskRequests);
+router.post('/tasks/extra-requests/:id/approve', authMiddleware.requireRole('ADMIN'), taskController.approveExtraTaskRequest);
+router.post('/tasks/extra-requests/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectExtraTaskRequest);
+
 // Employé
 router.get('/tasks', taskController.listTasks);
 router.get('/tasks/:id', taskController.getTask);
@@ -36,7 +44,9 @@ router.delete('/tasks/:id/attachments/:fileId', taskController.deleteAttachment)
 router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 
 // Admin
-router.post('/tasks', authMiddleware.requireRole('ADMIN'), taskController.createTask);
+// Création ouverte à tous : un admin crée une tâche directement actionnable ;
+// un employé crée une proposition (DECLAREE) que l'admin doit valider.
+router.post('/tasks', taskController.createTask);
 router.post('/tasks/:id/validate', authMiddleware.requireRole('ADMIN'), taskController.validateTask);
 router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskController.confirmTask);
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);

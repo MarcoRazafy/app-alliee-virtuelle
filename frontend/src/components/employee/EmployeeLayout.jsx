@@ -7,6 +7,7 @@ import api from '../../services/api';
 import * as messageService from '../../services/messageService';
 import * as avatarService from '../../services/avatarService';
 import { notifyInfo } from '../../utils/toast';
+import { PageSkeleton } from '../Skeleton';
 import {
   IconWorkspace,
   IconCalendarCheck,
@@ -40,7 +41,7 @@ const NAV_ITEMS = [
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
 
-function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
+function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, children }) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
@@ -174,7 +175,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
   return (
     <div className="shell">
       {mobileNavOpen && <div className="sidebar-overlay" onClick={() => setMobileNavOpen(false)} />}
-      <aside className={`sidebar${mobileNavOpen ? ' sidebar--mobile-open' : ''}`}>
+      <aside className={`sidebar sidebar--rail${mobileNavOpen ? ' sidebar--mobile-open' : ''}`}>
         <button
           type="button"
           className="sidebar-close-btn"
@@ -184,6 +185,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
           <IconX />
         </button>
         <div className="sidebar-brand">
+          <img src="/logo-mark.png" alt="" aria-hidden="true" className="sidebar-logo-mark" />
           <img src="/logo.png" alt="L'Alliée Virtuelle" className="sidebar-logo" />
         </div>
 
@@ -336,7 +338,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
           </div>
         </header>
 
-        <main className="shell-content">{children}</main>
+        <main className="shell-content">{skeleton ? <PageSkeleton variant={skeleton} /> : children}</main>
       </div>
 
       <ConnectionChrono />

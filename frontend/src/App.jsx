@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { closeSessionOnUnload } from './services/sessionService';
+import { heartbeatSession, signalSessionDisconnect } from './services/sessionService';
+import { getToken } from './services/auth';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -20,8 +21,9 @@ import AdminCreateTask from './pages/admin/AdminCreateTask';
 import AdminListView from './pages/admin/AdminListView';
 import AdminTasksToValidate from './pages/admin/AdminTasksToValidate';
 import AdminLateTasks from './pages/admin/AdminLateTasks';
+import AdminTaskRequests from './pages/admin/AdminTaskRequests';
 import AdminStatistics from './pages/admin/AdminStatistics';
-import AdminPlanning from './pages/admin/AdminPlanning';
+import AdminPlanningPresence from './pages/admin/AdminPlanningPresence';
 import AdminAssistant from './pages/admin/AdminAssistant';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminMessaging from './pages/admin/AdminMessaging';
@@ -38,12 +40,21 @@ function AdminRoute({ children }) {
 }
 
 function App() {
-  // Chrono de connexion (présence), indépendant du chrono de tâche : ferme la session
-  // ouverte quand l'utilisateur ferme l'onglet/le navigateur (pagehide ne se déclenche
-  // pas sur une navigation interne React Router, seulement au déchargement réel de la page).
+  // Une actualisation ne doit jamais interrompre la présence. Tant qu'un token existe,
+  // l'application rafraîchit la session ; le backend borne automatiquement une session
+  // abandonnée après l'arrêt des heartbeats.
   useEffect(() => {
-    window.addEventListener('pagehide', closeSessionOnUnload);
-    return () => window.removeEventListener('pagehide', closeSessionOnUnload);
+    function heartbeat() {
+      if (!getToken()) return;
+      heartbeatSession().catch(() => {});
+    }
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 20000);
+    window.addEventListener('pagehide', signalSessionDisconnect);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('pagehide', signalSessionDisconnect);
+    };
   }, []);
 
   return (
@@ -138,8 +149,9 @@ function App() {
         <Route path="/admin/lists" element={<AdminRoute><AdminListView /></AdminRoute>} />
         <Route path="/admin/validate" element={<AdminRoute><AdminTasksToValidate /></AdminRoute>} />
         <Route path="/admin/late" element={<AdminRoute><AdminLateTasks /></AdminRoute>} />
+        <Route path="/admin/task-requests" element={<AdminRoute><AdminTaskRequests /></AdminRoute>} />
         <Route path="/admin/stats" element={<AdminRoute><AdminStatistics /></AdminRoute>} />
-        <Route path="/admin/planning" element={<AdminRoute><AdminPlanning /></AdminRoute>} />
+        <Route path="/admin/planning" element={<AdminRoute><AdminPlanningPresence /></AdminRoute>} />
         <Route path="/admin/assistant" element={<AdminRoute><AdminAssistant /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
         <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />

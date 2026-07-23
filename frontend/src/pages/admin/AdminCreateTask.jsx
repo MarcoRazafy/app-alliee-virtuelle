@@ -152,8 +152,8 @@ function AdminCreateTask() {
       if (!payload.list_id) delete payload.list_id;
       if (!payload.client_name) delete payload.client_name;
       if (!payload.client_email) delete payload.client_email;
-      const result = await taskService.createTask(payload);
-      notifySuccess(`Tâche créée avec le statut ${result.status}`);
+      await taskService.createTask(payload);
+      notifySuccess("Tâche envoyée à l'employé : elle peut être démarrée immédiatement");
       resetAll();
     } catch (err) {
       const data = err.response?.data;

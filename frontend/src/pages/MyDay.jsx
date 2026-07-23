@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import DragDropTasks from '../components/DragDropTasks';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
+import { IconX } from '../components/icons';
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -18,31 +19,61 @@ function MyDay() {
   const [selected, setSelected] = useState([]);
   const [validated, setValidated] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+  const [requestsByTaskId, setRequestsByTaskId] = useState({});
+  const [requestingTask, setRequestingTask] = useState(null); // tâche pour laquelle on ouvre la modale
+  const [requestMessage, setRequestMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const setDayValidated = useAuthStore((state) => state.setDayValidated);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [allTasks, myDay] = await Promise.all([taskService.getTasks(), taskService.getMyDay()]);
+  // Recharge tout l'état. En mode "journée validée", on l'appelle aussi en polling pour voir
+  // apparaître les tâches supplémentaires approuvées par l'admin (et le statut des demandes).
+  const load = useCallback(async () => {
+    const [allTasks, myDay, myRequests] = await Promise.all([
+      taskService.getTasks(),
+      taskService.getMyDay(),
+      taskService.getMyExtraTaskRequests().catch(() => []),
+    ]);
 
-        // Une tâche pas encore terminée (VALIDEE ou EN_COURS) reste sélectionnable pour aujourd'hui
-        const selectableTasks = allTasks.filter((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
+    // Une tâche pas encore terminée (VALIDEE ou EN_COURS) reste sélectionnable pour aujourd'hui
+    const selectableTasks = allTasks.filter((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
 
-        const selectedIds = new Set(myDay.map((item) => item.task_id));
-        setSelected(
-          myDay.map((item) => ({ id: item.task_id, title: item.task_data.title, priority: item.task_data.priority }))
-        );
-        setAvailable(selectableTasks.filter((task) => !selectedIds.has(task.id)));
+    const selectedIds = new Set(myDay.map((item) => item.task_id));
+    setSelected(
+      myDay.map((item) => ({
+        id: item.task_id,
+        title: item.task_data.title,
+        priority: item.task_data.priority,
+        deadline: item.task_data.deadline,
+      }))
+    );
+    setAvailable(selectableTasks.filter((task) => !selectedIds.has(task.id)));
 
-        const isValidated = myDay.length > 0 && myDay.every((item) => item.validated_at);
-        setValidated(isValidated);
-        setDayValidated(isValidated || selectableTasks.length === 0);
-      } catch (err) {
-        notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
-      }
+    const isValidated = myDay.length > 0 && myDay.every((item) => item.validated_at);
+    setValidated(isValidated);
+    setDayValidated(isValidated || selectableTasks.length === 0);
+
+    // Dernière demande par tâche (la liste est déjà triée du plus récent au plus ancien).
+    const map = {};
+    for (const r of myRequests) {
+      if (!(r.task_id in map)) map[r.task_id] = r;
     }
-    load();
+    setRequestsByTaskId(map);
   }, [setDayValidated]);
+
+  useEffect(() => {
+    load().catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches'));
+  }, [load]);
+
+  // Polling seulement en mode validé : sinon on écraserait le drag-drop en cours de l'employé.
+  const validatedRef = useRef(validated);
+  validatedRef.current = validated;
+  useEffect(() => {
+    if (!validated) return undefined;
+    const poll = setInterval(() => {
+      if (validatedRef.current) load().catch(() => {});
+    }, 15000);
+    return () => clearInterval(poll);
+  }, [validated, load]);
 
   function handleUpdate({ available: newAvailable, selected: newSelected }) {
     setAvailable(newAvailable);
@@ -65,6 +96,27 @@ function MyDay() {
       notifyError(err.response?.data?.error || 'Impossible de valider la journée');
     } finally {
       setIsValidating(false);
+    }
+  }
+
+  function openRequest(task) {
+    setRequestingTask(task);
+    setRequestMessage('');
+  }
+
+  async function submitRequest(e) {
+    e.preventDefault();
+    if (!requestingTask) return;
+    setIsSending(true);
+    try {
+      await taskService.createExtraTaskRequest(requestingTask.id, requestMessage.trim() || undefined);
+      notifySuccess("Demande envoyée à l'administrateur");
+      setRequestingTask(null);
+      await load();
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Impossible d'envoyer la demande");
+    } finally {
+      setIsSending(false);
     }
   }
 
@@ -96,7 +148,27 @@ function MyDay() {
         </div>
       )}
 
-      <DragDropTasks availableTasks={available} selectedTasks={selected} onUpdate={handleUpdate} validated={validated} />
+      {validated && (
+        <div className="info-banner info-banner--success">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>
+            Votre journée est validée. Vous avez terminé vos tâches ? Cliquez sur <strong>« Demander »</strong> à côté
+            d'une tâche disponible : un administrateur doit l'approuver avant qu'elle rejoigne votre journée.
+          </span>
+        </div>
+      )}
+
+      <DragDropTasks
+        availableTasks={available}
+        selectedTasks={selected}
+        onUpdate={handleUpdate}
+        validated={validated}
+        requestsByTaskId={requestsByTaskId}
+        onRequestTask={openRequest}
+      />
 
       <div className="app-actions">
         {!validated && (
@@ -111,6 +183,57 @@ function MyDay() {
           </Link>
         )}
       </div>
+
+      {requestingTask && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setRequestingTask(null)}>
+          <div
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="extra-request-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="modal-card-head">
+              <div>
+                <p className="modal-card-eyebrow">Tâche supplémentaire</p>
+                <h2 id="extra-request-title">Demander « {requestingTask.title} »</h2>
+              </div>
+              <button type="button" className="modal-card-close" onClick={() => setRequestingTask(null)} aria-label="Fermer">
+                <IconX />
+              </button>
+            </div>
+
+            <p className="modal-card-hint">
+              Votre journée est déjà validée. Cette tâche sera ajoutée à votre journée une fois approuvée par un
+              administrateur.
+            </p>
+
+            <form className="modal-card-form" onSubmit={submitRequest}>
+              <label className="modal-field">
+                <span className="modal-label">Message à l'administrateur (facultatif)</span>
+                <textarea
+                  className="modal-input modal-textarea"
+                  rows={3}
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                  placeholder="Ex : j'ai terminé toutes mes tâches, je peux prendre celle-ci."
+                  autoFocus
+                />
+              </label>
+
+              <div className="modal-card-foot">
+                <button type="button" className="btn-outline" onClick={() => setRequestingTask(null)}>
+                  Annuler
+                </button>
+                <button type="submit" className="btn-primary" disabled={isSending}>
+                  {isSending && <span className="btn-spinner" />}
+                  {isSending ? 'Envoi...' : 'Envoyer la demande'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </EmployeeLayout>
   );
 }

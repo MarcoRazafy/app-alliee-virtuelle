@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as planningService from '../../services/planningService';
 import * as userService from '../../services/userService';
+import * as avatarService from '../../services/avatarService';
+import * as sessionService from '../../services/sessionService';
 import { notifyError, notifySuccess } from '../../utils/toast';
 import WeekCalendarGrid from '../../components/employee/WeekCalendarGrid';
 import { IconAlert, IconX, IconCalendarWeek, IconUser, IconCheckCircle, IconClock, IconSearch } from '../../components/icons';
@@ -24,6 +26,13 @@ import '../../styles/admin-planning.css';
 
 function todayDateInputValue() {
   return toDateInputValue(new Date());
+}
+
+// Décale une date (chaîne YYYY-MM-DD) de n jours et renvoie une chaîne YYYY-MM-DD.
+function shiftDays(dateString, days) {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() + days);
+  return toDateInputValue(date);
 }
 
 function initials(name) {
@@ -81,6 +90,8 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
   const [errors, setErrors] = useState([]);
   const [history, setHistory] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [sessionSegmentsByDate, setSessionSegmentsByDate] = useState(undefined);
+  const [sessionError, setSessionError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +112,32 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
       cancelled = true;
     };
   }, [planningId]);
+
+  // Présence réelle de l'employé sur cette semaine, superposée au calendrier + suivi temps réel.
+  useEffect(() => {
+    const userId = detail?.user?.id;
+    const weekStart = detail?.week_start_date;
+    if (!userId || !weekStart) return undefined;
+    setSessionSegmentsByDate(undefined);
+    setSessionError('');
+    function refresh() {
+      sessionService
+        .getUserSessionsForWeek(userId, weekStart)
+        .then((segments) => {
+          const byDate = {};
+          segments.forEach((segment) => {
+            if (!byDate[segment.date]) byDate[segment.date] = [];
+            byDate[segment.date].push(segment);
+          });
+          setSessionSegmentsByDate(byDate);
+          setSessionError('');
+        })
+        .catch(() => setSessionError('Impossible de charger la présence. Aucun statut d’absence n’est déduit.'));
+    }
+    refresh();
+    const interval = window.setInterval(refresh, 15000);
+    return () => window.clearInterval(interval);
+  }, [detail?.user?.id, detail?.week_start_date]);
 
   useEffect(() => {
     function onKey(e) {
@@ -153,10 +190,7 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
   }
 
   async function handleSave() {
-    if (!changeReason.trim()) {
-      setErrors(['Le motif de la modification est obligatoire.']);
-      return;
-    }
+    // Le motif est facultatif : aucune validation bloquante côté client.
     setSaving(true);
     setErrors([]);
     try {
@@ -227,7 +261,10 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                   <IconAlert />
                   <span>
                     Modifié par {detail.planning.last_modified_by_name || 'un administrateur'} le{' '}
-                    {formatDateTime(detail.planning.admin_modified_at)}. Motif : {detail.planning.last_admin_change_reason}
+                    {formatDateTime(detail.planning.admin_modified_at)}
+                    {detail.planning.last_admin_change_reason
+                      ? `. Motif : ${detail.planning.last_admin_change_reason}`
+                      : ''}
                   </span>
                 </div>
               )}
@@ -280,6 +317,13 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 couleur définissent le statut du jour.
               </p>
 
+              {sessionError && (
+                <div className="info-banner info-banner--planning-error" role="alert">
+                  <IconAlert />
+                  <span>{sessionError}</span>
+                </div>
+              )}
+
               <WeekCalendarGrid
                 days={draftDays}
                 canEdit
@@ -288,21 +332,29 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
                 onSlotsChange={handleSlotsChange}
                 onCopyTo={handleCopyTo}
                 onNoteChange={handleNoteChange}
+                sessionSegmentsByDate={sessionSegmentsByDate}
               />
+
+              <p className="cal-session-legend" aria-label="Légende de présence réelle">
+                Présence réelle :
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> conforme</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--late" /> retard</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--missing" /> non couvert</span>
+              </p>
 
               <label className="planning-general-note aplan-note">
                 <span>Note générale (facultatif)</span>
                 <textarea rows="2" value={draftNote} onChange={(e) => setDraftNote(e.target.value)} />
               </label>
 
-              <label className="planning-general-note aplan-note aplan-note--required">
-                <span>Motif de la modification (obligatoire)</span>
+              <label className="planning-general-note aplan-note">
+                <span>Motif de la modification (facultatif)</span>
                 <textarea
                   rows="2"
                   value={changeReason}
                   onChange={(e) => setChangeReason(e.target.value)}
-                  placeholder="Ex : Absence imprévue, remplacement…"
-                  required
+                  placeholder="Ex : Absence imprévue, remplacement… (optionnel)"
                 />
               </label>
             </>
@@ -333,6 +385,7 @@ function AdminPlanning() {
     submitted: '',
   });
   const [employees, setEmployees] = useState([]);
+  const [avatarUrls, setAvatarUrls] = useState({});
   const [summary, setSummary] = useState(null);
   const [plannings, setPlannings] = useState([]);
   const [nonSubmitted, setNonSubmitted] = useState([]);
@@ -358,6 +411,27 @@ function AdminPlanning() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAvatars = async () => {
+      const entries = await Promise.all(
+        employees.filter((employee) => employee.has_avatar).map(async (employee) => {
+          try {
+            const blob = await avatarService.getUserAvatarBlob(employee.id);
+            return [employee.id, URL.createObjectURL(blob)];
+          } catch { return null; }
+        })
+      );
+      if (!cancelled) setAvatarUrls(Object.fromEntries(entries.filter(Boolean)));
+    };
+    loadAvatars();
+    return () => { cancelled = true; };
+  }, [employees]);
+
+  function employeeAvatar(userId, name) {
+    return avatarUrls[userId] ? <img src={avatarUrls[userId]} alt="" className="aplan-row-avatar aplan-row-avatar--image" /> : <span className="aplan-row-avatar">{initials(name)}</span>;
+  }
 
   function loadTable(activeFilters) {
     setLoadingTable(true);
@@ -393,6 +467,10 @@ function AdminPlanning() {
     if (!value) return;
     handleFilterChange('week_start_date', getMondayOf(value));
   }
+
+  // Raccourcis de semaine (lundi de la semaine courante / suivante).
+  const currentWeekStart = getMondayOf(todayDateInputValue());
+  const nextWeekStart = shiftDays(currentWeekStart, 7);
 
   async function handleCreateForNonSubmitted(employee) {
     try {
@@ -445,6 +523,20 @@ function AdminPlanning() {
       <div className="admin-filter-bar aplan-filters">
         <div className="filter-group">
           <span className="filter-group-label">Semaine</span>
+          <button
+            type="button"
+            className={`filter-chip${filters.week_start_date === currentWeekStart ? ' filter-chip--active' : ''}`}
+            onClick={() => handleFilterChange('week_start_date', currentWeekStart)}
+          >
+            Cette semaine
+          </button>
+          <button
+            type="button"
+            className={`filter-chip${filters.week_start_date === nextWeekStart ? ' filter-chip--active' : ''}`}
+            onClick={() => handleFilterChange('week_start_date', nextWeekStart)}
+          >
+            Semaine prochaine
+          </button>
           <input
             type="date"
             className="filter-select"
@@ -530,7 +622,7 @@ function AdminPlanning() {
                   <tr key={row.planning_id} className="aplan-row" onClick={() => setSelectedPlanningId(row.planning_id)}>
                     <td>
                       <span className="aplan-row-name">
-                        <span className="aplan-row-avatar">{initials(row.full_name)}</span>
+                        {employeeAvatar(row.user_id, row.full_name)}
                         {row.full_name}
                       </span>
                     </td>
@@ -575,7 +667,7 @@ function AdminPlanning() {
             <ul className="aplan-nonsubmitted">
               {nonSubmitted.map((employee) => (
                 <li key={employee.user_id}>
-                  <span className="aplan-row-avatar">{initials(employee.full_name)}</span>
+                  {employeeAvatar(employee.user_id, employee.full_name)}
                   <span className="aplan-nonsubmitted-info">
                     <strong>{employee.full_name}</strong>
                     <span>{employee.position || '—'}</span>

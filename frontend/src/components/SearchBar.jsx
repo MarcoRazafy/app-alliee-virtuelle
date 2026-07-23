@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { IconSearch } from './icons';
 
 const STATUS_OPTIONS = [
-  { value: 'VALIDEE', label: 'À faire' },
+  { value: 'DECLAREE', label: 'Déclarée' },
   { value: 'EN_COURS', label: 'En cours' },
   { value: 'A_REPRENDRE', label: 'À reprendre' },
   { value: 'TERMINEE', label: 'Terminée' },

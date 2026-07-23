@@ -2,10 +2,17 @@
    par glisser-déposer. Couleurs directement sur les tokens partagés (tokens.css),
    utilisable hors de tout wrapper spécifique (voir planning.css pour le même choix). */
 
+.cal-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .cal-grid-wrap {
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: 12px;
+  overscroll-behavior-x: contain;
 }
 
 .cal-grid {
@@ -21,6 +28,11 @@
 .cal-corner {
   height: 56px;
   border-bottom: 1px solid var(--color-border);
+}
+
+.cal-grid--presence .cal-corner,
+.cal-grid--presence .cal-day-header {
+  height: 112px;
 }
 
 .cal-hour-label {
@@ -55,6 +67,10 @@
   background: var(--input-bg);
 }
 
+.cal-grid--presence .cal-day-column-wrap {
+  min-width: 124px;
+}
+
 .cal-day-title {
   color: var(--color-text-primary);
   font-size: 0.68rem;
@@ -65,9 +81,77 @@
 
 .cal-day-status-toggle {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
+
+.cal-presence-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 8px);
+  min-height: 44px;
+  padding: 5px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cal-presence-summary:hover,
+.cal-presence-summary:focus-visible,
+.cal-presence-summary[aria-expanded='true'] {
+  border-color: var(--color-accent-light);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-secondary));
+}
+
+.cal-presence-summary:focus-visible {
+  outline: 2px solid var(--color-accent-lighter);
+  outline-offset: 2px;
+}
+
+.cal-presence-summary-dot {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.cal-presence-summary-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cal-presence-summary-copy strong,
+.cal-presence-summary-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-presence-summary-copy strong {
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.cal-presence-summary-copy span {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.cal-presence-summary--ontime .cal-presence-summary-dot { background: var(--color-success); }
+.cal-presence-summary--late .cal-presence-summary-dot { background: var(--color-warning); }
+.cal-presence-summary--off .cal-presence-summary-dot { background: var(--color-info); }
+.cal-presence-summary--missing .cal-presence-summary-dot { background: var(--color-error); }
 
 .cal-status-dot {
   width: 16px;
@@ -156,7 +240,7 @@
 
 .cal-slot {
   position: absolute;
-  /* left décalé de 8px pour laisser la place à la bande fine .cal-session-block
+  /* left décalé pour laisser la place à la bande .cal-session-block
      (chrono de connexion réel) sans jamais se superposer visuellement avec elle. */
   left: 10px;
   right: 2px;
@@ -167,34 +251,323 @@
   touch-action: none;
 }
 
+.cal-grid--presence .cal-slot {
+  left: 22px;
+}
+
 /* Chrono de connexion (présence), indépendant des plages de disponibilité déclarées :
-   une fine bande à gauche de la colonne, colorée uniquement sur les heures où
-   l'utilisateur était réellement connecté à l'application. Lecture seule (jamais éditable). */
+   une bande dédiée à gauche de la colonne, colorée uniquement sur les heures où
+   l'utilisateur était réellement connecté. Couleur = état vs planning :
+   vert = à l'heure, ambre = en retard, bleu = hors planning. Lecture seule. */
 .cal-session-block {
   position: absolute;
   left: 2px;
-  width: 6px;
-  border-radius: 3px;
+  z-index: 2;
+  width: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-bg-primary) 65%, transparent);
+  border-radius: 4px;
   background: var(--color-accent-lighter);
-  opacity: 0.85;
+  /* Contour sombre : garantit que la bande se détache toujours du créneau adjacent,
+     même quand ils sont de la même couleur (ex : présence à l'heure sur créneau disponible). */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.cal-session-block--ontime { background: var(--color-success); }
+.cal-session-block--late { background: var(--color-warning); }
+.cal-session-block--off { background: var(--color-info); }
+.cal-session-block--missing {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--color-error) 88%, transparent) 0,
+    color-mix(in srgb, var(--color-error) 88%, transparent) 3px,
+    color-mix(in srgb, var(--color-error) 30%, transparent) 3px,
+    color-mix(in srgb, var(--color-error) 30%, transparent) 6px
+  );
+}
+
+/* Session encore en cours (connexion "en direct") : pastille pulsante au pied de la bande. */
+.cal-session-block--live::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: inherit;
+  animation: cal-session-pulse 1.5s ease-out infinite;
+}
+
+@keyframes cal-session-pulse {
+  0% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  70% { box-shadow: 0 0 0 6px transparent; opacity: 0.6; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+}
+
+.cal-session-block--live {
+  color: inherit;
 }
 
 .cal-session-legend {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+  flex-wrap: wrap;
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+}
+
+.cal-session-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .cal-session-legend-swatch {
   display: inline-block;
-  width: 6px;
+  width: 10px;
   height: 16px;
   border-radius: 3px;
   background: var(--color-accent-lighter);
-  opacity: 0.85;
+}
+
+.cal-session-legend-swatch--ontime { background: var(--color-success); }
+.cal-session-legend-swatch--late { background: var(--color-warning); }
+.cal-session-legend-swatch--off { background: var(--color-info); }
+.cal-session-legend-swatch--missing {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-error) 0,
+    var(--color-error) 3px,
+    color-mix(in srgb, var(--color-error) 25%, transparent) 3px,
+    color-mix(in srgb, var(--color-error) 25%, transparent) 6px
+  );
+}
+
+.cal-presence-detail {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-bg-secondary) 94%, var(--color-accent) 6%);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-bg-primary) 40%, transparent);
+}
+
+.cal-presence-detail:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-accent-lighter) 75%, transparent);
+  outline-offset: 2px;
+}
+
+.cal-presence-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cal-presence-detail-kicker,
+.cal-presence-detail-head h3,
+.cal-presence-detail-ranges h4,
+.cal-presence-detail-ranges p,
+.cal-presence-detail-timeline h4 {
+  margin: 0;
+}
+
+.cal-presence-detail-kicker {
+  margin-bottom: 3px;
+  color: var(--color-accent-lighter);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cal-presence-detail-head h3 {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+
+.cal-presence-detail-close {
+  display: inline-flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+  background: var(--input-bg);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.cal-presence-detail-close:hover,
+.cal-presence-detail-close:focus-visible {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-light);
+  background: var(--glow-accent);
+}
+
+.cal-presence-detail-close:focus-visible {
+  outline: 2px solid var(--color-accent-lighter);
+  outline-offset: 2px;
+}
+
+.cal-presence-detail-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cal-presence-detail-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.cal-presence-detail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--color-text-primary);
+  background: var(--input-bg);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.cal-presence-detail-badge > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.cal-presence-detail-badge--ontime > span { background: var(--color-success); }
+.cal-presence-detail-badge--late > span { background: var(--color-warning); }
+.cal-presence-detail-badge--off > span { background: var(--color-info); }
+.cal-presence-detail-badge--missing > span { background: var(--color-error); }
+
+.cal-presence-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.cal-presence-detail-metrics > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--input-bg);
+}
+
+.cal-presence-detail-metrics dt {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.cal-presence-detail-metrics dd {
+  margin: 4px 0 0;
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
+.cal-presence-detail-ranges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cal-presence-detail-ranges > div {
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cal-presence-detail-ranges h4 {
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+}
+
+.cal-presence-detail-ranges p {
+  margin-top: 5px;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.cal-presence-detail-timeline {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cal-presence-detail-timeline h4 {
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+}
+
+.cal-presence-detail-timeline ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cal-presence-detail-timeline li {
+  display: grid;
+  grid-template-columns: 10px auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.cal-presence-detail-timeline li strong {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-presence-detail-timeline li span:not(.cal-presence-timeline-mark) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-presence-detail-timeline li em {
+  color: var(--color-accent-lighter);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.cal-presence-timeline-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--color-text-muted);
+}
+
+.cal-presence-timeline-mark--ontime { background: var(--color-success); }
+.cal-presence-timeline-mark--late { background: var(--color-warning); }
+.cal-presence-timeline-mark--off { background: var(--color-info); }
+.cal-presence-timeline-mark--missing {
+  background: repeating-linear-gradient(-45deg, var(--color-error) 0, var(--color-error) 3px, transparent 3px, transparent 5px);
 }
 
 .cal-slot--available {
@@ -313,5 +686,47 @@
 @media (max-width: 900px) {
   .cal-day-column-wrap {
     min-width: 84px;
+  }
+
+  .cal-grid--presence .cal-day-column-wrap {
+    min-width: 120px;
+  }
+
+  .cal-presence-detail-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .cal-presence-detail {
+    padding: 14px;
+  }
+
+  .cal-presence-detail-metrics,
+  .cal-presence-detail-ranges,
+  .cal-presence-detail-timeline ul {
+    grid-template-columns: 1fr;
+  }
+
+  .cal-presence-detail-metrics > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .cal-presence-detail-metrics dd {
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-session-block--live::after {
+    animation: none;
+  }
+
+  .cal-presence-summary,
+  .cal-presence-detail-close {
+    transition: none;
   }
 }
