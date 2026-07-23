@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as statsService from '../services/statsService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
+import AnimatedNumber from '../components/AnimatedNumber';
 import { formatClock, formatDurationShort } from '../utils/formatters';
 import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
@@ -27,6 +28,7 @@ function todayDateString() {
 function Workspace() {
   const [dayTasks, setDayTasks] = useState([]);
   const [dayValidated, setDayValidated] = useState(false);
+  const [noTasksAvailable, setNoTasksAvailable] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
   const [elapsed, setElapsed] = useState(0);
@@ -36,8 +38,11 @@ function Workspace() {
   const [loading, setLoading] = useState(true);
 
   const loadDay = useCallback(async () => {
-    const selection = await taskService.getMyDay();
-    setDayValidated(selection.length > 0 && selection.every((item) => item.validated_at));
+    const [selection, allTasks] = await Promise.all([taskService.getMyDay(), taskService.getTasks()]);
+    const selectionValidated = selection.length > 0 && selection.every((item) => item.validated_at);
+    const hasAvailableTasks = allTasks.some((task) => task.status === 'VALIDEE' || task.status === 'EN_COURS');
+    setNoTasksAvailable(!hasAvailableTasks);
+    setDayValidated(selectionValidated || !hasAvailableTasks);
     const tasks = selection.map((item) => ({ id: item.task_id, ...item.task_data }));
     setDayTasks(tasks);
 
@@ -184,7 +189,10 @@ function Workspace() {
                 <IconPlay />
               </span>
               <div>
-                <strong>Aucun chrono actif.</strong> Démarrez une tâche ci-dessous pour commencer à suivre votre temps.
+                <strong>Aucun chrono actif.</strong>{' '}
+                {noTasksAvailable
+                  ? 'Aucune tâche ne vous est assignée, mais toute la plateforme reste accessible.'
+                  : 'Démarrez une tâche ci-dessous pour commencer à suivre votre temps.'}
               </div>
             </div>
           )}
@@ -209,7 +217,11 @@ function Workspace() {
               </div>
             )}
             {dayTasks.length === 0 && dayValidated && (
-              <div className="empty-state">Aucune tâche sélectionnée pour aujourd'hui.</div>
+              <div className="empty-state">
+                {noTasksAvailable
+                  ? 'Aucune tâche assignée pour le moment. Vous pouvez continuer à visiter la plateforme.'
+                  : "Aucune tâche sélectionnée pour aujourd'hui."}
+              </div>
             )}
 
             {dayTasks.length > 0 && (
@@ -294,7 +306,7 @@ function Workspace() {
                   <IconChecklist />
                 </span>
                 <div>
-                  <div className="stat-tile-value">{dayTasks.length}</div>
+                  <AnimatedNumber className="stat-tile-value" value={dayTasks.length} />
                   <div className="stat-tile-label">Total sélectionnées</div>
                 </div>
               </div>
@@ -303,7 +315,7 @@ function Workspace() {
                   <IconClock />
                 </span>
                 <div>
-                  <div className="stat-tile-value">{inCourseCount}</div>
+                  <AnimatedNumber className="stat-tile-value" value={inCourseCount} />
                   <div className="stat-tile-label">En cours</div>
                 </div>
               </div>
@@ -312,7 +324,7 @@ function Workspace() {
                   <IconCheckCircle />
                 </span>
                 <div>
-                  <div className="stat-tile-value">{doneCount}</div>
+                  <AnimatedNumber className="stat-tile-value" value={doneCount} />
                   <div className="stat-tile-label">Terminées</div>
                 </div>
               </div>
@@ -321,7 +333,11 @@ function Workspace() {
                   <IconLayers />
                 </span>
                 <div>
-                  <div className="stat-tile-value">{formatDurationShort(secondsWorkedToday)}</div>
+                  <AnimatedNumber
+                    className="stat-tile-value"
+                    value={secondsWorkedToday}
+                    format={(value) => formatDurationShort(Math.round(value))}
+                  />
                   <div className="stat-tile-label">Temps travaillé</div>
                 </div>
               </div>

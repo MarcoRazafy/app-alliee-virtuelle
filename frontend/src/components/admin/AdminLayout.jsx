@@ -346,7 +346,9 @@ function AdminLayout({ children }) {
           </div>
         </header>
 
-        <main className="shell-content shell-content--wide">{children}</main>
+        <main key={location.pathname} className="shell-content shell-content--wide app-route-stage">
+          {children}
+        </main>
       </div>
     </div>
   );
