@@ -46,7 +46,7 @@
 
 /* Le dashboard admin exploite toute la largeur (grilles de cartes) */
 .shell-content--wide {
-  max-width: 1440px;
+  max-width: none;
 }
 
 /* --- États de chargement --- */

@@ -14,6 +14,7 @@ import {
   IconCheckCircle,
 } from '../../components/icons';
 import '../../styles/admin.css';
+import { PageSkeleton } from '../../components/Skeleton';
 
 const PRIORITY_META = {
   URGENT: { label: 'Urgent', cls: 'urgent' },
@@ -116,12 +117,7 @@ function AdminDashboard() {
   }, [data, query]);
 
   if (!data) {
-    return (
-      <div className="admin-loading">
-        <span className="admin-loading-spinner" />
-        <p>Chargement du suivi en temps réel…</p>
-      </div>
-    );
+    return <PageSkeleton variant="dashboard" />;
   }
 
   const activeCount = data.stats.active_employees;

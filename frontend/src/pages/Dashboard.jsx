@@ -70,6 +70,7 @@ function Dashboard() {
   const [secondsConnectedToday, setSecondsConnectedToday] = useState(0);
   const [urgentTasks, setUrgentTasks] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const firstName = user?.full_name?.split(' ')[0] || '';
 
@@ -80,11 +81,14 @@ function Dashboard() {
     }
     if (user?.role !== 'EMPLOYEE') return;
 
-    taskService.getMyDay().then((selection) => {
-      setDayValidated(selection.length > 0 && selection.every((item) => item.validated_at));
-      setTodoCount(selection.filter((item) => item.task_data.status === 'VALIDEE').length);
-      setInProgressCount(selection.filter((item) => item.task_data.status === 'EN_COURS').length);
-    });
+    taskService
+      .getMyDay()
+      .then((selection) => {
+        setDayValidated(selection.length > 0 && selection.every((item) => item.validated_at));
+        setTodoCount(selection.filter((item) => item.task_data.status === 'VALIDEE').length);
+        setInProgressCount(selection.filter((item) => item.task_data.status === 'EN_COURS').length);
+      })
+      .finally(() => setLoading(false));
 
     taskService.getTasks({ priority: 'URGENT' }).then(setUrgentTasks);
 
@@ -108,7 +112,7 @@ function Dashboard() {
   }
 
   return (
-    <EmployeeLayout title="Dashboard" breadcrumb={[{ label: 'Accueil' }]} subtitle="Bienvenue sur votre espace employé">
+    <EmployeeLayout title="Dashboard" breadcrumb={[{ label: 'Accueil' }]} subtitle="Bienvenue sur votre espace employé" skeleton={loading ? 'dashboard' : null}>
       <div className="dashboard-top-grid">
         <div className="dash-hero">
           <div className="dash-hero-watermark">

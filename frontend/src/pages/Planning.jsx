@@ -398,6 +398,7 @@ function Planning() {
       title="Planning hebdomadaire"
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Planning' }]}
       subtitle="Déclarez vos disponibilités pour la semaine prochaine"
+      skeleton={loading && !currentWeek ? 'cards' : null}
     >
       <section className="planning-page">
         {loading && <div className="empty-state">Chargement du planning...</div>}

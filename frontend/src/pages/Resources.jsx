@@ -53,6 +53,7 @@ function Resources() {
 
   return (
     <EmployeeLayout
+      skeleton={loadingFolders && folders.length === 0 ? 'cards' : null}
       title="Ressources"
       breadcrumb={[
         { label: 'Accueil', to: '/dashboard' },
