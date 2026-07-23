@@ -34,6 +34,7 @@ function matchesDeadlineRange(deadline, range) {
 
 function MyTasks() {
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: '', statuses: [], priorities: [], deadlineRange: '' });
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -70,6 +71,8 @@ function MyTasks() {
       setTasks(enriched);
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -125,6 +128,7 @@ function MyTasks() {
       title="Mes tâches"
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Mes tâches' }]}
       subtitle="Retrouvez et filtrez l'ensemble de vos tâches assignées"
+      skeleton={loading ? 'list' : null}
     >
       <div className="mytasks-toolbar">
         <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>

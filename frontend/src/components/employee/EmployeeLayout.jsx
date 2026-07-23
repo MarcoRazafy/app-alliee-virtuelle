@@ -7,6 +7,7 @@ import api from '../../services/api';
 import * as messageService from '../../services/messageService';
 import * as avatarService from '../../services/avatarService';
 import { notifyInfo } from '../../utils/toast';
+import { PageSkeleton } from '../Skeleton';
 import {
   IconWorkspace,
   IconCalendarCheck,
@@ -40,7 +41,7 @@ const NAV_ITEMS = [
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
 
-function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
+function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, children }) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
@@ -337,7 +338,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, children }) {
           </div>
         </header>
 
-        <main className="shell-content">{children}</main>
+        <main className="shell-content">{skeleton ? <PageSkeleton variant={skeleton} /> : children}</main>
       </div>
 
       <ConnectionChrono />

@@ -327,9 +327,11 @@
 
 .shell-content {
   padding: 28px 32px 56px;
-  max-width: 1280px;
+  /* Plein écran : aucune largeur maximale, le contenu occupe toute la largeur disponible
+     (plus de bandes vides à gauche/droite). Le padding conserve l'espacement de respiration ;
+     les pages en "breakout" (assistant, messagerie) le neutralisent elles-mêmes. */
+  max-width: none;
   width: 100%;
-  margin: 0 auto;
 }
 
 .shell-header-titlebar {

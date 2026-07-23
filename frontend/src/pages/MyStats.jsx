@@ -327,6 +327,7 @@ function MyStats() {
       title="Mes statistiques"
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Statistiques' }]}
       subtitle="Analysez votre activité, votre temps de travail et vos tâches confirmées"
+      skeleton={loading && !stats ? 'stats' : null}
     >
       <section className="employee-stats-page">
         <div className="employee-stats-toolbar">

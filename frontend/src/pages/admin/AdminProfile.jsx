@@ -3,6 +3,7 @@ import api from '../../services/api';
 import * as avatarService from '../../services/avatarService';
 import useAuthStore from '../../store/authStore';
 import { notifySuccess, notifyError } from '../../utils/toast';
+import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/profile-page.css';
 
 function Icon({ type }) {
@@ -221,12 +222,7 @@ function AdminProfile() {
     : '—';
 
   if (loading) {
-    return (
-      <div className="profile-page-loading" role="status">
-        <span />
-        Chargement du profil…
-      </div>
-    );
+    return <PageSkeleton variant="form" />;
   }
 
   return (

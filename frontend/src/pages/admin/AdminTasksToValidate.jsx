@@ -8,6 +8,7 @@ import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconCheckCircle, IconX, IconSearch, IconArrowRight } from '../../components/icons';
 import '../../styles/admin.css';
+import { PageSkeleton } from '../../components/Skeleton';
 
 const STATUS_META = {
   DECLAREE: { label: 'Déclarée', pill: 'declared' },
@@ -83,6 +84,7 @@ function AdminTasksToValidate() {
   const [detailTask, setDetailTask] = useState(null);
   const [motifs, setMotifs] = useState({});
   const [pendingAction, setPendingAction] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     try {
@@ -94,6 +96,8 @@ function AdminTasksToValidate() {
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
       return null;
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -274,6 +278,8 @@ function AdminTasksToValidate() {
       setPendingAction(null);
     }
   }
+
+  if (loading) return <PageSkeleton variant="list" />;
 
   return (
     <div className="validate-page">

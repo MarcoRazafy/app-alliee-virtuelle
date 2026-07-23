@@ -16,6 +16,7 @@ import {
   IconDownload,
   IconArrowRight,
 } from '../../components/icons';
+import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/resources.css';
 
 const TABS = [
@@ -255,6 +256,8 @@ function AdminResources() {
   const filteredFiles = files.filter((file) =>
     file.file_name.toLowerCase().includes(fileSearch.trim().toLowerCase())
   );
+
+  if (loadingFolders && folders.length === 0) return <PageSkeleton variant="cards" />;
 
   return (
     <section className="resources-page">

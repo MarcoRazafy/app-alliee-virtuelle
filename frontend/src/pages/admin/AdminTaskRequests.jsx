@@ -3,6 +3,7 @@ import * as taskService from '../../services/taskService';
 import * as avatarService from '../../services/avatarService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { IconBell, IconCheckCircle, IconX, IconClock } from '../../components/icons';
+import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/admin.css';
 
 const PRIORITY_LABEL = { URGENT: 'Urgent', HAUTE: 'Haute', NORMALE: 'Normale', FAIBLE: 'Faible' };
@@ -54,6 +55,7 @@ function formatTime(raw) {
 
 function AdminTaskRequests() {
   const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
@@ -63,7 +65,8 @@ function AdminTaskRequests() {
       taskService
         .getExtraTaskRequests()
         .then(setRequests)
-        .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les demandes')),
+        .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les demandes'))
+        .finally(() => setLoading(false)),
     []
   );
 
@@ -75,6 +78,8 @@ function AdminTaskRequests() {
 
   const pending = requests.filter((r) => r.status === 'PENDING');
   const treated = requests.filter((r) => r.status !== 'PENDING').slice(0, 20);
+
+  if (loading) return <PageSkeleton variant="list" />;
 
   async function approve(id) {
     setBusyId(id);

@@ -14,6 +14,7 @@ import {
 } from '../../components/icons';
 import '../../styles/admin.css';
 import '../../styles/admin-presence.css';
+import { PageSkeleton } from '../../components/Skeleton';
 
 const PRESENCE_META = {
   present: { label: 'Présent', cls: 'present' },
@@ -446,6 +447,8 @@ function AdminPresence() {
   }
 
   const summary = data?.summary;
+
+  if (loading && !data) return <PageSkeleton variant="table" />;
 
   return (
     <div className="pres-page">
