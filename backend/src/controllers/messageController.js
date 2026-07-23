@@ -2,9 +2,22 @@ const db = require('../config/database');
 const messageModel = require('../models/message.model');
 const userModel = require('../models/user.model');
 
+const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
+
+// Construit l'objet pièce jointe à partir du fichier multer (ou null).
+function attachmentFrom(req) {
+  if (!req.file) return null;
+  return { path: req.file.path, name: req.file.originalname, type: req.file.mimetype, size: req.file.size };
+}
+
+function hasBody(req) {
+  const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+  return content.length > 0 || Boolean(req.file);
+}
+
 async function getGlobalMessages(req, res, next) {
   try {
-    const messages = await messageModel.findGlobalMessages();
+    const messages = await messageModel.findGlobalMessages(req.user.id);
     res.status(200).json(messages);
   } catch (err) {
     next(err);
@@ -13,12 +26,11 @@ async function getGlobalMessages(req, res, next) {
 
 async function postGlobalMessage(req, res, next) {
   try {
-    const { content } = req.body;
-    if (!content || !content.trim()) {
+    if (!hasBody(req)) {
       return res.status(400).json({ error: 'Le message ne peut pas être vide' });
     }
-
-    const message = await messageModel.createGlobalMessage(req.user.id, content);
+    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+    const message = await messageModel.createGlobalMessage(req.user.id, content, attachmentFrom(req));
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -55,9 +67,7 @@ async function getPrivateMessages(req, res, next) {
 async function postPrivateMessage(req, res, next) {
   try {
     const { userId } = req.params;
-    const { content } = req.body;
-
-    if (!content || !content.trim()) {
+    if (!hasBody(req)) {
       return res.status(400).json({ error: 'Le message ne peut pas être vide' });
     }
     if (userId === req.user.id) {
@@ -76,7 +86,8 @@ async function postPrivateMessage(req, res, next) {
       await messageModel.touchConversation(conversation.id);
     }
 
-    const message = await messageModel.createPrivateMessage(req.user.id, userId, content);
+    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+    const message = await messageModel.createPrivateMessage(req.user.id, userId, content, attachmentFrom(req));
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -95,7 +106,12 @@ async function getGroups(req, res, next) {
 async function createGroup(req, res, next) {
   try {
     const normalizedName = typeof req.body.name === 'string' ? req.body.name.trim().replace(/\s+/g, ' ') : '';
-    const requestedMemberIds = Array.isArray(req.body.member_ids) ? req.body.member_ids : [];
+    // En multipart (avec photo), member_ids arrive en chaîne JSON ; sinon en tableau.
+    let requestedMemberIds = req.body.member_ids;
+    if (typeof requestedMemberIds === 'string') {
+      try { requestedMemberIds = JSON.parse(requestedMemberIds); } catch { requestedMemberIds = []; }
+    }
+    if (!Array.isArray(requestedMemberIds)) requestedMemberIds = [];
 
     if (normalizedName.length < 2 || normalizedName.length > 100) {
       return res.status(400).json({ error: 'Le nom du groupe doit contenir entre 2 et 100 caractères' });
@@ -116,12 +132,14 @@ async function createGroup(req, res, next) {
       return res.status(400).json({ error: 'Une ou plusieurs personnes sélectionnées ne sont plus disponibles' });
     }
 
+    const avatarPath = req.file ? req.file.path : null;
     const group = await db.withTransaction((client) =>
       messageModel.createGroup(
         {
           name: normalizedName,
           creatorId: req.user.id,
           memberIds: [req.user.id, ...memberIds],
+          avatarPath,
         },
         client
       )
@@ -142,7 +160,7 @@ async function getGroupMessages(req, res, next) {
       return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
     }
 
-    const messages = await messageModel.findGroupMessages(groupId);
+    const messages = await messageModel.findGroupMessages(groupId, req.user.id);
     await messageModel.markGroupAsRead(groupId, req.user.id);
     res.status(200).json(messages);
   } catch (err) {
@@ -153,9 +171,7 @@ async function getGroupMessages(req, res, next) {
 async function postGroupMessage(req, res, next) {
   try {
     const { groupId } = req.params;
-    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
-
-    if (!content) {
+    if (!hasBody(req)) {
       return res.status(400).json({ error: 'Le message ne peut pas être vide' });
     }
 
@@ -164,10 +180,107 @@ async function postGroupMessage(req, res, next) {
       return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
     }
 
+    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await db.withTransaction((client) =>
-      messageModel.createGroupMessage(groupId, req.user.id, content, client)
+      messageModel.createGroupMessage(groupId, req.user.id, content, attachmentFrom(req), client)
     );
     res.status(201).json(message);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- Vérifie que l'utilisateur a accès au message (même canal). ---
+async function canAccessMessage(raw, user) {
+  if (raw.channel_type === 'GLOBAL') return true;
+  if (raw.channel_type === 'PRIVATE') return raw.author_id === user.id || raw.recipient_id === user.id;
+  if (raw.channel_type === 'GROUP') {
+    const group = await messageModel.findGroupForUser(raw.group_id, user.id);
+    return Boolean(group);
+  }
+  return false;
+}
+
+async function editMessage(req, res, next) {
+  try {
+    const raw = await messageModel.findRawMessageById(req.params.id);
+    if (!raw) return res.status(404).json({ error: 'Message introuvable' });
+    if (raw.deleted_at) return res.status(400).json({ error: 'Message supprimé' });
+    if (raw.author_id !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez modifier que vos propres messages' });
+    }
+    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+    if (!content) return res.status(400).json({ error: 'Le message ne peut pas être vide' });
+    const message = await messageModel.updateMessageContent(req.params.id, content, req.user.id);
+    res.status(200).json(message);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteMessage(req, res, next) {
+  try {
+    const raw = await messageModel.findRawMessageById(req.params.id);
+    if (!raw) return res.status(404).json({ error: 'Message introuvable' });
+    // L'auteur ou un administrateur peut supprimer.
+    if (raw.author_id !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Suppression non autorisée' });
+    }
+    await messageModel.softDeleteMessage(req.params.id);
+    res.status(200).json({ deleted: true, id: req.params.id });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function reactMessage(req, res, next) {
+  try {
+    const emoji = typeof req.body.emoji === 'string' ? req.body.emoji : '';
+    if (!ALLOWED_REACTIONS.includes(emoji)) {
+      return res.status(400).json({ error: 'Réaction non autorisée' });
+    }
+    const raw = await messageModel.findRawMessageById(req.params.id);
+    if (!raw || raw.deleted_at) return res.status(404).json({ error: 'Message introuvable' });
+    if (!(await canAccessMessage(raw, req.user))) {
+      return res.status(403).json({ error: 'Accès refusé' });
+    }
+    const message = await messageModel.toggleReaction(req.params.id, req.user.id, emoji);
+    res.status(200).json(message);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getMessageAttachment(req, res, next) {
+  try {
+    const raw = await messageModel.findRawMessageById(req.params.id);
+    if (!raw || raw.deleted_at || !raw.attachment_path) {
+      return res.status(404).json({ error: 'Pièce jointe introuvable' });
+    }
+    if (!(await canAccessMessage(raw, req.user))) {
+      return res.status(403).json({ error: 'Accès refusé' });
+    }
+    res.download(raw.attachment_path, raw.attachment_name || 'piece-jointe');
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getGroupAvatar(req, res, next) {
+  try {
+    const avatarPath = await messageModel.findGroupAvatarForMember(req.params.groupId, req.user.id);
+    if (!avatarPath) return res.status(404).json({ error: 'Avatar introuvable' });
+    res.sendFile(avatarPath);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Ids des utilisateurs actuellement connectés (session ouverte) — pour le statut « en ligne ».
+async function getOnlineUsers(req, res, next) {
+  try {
+    const result = await db.query(`SELECT DISTINCT user_id FROM user_sessions WHERE logout_at IS NULL`);
+    res.status(200).json(result.rows.map((row) => row.user_id));
   } catch (err) {
     next(err);
   }
@@ -183,4 +296,10 @@ module.exports = {
   createGroup,
   getGroupMessages,
   postGroupMessage,
+  editMessage,
+  deleteMessage,
+  reactMessage,
+  getMessageAttachment,
+  getGroupAvatar,
+  getOnlineUsers,
 };

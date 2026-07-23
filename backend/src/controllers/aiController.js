@@ -153,23 +153,34 @@ Données actuelles de l'équipe (JSON) :
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Génère une réponse Mistral pour une question (avec mention éventuelle d'une pièce jointe).
+async function generateAnswer(question, attachmentName) {
+  const context = await buildContext();
+  const userContent = attachmentName
+    ? `${question}\n\n[L'utilisateur a joint un fichier nommé « ${attachmentName} ». Tu ne peux pas ouvrir son contenu ; base-toi sur le nom et la question.]`
+    : question;
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT + JSON.stringify(context) },
+    { role: 'user', content: userContent },
+  ];
+  const answer = await mistral.askMistral(messages);
+  return { answer, context };
+}
+
 async function ask(req, res, next) {
   try {
-    const { question, session_id: sessionId } = req.body;
-    if (!question || !question.trim()) {
+    const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
+    const sessionId = req.body.session_id;
+    if (!question) {
       return res.status(400).json({ error: 'La question est requise' });
     }
     // Le front envoie l'id de la conversation en cours ; sinon le modèle en génère un.
     const validSessionId = sessionId && UUID_RE.test(sessionId) ? sessionId : null;
+    const attachment = req.file
+      ? { path: req.file.path, name: req.file.originalname, type: req.file.mimetype }
+      : null;
 
-    const context = await buildContext();
-
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT + JSON.stringify(context) },
-      { role: 'user', content: question },
-    ];
-
-    const answer = await mistral.askMistral(messages);
+    const { answer, context } = await generateAnswer(question, attachment?.name);
 
     const conversation = await aiModel.createConversation({
       adminId: req.user.id,
@@ -177,6 +188,7 @@ async function ask(req, res, next) {
       question,
       answer,
       contextData: { period: context.period_analysee },
+      attachment,
     });
 
     res.status(200).json(conversation);
@@ -195,4 +207,70 @@ async function getHistory(req, res, next) {
   }
 }
 
-module.exports = { ask, getHistory };
+// Édition d'un message : nouvelle question → nouvelle réponse générée.
+async function editConversation(req, res, next) {
+  try {
+    const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
+    if (!conversation) return res.status(404).json({ error: 'Échange introuvable' });
+    const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
+    if (!question) return res.status(400).json({ error: 'La question est requise' });
+    const { answer } = await generateAnswer(question, conversation.attachment_name);
+    const updated = await aiModel.updateConversation(req.params.id, req.user.id, { question, answer });
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteConversation(req, res, next) {
+  try {
+    const count = await aiModel.deleteConversation(req.params.id, req.user.id);
+    if (count === 0) return res.status(404).json({ error: 'Échange introuvable' });
+    res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteSession(req, res, next) {
+  try {
+    const count = await aiModel.deleteSession(req.params.sessionId, req.user.id);
+    res.status(200).json({ deleted: count });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function renameSession(req, res, next) {
+  try {
+    const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+    if (!title) return res.status(400).json({ error: 'Le titre est requis' });
+    const count = await aiModel.renameSession(req.params.sessionId, req.user.id, title.slice(0, 120));
+    if (count === 0) return res.status(404).json({ error: 'Discussion introuvable' });
+    res.status(200).json({ title: title.slice(0, 120) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getConversationAttachment(req, res, next) {
+  try {
+    const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
+    if (!conversation || !conversation.attachment_path) {
+      return res.status(404).json({ error: 'Pièce jointe introuvable' });
+    }
+    res.sendFile(conversation.attachment_path);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  ask,
+  getHistory,
+  editConversation,
+  deleteConversation,
+  deleteSession,
+  renameSession,
+  getConversationAttachment,
+};
