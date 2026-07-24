@@ -1161,20 +1161,23 @@
   overflow: hidden;
 }
 
+/* Petit logo net, en haut à droite (au-dessus de l'icône de statut) — plus un filigrane. */
 .dash-hero-watermark {
   position: absolute;
-  top: 50%;
-  right: -30px;
-  transform: translateY(-50%);
-  width: 220px;
-  opacity: 0.08;
+  top: 16px;
+  right: 18px;
+  width: 82px;
+  opacity: 0.5;
   pointer-events: none;
+  z-index: 2;
 }
 
 .dash-hero-watermark img {
+  display: block;
   width: 100%;
   height: auto;
-  filter: var(--logo-filter);
+  opacity: .3;
+  filter: var(--logo-filter) blur(.2px);
 }
 
 .dash-hero-info {

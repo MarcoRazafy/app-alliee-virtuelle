@@ -19,6 +19,18 @@ export const IconWorkspace = (props) =>
     props
   );
 
+// Grille de panneaux — glyphe classique de tableau de bord.
+export const IconDashboard = (props) =>
+  base(
+    <>
+      <rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" strokeWidth="2" />
+    </>,
+    props
+  );
+
 export const IconCalendarCheck = (props) =>
   base(
     <>

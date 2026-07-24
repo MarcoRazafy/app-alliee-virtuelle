@@ -203,8 +203,11 @@
   width: 88px;
   height: auto;
   filter: var(--logo-filter);
-  animation: auth-logo-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: 0.1s;
+  transform-origin: center;
+  /* Entrée (une fois), puis flottement smooth en boucle qui démarre après l'entrée. */
+  animation:
+    auth-logo-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both,
+    auth-logo-float 5s ease-in-out 0.9s infinite;
 }
 
 @keyframes auth-logo-in {
@@ -216,6 +219,16 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* Flottement discret : léger va-et-vient vertical + micro-rotation. transform only. */
+@keyframes auth-logo-float {
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  50% { transform: translateY(-7px) rotate(-1.6deg) scale(1.015); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-logo { animation: auth-logo-in 0.7s ease 0.1s both; }
 }
 
 .auth-title {

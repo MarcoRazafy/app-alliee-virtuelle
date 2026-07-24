@@ -10,6 +10,7 @@ import { notifyInfo } from '../../utils/toast';
 import { PageSkeleton } from '../Skeleton';
 import {
   IconWorkspace,
+  IconDashboard,
   IconCalendarCheck,
   IconChecklist,
   IconChat,
@@ -30,7 +31,7 @@ import '../../styles/app.css';
 import '../../styles/layout.css';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: IconWorkspace, end: true },
+  { to: '/dashboard', label: 'Dashboard', icon: IconDashboard, end: true },
   { to: '/workspace', label: 'Mon espace', icon: IconWorkspace },
   { to: '/my-day', label: 'Ma journée', icon: IconCalendarCheck },
   { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
