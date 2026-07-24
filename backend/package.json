@@ -7,6 +7,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "migrate": "psql -U postgres -d alliee_virtuelle -f migrations/init.sql",
+    "seed:employee-photos": "node scripts/seedEmployeeProfilePhotos.js",
     "test": "node test/attendanceMetrics.test.js"
   },
   "keywords": [],

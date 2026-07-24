@@ -119,6 +119,18 @@ function Profile() {
     return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Utilisateur';
   }, [profile, authUser]);
 
+  const profileInitials = useMemo(
+    () =>
+      fullName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase(),
+    [fullName]
+  );
+
   async function loadAvatar(hasAvatar) {
     if (!hasAvatar) {
       setAvatarUrl((current) => {
@@ -306,7 +318,11 @@ function Profile() {
           <article className="profile-hero-card">
             <div className="profile-avatar-wrap">
               <div className="profile-large-avatar">
-                {avatarUrl ? <img src={avatarUrl} alt={`Photo de ${fullName}`} /> : <Icon type="user" />}
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={`Photo de ${fullName}`} />
+                ) : (
+                  <span aria-label={`Initiales de ${fullName}`}>{profileInitials || '?'}</span>
+                )}
               </div>
               <button
                 type="button"

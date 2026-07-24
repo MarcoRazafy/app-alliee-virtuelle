@@ -410,6 +410,10 @@
   background: var(--msg-primary-soft);
 }
 
+.profile-avatar--fallback > span {
+  line-height: 1;
+}
+
 .conversation-avatar--team {
   color: var(--color-on-accent);
   background: var(--msg-primary);

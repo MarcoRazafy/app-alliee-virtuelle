@@ -175,8 +175,9 @@ npm start
 # Exécuter migrations
 npm run migrate
 
-# Seed données fictives
-npm run seed
+# Installer les portraits de frontend/public/employer dans les profils employés
+# (Marco Razafimamonjy est explicitement exclu)
+npm run seed:employee-photos
 ```
 
 ### Frontend

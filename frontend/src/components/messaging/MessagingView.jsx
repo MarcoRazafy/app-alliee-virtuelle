@@ -89,13 +89,21 @@ function ImageIcon(props) {
 }
 
 function ProfileAvatar({ name, avatarUrl, className = '' }) {
+  const initials = String(name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
   return (
     <span
       className={`profile-avatar ${className}${avatarUrl ? '' : ' profile-avatar--fallback'}`}
       aria-hidden="true"
       title={name}
     >
-      {avatarUrl ? <img src={avatarUrl} alt="" /> : <IconUser />}
+      {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{initials || '?'}</span>}
     </span>
   );
 }
