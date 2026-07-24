@@ -17,10 +17,11 @@ function todayDateString() {
 
 async function listTasks(req, res, next) {
   try {
-    const { status, priority, deadline, list_id: listId } = req.query;
+    const { status, priority, deadline, list_id: listId, active_only: activeOnlyParam } = req.query;
+    const activeOnly = activeOnlyParam === 'true' || activeOnlyParam === '1';
     const tasks =
       req.user.role === 'ADMIN'
-        ? await taskModel.findAllTasks({ status, priority, deadline, listId })
+        ? await taskModel.findAllTasks({ status, priority, deadline, listId, activeOnly })
         : await taskModel.findAssignedTasks(req.user.id, { status, priority, deadline, listId });
     res.status(200).json(tasks);
   } catch (err) {
@@ -50,6 +51,7 @@ async function getTask(req, res, next) {
       status: task.status,
       deadline: task.deadline,
       assigned_to: task.assigned_to,
+      assignee_name: task.assignee_name,
       client_name: task.client_name,
       client_email: task.client_email,
     });
@@ -776,6 +778,14 @@ async function deleteAttachment(req, res, next) {
 
     await taskModel.deleteAttachment(fileId);
     fs.unlink(attachment.file_path, () => {});
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'DELETE_TASK_ATTACHMENT',
+      entityType: 'task_attachment',
+      entityId: fileId,
+      details: { task_id: id, file_name: attachment.file_name },
+    });
 
     res.status(200).json({ deleted: true });
   } catch (err) {

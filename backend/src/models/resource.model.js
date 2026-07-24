@@ -3,9 +3,13 @@ const db = require('../config/database');
 async function findFolders(type) {
   const result = await db.query(
     `SELECT f.id, f.name, f.type,
-            (SELECT COUNT(*)::INTEGER FROM resources_files WHERE folder_id = f.id) AS file_count
+            (SELECT COUNT(*)::INTEGER
+               FROM resources_files
+              WHERE folder_id = f.id AND deleted_at IS NULL) AS file_count
      FROM resources_folders f
-     WHERE f.type = $1 AND f.parent_folder_id IS NULL
+     WHERE f.type = $1
+       AND f.parent_folder_id IS NULL
+       AND f.deleted_at IS NULL
      ORDER BY f.name ASC`,
     [type]
   );
@@ -13,9 +17,12 @@ async function findFolders(type) {
 }
 
 async function findFolderById(folderId) {
-  const result = await db.query('SELECT id, name, type, parent_folder_id FROM resources_folders WHERE id = $1', [
-    folderId,
-  ]);
+  const result = await db.query(
+    `SELECT id, name, type, parent_folder_id, created_by, created_at, deleted_at, deleted_by
+     FROM resources_folders
+     WHERE id = $1`,
+    [folderId]
+  );
   return result.rows[0] || null;
 }
 
@@ -27,7 +34,7 @@ async function findFilesByFolder(folderId) {
             f.created_at, f.updated_at, f.created_by, u.full_name AS created_by_name
      FROM resources_files f
      JOIN users u ON u.id = f.created_by
-     WHERE f.folder_id = $1
+     WHERE f.folder_id = $1 AND f.deleted_at IS NULL
      ORDER BY f.kind DESC, f.file_name ASC`,
     [folderId]
   );
@@ -46,21 +53,32 @@ async function createFolder({ name, type, parentFolderId, createdBy }) {
 
 async function renameFolder(id, name) {
   const result = await db.query(
-    `UPDATE resources_folders SET name = $1, updated_at = now() WHERE id = $2 RETURNING id, name`,
+    `UPDATE resources_folders
+     SET name = $1, updated_at = now()
+     WHERE id = $2 AND deleted_at IS NULL
+     RETURNING id, name`,
     [name, id]
   );
-  return result.rows[0];
+  return result.rows[0] || null;
 }
 
 async function countFilesInFolder(folderId) {
-  const result = await db.query('SELECT COUNT(*)::INTEGER AS count FROM resources_files WHERE folder_id = $1', [
-    folderId,
-  ]);
+  const result = await db.query(
+    'SELECT COUNT(*)::INTEGER AS count FROM resources_files WHERE folder_id = $1 AND deleted_at IS NULL',
+    [folderId]
+  );
   return result.rows[0].count;
 }
 
-async function deleteFolder(id) {
-  await db.query('DELETE FROM resources_folders WHERE id = $1', [id]);
+async function deleteFolder(id, deletedBy) {
+  const result = await db.query(
+    `UPDATE resources_folders
+     SET deleted_at = now(), deleted_by = $2, updated_at = now()
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, name, type, deleted_at`,
+    [id, deletedBy]
+  );
+  return result.rows[0] || null;
 }
 
 async function createFile({ folderId, fileName, filePath, fileType, fileSize, mimeType, createdBy }) {
@@ -89,7 +107,7 @@ async function updateDocument(id, { fileName, content }) {
      SET file_name = COALESCE($2, file_name),
          content = COALESCE($3, content),
          updated_at = now()
-     WHERE id = $1 AND kind = 'DOCUMENT'
+     WHERE id = $1 AND kind = 'DOCUMENT' AND deleted_at IS NULL
      RETURNING id, file_name, file_type, file_size, kind, content, created_at, updated_at`,
     [id, fileName ?? null, content ?? null]
   );
@@ -98,8 +116,9 @@ async function updateDocument(id, { fileName, content }) {
 
 async function findFileById(id) {
   const result = await db.query(
-    `SELECT f.*, u.full_name AS created_by_name
+    `SELECT f.*, folder.deleted_at AS folder_deleted_at, u.full_name AS created_by_name
      FROM resources_files f
+     JOIN resources_folders folder ON folder.id = f.folder_id
      JOIN users u ON u.id = f.created_by
      WHERE f.id = $1`,
     [id]
@@ -107,8 +126,102 @@ async function findFileById(id) {
   return result.rows[0] || null;
 }
 
-async function deleteFile(id) {
-  await db.query('DELETE FROM resources_files WHERE id = $1', [id]);
+async function deleteFile(id, deletedBy) {
+  const result = await db.query(
+    `UPDATE resources_files
+     SET deleted_at = now(), deleted_by = $2, updated_at = now()
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, folder_id, file_name, kind, deleted_at`,
+    [id, deletedBy]
+  );
+  return result.rows[0] || null;
+}
+
+async function findTrash() {
+  const [folders, files] = await Promise.all([
+    db.query(
+      `SELECT f.id, f.name, f.type, f.deleted_at,
+              deleter.full_name AS deleted_by_name,
+              (SELECT COUNT(*)::INTEGER FROM resources_files rf WHERE rf.folder_id = f.id) AS file_count
+       FROM resources_folders f
+       LEFT JOIN users deleter ON deleter.id = f.deleted_by
+       WHERE f.deleted_at IS NOT NULL
+       ORDER BY f.deleted_at DESC`
+    ),
+    db.query(
+      `SELECT f.id, f.folder_id, f.file_name, f.file_type, f.file_size, f.kind,
+              f.deleted_at, folder.name AS folder_name, folder.type AS folder_type,
+              deleter.full_name AS deleted_by_name
+       FROM resources_files f
+       JOIN resources_folders folder ON folder.id = f.folder_id
+       LEFT JOIN users deleter ON deleter.id = f.deleted_by
+       WHERE f.deleted_at IS NOT NULL
+         AND folder.deleted_at IS NULL
+       ORDER BY f.deleted_at DESC`
+    ),
+  ]);
+  return { folders: folders.rows, files: files.rows };
+}
+
+async function restoreFolder(id) {
+  const result = await db.query(
+    `UPDATE resources_folders
+     SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+     WHERE id = $1 AND deleted_at IS NOT NULL
+     RETURNING id, name, type, parent_folder_id`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+async function restoreFile(id) {
+  const result = await db.query(
+    `UPDATE resources_files
+     SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+     WHERE id = $1 AND deleted_at IS NOT NULL
+     RETURNING id, folder_id, file_name, file_type, file_size, kind, created_at, updated_at`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+async function findFilePathsInFolderTree(folderId) {
+  const result = await db.query(
+    `WITH RECURSIVE folder_tree AS (
+       SELECT id FROM resources_folders WHERE id = $1
+       UNION ALL
+       SELECT child.id
+       FROM resources_folders child
+       JOIN folder_tree parent ON child.parent_folder_id = parent.id
+     )
+     SELECT file_path
+     FROM resources_files
+     WHERE folder_id IN (SELECT id FROM folder_tree)
+       AND kind = 'FILE'
+       AND file_path IS NOT NULL`,
+    [folderId]
+  );
+  return result.rows.map((row) => row.file_path);
+}
+
+async function permanentlyDeleteFolder(id) {
+  const result = await db.query(
+    `DELETE FROM resources_folders
+     WHERE id = $1 AND deleted_at IS NOT NULL
+     RETURNING id, name, type`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+async function permanentlyDeleteFile(id) {
+  const result = await db.query(
+    `DELETE FROM resources_files
+     WHERE id = $1 AND deleted_at IS NOT NULL
+     RETURNING *`,
+    [id]
+  );
+  return result.rows[0] || null;
 }
 
 async function createShares({ folderId, userIds, permissionType, expiresAt, sharedBy }, client = db) {
@@ -162,6 +275,12 @@ module.exports = {
   updateDocument,
   findFileById,
   deleteFile,
+  findTrash,
+  restoreFolder,
+  restoreFile,
+  findFilePathsInFolderTree,
+  permanentlyDeleteFolder,
+  permanentlyDeleteFile,
   createShares,
   findSharesForFolder,
   findShareById,

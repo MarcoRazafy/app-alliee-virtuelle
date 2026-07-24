@@ -59,6 +59,26 @@ export function deleteFile(id) {
   return api.delete(`/api/resources/files/${id}`).then((res) => res.data);
 }
 
+export function getTrash() {
+  return api.get('/api/resources/trash').then((res) => res.data);
+}
+
+export function restoreFolder(id) {
+  return api.post(`/api/resources/trash/folders/${id}/restore`).then((res) => res.data);
+}
+
+export function permanentlyDeleteFolder(id) {
+  return api.delete(`/api/resources/trash/folders/${id}`).then((res) => res.data);
+}
+
+export function restoreFile(id) {
+  return api.post(`/api/resources/trash/files/${id}/restore`).then((res) => res.data);
+}
+
+export function permanentlyDeleteFile(id) {
+  return api.delete(`/api/resources/trash/files/${id}`).then((res) => res.data);
+}
+
 export function shareFolder(folderId, payload) {
   return api.post(`/api/resources/folders/${folderId}/share`, payload).then((res) => res.data);
 }

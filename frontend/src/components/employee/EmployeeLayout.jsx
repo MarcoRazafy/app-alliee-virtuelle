@@ -4,16 +4,14 @@ import useAuthStore from '../../store/authStore';
 import ThemeToggle from '../ThemeToggle';
 import ConnectionChrono from './ConnectionChrono';
 import api from '../../services/api';
-import * as messageService from '../../services/messageService';
 import * as avatarService from '../../services/avatarService';
-import { notifyInfo } from '../../utils/toast';
 import { PageSkeleton } from '../Skeleton';
+import TopbarTools from '../TopbarTools';
 import {
   IconWorkspace,
   IconDashboard,
   IconCalendarCheck,
   IconChecklist,
-  IconChat,
   IconBarChart,
   IconCalendarWeek,
   IconFolder,
@@ -22,7 +20,6 @@ import {
   IconChevronDown,
   IconTrendingUp,
   IconSearch,
-  IconBell,
   IconLock,
   IconMenu,
   IconX,
@@ -35,7 +32,6 @@ const NAV_ITEMS = [
   { to: '/workspace', label: 'Mon espace', icon: IconWorkspace },
   { to: '/my-day', label: 'Ma journée', icon: IconCalendarCheck },
   { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
-  { to: '/messaging', label: 'Messagerie', icon: IconChat, badgeKey: 'messages' },
   { to: '/stats', label: 'Stats', icon: IconBarChart },
   { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
   { to: '/resources', label: 'Ressources', icon: IconFolder },
@@ -48,7 +44,6 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
-  const [unreadCount, setUnreadCount] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -61,49 +56,6 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
   // La navigation mobile se referme automatiquement dès qu'on change de page
   useEffect(() => {
     setMobileNavOpen(false);
-  }, [location.pathname]);
-
-  const previousUnreadRef = useRef(null);
-
-  // Sondage régulier des conversations pour garder le badge à jour et notifier
-  // l'arrivée d'un nouveau message même si l'utilisateur n'est pas sur la messagerie.
-  // La page Messagerie gère elle-même ses propres notifications (conversation ouverte,
-  // salon général) : on évite donc les doublons en ne notifiant pas depuis cette page.
-  useEffect(() => {
-    let cancelled = false;
-
-    async function pollUnread() {
-      try {
-        const [conversations, groups] = await Promise.all([
-          messageService.getConversations(),
-          messageService.getMessageGroups(),
-        ]);
-        if (cancelled) return;
-        const privateUnread = conversations.reduce((sum, conversation) => sum + (conversation.unread_count || 0), 0);
-        const groupUnread = groups.reduce((sum, group) => sum + (group.unread_count || 0), 0);
-        setUnreadCount(privateUnread + groupUnread);
-
-        const previous = previousUnreadRef.current;
-        if (previous && !location.pathname.startsWith('/messaging')) {
-          conversations.forEach((conversation) => {
-            const before = previous.get(conversation.other_user_id) || 0;
-            if ((conversation.unread_count || 0) > before) {
-              notifyInfo(`Nouveau message de ${conversation.other_user_name}`);
-            }
-          });
-        }
-        previousUnreadRef.current = new Map(conversations.map((c) => [c.other_user_id, c.unread_count || 0]));
-      } catch {
-        if (!cancelled) setUnreadCount(0);
-      }
-    }
-
-    pollUnread();
-    const interval = window.setInterval(pollUnread, 15000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
   }, [location.pathname]);
 
   useEffect(() => {
@@ -191,9 +143,8 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end, badgeKey }) => {
+          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => {
             const isActive = end ? location.pathname === to : location.pathname.startsWith(to);
-            const badgeValue = badgeKey === 'messages' ? unreadCount : 0;
             // Tant que la journée n'est pas validée, seule la page en cours reste accessible
             // (cf. règle métier : au moins une tâche sélectionnée + validation avant le reste de l'app)
             if (locked && !isActive) {
@@ -209,7 +160,6 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
               <Link key={to} to={to} className={`sidebar-link${isActive ? ' sidebar-link--active' : ''}`}>
                 <Icon />
                 <span>{label}</span>
-                {badgeValue > 0 && <span className="sidebar-badge">{badgeValue}</span>}
               </Link>
             );
           })}
@@ -294,16 +244,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
               )}
             </form>
 
-            {locked ? (
-              <span className="icon-btn icon-btn--disabled" aria-hidden="true">
-                <IconBell />
-              </span>
-            ) : (
-              <Link to="/messaging" className="icon-btn" aria-label="Messagerie" title="Messagerie">
-                <IconBell />
-                {unreadCount > 0 && <span className="icon-btn-badge">{unreadCount}</span>}
-              </Link>
-            )}
+            <TopbarTools messagingPath="/messaging" assistantPath="/assistant" locked={locked} />
 
             <ThemeToggle />
             <div className="user-menu" ref={menuRef}>

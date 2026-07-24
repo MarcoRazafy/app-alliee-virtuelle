@@ -4,7 +4,7 @@ import * as statsService from '../../services/statsService';
 import * as taskService from '../../services/taskService';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 import { notifyError, notifySuccess } from '../../utils/toast';
-import { IconUsers, IconClock, IconUser, IconBarChart, IconCheckCircle, IconAlert, IconSearch } from '../../components/icons';
+import { IconUsers, IconClock, IconUser, IconBarChart, IconCheckCircle, IconAlert, IconSearch, IconMenu, IconX } from '../../components/icons';
 import '../../styles/admin-assistant.css';
 
 // Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
@@ -287,6 +287,7 @@ function AdminAssistant() {
   const [kpis, setKpis] = useState(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false); // tiroir d'historique (mobile)
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null);
@@ -430,12 +431,14 @@ function AdminAssistant() {
     setQuestion('');
     setPending(null);
     setPendingFile(null);
+    setSidebarOpen(false);
   }
 
   function handleSelectSession(id) {
     setActiveSessionId(id);
     setQuestion('');
     setEditingId(null);
+    setSidebarOpen(false);
   }
 
   function startEdit(entry) {
@@ -611,7 +614,16 @@ function AdminAssistant() {
 
   return (
     <div className="ai-shell">
-      <aside className="ai-sidebar">
+      {sidebarOpen && <div className="ai-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`ai-sidebar${sidebarOpen ? ' ai-sidebar--open' : ''}`}>
+        <button
+          type="button"
+          className="ai-sidebar-close"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Fermer l'historique"
+        >
+          <IconX />
+        </button>
         <button type="button" className="ai-new-btn ai-new-btn--block" onClick={handleNewConversation}>
           <PlusIcon />
           Nouvelle conversation
@@ -680,6 +692,15 @@ function AdminAssistant() {
 
       <div className="ai-main">
         <header className="ai-header">
+          <button
+            type="button"
+            className="ai-history-toggle"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Ouvrir l'historique des conversations"
+            title="Historique des conversations"
+          >
+            <IconMenu />
+          </button>
           <div className="ai-header-brand">
             <span className="ai-agent ai-agent--mini" aria-hidden="true">
               <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />

@@ -80,7 +80,7 @@ function mergePlanningWeek(weekRows, dayRows) {
 
 // Contexte en LECTURE SEULE : instantané enrichi de la base (équipe, tâches, plannings).
 // Aucune fonction d'écriture n'est exposée à l'assistant.
-async function buildContext() {
+async function buildAdminContext() {
   const { from, to } = defaultRange();
   const now = planningDates.nowInPlanningZone();
   const currentWeekStart = planningDates.formatDate(planningDates.getCurrentWeekStart(now));
@@ -130,7 +130,33 @@ async function buildContext() {
   };
 }
 
-const SYSTEM_PROMPT = `Tu es l'assistant IA de L'Alliée Virtuelle, un outil de suivi des tâches en équipe.
+async function buildEmployeeContext(userId) {
+  const { from, to } = defaultRange();
+  const [employee, tasks, stats] = await Promise.all([
+    userModel.findById(userId),
+    taskModel.findAssignedTasks(userId),
+    statsModel.computeEmployeeStats(userId, from, to),
+  ]);
+
+  return {
+    date_du_jour: planningDates.formatDate(planningDates.nowInPlanningZone()),
+    period_analysee: { from, to },
+    employe: {
+      nom: employee?.full_name || null,
+      poste: employee?.position || null,
+    },
+    statistiques_personnelles: stats,
+    mes_taches: tasks.map((task) => ({
+      titre: task.title,
+      statut: task.status,
+      priorite: task.priority,
+      echeance: task.deadline,
+      projet: task.list_name || null,
+    })),
+  };
+}
+
+const ADMIN_SYSTEM_PROMPT = `Tu es l'assistant IA de L'Alliée Virtuelle, un outil de suivi des tâches en équipe.
 
 RÈGLES STRICTES (à respecter impérativement) :
 - Tu es en LECTURE SEULE : tu ne peux jamais créer, modifier, confirmer, supprimer une tâche ou un utilisateur. Tu réponds seulement à des questions.
@@ -151,16 +177,34 @@ Disponibilité d'un jour : AVAILABLE (disponible), PARTIALLY_AVAILABLE (partiell
 Données actuelles de l'équipe (JSON) :
 `;
 
+const EMPLOYEE_SYSTEM_PROMPT = `Tu es le chatbot personnel de L'Alliée Virtuelle.
+
+RÈGLES STRICTES :
+- Tu es en LECTURE SEULE : tu ne peux créer, modifier, confirmer ou supprimer aucune donnée.
+- Tu réponds uniquement à propos des tâches et statistiques personnelles présentes dans le JSON.
+- Tu ne fournis aucune information concernant les autres employés ou l'administration.
+- N'invente jamais de donnée. Si le contexte ne suffit pas, indique-le clairement.
+- Une tâche complétée signifie le statut CONFIRMEE ; TERMINEE signifie qu'elle attend encore une confirmation.
+- Réponds en français, de façon concise, pratique et factuelle.
+- Précise la période utilisée lorsque tu cites des statistiques.
+
+Données personnelles de l'employé (JSON) :
+`;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Génère une réponse Mistral pour une question (avec mention éventuelle d'une pièce jointe).
-async function generateAnswer(question, attachmentName) {
-  const context = await buildContext();
+async function generateAnswer(question, attachmentName, requester) {
+  const isAdmin = requester.role === 'ADMIN';
+  const context = isAdmin ? await buildAdminContext() : await buildEmployeeContext(requester.id);
   const userContent = attachmentName
     ? `${question}\n\n[L'utilisateur a joint un fichier nommé « ${attachmentName} ». Tu ne peux pas ouvrir son contenu ; base-toi sur le nom et la question.]`
     : question;
   const messages = [
-    { role: 'system', content: SYSTEM_PROMPT + JSON.stringify(context) },
+    {
+      role: 'system',
+      content: (isAdmin ? ADMIN_SYSTEM_PROMPT : EMPLOYEE_SYSTEM_PROMPT) + JSON.stringify(context),
+    },
     { role: 'user', content: userContent },
   ];
   const answer = await mistral.askMistral(messages);
@@ -180,7 +224,7 @@ async function ask(req, res, next) {
       ? { path: req.file.path, name: req.file.originalname, type: req.file.mimetype }
       : null;
 
-    const { answer, context } = await generateAnswer(question, attachment?.name);
+    const { answer, context } = await generateAnswer(question, attachment?.name, req.user);
 
     const conversation = await aiModel.createConversation({
       adminId: req.user.id,
@@ -214,7 +258,7 @@ async function editConversation(req, res, next) {
     if (!conversation) return res.status(404).json({ error: 'Échange introuvable' });
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
     if (!question) return res.status(400).json({ error: 'La question est requise' });
-    const { answer } = await generateAnswer(question, conversation.attachment_name);
+    const { answer } = await generateAnswer(question, conversation.attachment_name, req.user);
     const updated = await aiModel.updateConversation(req.params.id, req.user.id, { question, answer });
     res.status(200).json(updated);
   } catch (err) {
