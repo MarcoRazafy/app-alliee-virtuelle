@@ -570,6 +570,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         conversation_id: conversation?.conversation_id || null,
         other_user_id: member.id,
         other_user_name: member.full_name,
+        other_user_email: member.email || null,
         other_user_role: member.role,
         has_avatar: Boolean(member.has_avatar),
         last_message_at: conversation?.last_message_at || null,
@@ -1143,6 +1144,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
 
   function renderRightPanel() {
     const online = otherOnline;
+    const otherEmail =
+      openConversation &&
+      (openConversation.other_user_email ||
+        availableUsers.find((u) => u.id === openConversation.other_user_id)?.email ||
+        null);
     return (
       <aside className="msgr-profile">
         <button type="button" className="msgr-profile-close" onClick={() => setRightPanelOpen(false)} aria-label="Fermer">
@@ -1183,6 +1189,24 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           </label>
           {panelSearch && <p className="msgr-profile-hint">{displayedMessages.length} résultat{displayedMessages.length > 1 ? 's' : ''}</p>}
         </div>
+
+        {activeChannel === 'private' && otherEmail && (
+          <div className="msgr-profile-section">
+            <p className="msgr-profile-label">Coordonnées</p>
+            <a className="msgr-profile-contact" href={`mailto:${otherEmail}`} title={`Écrire à ${otherEmail}`}>
+              <span className="msgr-contact-icon">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+                  <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span className="msgr-contact-text">
+                <span className="msgr-contact-kind">E-mail</span>
+                <span className="msgr-contact-value">{otherEmail}</span>
+              </span>
+            </a>
+          </div>
+        )}
 
         {activeChannel === 'group' && (openGroup?.members || []).length > 0 && (
           <div className="msgr-profile-section">

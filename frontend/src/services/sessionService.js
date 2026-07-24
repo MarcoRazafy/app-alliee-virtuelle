@@ -1,4 +1,4 @@
-import api from './api';
+import api, { apiBaseUrl } from './api';
 import { getToken } from './auth';
 // Chrono de connexion (présence) : indépendant du chrono de tâche. Le login/logout
 // explicite est déjà géré côté backend (authController). Le heartbeat prolonge l'unique
@@ -30,8 +30,7 @@ export function heartbeatSession() {
 export function signalSessionDisconnect() {
   const token = getToken();
   if (!token) return;
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-  fetch(`${baseUrl}/api/sessions/disconnect`, {
+  fetch(`${apiBaseUrl}/api/sessions/disconnect`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     keepalive: true,
