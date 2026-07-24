@@ -205,6 +205,20 @@ function TaskDetail() {
             <span className="detail-meta-label">Échéance</span>
             <span>{formatDate(task.deadline)}</span>
           </div>
+          {isAdmin && task.assigned_to && (
+            <div className="detail-meta-item">
+              <span className="detail-meta-label">Assigné à</span>
+              <button
+                type="button"
+                className="app-link detail-assignee-link"
+                onClick={() => navigate('/admin/messaging', { state: { employeeId: task.assigned_to } })}
+                title={`Discuter avec ${task.assignee_name || "l'employé"}`}
+              >
+                {task.assignee_name || 'Employé'}
+                <IconArrowRight />
+              </button>
+            </div>
+          )}
           {(task.client_name || task.client_email) && (
             <div className="detail-meta-item">
               <span className="detail-meta-label">Client</span>
@@ -218,6 +232,7 @@ function TaskDetail() {
         </div>
       </div>
 
+      {!isAdmin && (
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
           Suivi du temps
@@ -252,7 +267,9 @@ function TaskDetail() {
           </div>
         </div>
       </div>
+      )}
 
+      {!isAdmin && (
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
           Historique du chrono
@@ -286,6 +303,7 @@ function TaskDetail() {
           </>
         )}
       </div>
+      )}
 
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
@@ -338,12 +356,14 @@ function TaskDetail() {
         <CommentSection taskId={id} />
       </div>
 
-      <div className="side-card">
-        <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Pièces jointes
-        </p>
-        <AttachmentUpload taskId={id} canUpload={!isCompleted} />
-      </div>
+      {!isAdmin && (
+        <div className="side-card">
+          <p className="side-card-title" style={{ marginBottom: '16px' }}>
+            Pièces jointes
+          </p>
+          <AttachmentUpload taskId={id} canUpload={!isCompleted} />
+        </div>
+      )}
     </Layout>
   );
 }

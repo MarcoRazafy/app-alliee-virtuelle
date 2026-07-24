@@ -27,6 +27,41 @@
   background: var(--color-bg-secondary);
 }
 
+/* Bouton d'ouverture de l'historique (visible uniquement en mobile) + bouton de
+   fermeture dans le tiroir + fond assombri. Masqués sur grand écran. */
+.ai-history-toggle,
+.ai-sidebar-close,
+.ai-sidebar-backdrop {
+  display: none;
+}
+
+.ai-history-toggle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.ai-history-toggle:hover { color: var(--color-text-primary); border-color: var(--color-accent-light); }
+
+.ai-sidebar-close {
+  align-self: flex-end;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 .ai-sidebar-label {
   padding: 10px 8px 4px;
   font-family: var(--ai-mono);
@@ -633,9 +668,37 @@
     grid-template-columns: 1fr;
   }
 
+  /* La sidebar devient un tiroir latéral coulissant plutôt que d'être masquée :
+     l'historique des conversations reste accessible via le bouton de l'en-tête. */
   .ai-sidebar {
-    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: min(84vw, 320px);
+    border-right: 1px solid var(--color-border);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.35);
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
   }
+
+  .ai-sidebar--open {
+    transform: translateX(0);
+  }
+
+  .ai-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.45);
+    animation: ai-backdrop-in 0.2s ease-out;
+  }
+
+  .ai-sidebar-close { display: inline-flex; }
+  .ai-history-toggle { display: inline-flex; }
 
   .ai-main-new {
     display: inline-flex;
@@ -644,6 +707,15 @@
   .ai-bubble {
     max-width: 86%;
   }
+}
+
+@keyframes ai-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-sidebar { transition: none; }
 }
 
 /* ============================================================================

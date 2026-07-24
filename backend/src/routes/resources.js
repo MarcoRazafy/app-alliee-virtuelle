@@ -17,6 +17,12 @@ router.get('/resources/files/:id/download', resourceController.downloadFile);
 // Gestion : admin uniquement
 const requireAdmin = authMiddleware.requireRole('ADMIN');
 
+router.get('/resources/trash', requireAdmin, resourceController.getTrash);
+router.post('/resources/trash/folders/:id/restore', requireAdmin, resourceController.restoreFolder);
+router.delete('/resources/trash/folders/:id', requireAdmin, resourceController.permanentlyDeleteFolder);
+router.post('/resources/trash/files/:id/restore', requireAdmin, resourceController.restoreFile);
+router.delete('/resources/trash/files/:id', requireAdmin, resourceController.permanentlyDeleteFile);
+
 router.post('/resources/folders', requireAdmin, resourceController.createFolder);
 router.put('/resources/folders/:id', requireAdmin, resourceController.renameFolder);
 router.delete('/resources/folders/:id', requireAdmin, resourceController.deleteFolder);

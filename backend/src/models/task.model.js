@@ -45,7 +45,7 @@ async function findAssignedTasks(userId, { status, priority, deadline, listId } 
 }
 
 // Vue admin : toutes les tâches, tous employés confondus (nécessaire pour confirm/reject)
-async function findAllTasks({ status, priority, deadline, listId } = {}) {
+async function findAllTasks({ status, priority, deadline, listId, activeOnly = false } = {}) {
   const conditions = [];
   const params = [];
 
@@ -65,12 +65,17 @@ async function findAllTasks({ status, priority, deadline, listId } = {}) {
     params.push(listId);
     conditions.push(`t.list_id = $${params.length}`);
   }
+  if (activeOnly) {
+    conditions.push(`(t.status != 'CONFIRMEE' OR t.updated_at > now() - INTERVAL '5 days')`);
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await db.query(
     `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.assigned_to, t.list_id,
-            t.parent_task_id, t.client_name, t.client_email, u.full_name AS assigned_to_name
+            t.parent_task_id, t.client_name, t.client_email, t.updated_at,
+            CASE WHEN t.status = 'CONFIRMEE' THEN t.updated_at + INTERVAL '5 days' END AS auto_hide_at,
+            u.full_name AS assigned_to_name
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
      ${where}
@@ -82,9 +87,12 @@ async function findAllTasks({ status, priority, deadline, listId } = {}) {
 
 async function findById(taskId) {
   const result = await db.query(
-    `SELECT id, title, description, assigned_to, created_by, priority, status, start_date, deadline,
-            list_id, parent_task_id, client_name, client_email
-     FROM tasks WHERE id = $1`,
+    `SELECT t.id, t.title, t.description, t.assigned_to, t.created_by, t.priority, t.status,
+            t.start_date, t.deadline, t.list_id, t.parent_task_id, t.client_name, t.client_email,
+            u.full_name AS assignee_name
+     FROM tasks t
+     LEFT JOIN users u ON u.id = t.assigned_to
+     WHERE t.id = $1`,
     [taskId]
   );
   return result.rows[0] || null;

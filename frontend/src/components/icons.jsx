@@ -61,6 +61,15 @@ export const IconChat = (props) =>
     props
   );
 
+export const IconSend = (props) =>
+  base(
+    <>
+      <path d="M4 12 20 4l-4 16-4.5-6L4 12Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="m11.5 14 4.5-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </>,
+    props
+  );
+
 export const IconBarChart = (props) =>
   base(
     <path
@@ -265,6 +274,27 @@ export const IconTrash = (props) =>
       strokeLinecap="round"
       strokeLinejoin="round"
     />,
+    props
+  );
+
+export const IconPlus = (props) =>
+  base(
+    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />,
+    props
+  );
+
+export const IconRestore = (props) =>
+  base(
+    <>
+      <path d="M4 8v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M5.5 12a7 7 0 111.8 5.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>,
     props
   );
 
