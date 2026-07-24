@@ -65,6 +65,8 @@ async function findForUser({ userId, role, limit = 30 }) {
        ON a.entity_type = 'task_space' AND task_space.id = a.entity_id
      LEFT JOIN notification_read_state read_state ON read_state.user_id = $1
      WHERE ${MESSAGE_FILTER}
+       -- On ne notifie jamais quelqu'un de ses propres actions (bruit + badge gonflé).
+       AND a.user_id IS DISTINCT FROM $1
        AND ${visibilityClause(role)}
      ORDER BY a.timestamp DESC
      LIMIT $2`,

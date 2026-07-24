@@ -352,6 +352,10 @@
   font-weight: 700;
 }
 
+.aplan-modal-avatar--image {
+  object-fit: cover;
+}
+
 .aplan-modal-identity {
   flex: 1;
   min-width: 0;
