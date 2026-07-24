@@ -187,12 +187,38 @@ cd frontend
 # Mode développement
 npm run dev
 
+# Mode HTTPS sur le réseau local (microphone/messages vocaux)
+npm run cert:lan -- 192.168.1.34
+npm run dev:lan
+
 # Build optimisé
 npm run build
 
 # Prévisualiser le build
 npm run preview
 ```
+
+### Test sur le réseau local avec microphone
+
+Les navigateurs refusent l’accès au microphone depuis une adresse IP servie en HTTP.
+Le mode LAN démarre donc Vite en HTTPS et relaie les appels `/api` vers le backend local.
+
+```bash
+cd frontend
+
+# À refaire si l’adresse IP locale du serveur change
+npm run cert:lan -- 192.168.1.34
+
+# Le backend doit déjà être actif sur le port 3001
+npm run dev:lan
+```
+
+L’équipe ouvre ensuite `https://192.168.1.34:5173`.
+
+Avant la première utilisation, installez
+`frontend/.cert/alliee-local-ca.crt` comme autorité de certification approuvée sur
+chaque appareil de test, puis redémarrez le navigateur. Partagez uniquement ce
+certificat public : les fichiers `.key` doivent rester sur l’ordinateur serveur.
 
 ---
 

@@ -4,7 +4,7 @@ import * as statsService from '../../services/statsService';
 import * as taskService from '../../services/taskService';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 import { notifyError, notifySuccess } from '../../utils/toast';
-import { IconUsers, IconClock, IconUser, IconBarChart, IconCheckCircle, IconAlert } from '../../components/icons';
+import { IconUsers, IconClock, IconUser, IconBarChart, IconCheckCircle, IconAlert, IconSearch } from '../../components/icons';
 import '../../styles/admin-assistant.css';
 
 // Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
@@ -286,6 +286,7 @@ function AdminAssistant() {
   const [history, setHistory] = useState([]);
   const [kpis, setKpis] = useState(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState('');
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null);
@@ -366,7 +367,17 @@ function AdminAssistant() {
     return list;
   }, [history]);
 
-  const visibleSessions = showAllSessions ? sessions : sessions.slice(0, 8);
+  const filteredSessions = useMemo(() => {
+    const q = sidebarSearch.trim().toLowerCase();
+    if (!q) return sessions;
+    return sessions.filter(
+      (s) =>
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.subtitle || '').toLowerCase().includes(q) ||
+        s.messages.some((m) => (m.question || '').toLowerCase().includes(q) || (m.answer || '').toLowerCase().includes(q))
+    );
+  }, [sessions, sidebarSearch]);
+  const visibleSessions = showAllSessions ? filteredSessions : filteredSessions.slice(0, 8);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeMessages = activeSession ? activeSession.messages : [];
@@ -605,9 +616,22 @@ function AdminAssistant() {
           <PlusIcon />
           Nouvelle conversation
         </button>
+        <label className="ai-search">
+          <IconSearch />
+          <input
+            type="search"
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+            placeholder="Rechercher une conversation"
+            aria-label="Rechercher une conversation"
+          />
+        </label>
         <div className="ai-sidebar-label">Historique</div>
         <div className="ai-session-list">
           {sessions.length === 0 && <p className="ai-session-empty">Aucune conversation pour le moment.</p>}
+          {sessions.length > 0 && filteredSessions.length === 0 && (
+            <p className="ai-session-empty">Aucun résultat pour « {sidebarSearch} ».</p>
+          )}
           {visibleSessions.map((s) => (
             <div
               key={s.id}
@@ -647,7 +671,7 @@ function AdminAssistant() {
             </div>
           ))}
         </div>
-        {sessions.length > 8 && (
+        {filteredSessions.length > 8 && (
           <button type="button" className="ai-see-all" onClick={() => setShowAllSessions((v) => !v)}>
             {showAllSessions ? 'Réduire' : 'Voir toutes les conversations'}
           </button>
@@ -657,8 +681,8 @@ function AdminAssistant() {
       <div className="ai-main">
         <header className="ai-header">
           <div className="ai-header-brand">
-            <span className="ai-avatar ai-avatar--lg">
-              <RobotIcon />
+            <span className="ai-agent ai-agent--mini" aria-hidden="true">
+              <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
             </span>
             <div className="ai-header-copy">
               <h1>Assistant IA</h1>
@@ -692,8 +716,8 @@ function AdminAssistant() {
             <div className="ai-welcome">
               <div className="ai-hero">
                 <span className="ai-hero-decor" aria-hidden="true" />
-                <span className="ai-avatar ai-avatar--xl">
-                  <RobotIcon />
+                <span className="ai-agent ai-agent--hero" aria-hidden="true">
+                  <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
                 </span>
                 <h2>Comment puis-je vous aider ?</h2>
                 <p>Interrogez l'assistant sur l'activité, les tâches, les retards et les performances de votre équipe.</p>
