@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const messageModel = require('../models/message.model');
 const userModel = require('../models/user.model');
+const realtime = require('../realtime/io');
 
 const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
@@ -31,6 +32,8 @@ async function postGlobalMessage(req, res, next) {
     }
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await messageModel.createGlobalMessage(req.user.id, content, attachmentFrom(req));
+    // Temps réel : prévenir tout le monde qu'un message a été posté dans le salon global.
+    realtime.broadcast('message:new', { scope: 'global', authorId: req.user.id });
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -88,6 +91,12 @@ async function postPrivateMessage(req, res, next) {
 
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await messageModel.createPrivateMessage(req.user.id, userId, content, attachmentFrom(req));
+    // Temps réel : prévenir le destinataire (et les autres onglets de l'auteur).
+    realtime.emitToUsers([userId, req.user.id], 'message:new', {
+      scope: 'private',
+      authorId: req.user.id,
+      recipientId: userId,
+    });
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -184,6 +193,9 @@ async function postGroupMessage(req, res, next) {
     const message = await db.withTransaction((client) =>
       messageModel.createGroupMessage(groupId, req.user.id, content, attachmentFrom(req), client)
     );
+    // Temps réel : prévenir tous les membres du groupe.
+    const memberIds = await messageModel.findGroupMemberIds(groupId);
+    realtime.emitToUsers(memberIds, 'message:new', { scope: 'group', groupId, authorId: req.user.id });
     res.status(201).json(message);
   } catch (err) {
     next(err);

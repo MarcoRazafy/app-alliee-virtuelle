@@ -1,6 +1,8 @@
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const env = require('./config/env');
+const { initRealtime } = require('./realtime/io');
 const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
 const messageRoutes = require('./routes/messages');
@@ -42,8 +44,12 @@ app.use('/api', notificationRoutes);
 
 app.use(errorHandler);
 
-app.listen(env.port, () => {
-  console.log(`API démarrée sur http://localhost:${env.port}`);
+// Serveur HTTP explicite pour héberger à la fois Express (REST) et Socket.IO (WebSockets).
+const server = http.createServer(app);
+initRealtime(server);
+
+server.listen(env.port, () => {
+  console.log(`API démarrée sur http://localhost:${env.port} (REST + WebSocket)`);
 });
 
 // Nettoyage autonome des navigateurs fermés : présence et tâche sont clôturées

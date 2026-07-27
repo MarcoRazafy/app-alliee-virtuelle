@@ -8,7 +8,7 @@
     "dev": "nodemon src/index.js",
     "migrate": "psql -U postgres -d alliee_virtuelle -f migrations/init.sql",
     "seed:employee-photos": "node scripts/seedEmployeeProfilePhotos.js",
-    "test": "node test/attendanceMetrics.test.js"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -22,7 +22,8 @@
     "jsonwebtoken": "^9.0.2",
     "luxon": "^3.7.2",
     "multer": "^2.2.0",
-    "pg": "^8.12.0"
+    "pg": "^8.12.0",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

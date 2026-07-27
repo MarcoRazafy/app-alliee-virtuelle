@@ -32,6 +32,11 @@ export default defineConfig(({ mode }) => {
         : undefined,
       proxy: {
         '/api': 'http://127.0.0.1:3001',
+        // WebSocket temps réel (Socket.IO) : relais avec upgrade WebSocket activé.
+        '/socket.io': {
+          target: 'http://127.0.0.1:3001',
+          ws: true,
+        },
       },
     },
   };
