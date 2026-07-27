@@ -4,6 +4,7 @@ const userModel = require('../models/user.model');
 const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
 const sessionModel = require('../models/session.model');
+const realtime = require('../realtime/io');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
 
@@ -94,6 +95,8 @@ async function login(req, res, next) {
     // Chrono de connexion (présence) : indépendant du chrono de tâche, jamais visible
     // à l'employé autrement que comme une plage colorée sur son planning de la semaine.
     await sessionModel.startSession(user.id);
+    // Nouvelle présence (arrivée) → rafraîchit le dashboard temps réel des admins.
+    realtime.broadcast('presence:update', {});
 
     res.status(200).json({
       token,

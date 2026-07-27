@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const sessionModel = require('./session.model');
+const realtime = require('../realtime/io');
 const { computeCompletionRate } = require('../utils/kpi');
 
 const TASK_STATUS = {
@@ -218,6 +219,10 @@ async function recordAudit({ userId, action, entityType, entityId, details }, cl
      VALUES ($1, $2, $3, $4, $5)`,
     [userId, action, entityType, entityId, details ? JSON.stringify(details) : null]
   );
+  // Temps réel : signale une nouvelle activité pour rafraîchir les notifications. Chaque
+  // client re-fetch (la visibilité par utilisateur, dont l'exclusion de ses propres actions,
+  // reste appliquée côté serveur). actorId permet à l'auteur d'ignorer sa propre action.
+  realtime.broadcast('notification:new', { actorId: userId, action, entityType });
 }
 
 // --- Timelog ---

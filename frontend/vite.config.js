@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => {
       host: isLanMode ? '0.0.0.0' : undefined,
       port: 5173,
       strictPort: isLanMode,
+      // Autorise l'hôte des tunnels HTTPS (cloudflared) pour partager l'app en test.
+      // Les adresses IP (accès LAN) et localhost restent autorisées d'office par Vite.
+      allowedHosts: ['.trycloudflare.com'],
       https: isLanMode
         ? {
             cert: certificatePath,
