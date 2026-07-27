@@ -446,21 +446,32 @@
   color: var(--color-on-accent);
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
   border: none;
-  border-radius: 10px;
-  padding: 13px 24px;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  padding: 0 var(--space-6);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
-  box-shadow: 0 8px 24px rgba(37, 107, 255, 0.3);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
   transform: translateY(-1px);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.99);
+}
+
+.btn-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-accent) 30%, transparent), 0 0 0 3px var(--glow-accent);
 }
 
 .btn-primary:disabled {
@@ -692,9 +703,10 @@
 
 .side-card {
   background: linear-gradient(180deg, var(--glass-overlay), transparent 40%), var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-6);
+  box-shadow: var(--shadow-sm);
 }
 
 .side-card-header {
@@ -791,18 +803,21 @@
   color: #fff;
   background: var(--color-error);
   border: none;
-  border-radius: 10px;
-  padding: 11px 18px;
+  border-radius: var(--radius-md);
+  min-height: 42px;
+  padding: 0 var(--space-5);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: filter 0.15s ease;
+  transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-danger:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-error) 32%, transparent);
 }
+.btn-danger:active { transform: scale(0.99); }
 
 .btn-outline {
   font-family: var(--font-family);
@@ -811,20 +826,23 @@
   color: var(--color-text-primary);
   background: transparent;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 11px 18px;
+  border-radius: var(--radius-md);
+  min-height: 42px;
+  padding: 0 var(--space-5);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
 
 .btn-outline:hover {
   border-color: var(--color-accent-light);
   color: var(--color-accent-lighter);
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
 }
+.btn-outline:active { transform: scale(0.99); }
 
 .chrono-ring-wrap {
   position: relative;
@@ -963,17 +981,25 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  padding: 0 10px 10px;
+  padding: 0 12px 12px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .task-table td {
-  padding: 12px 10px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 13px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
   font-size: 13.5px;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+/* Lignes cliquables/scannables : surlignage doux au survol (moderne). */
+.task-table tbody tr {
+  transition: background var(--transition-fast);
+}
+.task-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
 
 .task-table tr:last-child td {
@@ -1183,10 +1209,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 28px 32px;
-  border-radius: 20px;
+  padding: var(--space-8) var(--space-8);
+  border-radius: var(--radius-xl);
   background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-primary-alt));
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 
