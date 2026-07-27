@@ -28,7 +28,22 @@ async function startSession(userId) {
   });
 }
 
-const heartbeatSession = startSession;
+// Heartbeat : PROLONGE une session de présence déjà ouverte (rafraîchit last_seen et annule
+// une éventuelle demande de déconnexion sur rechargement). Ne CRÉE JAMAIS de session : ainsi,
+// rouvrir l'application avec un token encore valide, SANS se reconnecter, ne rend pas le
+// compte "actif". Seule une vraie connexion (login → startSession) ouvre une session.
+async function extendSession(userId) {
+  const result = await db.query(
+    `UPDATE user_sessions
+     SET last_seen_at = now(), disconnect_requested_at = NULL
+     WHERE user_id = $1 AND logout_at IS NULL
+     RETURNING id, user_id, login_at, logout_at, last_seen_at, disconnect_requested_at`,
+    [userId]
+  );
+  return result.rows[0] || null;
+}
+
+const heartbeatSession = extendSession;
 
 // pagehide est envoyé aussi bien à la fermeture qu'au rechargement. On mémorise
 // donc l'intention sans fermer immédiatement : un heartbeat du document rechargé
@@ -244,6 +259,7 @@ async function findOpenSession(userId) {
 module.exports = {
   startSession,
   heartbeatSession,
+  extendSession,
   requestDisconnect,
   expireStaleSessions,
   closeOpenSessions,

@@ -96,6 +96,9 @@ function AdminProfile() {
     phone: '',
     postal_address: '',
     birth_date: '',
+    email: '',
+    position: '',
+    description: '',
   });
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
@@ -120,6 +123,9 @@ function AdminProfile() {
           phone: res.data.phone || '',
           postal_address: res.data.postal_address || '',
           birth_date: res.data.birth_date ? String(res.data.birth_date).slice(0, 10) : '',
+          email: res.data.email || '',
+          position: res.data.position || '',
+          description: res.data.description || '',
         });
         if (res.data.has_avatar) {
           return avatarService.getMyAvatarBlob();
@@ -320,7 +326,12 @@ function AdminProfile() {
 
                 <label>
                   <span>Adresse courriel</span>
-                  <input type="email" value={profile?.email || ''} disabled />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm((c) => ({ ...c, email: e.target.value }))}
+                    required
+                  />
                 </label>
 
                 <label>
@@ -330,6 +341,16 @@ function AdminProfile() {
                     value={form.phone}
                     onChange={(e) => setForm((c) => ({ ...c, phone: e.target.value }))}
                     required
+                  />
+                </label>
+
+                <label>
+                  <span>Poste</span>
+                  <input
+                    type="text"
+                    value={form.position}
+                    onChange={(e) => setForm((c) => ({ ...c, position: e.target.value }))}
+                    placeholder="Votre poste / fonction"
                   />
                 </label>
 
@@ -354,6 +375,16 @@ function AdminProfile() {
                     value={form.postal_address}
                     onChange={(e) => setForm((c) => ({ ...c, postal_address: e.target.value }))}
                     placeholder="Votre adresse"
+                  />
+                </label>
+
+                <label className="profile-form-full">
+                  <span>Description / présentation</span>
+                  <textarea
+                    rows="3"
+                    value={form.description}
+                    onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
+                    placeholder="Quelques mots pour vous présenter : parcours, formation, missions…"
                   />
                 </label>
               </div>

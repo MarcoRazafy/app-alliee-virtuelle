@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthBanner from '../components/auth/AuthBanner';
+import PasswordInput from '../components/auth/PasswordInput';
 import SplashScreen from '../components/SplashScreen';
 
 const SPLASH_DURATION = 5000; // écran de démarrage après connexion (façon Facebook)
@@ -60,12 +61,11 @@ function Login() {
         </div>
         <div className="auth-field">
           <label htmlFor="password">Mot de passe</label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
+            autoComplete="current-password"
             required
           />
         </div>

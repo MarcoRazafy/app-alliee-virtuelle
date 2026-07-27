@@ -10,7 +10,7 @@
     "cert:lan": "bash scripts/generate-lan-cert.sh",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/utils/*.test.js"
+    "test": "node --import ./test/register.mjs --test 'src/**/*.test.js' 'src/**/*.test.jsx'"
   },
   "dependencies": {
     "axios": "^1.7.2",

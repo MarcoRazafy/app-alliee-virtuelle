@@ -5,6 +5,8 @@ import { formatBytes, formatDateTime } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import DocumentEditor from '../../components/resources/DocumentEditor';
 import ResourceViewer from '../../components/resources/ResourceViewer';
+import ResourceTrashModal from '../../components/resources/ResourceTrashModal';
+import ResourceShareModal from '../../components/resources/ResourceShareModal';
 import {
   IconFolder,
   IconFileText,
@@ -12,10 +14,8 @@ import {
   IconUsers,
   IconPencil,
   IconSearch,
-  IconX,
   IconDownload,
   IconArrowRight,
-  IconRestore,
 } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/resources.css';
@@ -24,11 +24,6 @@ const TABS = [
   { value: 'INTERNE', label: 'Interne' },
   { value: 'CLIENT', label: 'Client' },
 ];
-
-const PERMISSION_LABELS = {
-  LECTURE_SEULE: 'Lecture seule',
-  LECTURE_ECRITURE: 'Lecture-écriture',
-};
 
 function AdminResources() {
   const [tab, setTab] = useState('INTERNE');
@@ -615,254 +610,32 @@ function AdminResources() {
       )}
 
       {trashOpen && (
-        <div className="resources-modal-backdrop" role="presentation" onMouseDown={() => setTrashOpen(false)}>
-          <div
-            className="resources-modal resources-trash-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="resources-trash-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="resources-modal-head">
-              <div>
-                <p className="resources-modal-eyebrow">Ressources supprimées</p>
-                <h2 id="resources-trash-title">Corbeille</h2>
-              </div>
-              <button
-                type="button"
-                className="resources-modal-close"
-                onClick={() => setTrashOpen(false)}
-                aria-label="Fermer la corbeille"
-              >
-                <IconX />
-              </button>
-            </div>
-
-            <p className="resources-trash-hint">
-              Restaurez vos dossiers et fichiers, ou supprimez-les définitivement pour libérer de l’espace.
-            </p>
-
-            <div className="resources-trash-content" aria-live="polite">
-              {trashLoading && <div className="resources-trash-empty">Chargement de la corbeille…</div>}
-              {!trashLoading && trashCount === 0 && (
-                <div className="resources-trash-empty">
-                  <IconTrash />
-                  <strong>La corbeille est vide</strong>
-                  <span>Les éléments supprimés depuis Ressources apparaîtront ici.</span>
-                </div>
-              )}
-
-              {!trashLoading && trash.folders.length > 0 && (
-                <section className="resources-trash-section" aria-labelledby="trash-folders-title">
-                  <h3 id="trash-folders-title">Dossiers ({trash.folders.length})</h3>
-                  {trash.folders.map((folder) => {
-                    const key = `folder:${folder.id}`;
-                    const busy = trashBusyKey === key;
-                    return (
-                      <article key={folder.id} className="resources-trash-row">
-                        <span className="resources-trash-item-icon">
-                          <IconFolder />
-                        </span>
-                        <div className="resources-trash-info">
-                          <strong>{folder.name}</strong>
-                          <span>
-                            {folder.type === 'CLIENT' ? 'Client' : 'Interne'} · {folder.file_count} fichier
-                            {Number(folder.file_count) > 1 ? 's' : ''}
-                          </span>
-                          <small>
-                            Supprimé {formatDateTime(folder.deleted_at)}
-                            {folder.deleted_by_name ? ` par ${folder.deleted_by_name}` : ''}
-                          </small>
-                        </div>
-                        <div className="resources-trash-actions">
-                          <button
-                            type="button"
-                            className="resources-trash-restore"
-                            onClick={() => handleRestoreTrash('folder', folder)}
-                            disabled={busy || Boolean(trashBusyKey)}
-                          >
-                            <IconRestore />
-                            {busy ? 'Traitement…' : 'Restaurer'}
-                          </button>
-                          <button
-                            type="button"
-                            className="resources-trash-delete"
-                            onClick={() => handlePermanentDelete('folder', folder)}
-                            disabled={busy || Boolean(trashBusyKey)}
-                            aria-label={`Supprimer définitivement le dossier ${folder.name}`}
-                          >
-                            <IconTrash />
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </section>
-              )}
-
-              {!trashLoading && trash.files.length > 0 && (
-                <section className="resources-trash-section" aria-labelledby="trash-files-title">
-                  <h3 id="trash-files-title">Fichiers ({trash.files.length})</h3>
-                  {trash.files.map((file) => {
-                    const key = `file:${file.id}`;
-                    const busy = trashBusyKey === key;
-                    return (
-                      <article key={file.id} className="resources-trash-row">
-                        <span className="resources-trash-item-icon">
-                          <IconFileText />
-                        </span>
-                        <div className="resources-trash-info">
-                          <strong>{file.file_name}</strong>
-                          <span>
-                            Dossier : {file.folder_name} ·{' '}
-                            {file.kind === 'DOCUMENT' ? 'Document' : formatBytes(file.file_size || 0)}
-                          </span>
-                          <small>
-                            Supprimé {formatDateTime(file.deleted_at)}
-                            {file.deleted_by_name ? ` par ${file.deleted_by_name}` : ''}
-                          </small>
-                        </div>
-                        <div className="resources-trash-actions">
-                          <button
-                            type="button"
-                            className="resources-trash-restore"
-                            onClick={() => handleRestoreTrash('file', file)}
-                            disabled={busy || Boolean(trashBusyKey)}
-                          >
-                            <IconRestore />
-                            {busy ? 'Traitement…' : 'Restaurer'}
-                          </button>
-                          <button
-                            type="button"
-                            className="resources-trash-delete"
-                            onClick={() => handlePermanentDelete('file', file)}
-                            disabled={busy || Boolean(trashBusyKey)}
-                            aria-label={`Supprimer définitivement ${file.file_name}`}
-                          >
-                            <IconTrash />
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </section>
-              )}
-            </div>
-          </div>
-        </div>
+        <ResourceTrashModal
+          onClose={() => setTrashOpen(false)}
+          loading={trashLoading}
+          count={trashCount}
+          trash={trash}
+          busyKey={trashBusyKey}
+          onRestore={handleRestoreTrash}
+          onPermanentDelete={handlePermanentDelete}
+        />
       )}
 
       {shareFolderId && (
-        <div className="resources-modal-backdrop" role="presentation" onMouseDown={() => setShareFolderId(null)}>
-          <div
-            className="resources-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="share-title"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="resources-modal-head">
-              <div>
-                <p className="resources-modal-eyebrow">Partage de dossier</p>
-                <h2 id="share-title">{shareFolderName}</h2>
-              </div>
-              <button
-                type="button"
-                className="resources-modal-close"
-                onClick={() => setShareFolderId(null)}
-                aria-label="Fermer"
-              >
-                <IconX />
-              </button>
-            </div>
-
-            <form className="resources-modal-body" onSubmit={handleShare}>
-              <p className="resources-modal-label">
-                Employés ({shareUserIds.length} sélectionné{shareUserIds.length > 1 ? 's' : ''})
-              </p>
-              <div className="resources-share-members">
-                {employees.length === 0 && <p className="empty-state">Aucun employé actif.</p>}
-                {employees.map((emp) => (
-                  <label
-                    key={emp.id}
-                    className={`resources-member-chip${
-                      shareUserIds.includes(emp.id) ? ' resources-member-chip--on' : ''
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={shareUserIds.includes(emp.id)}
-                      onChange={() => toggleShareUser(emp.id)}
-                    />
-                    {emp.full_name}
-                  </label>
-                ))}
-              </div>
-
-              <div className="resources-modal-row">
-                <label className="form-field">
-                  <span className="form-label">Permission</span>
-                  <select
-                    className="form-select"
-                    value={sharePermission}
-                    onChange={(e) => setSharePermission(e.target.value)}
-                  >
-                    <option value="LECTURE_SEULE">Lecture seule</option>
-                    <option value="LECTURE_ECRITURE">Lecture-écriture</option>
-                  </select>
-                </label>
-                <label className="form-field">
-                  <span className="form-label">Expiration (optionnelle)</span>
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={shareExpiresAt}
-                    onChange={(e) => setShareExpiresAt(e.target.value)}
-                  />
-                </label>
-              </div>
-
-              <div className="resources-modal-foot">
-                <button type="button" className="btn-outline" onClick={() => setShareFolderId(null)}>
-                  Fermer
-                </button>
-                <button type="submit" className="btn-primary" disabled={shareUserIds.length === 0}>
-                  Partager
-                </button>
-              </div>
-            </form>
-
-            <div className="resources-share-existing">
-              <p className="resources-modal-label">Partages existants</p>
-              {shares.length === 0 && <p className="empty-state">Aucun partage pour l'instant.</p>}
-              {shares.length > 0 && (
-                <ul className="resources-share-list">
-                  {shares.map((share) => (
-                    <li key={share.id}>
-                      <span className="resources-share-info">
-                        <strong>{share.shared_with_name}</strong>
-                        <span>
-                          {PERMISSION_LABELS[share.permission_type] || share.permission_type}
-                          {share.expires_at &&
-                            ` · expire le ${new Date(share.expires_at).toLocaleDateString('fr-FR')}`}
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        className="icon-link-btn icon-link-btn--danger"
-                        onClick={() => handleRevoke(share.id)}
-                        aria-label="Révoquer le partage"
-                        title="Révoquer"
-                      >
-                        <IconX />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
+        <ResourceShareModal
+          folderName={shareFolderName}
+          onClose={() => setShareFolderId(null)}
+          onSubmit={handleShare}
+          employees={employees}
+          selectedUserIds={shareUserIds}
+          onToggleUser={toggleShareUser}
+          permission={sharePermission}
+          onPermissionChange={setSharePermission}
+          expiresAt={shareExpiresAt}
+          onExpiresChange={setShareExpiresAt}
+          shares={shares}
+          onRevoke={handleRevoke}
+        />
       )}
     </section>
   );

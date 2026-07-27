@@ -416,6 +416,7 @@
 }
 
 .profile-form input,
+.profile-form textarea,
 .profile-security-summary input,
 .profile-password-form input {
   width: 100%;
@@ -431,7 +432,15 @@
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
+.profile-form textarea {
+  padding: 10px 12px;
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
 .profile-form input:focus,
+.profile-form textarea:focus,
 .profile-password-form input:focus {
   border-color: var(--profile-blue);
   box-shadow: 0 0 0 3px var(--profile-blue-soft);

@@ -25,10 +25,17 @@ Un produit impressionnant côté fonctionnel et visuel, porté par une base de c
 
 Tu veux qu'on attaque un de ces axes concrètement ? Je te recommande de commencer par les tests (impact immédiat sur la fiabilité) ou par le runner de migrations (rapide et ça supprime un vrai piège).
 
------------------------------------------------------------------------------
 
+-----------------------------------------------------------------------------
 Pour viser 17-18
+
 Dans l'ordre d'impact : (1) ajouter des tests d'intégration API, (2) étendre le temps réel aux notifications, (3) faire le bloc sécurité au moment du déploiement, (4) alléger les 3 autres gros fichiers.
 
 En résumé : tu es passé d'un très bon projet à un projet solide et bien plus fiable. La marche suivante, c'est surtout les tests — c'est ce qui rassure le plus sur un projet de cette taille.
+
+-----------------------------------------------------------------------------
+
+Dans l'ordre : (1) le bloc sécurité au moment du déploiement, (2) étendre les tests (composants + présence/notifs), (3) finir les 2 gros fichiers.
+
+En résumé : le projet devient de plus en plus fiable et carré. Le vrai palier suivant reste le déploiement avec la sécurité — c'est lui qui fera passer la note au-dessus de 18.
 

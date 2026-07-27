@@ -23,12 +23,14 @@ function validateRegister(req, res, next) {
 }
 
 function validateUpdateProfile(req, res, next) {
-  const { first_name, last_name, phone } = req.body;
+  const { first_name, last_name, phone, email } = req.body;
   const errors = [];
 
   if (!first_name || !first_name.trim()) errors.push('Le prénom est requis');
   if (!last_name || !last_name.trim()) errors.push('Le nom est requis');
   if (!phone || !phone.trim()) errors.push('Le téléphone est requis');
+  // L'email est modifiable : requis et valide s'il est fourni.
+  if (email !== undefined && (!email || !isValidEmail(email))) errors.push('Adresse email invalide');
 
   if (errors.length > 0) {
     return res.status(400).json({ errors });

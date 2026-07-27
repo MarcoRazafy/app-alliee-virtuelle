@@ -133,6 +133,7 @@ async function me(req, res, next) {
       position: user.position,
       postal_address: user.postal_address,
       birth_date: user.birth_date,
+      description: user.description,
       role: user.role,
       status: user.status,
       has_avatar: !!avatar,
@@ -151,9 +152,28 @@ async function updateProfile(req, res, next) {
       phone,
       postal_address: postalAddress,
       birth_date: birthDate,
+      position,
+      email,
+      description,
     } = req.body;
 
-    const updated = await userModel.updateProfile(req.user.id, { firstName, lastName, phone, postalAddress, birthDate });
+    // Email modifiable : refuser s'il est déjà utilisé par un autre compte.
+    if (email && (await userModel.emailTakenByOther(email, req.user.id))) {
+      return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
+    }
+
+    // Champs non fournis : on conserve la valeur actuelle (pas d'écrasement involontaire).
+    const current = await userModel.findById(req.user.id);
+    const updated = await userModel.updateProfile(req.user.id, {
+      firstName,
+      lastName,
+      phone,
+      postalAddress,
+      birthDate,
+      position: position !== undefined ? position : current.position,
+      email: email !== undefined ? email : current.email,
+      description: description !== undefined ? description : current.description,
+    });
 
     res.status(200).json({
       id: updated.id,
@@ -166,6 +186,7 @@ async function updateProfile(req, res, next) {
       position: updated.position,
       postal_address: updated.postal_address,
       birth_date: updated.birth_date,
+      description: updated.description,
       role: updated.role,
       status: updated.status,
     });
