@@ -20,6 +20,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      // html2pdf (~660 kB) est chargé à la demande (import dynamique dans ResourceViewer),
+      // il n'affecte pas le bundle initial. On relève le seuil pour ne pas alerter dessus.
+      chunkSizeWarningLimit: 700,
+    },
     server: {
       host: isLanMode ? '0.0.0.0' : undefined,
       port: 5173,
