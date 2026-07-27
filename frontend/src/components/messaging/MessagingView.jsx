@@ -12,6 +12,7 @@ import {
 import * as messageService from '../../services/messageService';
 import * as userService from '../../services/userService';
 import * as teamAvatarService from '../../services/teamAvatarService';
+import { getSocket } from '../../services/socket';
 import useAuthStore from '../../store/authStore';
 import { notifyError, notifyInfo, notifySuccess } from '../../utils/toast';
 import '../../styles/messaging.css';
@@ -508,7 +509,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       }
       previousGroupUnreadRef.current = new Map(groupData.map((group) => [group.id, group.unread_count || 0]));
     }
-    const interval = window.setInterval(pollConversations, 10000);
+    const interval = window.setInterval(pollConversations, 20000);
     return () => { cancelled = true; window.clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -520,7 +521,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         const data = await messageService.getGlobalMessages();
         setGlobalMessages(data);
       } catch { /* silencieux */ }
-    }, 6000);
+    }, 15000);
     return () => window.clearInterval(interval);
   }, [activeChannel]);
 
@@ -532,7 +533,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         const data = await messageService.getPrivateMessages(otherUserId);
         setConversationMessages(data);
       } catch { /* silencieux */ }
-    }, 6000);
+    }, 15000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChannel, openConversation?.other_user_id]);
@@ -545,9 +546,35 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         const data = await messageService.getGroupMessages(groupId);
         setGroupMessages(data);
       } catch { /* silencieux */ }
-    }, 6000);
+    }, 15000);
     return () => window.clearInterval(interval);
   }, [activeChannel, openGroup?.id]);
+
+  // Temps réel : à réception d'un nouveau message (WebSocket), on rafraîchit
+  // immédiatement le canal ouvert + les listes (aperçus / non-lus). Le polling
+  // ci-dessus reste en secours (réseau coupé, édition/suppression).
+  useEffect(() => {
+    const socket = getSocket();
+    async function onNewMessage() {
+      // Listes (aperçu du dernier message + compteur de non-lus)
+      loadConversations();
+      loadGroups();
+      // Messages du canal actuellement ouvert
+      const channel = activeChannelRef.current;
+      try {
+        if (channel === 'global') {
+          setGlobalMessages(await messageService.getGlobalMessages());
+        } else if (channel === 'private' && openConversationRef.current) {
+          setConversationMessages(await messageService.getPrivateMessages(openConversationRef.current.other_user_id));
+        } else if (channel === 'group' && openGroupRef.current) {
+          setGroupMessages(await messageService.getGroupMessages(openGroupRef.current.id));
+        }
+      } catch { /* silencieux */ }
+    }
+    socket.on('message:new', onNewMessage);
+    return () => { socket.off('message:new', onNewMessage); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!pinStorageKey) return;

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '../services/api';
 import * as authService from '../services/auth';
+import { disconnectSocket } from '../services/socket';
 
 function extractErrorMessage(err, fallback) {
   const data = err.response?.data;
@@ -99,6 +100,7 @@ const useAuthStore = create((set, get) => ({
     } catch (err) {
       // La session locale est nettoyée même si l'appel réseau échoue
     }
+    disconnectSocket(); // ferme la connexion temps réel pour éviter de rester connecté avec un ancien token
     authService.removeToken();
     authService.removeUser();
     set({ user: null, isAuthenticated: false, dayValidated: null });
