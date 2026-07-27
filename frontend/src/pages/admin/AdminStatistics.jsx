@@ -5,6 +5,7 @@ import { formatDurationShort } from '../../utils/formatters';
 import { notifyError, notifyInfo } from '../../utils/toast';
 import '../../styles/admin-stats.css';
 import { PageSkeleton } from '../../components/Skeleton';
+import AnimatedNumber from '../../components/AnimatedNumber';
 
 const PRESETS = [
   { id: 'day', label: "Aujourd'hui" },
@@ -143,6 +144,7 @@ function CompletionRing({ value }) {
   const v = Math.max(0, Math.min(100, Number(value) || 0));
   const r = 34;
   const c = 2 * Math.PI * r;
+  const dashOffset = c - (v / 100) * c;
   return (
     <div className="astat-ring" aria-label={`Taux de complétion : ${v}%`}>
       <svg viewBox="0 0 84 84" aria-hidden="true">
@@ -153,9 +155,11 @@ function CompletionRing({ value }) {
           cy="42"
           r={r}
           strokeDasharray={c}
-          strokeDashoffset={c - (v / 100) * c}
+          strokeDashoffset={dashOffset}
+          style={{ '--ring-start': c, '--ring-offset': dashOffset }}
         />
       </svg>
+      <AnimatedNumber value={v} format={(current) => `${Math.round(current)}%`} />
     </div>
   );
 }
@@ -234,7 +238,7 @@ function ActivityChart({ rows, metric }) {
         })}
 
         <path className="astat-area" d={areaPath} fill="url(#astat-area-grad)" />
-        <path className="astat-line" d={linePath} />
+        <path className="astat-line" d={linePath} pathLength="1" />
 
         {pts.map((p, i) =>
           i % labelEvery === 0 || i === displayed.length - 1 ? (
@@ -314,7 +318,14 @@ function StatusDonut({ byStatus }) {
               stroke={seg.color}
               strokeDasharray={`${seg.dash} ${circ - seg.dash}`}
               strokeDashoffset={-seg.offset}
-              style={{ opacity: hover && hover !== seg.key ? 0.35 : 1 }}
+              style={{
+                '--segment-length': seg.dash,
+                '--segment-gap': circ - seg.dash,
+                '--segment-offset': -seg.offset,
+                '--segment-circumference': circ,
+                '--segment-delay': `${segments.indexOf(seg) * 70}ms`,
+                opacity: hover && hover !== seg.key ? 0.35 : 1,
+              }}
               onMouseEnter={() => setHover(seg.key)}
               onMouseLeave={() => setHover(null)}
             >
@@ -323,7 +334,7 @@ function StatusDonut({ byStatus }) {
           ))}
         </svg>
         <div className="astat-donut-center">
-          <strong>{total}</strong>
+          <AnimatedNumber as="strong" value={total} />
           <span>tâches</span>
         </div>
       </div>
@@ -543,7 +554,7 @@ function AdminStatistics() {
               <span className="astat-kpi-icon"><Icon type="check" /></span>
               <div>
                 <p>Tâches complétées</p>
-                <strong>{summary.tasks_confirmed ?? 0}</strong>
+                <AnimatedNumber as="strong" value={summary.tasks_confirmed ?? 0} />
                 <span>Validées par un admin</span>
               </div>
             </article>
@@ -552,7 +563,11 @@ function AdminStatistics() {
               <CompletionRing value={summary.completion_rate} />
               <div>
                 <p>Taux de complétion</p>
-                <strong>{summary.completion_rate ?? 0}%</strong>
+                <AnimatedNumber
+                  as="strong"
+                  value={summary.completion_rate ?? 0}
+                  format={(value) => `${Math.round(value)}%`}
+                />
                 <span>Sur la période</span>
               </div>
             </article>
@@ -561,7 +576,11 @@ function AdminStatistics() {
               <span className="astat-kpi-icon"><Icon type="timer" /></span>
               <div>
                 <p>Temps moyen / tâche</p>
-                <strong>{formatDurationShort(summary.average_time_per_task_seconds || 0)}</strong>
+                <AnimatedNumber
+                  as="strong"
+                  value={summary.average_time_per_task_seconds || 0}
+                  format={(value) => formatDurationShort(Math.round(value))}
+                />
                 <span>Tâches chronométrées</span>
               </div>
             </article>
@@ -570,7 +589,11 @@ function AdminStatistics() {
               <span className="astat-kpi-icon"><Icon type="clock" /></span>
               <div>
                 <p>Heures travaillées</p>
-                <strong>{formatDurationShort(derived.totalHours)}</strong>
+                <AnimatedNumber
+                  as="strong"
+                  value={derived.totalHours}
+                  format={(value) => formatDurationShort(Math.round(value))}
+                />
                 <span>Total équipe</span>
               </div>
             </article>
@@ -580,7 +603,7 @@ function AdminStatistics() {
               <div>
                 <p>Employés actifs</p>
                 <strong>
-                  {derived.activeEmployees}
+                  <AnimatedNumber value={derived.activeEmployees} />
                   <small>/{derived.employeeCount}</small>
                 </strong>
                 <span>Avec activité</span>
@@ -657,7 +680,10 @@ function AdminStatistics() {
                     <div className="astat-board-bar-track">
                       <span
                         className="astat-board-bar"
-                        style={{ width: `${Math.max(3, (Number(e[boardMetric] || 0) / boardMax) * 100)}%` }}
+                        style={{
+                          width: `${Math.max(3, (Number(e[boardMetric] || 0) / boardMax) * 100)}%`,
+                          '--board-delay': `${i * 55}ms`,
+                        }}
                       />
                     </div>
                     <span className="astat-board-value">{boardFormat(Number(e[boardMetric] || 0))}</span>
@@ -708,7 +734,10 @@ function AdminStatistics() {
                         <td>
                           <span className="astat-completion">
                             <span className="astat-completion-track">
-                              <span className="astat-completion-fill" style={{ width: `${e.completion_rate}%` }} />
+                              <span
+                                className="astat-completion-fill"
+                                style={{ width: `${e.completion_rate}%` }}
+                              />
                             </span>
                             {e.completion_rate}%
                           </span>

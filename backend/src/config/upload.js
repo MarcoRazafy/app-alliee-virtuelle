@@ -16,9 +16,17 @@ const ALLOWED_MIME_TYPES = [
   'audio/webm',
   'audio/ogg',
   'audio/mpeg',
+  'audio/mp3',
   'audio/mp4',
   'audio/wav',
   'audio/x-wav',
+  // Formats produits par l'enregistreur natif des mobiles (repli HTTP via <input capture>)
+  'audio/aac',
+  'audio/x-m4a',
+  'audio/m4a',
+  'audio/3gpp',
+  'audio/3gpp2',
+  'audio/amr',
 ];
 
 // path.basename() retire tout composant de chemin (../, /) d'un nom de fichier fourni par le client ;

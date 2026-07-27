@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as resourceService from '../../services/resourceService';
 import * as userService from '../../services/userService';
-import { formatBytes } from '../../utils/formatters';
+import { formatBytes, formatDateTime } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import DocumentEditor from '../../components/resources/DocumentEditor';
 import ResourceViewer from '../../components/resources/ResourceViewer';
@@ -15,6 +15,7 @@ import {
   IconX,
   IconDownload,
   IconArrowRight,
+  IconRestore,
 } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/resources.css';
@@ -41,6 +42,10 @@ function AdminResources() {
   const [uploading, setUploading] = useState(false);
   const [viewerFile, setViewerFile] = useState(null);
   const [editor, setEditor] = useState(null); // { document } (édition) ou { document: null } (création)
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trash, setTrash] = useState({ folders: [], files: [] });
+  const [trashLoading, setTrashLoading] = useState(false);
+  const [trashBusyKey, setTrashBusyKey] = useState(null);
   const uploadInputRef = useRef(null);
 
   const [newFolderName, setNewFolderName] = useState('');
@@ -57,11 +62,25 @@ function AdminResources() {
 
   function loadFolders() {
     setLoadingFolders(true);
-    resourceService
+    return resourceService
       .getFolders(tab)
       .then(setFolders)
       .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
       .finally(() => setLoadingFolders(false));
+  }
+
+  async function loadTrash() {
+    setTrashLoading(true);
+    try {
+      const data = await resourceService.getTrash();
+      setTrash({ folders: data.folders || [], files: data.files || [] });
+      return data;
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de charger la corbeille');
+      return { folders: [], files: [] };
+    } finally {
+      setTrashLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -78,6 +97,10 @@ function AdminResources() {
       .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
       .then(setEmployees)
       .catch(() => setEmployees([]));
+  }, []);
+
+  useEffect(() => {
+    loadTrash();
   }, []);
 
   async function openFolder(folder) {
@@ -127,18 +150,25 @@ function AdminResources() {
   }
 
   async function handleDeleteFolder(folder) {
-    if (!window.confirm(`Supprimer le dossier "${folder.name}" ?`)) return;
+    if (
+      !window.confirm(
+        `Placer le dossier « ${folder.name} » dans la corbeille ?\n\nSon contenu pourra être restauré depuis la page Ressources.`
+      )
+    ) {
+      return;
+    }
     try {
       await resourceService.deleteFolder(folder.id);
-      notifySuccess('Dossier supprimé');
-      if (selectedFolder?.id === folder.id) setSelectedFolder(null);
-      loadFolders();
-    } catch (err) {
-      if (err.response?.status === 409) {
-        notifyError(err.response.data.error);
-      } else {
-        notifyError(err.response?.data?.error || 'Impossible de supprimer le dossier');
+      notifySuccess('Dossier placé dans la corbeille');
+      if (selectedFolder?.id === folder.id) {
+        setSelectedFolder(null);
+        setFiles([]);
+        setSelectedFileIds([]);
       }
+      loadFolders();
+      loadTrash();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de supprimer le dossier');
     }
   }
 
@@ -192,14 +222,15 @@ function AdminResources() {
   }
 
   async function handleDeleteSelection() {
-    if (!window.confirm(`Supprimer ${selectedFileIds.length} fichier(s) ?`)) return;
+    if (!window.confirm(`Placer ${selectedFileIds.length} fichier(s) dans la corbeille ?`)) return;
     try {
       await Promise.all(selectedFileIds.map((id) => resourceService.deleteFile(id)));
-      notifySuccess(`${selectedFileIds.length} fichier(s) supprimé(s)`);
+      notifySuccess(`${selectedFileIds.length} fichier(s) placé(s) dans la corbeille`);
       setSelectedFileIds([]);
       const data = await resourceService.getFolderFiles(selectedFolder.id);
       setFiles(data);
       loadFolders();
+      loadTrash();
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de supprimer la sélection');
     }
@@ -252,7 +283,44 @@ function AdminResources() {
     }
   }
 
+  async function handleRestoreTrash(type, item) {
+    const key = `${type}:${item.id}`;
+    if (trashBusyKey) return;
+    setTrashBusyKey(key);
+    try {
+      if (type === 'folder') await resourceService.restoreFolder(item.id);
+      else await resourceService.restoreFile(item.id);
+      notifySuccess(type === 'folder' ? 'Dossier restauré' : 'Fichier restauré');
+      await Promise.all([loadTrash(), loadFolders()]);
+      if (type === 'file' && selectedFolder?.id === item.folder_id) await refreshFiles();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de restaurer cet élément');
+    } finally {
+      setTrashBusyKey(null);
+    }
+  }
+
+  async function handlePermanentDelete(type, item) {
+    const key = `${type}:${item.id}`;
+    if (trashBusyKey) return;
+    const label = type === 'folder' ? `le dossier « ${item.name} » et tout son contenu` : `« ${item.file_name} »`;
+    if (!window.confirm(`Supprimer définitivement ${label} ?\n\nCette action est irréversible.`)) return;
+
+    setTrashBusyKey(key);
+    try {
+      if (type === 'folder') await resourceService.permanentlyDeleteFolder(item.id);
+      else await resourceService.permanentlyDeleteFile(item.id);
+      notifySuccess(type === 'folder' ? 'Dossier supprimé définitivement' : 'Fichier supprimé définitivement');
+      await loadTrash();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de supprimer définitivement cet élément');
+    } finally {
+      setTrashBusyKey(null);
+    }
+  }
+
   const shareFolderName = folders.find((f) => f.id === shareFolderId)?.name;
+  const trashCount = trash.folders.length + trash.files.length;
   const filteredFiles = files.filter((file) =>
     file.file_name.toLowerCase().includes(fileSearch.trim().toLowerCase())
   );
@@ -261,19 +329,33 @@ function AdminResources() {
 
   return (
     <section className="resources-page">
-      <div className="resources-tabs" role="tablist" aria-label="Type de ressources">
-        {TABS.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.value}
-            className={`filter-chip${tab === item.value ? ' filter-chip--active' : ''}`}
-            onClick={() => setTab(item.value)}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="resources-toolbar">
+        <div className="resources-tabs" role="tablist" aria-label="Type de ressources">
+          {TABS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.value}
+              className={`filter-chip${tab === item.value ? ' filter-chip--active' : ''}`}
+              onClick={() => setTab(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="resources-trash-trigger"
+          onClick={() => {
+            setTrashOpen(true);
+            loadTrash();
+          }}
+        >
+          <IconTrash />
+          Corbeille
+          {trashCount > 0 && <span>{trashCount}</span>}
+        </button>
       </div>
 
       <div className="resources-shell">
@@ -530,6 +612,144 @@ function AdminResources() {
           onClose={() => setViewerFile(null)}
           onEdit={openEditDocument}
         />
+      )}
+
+      {trashOpen && (
+        <div className="resources-modal-backdrop" role="presentation" onMouseDown={() => setTrashOpen(false)}>
+          <div
+            className="resources-modal resources-trash-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="resources-trash-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="resources-modal-head">
+              <div>
+                <p className="resources-modal-eyebrow">Ressources supprimées</p>
+                <h2 id="resources-trash-title">Corbeille</h2>
+              </div>
+              <button
+                type="button"
+                className="resources-modal-close"
+                onClick={() => setTrashOpen(false)}
+                aria-label="Fermer la corbeille"
+              >
+                <IconX />
+              </button>
+            </div>
+
+            <p className="resources-trash-hint">
+              Restaurez vos dossiers et fichiers, ou supprimez-les définitivement pour libérer de l’espace.
+            </p>
+
+            <div className="resources-trash-content" aria-live="polite">
+              {trashLoading && <div className="resources-trash-empty">Chargement de la corbeille…</div>}
+              {!trashLoading && trashCount === 0 && (
+                <div className="resources-trash-empty">
+                  <IconTrash />
+                  <strong>La corbeille est vide</strong>
+                  <span>Les éléments supprimés depuis Ressources apparaîtront ici.</span>
+                </div>
+              )}
+
+              {!trashLoading && trash.folders.length > 0 && (
+                <section className="resources-trash-section" aria-labelledby="trash-folders-title">
+                  <h3 id="trash-folders-title">Dossiers ({trash.folders.length})</h3>
+                  {trash.folders.map((folder) => {
+                    const key = `folder:${folder.id}`;
+                    const busy = trashBusyKey === key;
+                    return (
+                      <article key={folder.id} className="resources-trash-row">
+                        <span className="resources-trash-item-icon">
+                          <IconFolder />
+                        </span>
+                        <div className="resources-trash-info">
+                          <strong>{folder.name}</strong>
+                          <span>
+                            {folder.type === 'CLIENT' ? 'Client' : 'Interne'} · {folder.file_count} fichier
+                            {Number(folder.file_count) > 1 ? 's' : ''}
+                          </span>
+                          <small>
+                            Supprimé {formatDateTime(folder.deleted_at)}
+                            {folder.deleted_by_name ? ` par ${folder.deleted_by_name}` : ''}
+                          </small>
+                        </div>
+                        <div className="resources-trash-actions">
+                          <button
+                            type="button"
+                            className="resources-trash-restore"
+                            onClick={() => handleRestoreTrash('folder', folder)}
+                            disabled={busy || Boolean(trashBusyKey)}
+                          >
+                            <IconRestore />
+                            {busy ? 'Traitement…' : 'Restaurer'}
+                          </button>
+                          <button
+                            type="button"
+                            className="resources-trash-delete"
+                            onClick={() => handlePermanentDelete('folder', folder)}
+                            disabled={busy || Boolean(trashBusyKey)}
+                            aria-label={`Supprimer définitivement le dossier ${folder.name}`}
+                          >
+                            <IconTrash />
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </section>
+              )}
+
+              {!trashLoading && trash.files.length > 0 && (
+                <section className="resources-trash-section" aria-labelledby="trash-files-title">
+                  <h3 id="trash-files-title">Fichiers ({trash.files.length})</h3>
+                  {trash.files.map((file) => {
+                    const key = `file:${file.id}`;
+                    const busy = trashBusyKey === key;
+                    return (
+                      <article key={file.id} className="resources-trash-row">
+                        <span className="resources-trash-item-icon">
+                          <IconFileText />
+                        </span>
+                        <div className="resources-trash-info">
+                          <strong>{file.file_name}</strong>
+                          <span>
+                            Dossier : {file.folder_name} ·{' '}
+                            {file.kind === 'DOCUMENT' ? 'Document' : formatBytes(file.file_size || 0)}
+                          </span>
+                          <small>
+                            Supprimé {formatDateTime(file.deleted_at)}
+                            {file.deleted_by_name ? ` par ${file.deleted_by_name}` : ''}
+                          </small>
+                        </div>
+                        <div className="resources-trash-actions">
+                          <button
+                            type="button"
+                            className="resources-trash-restore"
+                            onClick={() => handleRestoreTrash('file', file)}
+                            disabled={busy || Boolean(trashBusyKey)}
+                          >
+                            <IconRestore />
+                            {busy ? 'Traitement…' : 'Restaurer'}
+                          </button>
+                          <button
+                            type="button"
+                            className="resources-trash-delete"
+                            onClick={() => handlePermanentDelete('file', file)}
+                            disabled={busy || Boolean(trashBusyKey)}
+                            aria-label={`Supprimer définitivement ${file.file_name}`}
+                          >
+                            <IconTrash />
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </section>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {shareFolderId && (

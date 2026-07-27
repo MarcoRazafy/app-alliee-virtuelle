@@ -99,6 +99,12 @@
   object-fit: cover;
 }
 
+.profile-large-avatar > span {
+  font-size: 2rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+}
+
 .profile-large-avatar svg {
   width: 54px;
   height: 54px;

@@ -46,7 +46,7 @@ async function getFolderFiles(req, res, next) {
     const { id } = req.params;
 
     const folder = await resourceModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
@@ -99,11 +99,14 @@ async function renameFolder(req, res, next) {
     }
 
     const folder = await resourceModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
     const updated = await resourceModel.renameFolder(id, name);
+    if (!updated) {
+      return res.status(409).json({ error: 'Ce dossier a déjà été supprimé' });
+    }
 
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -124,29 +127,24 @@ async function deleteFolder(req, res, next) {
     const { id } = req.params;
 
     const folder = await resourceModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
-    const fileCount = await resourceModel.countFilesInFolder(id);
-    if (fileCount > 0) {
-      return res.status(409).json({
-        error: `Ce dossier contient ${fileCount} fichier(s) : impossible de le supprimer`,
-        file_count: fileCount,
-      });
+    const deleted = await resourceModel.deleteFolder(id, req.user.id);
+    if (!deleted) {
+      return res.status(409).json({ error: 'Ce dossier se trouve déjà dans la corbeille' });
     }
-
-    await resourceModel.deleteFolder(id);
 
     await taskModel.recordAudit({
       userId: req.user.id,
-      action: 'DELETE_RESOURCE_FOLDER',
+      action: 'TRASH_RESOURCE_FOLDER',
       entityType: 'resources_folder',
       entityId: id,
-      details: { name: folder.name, type: folder.type },
+      details: { name: folder.name, type: folder.type, recoverable: true },
     });
 
-    res.status(200).json({ deleted: true });
+    res.status(200).json({ deleted: true, recoverable: true });
   } catch (err) {
     next(err);
   }
@@ -159,7 +157,7 @@ async function uploadFile(req, res, next) {
     const { id } = req.params;
 
     const folder = await resourceModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
     if (!req.file) {
@@ -201,7 +199,7 @@ async function createDocument(req, res, next) {
     }
 
     const folder = await resourceModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
@@ -233,7 +231,7 @@ async function updateDocument(req, res, next) {
     const { file_name: fileName, content } = req.body;
 
     const existing = await resourceModel.findFileById(id);
-    if (!existing || existing.kind !== 'DOCUMENT') {
+    if (!existing || existing.deleted_at || existing.folder_deleted_at || existing.kind !== 'DOCUMENT') {
       return res.status(404).json({ error: 'Document introuvable' });
     }
 
@@ -253,7 +251,7 @@ async function getFile(req, res, next) {
   try {
     const { id } = req.params;
     const file = await resourceModel.findFileById(id);
-    if (!file) {
+    if (!file || file.deleted_at || file.folder_deleted_at) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
     // On n'expose jamais le chemin disque au client.
@@ -269,7 +267,13 @@ async function serveFile(req, res, next, { disposition }) {
   try {
     const { id } = req.params;
     const file = await resourceModel.findFileById(id);
-    if (!file || file.kind !== 'FILE' || !file.file_path) {
+    if (
+      !file ||
+      file.deleted_at ||
+      file.folder_deleted_at ||
+      file.kind !== 'FILE' ||
+      !file.file_path
+    ) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
     if (!fs.existsSync(file.file_path)) {
@@ -298,24 +302,151 @@ async function deleteFile(req, res, next) {
     const { id } = req.params;
 
     const file = await resourceModel.findFileById(id);
-    if (!file) {
+    if (!file || file.deleted_at || file.folder_deleted_at) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
 
-    await resourceModel.deleteFile(id);
-    // Supprime aussi le binaire sur disque pour les vrais fichiers.
-    if (file.kind === 'FILE' && file.file_path) {
-      fs.unlink(file.file_path, () => {});
+    const deleted = await resourceModel.deleteFile(id, req.user.id);
+    if (!deleted) {
+      return res.status(409).json({ error: 'Ce fichier se trouve déjà dans la corbeille' });
     }
 
     await taskModel.recordAudit({
       userId: req.user.id,
-      action: 'DELETE_RESOURCE_FILE',
+      action: 'TRASH_RESOURCE_FILE',
+      entityType: 'resources_file',
+      entityId: id,
+      details: { file_name: file.file_name, folder_id: file.folder_id, recoverable: true },
+    });
+
+    res.status(200).json({ deleted: true, recoverable: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getTrash(req, res, next) {
+  try {
+    const trash = await resourceModel.findTrash();
+    res.status(200).json(trash);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function restoreFolder(req, res, next) {
+  try {
+    const { id } = req.params;
+    const folder = await resourceModel.findFolderById(id);
+    if (!folder || !folder.deleted_at) {
+      return res.status(404).json({ error: 'Dossier introuvable dans la corbeille' });
+    }
+    if (folder.parent_folder_id) {
+      const parent = await resourceModel.findFolderById(folder.parent_folder_id);
+      if (!parent || parent.deleted_at) {
+        return res.status(409).json({ error: 'Restaurez d’abord le dossier parent' });
+      }
+    }
+
+    const restored = await resourceModel.restoreFolder(id);
+    if (!restored) {
+      return res.status(409).json({ error: 'Ce dossier a déjà été restauré' });
+    }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'RESTORE_RESOURCE_FOLDER',
+      entityType: 'resources_folder',
+      entityId: id,
+      details: { name: folder.name, type: folder.type },
+    });
+    res.status(200).json(restored);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function restoreFile(req, res, next) {
+  try {
+    const { id } = req.params;
+    const file = await resourceModel.findFileById(id);
+    if (!file || !file.deleted_at) {
+      return res.status(404).json({ error: 'Fichier introuvable dans la corbeille' });
+    }
+    if (file.folder_deleted_at) {
+      return res.status(409).json({ error: 'Restaurez d’abord le dossier contenant ce fichier' });
+    }
+    if (file.kind === 'FILE' && file.file_path && !fs.existsSync(file.file_path)) {
+      return res.status(410).json({ error: 'Le fichier physique n’est plus disponible' });
+    }
+
+    const restored = await resourceModel.restoreFile(id);
+    if (!restored) {
+      return res.status(409).json({ error: 'Ce fichier a déjà été restauré' });
+    }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'RESTORE_RESOURCE_FILE',
       entityType: 'resources_file',
       entityId: id,
       details: { file_name: file.file_name, folder_id: file.folder_id },
     });
+    res.status(200).json(restored);
+  } catch (err) {
+    next(err);
+  }
+}
 
+async function permanentlyDeleteFolder(req, res, next) {
+  try {
+    const { id } = req.params;
+    const folder = await resourceModel.findFolderById(id);
+    if (!folder || !folder.deleted_at) {
+      return res.status(404).json({ error: 'Dossier introuvable dans la corbeille' });
+    }
+
+    const filePaths = await resourceModel.findFilePathsInFolderTree(id);
+    const deleted = await resourceModel.permanentlyDeleteFolder(id);
+    if (!deleted) {
+      return res.status(409).json({ error: 'Ce dossier ne peut plus être supprimé' });
+    }
+    for (const filePath of filePaths) {
+      fs.unlink(filePath, () => {});
+    }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'PERMANENT_DELETE_RESOURCE_FOLDER',
+      entityType: 'resources_folder',
+      entityId: id,
+      details: { name: folder.name, type: folder.type, removed_files: filePaths.length },
+    });
+    res.status(200).json({ deleted: true, removed_files: filePaths.length });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function permanentlyDeleteFile(req, res, next) {
+  try {
+    const { id } = req.params;
+    const file = await resourceModel.findFileById(id);
+    if (!file || !file.deleted_at) {
+      return res.status(404).json({ error: 'Fichier introuvable dans la corbeille' });
+    }
+
+    const deleted = await resourceModel.permanentlyDeleteFile(id);
+    if (!deleted) {
+      return res.status(409).json({ error: 'Ce fichier ne peut plus être supprimé' });
+    }
+    if (file.kind === 'FILE' && file.file_path) {
+      fs.unlink(file.file_path, () => {});
+    }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'PERMANENT_DELETE_RESOURCE_FILE',
+      entityType: 'resources_file',
+      entityId: id,
+      details: { file_name: file.file_name, folder_id: file.folder_id },
+    });
     res.status(200).json({ deleted: true });
   } catch (err) {
     next(err);
@@ -335,7 +466,7 @@ async function shareFolder(req, res, next) {
     }
 
     const folder = await resourceModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
@@ -374,7 +505,7 @@ async function getFolderShares(req, res, next) {
     const { id } = req.params;
 
     const folder = await resourceModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
@@ -427,6 +558,11 @@ module.exports = {
   previewFile,
   downloadFile,
   deleteFile,
+  getTrash,
+  restoreFolder,
+  restoreFile,
+  permanentlyDeleteFolder,
+  permanentlyDeleteFile,
   shareFolder,
   getFolderShares,
   revokeShare,

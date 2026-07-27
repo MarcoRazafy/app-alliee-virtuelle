@@ -18,12 +18,15 @@ function MyDay() {
   const [available, setAvailable] = useState([]);
   const [selected, setSelected] = useState([]);
   const [validated, setValidated] = useState(false);
+  const [tasksLoaded, setTasksLoaded] = useState(false);
+  const [noTasksAvailable, setNoTasksAvailable] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [requestsByTaskId, setRequestsByTaskId] = useState({});
   const [requestingTask, setRequestingTask] = useState(null); // tâche pour laquelle on ouvre la modale
   const [requestMessage, setRequestMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const setDayValidated = useAuthStore((state) => state.setDayValidated);
+  const storedDayValidated = useAuthStore((state) => state.dayValidated);
 
   // Recharge tout l'état. En mode "journée validée", on l'appelle aussi en polling pour voir
   // apparaître les tâches supplémentaires approuvées par l'admin (et le statut des demandes).
@@ -50,7 +53,10 @@ function MyDay() {
 
     const isValidated = myDay.length > 0 && myDay.every((item) => item.validated_at);
     setValidated(isValidated);
-    setDayValidated(isValidated || selectableTasks.length === 0);
+    const hasNoTask = selectableTasks.length === 0;
+    setNoTasksAvailable(hasNoTask);
+    setTasksLoaded(true);
+    setDayValidated(isValidated || hasNoTask);
 
     // Dernière demande par tâche (la liste est déjà triée du plus récent au plus ancien).
     const map = {};
@@ -65,15 +71,16 @@ function MyDay() {
   }, [load]);
 
   // Polling seulement en mode validé : sinon on écraserait le drag-drop en cours de l'employé.
-  const validatedRef = useRef(validated);
-  validatedRef.current = validated;
+  const platformAccessible = validated || storedDayValidated === true || (tasksLoaded && noTasksAvailable);
+  const platformAccessibleRef = useRef(platformAccessible);
+  platformAccessibleRef.current = platformAccessible;
   useEffect(() => {
-    if (!validated) return undefined;
+    if (!platformAccessible) return undefined;
     const poll = setInterval(() => {
-      if (validatedRef.current) load().catch(() => {});
+      if (platformAccessibleRef.current) load().catch(() => {});
     }, 15000);
     return () => clearInterval(poll);
-  }, [validated, load]);
+  }, [platformAccessible, load]);
 
   function handleUpdate({ available: newAvailable, selected: newSelected }) {
     setAvailable(newAvailable);
@@ -125,16 +132,16 @@ function MyDay() {
       title="Ma journée"
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Ma journée' }]}
       subtitle={today}
-      locked={!validated}
+      locked={!platformAccessible}
     >
       <div className="app-page-header">
-        <span className={`status-badge ${validated ? 'status-badge--validated' : 'status-badge--pending'}`}>
-          <span className={`status-dot ${validated ? '' : 'status-dot--pending'}`} />
-          {validated ? 'Journée validée' : 'En attente de validation'}
+        <span className={`status-badge ${platformAccessible ? 'status-badge--validated' : 'status-badge--pending'}`}>
+          <span className={`status-dot ${platformAccessible ? '' : 'status-dot--pending'}`} />
+          {validated ? 'Journée validée' : noTasksAvailable ? 'Plateforme accessible' : 'En attente de validation'}
         </span>
       </div>
 
-      {!validated && (
+      {tasksLoaded && !platformAccessible && (
         <div className="info-banner">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
@@ -144,6 +151,19 @@ function MyDay() {
           <span>
             Glissez au moins une tâche vers <strong>« Mes tâches aujourd'hui »</strong> et validez pour accéder au
             reste de l'application.
+          </span>
+        </div>
+      )}
+
+      {tasksLoaded && noTasksAvailable && (
+        <div className="info-banner info-banner--success">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>
+            Aucune tâche ne vous est assignée pour le moment. Vous pouvez visiter librement toutes les pages de la
+            plateforme.
           </span>
         </div>
       )}
@@ -161,25 +181,27 @@ function MyDay() {
         </div>
       )}
 
-      <DragDropTasks
-        availableTasks={available}
-        selectedTasks={selected}
-        onUpdate={handleUpdate}
-        validated={validated}
-        requestsByTaskId={requestsByTaskId}
-        onRequestTask={openRequest}
-      />
+      {!noTasksAvailable && (
+        <DragDropTasks
+          availableTasks={available}
+          selectedTasks={selected}
+          onUpdate={handleUpdate}
+          validated={validated}
+          requestsByTaskId={requestsByTaskId}
+          onRequestTask={openRequest}
+        />
+      )}
 
       <div className="app-actions">
-        {!validated && (
+        {!platformAccessible && (
           <button className="btn-primary" onClick={handleValidate} disabled={selected.length < 1 || isValidating}>
             {isValidating && <span className="btn-spinner" />}
             {isValidating ? 'Validation...' : 'Valider ma journée'}
           </button>
         )}
-        {validated && (
+        {platformAccessible && (
           <Link to="/dashboard" className="btn-primary">
-            Continuer vers le tableau de bord
+            Accéder au tableau de bord
           </Link>
         )}
       </div>

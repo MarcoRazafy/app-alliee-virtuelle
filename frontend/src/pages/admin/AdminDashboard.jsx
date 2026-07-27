@@ -15,6 +15,7 @@ import {
 } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
+import AnimatedNumber from '../../components/AnimatedNumber';
 
 const PRIORITY_META = {
   URGENT: { label: 'Urgent', cls: 'urgent' },
@@ -155,7 +156,7 @@ function AdminDashboard() {
           </span>
           <div className="admin-kpi-copy">
             <p>Employés actifs</p>
-            <strong>{activeCount}</strong>
+            <AnimatedNumber as="strong" value={activeCount} />
             <span className="admin-kpi-hint">connectés en ce moment</span>
           </div>
         </div>
@@ -165,7 +166,7 @@ function AdminDashboard() {
           </span>
           <div className="admin-kpi-copy">
             <p>Tâches en cours</p>
-            <strong>{data.stats.tasks_in_progress}</strong>
+            <AnimatedNumber as="strong" value={data.stats.tasks_in_progress} />
             <span className="admin-kpi-hint">chronos démarrés</span>
           </div>
         </div>
@@ -175,7 +176,7 @@ function AdminDashboard() {
           </span>
           <div className="admin-kpi-copy">
             <p>Tâches en retard</p>
-            <strong>{data.stats.tasks_late}</strong>
+            <AnimatedNumber as="strong" value={data.stats.tasks_late} />
             <span className="admin-kpi-hint">échéances dépassées</span>
           </div>
         </div>

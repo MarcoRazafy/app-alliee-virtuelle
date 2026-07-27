@@ -24,8 +24,9 @@ const useAuthStore = create((set, get) => ({
       const { token, user } = response.data;
       authService.setToken(token);
       authService.setUser(user);
-      // Le backend vide la sélection du jour à chaque login : l'employé doit toujours revalider
-      set({ user, isAuthenticated: true, dayValidated: user.role === 'EMPLOYEE' ? false : true });
+      // La vérification serveur décide si l'employé doit valider sa journée. Elle autorise
+      // immédiatement la plateforme lorsqu'aucune tâche actionnable ne lui est assignée.
+      set({ user, isAuthenticated: true, dayValidated: user.role === 'EMPLOYEE' ? null : true });
       return true;
     } catch (err) {
       set({ error: extractErrorMessage(err, 'Impossible de se connecter. Vérifiez vos identifiants.') });

@@ -23,7 +23,43 @@
   padding: 16px 12px;
   gap: 6px;
   border-right: 1px solid var(--color-border);
-  background: var(--color-bg-primary-alt);
+  /* Même couleur que la colonne gauche de la messagerie (.msgr-sidebar). */
+  background: var(--color-bg-secondary);
+}
+
+/* Bouton d'ouverture de l'historique (visible uniquement en mobile) + bouton de
+   fermeture dans le tiroir + fond assombri. Masqués sur grand écran. */
+.ai-history-toggle,
+.ai-sidebar-close,
+.ai-sidebar-backdrop {
+  display: none;
+}
+
+.ai-history-toggle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.ai-history-toggle:hover { color: var(--color-text-primary); border-color: var(--color-accent-light); }
+
+.ai-sidebar-close {
+  align-self: flex-end;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .ai-sidebar-label {
@@ -632,9 +668,37 @@
     grid-template-columns: 1fr;
   }
 
+  /* La sidebar devient un tiroir latéral coulissant plutôt que d'être masquée :
+     l'historique des conversations reste accessible via le bouton de l'en-tête. */
   .ai-sidebar {
-    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: min(84vw, 320px);
+    border-right: 1px solid var(--color-border);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.35);
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
   }
+
+  .ai-sidebar--open {
+    transform: translateX(0);
+  }
+
+  .ai-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.45);
+    animation: ai-backdrop-in 0.2s ease-out;
+  }
+
+  .ai-sidebar-close { display: inline-flex; }
+  .ai-history-toggle { display: inline-flex; }
 
   .ai-main-new {
     display: inline-flex;
@@ -643,6 +707,15 @@
   .ai-bubble {
     max-width: 86%;
   }
+}
+
+@keyframes ai-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-sidebar { transition: none; }
 }
 
 /* ============================================================================
@@ -794,3 +867,368 @@
   font: inherit;
   font-size: 13px;
 }
+
+/* ============================================================================
+   Refonte écran d'accueil (mockup) : header pills, cartes de suggestion, KPI.
+   Couleurs = tokens de l'app (accent bleu), icône = étoile "sparkle".
+   ============================================================================ */
+.ai-subtitle { margin: 2px 0 0; font-size: 13px; color: var(--color-text-muted); }
+
+.ai-header-pills { display: flex; align-items: center; gap: 10px; }
+.ai-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+.ai-pill svg { width: 13px; height: 13px; }
+.ai-pill--online { color: var(--color-success); }
+.ai-pill--online .ai-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); }
+.ai-pill--model { color: var(--color-accent-light); border-color: color-mix(in srgb, var(--color-accent) 35%, transparent); background: var(--glow-accent); }
+
+/* --- Sidebar : sous-titre + voir toutes --- */
+.ai-session-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.ai-session-row .ai-session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ai-session-row .ai-session-time { flex-shrink: 0; white-space: nowrap; }
+.ai-session-sub { display: block; font-size: 11.5px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+.ai-see-all {
+  margin: 6px 10px 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary-alt);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.ai-see-all:hover { background: var(--input-bg); color: var(--color-text-primary); }
+
+/* --- Écran d'accueil --- */
+.ai-welcome { display: flex; flex-direction: column; gap: 22px; width: 100%; max-width: 1040px; margin: 0 auto; }
+
+.ai-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 40px 28px;
+  border-radius: 22px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+/* Décor : halo + motif de points discrets */
+.ai-hero-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 8%, var(--glow-accent) 0%, transparent 42%),
+    radial-gradient(circle, color-mix(in srgb, var(--color-text-primary) 6%, transparent) 1px, transparent 1px);
+  background-size: auto, 22px 22px;
+  opacity: 0.8;
+}
+.ai-hero > * { position: relative; z-index: 1; }
+.ai-hero h2 { margin: 12px 0 0; font-size: 22px; font-weight: 780; color: var(--color-text-primary); }
+.ai-hero > p { margin: 0; max-width: 520px; font-size: 13.5px; color: var(--color-text-muted); }
+
+.ai-suggestions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 760px;
+  margin-top: 12px;
+}
+.ai-suggestion-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary-alt);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+.ai-suggestion-card:hover {
+  border-color: var(--color-accent-light);
+  background: var(--color-bg-secondary);
+  transform: translateY(-2px);
+}
+.ai-suggestion-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  color: var(--color-accent-light);
+  background: var(--glow-accent);
+}
+.ai-suggestion-icon svg { width: 19px; height: 19px; }
+.ai-suggestion-text { flex: 1; font-size: 13px; font-weight: 600; color: var(--color-text-primary); line-height: 1.35; }
+.ai-suggestion-arrow { color: var(--color-text-muted); display: inline-flex; }
+.ai-suggestion-arrow svg { width: 18px; height: 18px; }
+.ai-suggestion-card:hover .ai-suggestion-arrow { color: var(--color-accent-light); }
+
+/* --- KPI --- */
+.ai-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.ai-kpi {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+.ai-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  flex-shrink: 0;
+}
+.ai-kpi-icon svg { width: 22px; height: 22px; }
+.ai-kpi-icon--ok { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent); }
+.ai-kpi-icon--warn { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 15%, transparent); }
+.ai-kpi-icon--time { color: var(--color-accent-light); background: var(--glow-accent); }
+.ai-kpi-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.ai-kpi-label { font-size: 12px; color: var(--color-text-muted); }
+.ai-kpi-value { font-size: 26px; font-weight: 800; color: var(--color-text-primary); line-height: 1.1; }
+.ai-kpi-delta { font-size: 11px; font-weight: 600; }
+.ai-kpi-delta.up { color: var(--color-success); }
+.ai-kpi-delta.down { color: var(--color-error); }
+.ai-spark { width: 84px; height: 34px; flex-shrink: 0; opacity: 0.9; }
+
+@media (max-width: 720px) {
+  .ai-suggestions { grid-template-columns: 1fr; }
+  .ai-header-pills .ai-pill--model { display: none; }
+}
+
+/* ============================================================================
+   PASS "PREMIUM" (skill UI/UX — style Liquid Glass, couleurs = tokens bleus).
+   Profondeur, surfaces translucides, micro-interactions, hiérarchie typo.
+   ============================================================================ */
+
+/* Profondeur d'arrière-plan : halo d'accent discret + surface plus riche. */
+.ai-shell {
+  background:
+    radial-gradient(120% 80% at 82% -10%, var(--glow-accent), transparent 60%),
+    var(--color-bg-secondary);
+}
+.ai-main { position: relative; }
+.ai-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(90% 60% at 50% -8%, color-mix(in srgb, var(--color-accent) 8%, transparent), transparent 55%);
+  z-index: 0;
+}
+.ai-header, .ai-notice, .ai-messages, .ai-input-bar { position: relative; z-index: 1; }
+
+/* Sidebar : même couleur que la messagerie ; la zone centrale prend le fond primaire
+   pour recréer le contraste gauche/droite de la page Messagerie. */
+.ai-sidebar { background: var(--color-bg-secondary); }
+.ai-main { background: var(--color-bg-primary); }
+
+.ai-new-btn--block {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--color-accent-light) 55%, transparent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  box-shadow: 0 8px 20px -8px var(--glow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.ai-new-btn--block:hover { transform: translateY(-1px); box-shadow: 0 12px 26px -8px var(--glow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.22); filter: brightness(1.04); }
+.ai-new-btn--block:active { transform: translateY(0) scale(0.985); }
+
+/* Items d'historique : survol soulevé + barre d'accent sur l'actif. */
+.ai-session-item {
+  border: 1px solid transparent;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.ai-session-item:hover { transform: translateX(2px); border-color: var(--color-border); }
+.ai-session-item--active {
+  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-accent-light), 0 6px 18px -10px var(--glow-accent);
+}
+.ai-session-item--active .ai-session-icon { color: var(--color-accent-light); }
+
+/* En-tête : verre translucide + fine ligne dégradée en bas. */
+.ai-header {
+  backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-bg-secondary) 88%, transparent), color-mix(in srgb, var(--color-bg-secondary) 72%, transparent));
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 30%, var(--color-border)), transparent) 1;
+}
+.ai-header h1 { letter-spacing: -0.015em; }
+
+/* Étoile : halo lumineux + flottement doux (le scanline existant reste). */
+.ai-avatar { box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent-light) 70%, transparent), 0 8px 22px -6px var(--glow-accent); }
+.ai-avatar--xl {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent-light) 60%, transparent), 0 0 60px 4px var(--glow-accent), 0 20px 40px -18px rgba(0, 0, 0, 0.5);
+  animation: ai-float 5s ease-in-out infinite;
+}
+@keyframes ai-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* Carte héros : verre en couches, reflet supérieur, ombre douce. */
+.ai-hero {
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-text-primary) 4%, var(--color-bg-secondary)), var(--color-bg-secondary));
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 30px 70px -40px rgba(0, 0, 0, 0.6);
+}
+.ai-hero h2 { letter-spacing: -0.02em; font-size: 24px; }
+
+/* Pills raffinées. */
+.ai-pill { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); backdrop-filter: blur(6px); }
+
+/* Cartes de suggestion : verre + soulèvement + flèche qui glisse. */
+.ai-suggestion-card {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-text-primary) 3%, var(--color-bg-primary-alt)), var(--color-bg-primary-alt));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.ai-suggestion-card:hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 40%, transparent), 0 14px 30px -14px var(--glow-accent);
+}
+.ai-suggestion-arrow { transition: transform 0.18s ease, color 0.18s ease; }
+.ai-suggestion-card:hover .ai-suggestion-arrow { transform: translateX(4px); }
+.ai-suggestion-card:active { transform: translateY(0) scale(0.99); }
+
+/* KPI : verre, soulèvement, chiffres tabulaires, sparkline avec lueur. */
+.ai-kpi {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-text-primary) 3%, var(--color-bg-secondary)), var(--color-bg-secondary));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.ai-kpi:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--color-accent) 22%, transparent); box-shadow: 0 16px 34px -18px var(--glow-accent); }
+.ai-kpi-value { font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+.ai-kpi-delta { display: inline-flex; align-items: center; width: fit-content; }
+.ai-spark { filter: drop-shadow(0 4px 8px color-mix(in srgb, currentColor 30%, transparent)); }
+
+/* Composer : barre élevée, anneau de focus lumineux. */
+.ai-input-bar {
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 22%, var(--color-border)), transparent) 1;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-bg-primary-alt) 70%, transparent), var(--color-bg-primary-alt));
+  backdrop-filter: blur(10px);
+}
+.ai-input-field { transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease; }
+.ai-input-field:focus-within { box-shadow: 0 0 0 3px var(--glow-accent), 0 8px 22px -12px var(--glow-accent); }
+
+/* Micro-interactions génériques + focus clavier visible. */
+.ai-input-icon, .ai-send, .ai-see-all, .ai-msg-actions button, .ai-session-tools button { transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease; }
+.ai-input-icon:active, .ai-send:active:not(:disabled) { transform: scale(0.92); }
+.ai-shell :focus-visible { outline: 2px solid var(--color-accent-light); outline-offset: 2px; border-radius: 8px; }
+
+/* Accessibilité : respecte prefers-reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  .ai-avatar::after, .ai-avatar--xl { animation: none; }
+  .ai-session-item, .ai-suggestion-card, .ai-kpi, .ai-new-btn--block, .ai-suggestion-arrow { transition: none; }
+}
+
+/* --- Robot mascotte (public/agentIAImage-removebg-preview.png), fond transparent --- */
+.ai-agent { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+.ai-agent-robot { display: block; object-fit: contain; }
+
+/* Héros (écran d'accueil) : gros robot qui flotte, halo d'accent + ombre au sol animée. */
+.ai-agent--hero { width: 150px; height: 150px; margin-bottom: 2px; }
+.ai-agent--hero::before {
+  content: '';
+  position: absolute;
+  inset: -14% -14% 6%;
+  background: radial-gradient(circle at 50% 42%, var(--glow-accent), transparent 62%);
+  filter: blur(8px);
+  z-index: 0;
+}
+.ai-agent--hero .ai-agent-robot {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 16px 24px color-mix(in srgb, var(--color-accent) 32%, transparent));
+  animation: ai-agent-float 4.2s ease-in-out infinite;
+}
+.ai-agent--hero::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 62%;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.38), transparent 70%);
+  filter: blur(3px);
+  z-index: 0;
+  animation: ai-agent-shadow 4.2s ease-in-out infinite;
+}
+
+/* En-tête : petit robot (statique). */
+.ai-agent--mini { width: 46px; height: 46px; flex-shrink: 0; }
+.ai-agent--mini .ai-agent-robot {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 8px color-mix(in srgb, var(--color-accent) 30%, transparent));
+}
+
+@keyframes ai-agent-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-11px) rotate(2deg); }
+}
+@keyframes ai-agent-shadow {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.5; }
+  50% { transform: translateX(-50%) scale(0.8); opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-agent--hero .ai-agent-robot { animation: none; }
+  .ai-agent--hero::after { animation: none; }
+}
+
+/* Recherche dans l'historique (sidebar) — style aligné sur la messagerie. */
+.ai-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 6px 4px;
+  padding: 0 12px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--input-bg);
+  color: var(--color-text-muted);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ai-search:focus-within {
+  border-color: var(--color-accent-light);
+  box-shadow: 0 0 0 3px var(--glow-accent);
+}
+.ai-search svg { width: 16px; height: 16px; flex-shrink: 0; }
+.ai-search input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+.ai-search input::placeholder { color: var(--color-text-muted); }

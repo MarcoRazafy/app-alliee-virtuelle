@@ -3,12 +3,22 @@ const db = require('../config/database');
 // --- Spaces ---
 
 async function findAllSpaces() {
-  const result = await db.query('SELECT id, name, description, created_by, created_at FROM task_spaces ORDER BY name ASC');
+  const result = await db.query(
+    `SELECT id, name, description, created_by, created_at
+     FROM task_spaces
+     WHERE deleted_at IS NULL
+     ORDER BY name ASC`
+  );
   return result.rows;
 }
 
 async function findSpaceById(id) {
-  const result = await db.query('SELECT id, name, description, created_by, created_at FROM task_spaces WHERE id = $1', [id]);
+  const result = await db.query(
+    `SELECT id, name, description, created_by, created_at, deleted_at, deleted_by
+     FROM task_spaces
+     WHERE id = $1`,
+    [id]
+  );
   return result.rows[0] || null;
 }
 
@@ -23,29 +33,46 @@ async function createSpace({ name, description, createdBy }) {
 
 async function updateSpace(id, { name, description }) {
   const result = await db.query(
-    `UPDATE task_spaces SET name = $1, description = $2 WHERE id = $3
+    `UPDATE task_spaces
+     SET name = $1, description = $2
+     WHERE id = $3 AND deleted_at IS NULL
      RETURNING id, name, description, created_by, created_at`,
     [name, description || null, id]
   );
-  return result.rows[0];
+  return result.rows[0] || null;
 }
 
-async function deleteSpace(id) {
-  await db.query('DELETE FROM task_spaces WHERE id = $1', [id]);
+async function deleteSpace(id, deletedBy) {
+  const result = await db.query(
+    `UPDATE task_spaces
+     SET deleted_at = now(), deleted_by = $2
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, name, description, deleted_at`,
+    [id, deletedBy]
+  );
+  return result.rows[0] || null;
 }
 
 // --- Folders ---
 
 async function findFoldersBySpace(spaceId) {
   const result = await db.query(
-    'SELECT id, space_id, name, created_at FROM task_folders WHERE space_id = $1 ORDER BY name ASC',
+    `SELECT id, space_id, name, created_at
+     FROM task_folders
+     WHERE space_id = $1 AND deleted_at IS NULL
+     ORDER BY name ASC`,
     [spaceId]
   );
   return result.rows;
 }
 
 async function findFolderById(id) {
-  const result = await db.query('SELECT id, space_id, name, created_at FROM task_folders WHERE id = $1', [id]);
+  const result = await db.query(
+    `SELECT id, space_id, name, created_at, deleted_at, deleted_by
+     FROM task_folders
+     WHERE id = $1`,
+    [id]
+  );
   return result.rows[0] || null;
 }
 
@@ -60,28 +87,44 @@ async function createFolder({ spaceId, name }) {
 
 async function updateFolder(id, name) {
   const result = await db.query(
-    'UPDATE task_folders SET name = $1 WHERE id = $2 RETURNING id, space_id, name, created_at',
+    `UPDATE task_folders
+     SET name = $1
+     WHERE id = $2 AND deleted_at IS NULL
+     RETURNING id, space_id, name, created_at`,
     [name, id]
   );
-  return result.rows[0];
+  return result.rows[0] || null;
 }
 
-async function deleteFolder(id) {
-  await db.query('DELETE FROM task_folders WHERE id = $1', [id]);
+async function deleteFolder(id, deletedBy) {
+  const result = await db.query(
+    `UPDATE task_folders
+     SET deleted_at = now(), deleted_by = $2
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, space_id, name, created_at, deleted_at`,
+    [id, deletedBy]
+  );
+  return result.rows[0] || null;
 }
 
 // --- Lists ---
 
 async function findListsByFolder(folderId) {
   const result = await db.query(
-    'SELECT id, folder_id, name, created_at FROM task_lists WHERE folder_id = $1 ORDER BY name ASC',
+    `SELECT id, folder_id, name, created_at
+     FROM task_lists
+     WHERE folder_id = $1 AND deleted_at IS NULL
+     ORDER BY name ASC`,
     [folderId]
   );
   return result.rows;
 }
 
 async function findListById(id) {
-  const result = await db.query('SELECT id, folder_id, name, created_at FROM task_lists WHERE id = $1', [id]);
+  const result = await db.query(
+    'SELECT id, folder_id, name, created_at, deleted_at, deleted_by FROM task_lists WHERE id = $1',
+    [id]
+  );
   return result.rows[0] || null;
 }
 
@@ -102,8 +145,15 @@ async function updateList(id, name) {
   return result.rows[0];
 }
 
-async function deleteList(id) {
-  await db.query('DELETE FROM task_lists WHERE id = $1', [id]);
+async function deleteList(id, deletedBy) {
+  const result = await db.query(
+    `UPDATE task_lists
+     SET deleted_at = now(), deleted_by = $2
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, folder_id, name, created_at, deleted_at`,
+    [id, deletedBy]
+  );
+  return result.rows[0] || null;
 }
 
 // --- Arbre complet : spaces -> folders -> lists (+ nombre de tâches par liste) ---
@@ -114,10 +164,14 @@ async function getTree() {
       s.id AS space_id, s.name AS space_name,
       f.id AS folder_id, f.name AS folder_name,
       l.id AS list_id, l.name AS list_name,
-      (SELECT COUNT(*)::INTEGER FROM tasks WHERE tasks.list_id = l.id) AS task_count
+      (SELECT COUNT(*)::INTEGER
+         FROM tasks
+        WHERE tasks.list_id = l.id
+          AND (tasks.status != 'CONFIRMEE' OR tasks.updated_at > now() - INTERVAL '5 days')) AS task_count
     FROM task_spaces s
-    LEFT JOIN task_folders f ON f.space_id = s.id
-    LEFT JOIN task_lists l ON l.folder_id = f.id
+    LEFT JOIN task_folders f ON f.space_id = s.id AND f.deleted_at IS NULL
+    LEFT JOIN task_lists l ON l.folder_id = f.id AND l.deleted_at IS NULL
+    WHERE s.deleted_at IS NULL
     ORDER BY s.name ASC, f.name ASC, l.name ASC
   `);
 

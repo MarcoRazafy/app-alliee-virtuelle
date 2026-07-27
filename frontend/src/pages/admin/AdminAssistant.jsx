@@ -1,14 +1,18 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as aiService from '../../services/aiService';
+import * as statsService from '../../services/statsService';
+import * as taskService from '../../services/taskService';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 import { notifyError, notifySuccess } from '../../utils/toast';
+import { IconUsers, IconClock, IconUser, IconBarChart, IconCheckCircle, IconAlert, IconSearch, IconMenu, IconX } from '../../components/icons';
 import '../../styles/admin-assistant.css';
 
+// Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
 const SUGGESTIONS = [
-  'Qui a le plus de tâches confirmées ce mois-ci ?',
-  'Combien de tâches sont en retard actuellement ?',
-  "Quel employé a travaillé le plus d'heures cette semaine ?",
-  "Résume l'activité de l'équipe sur les 7 derniers jours",
+  { icon: IconUsers, text: 'Qui a le plus de tâches confirmées ce mois-ci ?' },
+  { icon: IconClock, text: 'Combien de tâches sont en retard actuellement ?' },
+  { icon: IconUser, text: "Quel employé a travaillé le plus d'heures cette semaine ?" },
+  { icon: IconBarChart, text: "Résume l'activité de l'équipe sur les 7 derniers jours" },
 ];
 
 function newId() {
@@ -123,16 +127,38 @@ function Markdown({ text }) {
 
 /* ---------- Icônes ---------- */
 
+// Étoile "sparkle" façon Gemini (une grande + une petite) pour représenter l'assistant.
 function RobotIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3v2.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <circle cx="12" cy="2.4" r="1.1" fill="currentColor" />
-      <rect x="4.5" y="6" width="15" height="12" rx="3.5" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M2.6 11v3M21.4 11v3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <circle cx="9" cy="12" r="1.35" fill="currentColor" />
-      <circle cx="15" cy="12" r="1.35" fill="currentColor" />
-      <path d="M9.5 15.4h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M13 2c.6 5.4 2.6 7.4 8 8-5.4.6-7.4 2.6-8 8-.6-5.4-2.6-7.4-8-8 5.4-.6 7.4-2.6 8-8Z"
+        fill="currentColor"
+      />
+      <path
+        d="M5.5 2.5c.2 1.9.9 2.6 2.8 2.8-1.9.2-2.6.9-2.8 2.8-.2-1.9-.9-2.6-2.8-2.8 1.9-.2 2.6-.9 2.8-2.8Z"
+        fill="currentColor"
+        opacity="0.7"
+      />
+    </svg>
+  );
+}
+
+function ChatDotIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 5h16v11H8l-4 4V5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <circle cx="9" cy="10.5" r="1" fill="currentColor" />
+      <circle cx="12" cy="10.5" r="1" fill="currentColor" />
+      <circle cx="15" cy="10.5" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ArrowRightMini() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -223,8 +249,45 @@ function DownloadIcon() {
   );
 }
 
+// Mini graphe en ligne (sparkline) à partir d'une série de nombres.
+function Sparkline({ points, color = 'var(--color-accent)' }) {
+  if (!points || points.length < 2) return null;
+  const w = 100;
+  const h = 34;
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const step = w / (points.length - 1);
+  const d = points
+    .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)} ${(h - ((v - min) / range) * (h - 6) - 3).toFixed(1)}`)
+    .join(' ');
+  return (
+    <svg className="ai-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+      <path d={d} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+// Plage d'une semaine (lundi→dimanche) ; offsetWeeks=0 = semaine courante (bornée à aujourd'hui).
+function weekRange(offsetWeeks = 0) {
+  const now = new Date();
+  const day = (now.getDay() + 6) % 7; // 0 = lundi
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - day - offsetWeeks * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { from: isoDate(monday), to: isoDate(offsetWeeks === 0 ? now : sunday) };
+}
+
 function AdminAssistant() {
   const [history, setHistory] = useState([]);
+  const [kpis, setKpis] = useState(null);
+  const [showAllSessions, setShowAllSessions] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false); // tiroir d'historique (mobile)
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null);
@@ -253,6 +316,32 @@ function AdminAssistant() {
     loadHistory();
   }, []);
 
+  // KPI de l'écran d'accueil : semaine courante vs semaine précédente.
+  useEffect(() => {
+    const cur = weekRange(0);
+    const prev = weekRange(1);
+    Promise.all([
+      statsService.getTeamStats(cur.from, cur.to),
+      statsService.getTeamStats(prev.from, prev.to),
+      taskService.getLateTasks().catch(() => []),
+    ])
+      .then(([curStats, prevStats, late]) => {
+        const hours = (s) => Math.round((s.by_day || []).reduce((a, d) => a + (d.hours_worked_seconds || 0), 0) / 3600);
+        const sumLate = (s) => (s.by_employee || []).reduce((a, e) => a + (e.late || 0), 0);
+        const pct = (c, p) => (p > 0 ? Math.round(((c - p) / p) * 100) : c > 0 ? 100 : 0);
+        setKpis({
+          confirmed: {
+            value: curStats.summary.tasks_confirmed,
+            delta: pct(curStats.summary.tasks_confirmed, prevStats.summary.tasks_confirmed),
+            spark: (curStats.by_day || []).map((d) => d.tasks_confirmed || 0),
+          },
+          late: { value: late.length, delta: pct(sumLate(curStats), sumLate(prevStats)), spark: null },
+          hours: { value: hours(curStats), delta: pct(hours(curStats), hours(prevStats)), spark: (curStats.by_day || []).map((d) => Math.round((d.hours_worked_seconds || 0) / 3600)) },
+        });
+      })
+      .catch(() => {});
+  }, []);
+
   // Regroupe les échanges à plat en conversations (par session_id)
   const sessions = useMemo(() => {
     const map = new Map();
@@ -264,16 +353,32 @@ function AdminAssistant() {
     const list = [...map.entries()].map(([id, rows]) => {
       const sorted = [...rows].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       const titled = sorted.find((r) => r.title);
+      const last = sorted[sorted.length - 1];
+      // Sous-titre = aperçu de la dernière réponse (1re ligne, sans markdown).
+      const preview = (last.answer || last.question || '').replace(/[*_`#>-]/g, '').split('\n').find((l) => l.trim()) || '';
       return {
         id,
         messages: sorted,
         title: titled?.title || sorted[0].question,
-        lastAt: sorted[sorted.length - 1].created_at,
+        subtitle: preview.trim().slice(0, 42),
+        lastAt: last.created_at,
       };
     });
     list.sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
     return list;
   }, [history]);
+
+  const filteredSessions = useMemo(() => {
+    const q = sidebarSearch.trim().toLowerCase();
+    if (!q) return sessions;
+    return sessions.filter(
+      (s) =>
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.subtitle || '').toLowerCase().includes(q) ||
+        s.messages.some((m) => (m.question || '').toLowerCase().includes(q) || (m.answer || '').toLowerCase().includes(q))
+    );
+  }, [sessions, sidebarSearch]);
+  const visibleSessions = showAllSessions ? filteredSessions : filteredSessions.slice(0, 8);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeMessages = activeSession ? activeSession.messages : [];
@@ -326,12 +431,14 @@ function AdminAssistant() {
     setQuestion('');
     setPending(null);
     setPendingFile(null);
+    setSidebarOpen(false);
   }
 
   function handleSelectSession(id) {
     setActiveSessionId(id);
     setQuestion('');
     setEditingId(null);
+    setSidebarOpen(false);
   }
 
   function startEdit(entry) {
@@ -507,15 +614,37 @@ function AdminAssistant() {
 
   return (
     <div className="ai-shell">
-      <aside className="ai-sidebar">
+      {sidebarOpen && <div className="ai-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`ai-sidebar${sidebarOpen ? ' ai-sidebar--open' : ''}`}>
+        <button
+          type="button"
+          className="ai-sidebar-close"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Fermer l'historique"
+        >
+          <IconX />
+        </button>
         <button type="button" className="ai-new-btn ai-new-btn--block" onClick={handleNewConversation}>
           <PlusIcon />
           Nouvelle conversation
         </button>
+        <label className="ai-search">
+          <IconSearch />
+          <input
+            type="search"
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+            placeholder="Rechercher une conversation"
+            aria-label="Rechercher une conversation"
+          />
+        </label>
         <div className="ai-sidebar-label">Historique</div>
         <div className="ai-session-list">
           {sessions.length === 0 && <p className="ai-session-empty">Aucune conversation pour le moment.</p>}
-          {sessions.map((s) => (
+          {sessions.length > 0 && filteredSessions.length === 0 && (
+            <p className="ai-session-empty">Aucun résultat pour « {sidebarSearch} ».</p>
+          )}
+          {visibleSessions.map((s) => (
             <div
               key={s.id}
               className={`ai-session-item${s.id === activeSessionId ? ' ai-session-item--active' : ''}`}
@@ -524,7 +653,7 @@ function AdminAssistant() {
               tabIndex={0}
             >
               <span className="ai-session-icon">
-                <RobotIcon />
+                <ChatDotIcon />
               </span>
               <span className="ai-session-body">
                 {renamingId === s.id ? (
@@ -538,9 +667,14 @@ function AdminAssistant() {
                     autoFocus
                   />
                 ) : (
-                  <span className="ai-session-title">{s.title}</span>
+                  <>
+                    <span className="ai-session-row">
+                      <span className="ai-session-title">{s.title}</span>
+                      <span className="ai-session-time">{formatRelativeTime(s.lastAt)}</span>
+                    </span>
+                    {s.subtitle && <span className="ai-session-sub">{s.subtitle}</span>}
+                  </>
                 )}
-                <span className="ai-session-time">{formatRelativeTime(s.lastAt)}</span>
               </span>
               <span className="ai-session-tools">
                 <button type="button" onClick={(e) => startRename(s, e)} title="Renommer" aria-label="Renommer"><PencilIcon /></button>
@@ -549,51 +683,118 @@ function AdminAssistant() {
             </div>
           ))}
         </div>
+        {filteredSessions.length > 8 && (
+          <button type="button" className="ai-see-all" onClick={() => setShowAllSessions((v) => !v)}>
+            {showAllSessions ? 'Réduire' : 'Voir toutes les conversations'}
+          </button>
+        )}
       </aside>
 
       <div className="ai-main">
         <header className="ai-header">
+          <button
+            type="button"
+            className="ai-history-toggle"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Ouvrir l'historique des conversations"
+            title="Historique des conversations"
+          >
+            <IconMenu />
+          </button>
           <div className="ai-header-brand">
-            <span className="ai-avatar ai-avatar--lg">
-              <RobotIcon />
+            <span className="ai-agent ai-agent--mini" aria-hidden="true">
+              <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
             </span>
             <div className="ai-header-copy">
               <h1>Assistant IA</h1>
-              <p className="ai-status">
-                <span className="ai-status-dot" />
-                En ligne · <span className="ai-model">MISTRAL.AI</span>
-              </p>
+              <p className="ai-subtitle">Analyse et recommandations opérationnelles</p>
             </div>
           </div>
-          <button type="button" className="ai-new-btn ai-main-new" onClick={handleNewConversation}>
-            <PlusIcon />
-            Nouveau
-          </button>
+          <div className="ai-header-pills">
+            <span className="ai-pill ai-pill--online">
+              <span className="ai-status-dot" /> En ligne
+            </span>
+            <span className="ai-pill ai-pill--model">
+              <RobotIcon /> MISTRAL AI
+            </span>
+            <button type="button" className="ai-new-btn ai-main-new" onClick={handleNewConversation}>
+              <PlusIcon />
+              Nouveau
+            </button>
+          </div>
         </header>
 
         <div className="ai-notice">
           <ShieldIcon />
           <span>
-            Mode lecture seule — l'assistant analyse les données existantes mais ne peut jamais créer, modifier,
-            confirmer ni supprimer quoi que ce soit.
+            <strong>Mode lecture seule</strong> — l'assistant analyse les données existantes sans modifier les
+            informations.
           </span>
         </div>
 
         <div className="ai-messages" ref={messagesRef}>
           {isEmpty && (
-            <div className="ai-empty">
-              <span className="ai-avatar ai-avatar--xl">
-                <RobotIcon />
-              </span>
-              <h2>Comment puis-je vous aider ?</h2>
-              <p>Interrogez l'assistant sur l'activité, les tâches et les performances de votre équipe.</p>
-              <div className="ai-suggestions">
-                {SUGGESTIONS.map((s) => (
-                  <button key={s} type="button" className="ai-suggestion-chip" onClick={() => setQuestion(s)}>
-                    {s}
-                  </button>
-                ))}
+            <div className="ai-welcome">
+              <div className="ai-hero">
+                <span className="ai-hero-decor" aria-hidden="true" />
+                <span className="ai-agent ai-agent--hero" aria-hidden="true">
+                  <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
+                </span>
+                <h2>Comment puis-je vous aider ?</h2>
+                <p>Interrogez l'assistant sur l'activité, les tâches, les retards et les performances de votre équipe.</p>
+                <div className="ai-suggestions">
+                  {SUGGESTIONS.map((s) => {
+                    const Icon = s.icon;
+                    return (
+                      <button key={s.text} type="button" className="ai-suggestion-card" onClick={() => setQuestion(s.text)}>
+                        <span className="ai-suggestion-icon"><Icon /></span>
+                        <span className="ai-suggestion-text">{s.text}</span>
+                        <span className="ai-suggestion-arrow"><ArrowRightMini /></span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {kpis && (
+                <div className="ai-kpis">
+                  <div className="ai-kpi">
+                    <span className="ai-kpi-icon ai-kpi-icon--ok"><IconCheckCircle /></span>
+                    <div className="ai-kpi-body">
+                      <span className="ai-kpi-label">Tâches confirmées</span>
+                      <span className="ai-kpi-value">{kpis.confirmed.value}</span>
+                      <span className={`ai-kpi-delta${kpis.confirmed.delta >= 0 ? ' up' : ' down'}`}>
+                        {kpis.confirmed.delta >= 0 ? '+' : ''}{kpis.confirmed.delta}% vs la semaine dernière
+                      </span>
+                    </div>
+                    <Sparkline points={kpis.confirmed.spark} color="var(--color-success)" />
+                  </div>
+
+                  <div className="ai-kpi">
+                    <span className="ai-kpi-icon ai-kpi-icon--warn"><IconAlert /></span>
+                    <div className="ai-kpi-body">
+                      <span className="ai-kpi-label">Retards</span>
+                      <span className="ai-kpi-value">{kpis.late.value}</span>
+                      <span className={`ai-kpi-delta${kpis.late.delta <= 0 ? ' up' : ' down'}`}>
+                        {kpis.late.delta >= 0 ? '+' : ''}{kpis.late.delta}% vs la semaine dernière
+                      </span>
+                    </div>
+                    <Sparkline points={kpis.confirmed.spark?.map(() => kpis.late.value)} color="var(--color-warning)" />
+                  </div>
+
+                  <div className="ai-kpi">
+                    <span className="ai-kpi-icon ai-kpi-icon--time"><IconClock /></span>
+                    <div className="ai-kpi-body">
+                      <span className="ai-kpi-label">Heures cette semaine</span>
+                      <span className="ai-kpi-value">{kpis.hours.value} h</span>
+                      <span className={`ai-kpi-delta${kpis.hours.delta >= 0 ? ' up' : ' down'}`}>
+                        {kpis.hours.delta >= 0 ? '+' : ''}{kpis.hours.delta}% vs la semaine dernière
+                      </span>
+                    </div>
+                    <Sparkline points={kpis.hours.spark} color="var(--color-accent)" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

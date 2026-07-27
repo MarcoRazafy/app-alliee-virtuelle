@@ -19,6 +19,18 @@ export const IconWorkspace = (props) =>
     props
   );
 
+// Grille de panneaux — glyphe classique de tableau de bord.
+export const IconDashboard = (props) =>
+  base(
+    <>
+      <rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" strokeWidth="2" />
+    </>,
+    props
+  );
+
 export const IconCalendarCheck = (props) =>
   base(
     <>
@@ -46,6 +58,15 @@ export const IconChat = (props) =>
       strokeWidth="2"
       strokeLinejoin="round"
     />,
+    props
+  );
+
+export const IconSend = (props) =>
+  base(
+    <>
+      <path d="M4 12 20 4l-4 16-4.5-6L4 12Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="m11.5 14 4.5-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </>,
     props
   );
 
@@ -253,6 +274,27 @@ export const IconTrash = (props) =>
       strokeLinecap="round"
       strokeLinejoin="round"
     />,
+    props
+  );
+
+export const IconPlus = (props) =>
+  base(
+    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />,
+    props
+  );
+
+export const IconRestore = (props) =>
+  base(
+    <>
+      <path d="M4 8v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M5.5 12a7 7 0 111.8 5.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>,
     props
   );
 

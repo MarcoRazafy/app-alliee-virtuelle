@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --mode lan",
+    "cert:lan": "bash scripts/generate-lan-cert.sh",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node src/utils/presenceMetrics.test.js"
