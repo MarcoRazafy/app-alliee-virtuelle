@@ -197,6 +197,23 @@ async function findSessionsForUsersOverlapping(userIds, rangeStartIso, rangeEndI
   return result.rows;
 }
 
+// IDs des utilisateurs réellement "en ligne" MAINTENANT. Définition unique de la présence,
+// partagée par la pastille de la messagerie et le dashboard temps réel : session ouverte,
+// AUCUNE déconnexion demandée (fermeture d'onglet signalée), ET heartbeat récent.
+// Un utilisateur passe donc hors-ligne dès la fermeture, sans attendre que le nettoyeur
+// écrive logout_at.
+async function findLiveUserIds(userIds = null) {
+  const result = await db.query(
+    `SELECT DISTINCT user_id FROM user_sessions
+     WHERE logout_at IS NULL
+       AND disconnect_requested_at IS NULL
+       AND COALESCE(last_seen_at, login_at) >= now() - make_interval(secs => $1)
+       AND ($2::uuid[] IS NULL OR user_id = ANY($2::uuid[]))`,
+    [STALE_AFTER_SECONDS, userIds]
+  );
+  return result.rows.map((row) => row.user_id);
+}
+
 // Session actuellement ouverte (s'il y en a une) : utilisé pour le chrono flottant, qui
 // affiche la durée de connexion écoulée depuis login_at.
 async function findOpenSession(userId) {
@@ -220,6 +237,7 @@ module.exports = {
   requestDisconnect,
   expireStaleSessions,
   closeOpenSessions,
+  findLiveUserIds,
   findSessionsOverlappingRange,
   findSessionsForUsersOverlapping,
   findOpenSession,

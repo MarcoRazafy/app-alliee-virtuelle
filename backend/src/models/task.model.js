@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const sessionModel = require('./session.model');
 const { computeCompletionRate } = require('../utils/kpi');
 
 const TASK_STATUS = {
@@ -462,7 +463,7 @@ async function computeRealtimeDashboard() {
   // 3 requêtes groupées sur tous les employés plutôt que 3 requêtes par employé (N+1)
   const employeeIds = employeesResult.rows.map((employee) => employee.id);
 
-  const [todoResult, inProgressResult, doneResult, connectedResult] = await Promise.all([
+  const [todoResult, inProgressResult, doneResult, connectedUserIds] = await Promise.all([
     db.query(
       `SELECT id, assigned_to, title, priority FROM tasks
        WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE' ORDER BY deadline ASC`,
@@ -482,15 +483,12 @@ async function computeRealtimeDashboard() {
        WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')`,
       [employeeIds]
     ),
-    // "Actif" = connecté à son compte : au moins une session de présence ouverte (logout_at NULL).
-    db.query(
-      `SELECT DISTINCT user_id FROM user_sessions
-       WHERE logout_at IS NULL AND user_id = ANY($1::uuid[])`,
-      [employeeIds]
-    ),
+    // "Actif" = réellement en ligne (définition partagée : session ouverte, pas de
+    // déconnexion signalée, heartbeat récent) — pas juste logout_at NULL.
+    sessionModel.findLiveUserIds(employeeIds),
   ]);
 
-  const connectedIds = new Set(connectedResult.rows.map((row) => row.user_id));
+  const connectedIds = new Set(connectedUserIds);
 
   function groupByAssignee(rows) {
     const map = new Map();
