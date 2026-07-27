@@ -8,7 +8,7 @@ Remplace le polling par Socket.io pour la messagerie, les notifications et le da
 3. Outillage de migrations 🟠
 Adopte un vrai runner (node-pg-migrate, Knex ou Prisma Migrate) qui applique toutes les migrations dans l'ordre automatiquement. Fini le « j'ai oublié de jouer la 012 ».
 
-4. Durcissement sécurité (pour la prod) 🟠
+4. Durcissement sécurité (pour la prod) 🟠 (non fait)
 HTTPS obligatoire, helmet, rate-limiting sur /auth, et idéalement token en cookie httpOnly plutôt que localStorage.
 
 5. Performance front 🟡
@@ -17,7 +17,7 @@ Lazy-loading des routes (React.lazy + Suspense), code-splitting → bundle plus 
 6. Refactor des gros composants 🟡
 Découper MessagingView / AdminAssistant en sous-composants + hooks. Plus maintenable, plus testable.
 
-7. Multi-tenant 🟢 (seulement si tu comptes le vendre à plusieurs entreprises)
+7. Multi-tenant 🟢 (seulement si tu comptes le vendre à plusieurs entreprises) (non fait)
 C'est ce qui le ferait passer d'application à vraie plateforme SaaS.
 
 En une phrase

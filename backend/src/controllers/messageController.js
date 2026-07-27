@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const messageModel = require('../models/message.model');
 const userModel = require('../models/user.model');
+const sessionModel = require('../models/session.model');
 const realtime = require('../realtime/io');
 
 const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
@@ -291,8 +292,9 @@ async function getGroupAvatar(req, res, next) {
 // Ids des utilisateurs actuellement connectés (session ouverte) — pour le statut « en ligne ».
 async function getOnlineUsers(req, res, next) {
   try {
-    const result = await db.query(`SELECT DISTINCT user_id FROM user_sessions WHERE logout_at IS NULL`);
-    res.status(200).json(result.rows.map((row) => row.user_id));
+    // Présence "temps réel" : uniquement les utilisateurs réellement en ligne (définition
+    // partagée) — plus de pastille verte qui reste allumée après la fermeture du navigateur.
+    res.status(200).json(await sessionModel.findLiveUserIds());
   } catch (err) {
     next(err);
   }
