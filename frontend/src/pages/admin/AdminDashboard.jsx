@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as dashboardService from '../../services/dashboardService';
 import * as avatarService from '../../services/avatarService';
+import { getSocket } from '../../services/socket';
 import EmployeeDetailPanel from '../../components/admin/EmployeeDetailPanel';
 import { formatClock, formatDurationShort } from '../../utils/formatters';
 import { notifyError } from '../../utils/toast';
@@ -82,8 +83,22 @@ function AdminDashboard() {
 
   useEffect(() => {
     load();
-    const poll = setInterval(load, 10000);
+    // Le polling n'est plus qu'un secours (le temps réel gère l'instantané) → intervalle allongé.
+    const poll = setInterval(load, 30000);
     return () => clearInterval(poll);
+  }, []);
+
+  // Temps réel : rafraîchit le tableau de bord dès qu'une activité (tâches/chrono via
+  // notification:new) ou une présence (connexion/déconnexion via presence:update) change.
+  useEffect(() => {
+    const socket = getSocket();
+    socket.on('notification:new', load);
+    socket.on('presence:update', load);
+    return () => {
+      socket.off('notification:new', load);
+      socket.off('presence:update', load);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

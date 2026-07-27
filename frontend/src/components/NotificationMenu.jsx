@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as notificationService from '../services/notificationService';
+import { getSocket } from '../services/socket';
+import { getUser } from '../services/auth';
 import { formatRelativeTime } from '../utils/formatters';
 import {
   IconBell,
@@ -116,11 +118,26 @@ function NotificationMenu() {
     }
 
     poll();
-    const interval = window.setInterval(poll, 15000);
+    // Le polling n'est plus qu'un secours (le temps réel gère l'instantané) → intervalle allongé.
+    const interval = window.setInterval(poll, 30000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
     };
+  }, []);
+
+  // Temps réel : à chaque nouvelle activité (WebSocket), on rafraîchit immédiatement le
+  // centre de notifications. On ignore nos propres actions (jamais notifiées à soi-même).
+  useEffect(() => {
+    const socket = getSocket();
+    const me = getUser();
+    function onNotification(payload) {
+      if (payload?.actorId && me && payload.actorId === me.id) return;
+      load();
+    }
+    socket.on('notification:new', onNotification);
+    return () => socket.off('notification:new', onNotification);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

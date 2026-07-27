@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const env = require('../config/env');
+const realtime = require('../realtime/io');
 
 const STALE_AFTER_SECONDS = env.presenceHeartbeatTimeoutSeconds;
 const DISCONNECT_GRACE_SECONDS = env.presenceDisconnectGraceSeconds;
@@ -40,6 +41,8 @@ async function requestDisconnect(userId) {
      RETURNING id, disconnect_requested_at`,
     [userId]
   );
+  // Transition de présence (départ) → rafraîchit le dashboard temps réel des admins.
+  if (result.rows[0]) realtime.broadcast('presence:update', {});
   return result.rows[0] || null;
 }
 
@@ -47,7 +50,7 @@ async function requestDisconnect(userId) {
 // de tâche devenu orphelin. Le serveur appelle cette fonction périodiquement : la
 // correction ne dépend donc pas de la réouverture du navigateur ni de la page admin.
 async function expireStaleSessions({ userId = null } = {}) {
-  return db.withTransaction(async (client) => {
+  const result = await db.withTransaction(async (client) => {
     const expiredResult = await client.query(
       `WITH candidates AS (
          SELECT id,
@@ -116,6 +119,11 @@ async function expireStaleSessions({ userId = null } = {}) {
 
     return { sessionsClosed: expiredResult.rowCount, timelogsClosed };
   });
+
+  // Des présences se sont réellement fermées (heartbeat expiré / grâce écoulée) →
+  // transition de présence, on rafraîchit le dashboard temps réel des admins.
+  if (result.sessionsClosed > 0) realtime.broadcast('presence:update', {});
+  return result;
 }
 
 // Ferme toute session restée ouverte pour cet utilisateur (défensif : gère aussi le cas
@@ -128,6 +136,8 @@ async function closeOpenSessions(userId) {
      RETURNING id, user_id, login_at, logout_at, last_seen_at, disconnect_requested_at`,
     [userId]
   );
+  // Déconnexion explicite → transition de présence, rafraîchit le dashboard temps réel.
+  if (result.rows.length > 0) realtime.broadcast('presence:update', {});
   return result.rows;
 }
 
