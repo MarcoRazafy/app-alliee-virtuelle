@@ -98,6 +98,9 @@ function Profile() {
     phone: '',
     postal_address: '',
     birth_date: '',
+    email: '',
+    position: '',
+    description: '',
   });
 
   const [stats, setStats] = useState(null);
@@ -175,6 +178,9 @@ function Profile() {
         phone: currentProfile.phone || '',
         postal_address: currentProfile.postal_address || '',
         birth_date: currentProfile.birth_date ? String(currentProfile.birth_date).slice(0, 10) : '',
+        email: currentProfile.email || '',
+        position: currentProfile.position || '',
+        description: currentProfile.description || '',
       });
 
       if (statsResponse.status === 'fulfilled') {
@@ -434,7 +440,12 @@ function Profile() {
 
                   <label>
                     <span>Adresse courriel</span>
-                    <input type="email" value={profile?.email || ''} disabled />
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                      required
+                    />
                   </label>
 
                   <label>
@@ -449,7 +460,12 @@ function Profile() {
 
                   <label>
                     <span>Poste</span>
-                    <input type="text" value={profile?.position || ''} disabled />
+                    <input
+                      type="text"
+                      value={form.position}
+                      onChange={(event) => setForm((current) => ({ ...current, position: event.target.value }))}
+                      placeholder="Votre poste / fonction"
+                    />
                   </label>
 
                   <label>
@@ -468,6 +484,16 @@ function Profile() {
                       value={form.postal_address}
                       onChange={(event) => setForm((current) => ({ ...current, postal_address: event.target.value }))}
                       placeholder="Votre adresse"
+                    />
+                  </label>
+
+                  <label className="profile-form-full">
+                    <span>Description / présentation</span>
+                    <textarea
+                      rows="3"
+                      value={form.description}
+                      onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                      placeholder="Quelques mots pour vous présenter : parcours, formation, missions…"
                     />
                   </label>
                 </div>

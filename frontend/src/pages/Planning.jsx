@@ -159,8 +159,10 @@ function Planning() {
         const [current, next] = await Promise.all([planningService.getCurrentWeekPlanning(), planningService.getNextWeekPlanning()]);
         setCurrentWeek(current);
         setNextWeek(next);
-        setDraftDays(toDraftDays(next.days));
-        setDraftNote(next.planning?.general_note || '');
+        // La semaine éditée est la semaine prochaine (normal) ou, en rattrapage, la semaine en cours.
+        const target = Boolean(current.can_edit) && !next.can_edit ? current : next;
+        setDraftDays(toDraftDays(target.days));
+        setDraftNote(target.planning?.general_note || '');
 
         sessionService
           .getMySessionsForWeek(current.week_start_date)
@@ -228,7 +230,20 @@ function Planning() {
     loadMyPlannings(weekStart || undefined);
   }
 
-  const canEdit = Boolean(nextWeek?.can_edit);
+  // Semaine réellement éditée : la semaine prochaine (cas normal) ou, en rattrapage, la
+  // semaine en cours (nouvel employé / oubli — voir backend canEmployeeEditWeek).
+  const editingCurrentWeek = Boolean(currentWeek?.can_edit) && !nextWeek?.can_edit;
+  const editTarget = editingCurrentWeek ? currentWeek : nextWeek;
+  const canEdit = Boolean(editTarget?.can_edit);
+
+  // Réinitialise le brouillon quand la semaine cible change (ex. après avoir soumis le
+  // rattrapage, l'édition repasse sur la semaine prochaine).
+  useEffect(() => {
+    if (!editTarget) return;
+    setDraftDays(toDraftDays(editTarget.days));
+    setDraftNote(editTarget.planning?.general_note || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editTarget?.week_start_date]);
 
   // Tous les indicateurs sont dérivés des mêmes segments que la grille. Les sessions qui
   // se chevauchent sont fusionnées et ne sont donc jamais comptées deux fois.
@@ -348,8 +363,11 @@ function Planning() {
     setSaving(true);
     setErrors([]);
     try {
-      const result = await planningService.saveNextWeekPlanning({ generalNote: draftNote, days: buildPayloadDays() });
-      setNextWeek(result);
+      const result = editingCurrentWeek
+        ? await planningService.saveCurrentWeekPlanning({ generalNote: draftNote, days: buildPayloadDays() })
+        : await planningService.saveNextWeekPlanning({ generalNote: draftNote, days: buildPayloadDays() });
+      if (editingCurrentWeek) setCurrentWeek(result);
+      else setNextWeek(result);
       setDraftDays(toDraftDays(result.days));
       notifySuccess('Brouillon enregistré');
     } catch (err) {
@@ -365,21 +383,27 @@ function Planning() {
   }
 
   async function handleSubmit() {
-    if (
-      !window.confirm(
-        "Confirmez-vous la soumission de votre planning pour la semaine prochaine ? Vous pourrez encore le modifier jusqu'à dimanche 23h59."
-      )
-    ) {
+    const confirmMessage = editingCurrentWeek
+      ? 'Confirmez-vous la soumission de votre planning pour la semaine en cours ?'
+      : "Confirmez-vous la soumission de votre planning pour la semaine prochaine ? Vous pourrez encore le modifier jusqu'à dimanche 23h59.";
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
     setSubmitting(true);
     setErrors([]);
     try {
-      await planningService.saveNextWeekPlanning({ generalNote: draftNote, days: buildPayloadDays() });
-      const result = await planningService.submitNextWeekPlanning();
-      setNextWeek(result);
-      setDraftDays(toDraftDays(result.days));
+      if (editingCurrentWeek) {
+        await planningService.saveCurrentWeekPlanning({ generalNote: draftNote, days: buildPayloadDays() });
+        const result = await planningService.submitCurrentWeekPlanning();
+        setCurrentWeek(result);
+        setDraftDays(toDraftDays(result.days));
+      } else {
+        await planningService.saveNextWeekPlanning({ generalNote: draftNote, days: buildPayloadDays() });
+        const result = await planningService.submitNextWeekPlanning();
+        setNextWeek(result);
+        setDraftDays(toDraftDays(result.days));
+      }
       notifySuccess('Planning soumis');
     } catch (err) {
       const data = err.response?.data;
@@ -405,6 +429,7 @@ function Planning() {
 
         {!loading && currentWeek && nextWeek && (
           <>
+            {!editingCurrentWeek && (
             <div className="side-card planning-week-card">
               <div className="side-card-header">
                 <p className="side-card-title">Semaine actuelle</p>
@@ -444,22 +469,33 @@ function Planning() {
 
               <p className="planning-total-hours">Total : {currentWeek.total_hours} h disponibles</p>
             </div>
+            )}
 
             <div className="side-card planning-week-card">
               <div className="side-card-header">
-                <p className="side-card-title">Semaine prochaine</p>
-                <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[nextWeek.effective_status] || ''}`}>
-                  {EFFECTIVE_STATUS_LABELS[nextWeek.effective_status] || nextWeek.effective_status}
+                <p className="side-card-title">
+                  {editingCurrentWeek ? 'Semaine en cours (à compléter)' : 'Semaine prochaine'}
+                </p>
+                <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[editTarget.effective_status] || ''}`}>
+                  {EFFECTIVE_STATUS_LABELS[editTarget.effective_status] || editTarget.effective_status}
                 </span>
               </div>
               <p className="planning-week-range">
-                <IconCalendarWeek /> {formatWeekRange(nextWeek.week_start_date, nextWeek.week_end_date)}
+                <IconCalendarWeek /> {formatWeekRange(editTarget.week_start_date, editTarget.week_end_date)}
               </p>
 
-              <AdminModifiedAlert planning={nextWeek.admin_modified ? nextWeek.planning : null} />
+              <AdminModifiedAlert planning={editTarget.admin_modified ? editTarget.planning : null} />
 
               <div className={`info-banner${canEdit ? '' : ' info-banner--planning-warning'}`}>
-                {canEdit ? (
+                {editingCurrentWeek ? (
+                  <>
+                    <IconCheckCircle />
+                    <span>
+                      Votre planning de la semaine en cours est vide : vous pouvez le compléter dès maintenant
+                      (rattrapage). Il ne sera plus modifiable une fois soumis.
+                    </span>
+                  </>
+                ) : canEdit ? (
                   <>
                     <IconCheckCircle />
                     <span>La saisie est ouverte jusqu'au {formatDateTime(nextWeek.editing_window_closes_at)}.</span>
@@ -486,7 +522,7 @@ function Planning() {
                 </div>
               )}
 
-              {canEdit && currentWeek.planning && (
+              {!editingCurrentWeek && canEdit && currentWeek.planning && (
                 <button type="button" className="btn-outline" onClick={handleCopyPreviousWeek}>
                   Copier la semaine actuelle
                 </button>

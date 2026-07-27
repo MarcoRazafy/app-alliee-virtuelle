@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthBanner from '../components/auth/AuthBanner';
+import PasswordInput from '../components/auth/PasswordInput';
 
 function Register() {
   const [form, setForm] = useState({
@@ -104,24 +105,24 @@ function Register() {
           </div>
           <div className="auth-field">
             <label htmlFor="password">Mot de passe</label>
-            <input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               value={form.password}
               onChange={handleChange}
               placeholder="8 caractères minimum"
+              autoComplete="new-password"
               required
             />
           </div>
           <div className="auth-field">
             <label htmlFor="confirmPassword">Confirmer le mot de passe</label>
-            <input
+            <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               value={form.confirmPassword}
               onChange={handleChange}
+              autoComplete="new-password"
               required
             />
           </div>

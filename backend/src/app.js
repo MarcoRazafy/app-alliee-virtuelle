@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
 const messageRoutes = require('./routes/messages');
@@ -19,8 +20,17 @@ const errorHandler = require('./middleware/errorHandler.middleware');
 // démarrer de tâche de fond. Séparé de index.js pour pouvoir être testé (supertest).
 const app = express();
 
+// Derrière un reverse proxy en prod (Nginx/Caddy/…), fait confiance au 1er proxy pour
+// récupérer la vraie IP client (utile au rate-limiting). Sans effet en local direct.
+app.set('trust proxy', 1);
+
+// En-têtes de sécurité HTTP (X-Content-Type-Options, HSTS, referrer-policy, …).
+// Sûr sur une API JSON. Sans effet indésirable en local.
+app.use(helmet());
+
 app.use(cors());
-app.use(express.json());
+// Limite la taille des corps JSON (les fichiers passent par multer, pas par ici).
+app.use(express.json({ limit: '1mb' }));
 
 app.get('/', (req, res) => {
   res.json({ message: "L'Alliée Virtuelle API" });

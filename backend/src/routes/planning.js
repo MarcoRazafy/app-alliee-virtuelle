@@ -35,6 +35,11 @@ router.get('/planning/next-week', planningController.getNextWeek);
 router.post('/planning/next-week', planningController.createNextWeekPlanning);
 router.put('/planning/next-week', planningController.updateNextWeekPlanning);
 router.post('/planning/next-week/submit', planningController.submitNextWeekPlanning);
+// Rattrapage : écriture sur la semaine EN COURS (autorisée seulement si les conditions
+// de rattrapage sont réunies, cf. canEmployeeEditWeek).
+router.post('/planning/current-week', planningController.createCurrentWeekPlanning);
+router.put('/planning/current-week', planningController.updateCurrentWeekPlanning);
+router.post('/planning/current-week/submit', planningController.submitCurrentWeekPlanning);
 router.get('/planning/history', planningController.getMyPlanningHistory);
 router.get('/planning/mine', planningController.getMyPlannings);
 

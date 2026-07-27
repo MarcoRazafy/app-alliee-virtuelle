@@ -69,12 +69,16 @@ async function closeMySession(req, res, next) {
   }
 }
 
-// POST /api/sessions/heartbeat — crée ou rafraîchit l'unique session de présence ouverte.
-// Ce mécanisme résiste aux rechargements et borne automatiquement les sessions abandonnées.
+// POST /api/sessions/heartbeat — PROLONGE la session de présence ouverte (résiste aux
+// rechargements). Ne crée jamais de session : rouvrir l'app sans se reconnecter ne rend pas
+// le compte actif. Renvoie login_at:null s'il n'y a aucune session ouverte.
 async function heartbeatMySession(req, res, next) {
   try {
     const session = await sessionModel.heartbeatSession(req.user.id);
-    res.status(200).json({ login_at: session.login_at, last_seen_at: session.last_seen_at });
+    res.status(200).json({
+      login_at: session ? session.login_at : null,
+      last_seen_at: session ? session.last_seen_at : null,
+    });
   } catch (err) {
     next(err);
   }
