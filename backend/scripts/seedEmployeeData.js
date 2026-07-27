@@ -2,7 +2,8 @@
  * Seed de démo (idempotent) pour peupler l'espace admin :
  *  1. Complète les profils employés INCOMPLETS (prénom/nom, adresse, date de naissance) — sans écraser l'existant.
  *  2. Génère un planning SOUMIS pour la semaine par défaut de l'admin (semaine prochaine) pour chaque employé actif.
- *  3. Ajoute un avatar DiceBear (téléchargé) aux employés qui n'en ont pas.
+ *  3. Ajoute un avatar DiceBear (téléchargé) aux employés qui n'en ont pas,
+ *     à l'exception explicite de Marco Razafimamonjy.
  *
  * Ne touche NI aux comptes utilisateurs, NI aux tâches/messages/ressources.
  * Lancer : node scripts/seedEmployeeData.js
@@ -42,6 +43,15 @@ function splitName(fullName) {
   if (parts.length === 0) return ['', ''];
   if (parts.length === 1) return [parts[0], ''];
   return [parts[0], parts.slice(1).join(' ')];
+}
+
+function isAvatarExcluded(fullName) {
+  return String(fullName || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase() === 'marco razafimamonjy';
 }
 
 function fetchBuffer(url) {
@@ -161,7 +171,7 @@ async function main() {
 
     // 3) Avatar DiceBear si absent
     const hasAvatar = await db.query('SELECT 1 FROM user_avatars WHERE user_id = $1', [emp.id]);
-    if (hasAvatar.rowCount === 0) {
+    if (hasAvatar.rowCount === 0 && !isAvatarExcluded(emp.full_name)) {
       try {
         const url = `https://api.dicebear.com/9.x/initials/png?seed=${encodeURIComponent(
           emp.full_name

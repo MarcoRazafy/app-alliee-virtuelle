@@ -5,6 +5,7 @@ import * as avatarService from '../../services/avatarService';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import ThemeToggle from '../ThemeToggle';
+import TopbarTools from '../TopbarTools';
 import {
   IconWorkspace,
   IconChecklist,
@@ -12,10 +13,8 @@ import {
   IconBell,
   IconBarChart,
   IconCalendarWeek,
-  IconSparkle,
   IconUser,
   IconUsers,
-  IconChat,
   IconFolder,
   IconLogout,
   IconChevronDown,
@@ -43,14 +42,12 @@ const NAV_GROUPS = [
   {
     label: 'Collaborer',
     items: [
-      { to: '/admin/messaging', label: 'Messagerie', subtitle: 'Échanges avec les employés', icon: IconChat },
       { to: '/admin/resources', label: 'Ressources', subtitle: 'Documents partagés', icon: IconFolder },
     ],
   },
   {
     label: 'Administrer',
     items: [
-      { to: '/admin/assistant', label: 'Assistant IA', subtitle: 'Analyse et recommandations', icon: IconSparkle },
       { to: '/admin/profile', label: 'Profil', subtitle: 'Vos informations', icon: IconUser },
     ],
   },
@@ -63,6 +60,8 @@ const NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
 // titre/sous-titre d'en-tête cohérent (sinon le header retomberait sur le 1er item).
 const EXTRA_TITLES = {
   '/admin/create-task': { label: 'Créer une tâche', subtitle: 'Nouvelle tâche à assigner' },
+  '/admin/messaging': { label: 'Messagerie', subtitle: 'Échanges avec les employés' },
+  '/admin/assistant': { label: 'Assistant IA', subtitle: 'Analyse et recommandations' },
 };
 
 function AdminLayout({ children }) {
@@ -70,7 +69,6 @@ function AdminLayout({ children }) {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [messagingOpen, setMessagingOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
 
@@ -86,13 +84,6 @@ function AdminLayout({ children }) {
   useEffect(() => {
     setMobileNavOpen(false);
   }, [location.pathname]);
-
-  // Déplie automatiquement le sous-menu Messagerie quand on est sur la page.
-  useEffect(() => {
-    if (location.pathname.startsWith('/admin/messaging')) setMessagingOpen(true);
-  }, [location.pathname]);
-
-  const currentCanal = new URLSearchParams(location.search).get('canal');
 
   useEffect(() => {
     function loadBadges() {
@@ -204,49 +195,9 @@ function AdminLayout({ children }) {
             <div key={group.label} className="sidebar-group">
               <p className="sidebar-group-label">{group.label}</p>
               {group.items.map((item) => {
-                const { to, label, icon: Icon, badgeKey, children } = item;
+                const { to, label, icon: Icon, badgeKey } = item;
                 const isActive = item === activeItem;
                 const badgeValue = badgeKey ? badges[badgeKey] : 0;
-
-                if (children) {
-                  return (
-                    <div key={label} className="sidebar-subnav">
-                      <div
-                        className={`sidebar-parent${isActive && !currentCanal ? ' sidebar-parent--active' : ''}`}
-                      >
-                        <Link to={to} className="sidebar-link-main">
-                          <Icon />
-                          <span>{label}</span>
-                        </Link>
-                        <button
-                          type="button"
-                          className={`sidebar-expand-btn${messagingOpen ? ' sidebar-expand-btn--open' : ''}`}
-                          onClick={() => setMessagingOpen((v) => !v)}
-                          aria-label={messagingOpen ? 'Replier Messagerie' : 'Déplier Messagerie'}
-                          aria-expanded={messagingOpen}
-                        >
-                          <IconChevronDown />
-                        </button>
-                      </div>
-                      {messagingOpen && (
-                        <div className="sidebar-sublinks">
-                          {children.map((child) => {
-                            const childActive = isActive && currentCanal === child.canal;
-                            return (
-                              <Link
-                                key={child.label}
-                                to={child.to}
-                                className={`sidebar-sublink${childActive ? ' sidebar-sublink--active' : ''}`}
-                              >
-                                {child.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
 
                 return (
                   <Link
@@ -317,6 +268,8 @@ function AdminLayout({ children }) {
               )}
             </form>
 
+            <TopbarTools messagingPath="/admin/messaging" assistantPath="/admin/assistant" />
+
             <ThemeToggle />
 
             <div className="user-menu" ref={menuRef}>
@@ -346,7 +299,9 @@ function AdminLayout({ children }) {
           </div>
         </header>
 
-        <main className="shell-content shell-content--wide">{children}</main>
+        <main key={location.pathname} className="shell-content shell-content--wide app-route-stage">
+          {children}
+        </main>
       </div>
     </div>
   );

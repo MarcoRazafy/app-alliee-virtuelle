@@ -1,25 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthBanner from '../components/auth/AuthBanner';
+import SplashScreen from '../components/SplashScreen';
+
+const SPLASH_DURATION = 5000; // écran de démarrage après connexion (façon Facebook)
 
 function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
   const login = useAuthStore((state) => state.login);
   const error = useAuthStore((state) => state.error);
   const navigate = useNavigate();
+  const timerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setIsSubmitting(true);
     const success = await login(identifier, password);
-    setIsSubmitting(false);
     if (success) {
-      navigate('/dashboard');
+      // Connexion réussie : on affiche le splash puis on entre dans le dashboard.
+      setShowSplash(true);
+      timerRef.current = setTimeout(() => navigate('/dashboard'), SPLASH_DURATION);
+    } else {
+      setIsSubmitting(false);
     }
+  }
+
+  if (showSplash) {
+    return <SplashScreen duration={SPLASH_DURATION} />;
   }
 
   return (

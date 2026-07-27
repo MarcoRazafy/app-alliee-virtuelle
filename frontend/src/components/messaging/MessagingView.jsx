@@ -89,13 +89,21 @@ function ImageIcon(props) {
 }
 
 function ProfileAvatar({ name, avatarUrl, className = '' }) {
+  const initials = String(name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
   return (
     <span
       className={`profile-avatar ${className}${avatarUrl ? '' : ' profile-avatar--fallback'}`}
       aria-hidden="true"
       title={name}
     >
-      {avatarUrl ? <img src={avatarUrl} alt="" /> : <IconUser />}
+      {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{initials || '?'}</span>}
     </span>
   );
 }
@@ -172,6 +180,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
   const [recording, setRecording] = useState(false);
   const [recordSec, setRecordSec] = useState(0);
   const fileRef = useRef(null);
+  const audioRef = useRef(null); // repli d'enregistrement natif (HTTP : micro web bloqué)
   const emojiRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordTimerRef = useRef(null);
@@ -209,9 +218,31 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
     if (selected) setFile(selected);
   }
 
+  // Fichier audio choisi via l'enregistreur natif (repli quand le micro web est bloqué en HTTP).
+  function pickAudio(event) {
+    const selected = event.target.files?.[0];
+    if (selected) setFile(selected);
+    if (audioRef.current) audioRef.current.value = '';
+  }
+
   async function startRecording() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      notifyError("L'enregistrement audio n'est pas disponible sur ce navigateur");
+    // Le micro web (getUserMedia) exige un contexte sécurisé (HTTPS ou localhost).
+    // En HTTP sur une IP réseau, il est indisponible.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      // Sur mobile, l'enregistreur natif du téléphone fonctionne sans contexte sécurisé
+      // (via <input type="file" accept="audio/*" capture>) : on l'utilise pour enregistrer.
+      const isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (isMobile && audioRef.current) {
+        audioRef.current.click();
+        return;
+      }
+      // Sur ordinateur, l'enregistrement est impossible en HTTP : on l'explique clairement
+      // au lieu d'ouvrir un simple import de fichier.
+      notifyInfo(
+        "Pour enregistrer un message vocal en HTTP sur ordinateur, autorise le micro pour cette adresse : " +
+          "chrome://flags/#unsafely-treat-insecure-origin-as-secure → ajoute l'URL du site → Relaunch. " +
+          "(Sur mobile, l'enregistrement fonctionne directement.)"
+      );
       return;
     }
     try {
@@ -273,6 +304,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
       ) : (
         <div className="msgr-composer-row">
           <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx" onChange={pickFile} />
+          <input ref={audioRef} type="file" hidden accept="audio/*" capture="user" onChange={pickAudio} />
           <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx'); fileRef.current.click(); } }} disabled={disabled} aria-label="Ajouter une pièce jointe" title="Fichier">
             <IconPaperclip />
           </button>
@@ -570,6 +602,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         conversation_id: conversation?.conversation_id || null,
         other_user_id: member.id,
         other_user_name: member.full_name,
+        other_user_email: member.email || null,
         other_user_role: member.role,
         has_avatar: Boolean(member.has_avatar),
         last_message_at: conversation?.last_message_at || null,
@@ -1143,6 +1176,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
 
   function renderRightPanel() {
     const online = otherOnline;
+    const otherEmail =
+      openConversation &&
+      (openConversation.other_user_email ||
+        availableUsers.find((u) => u.id === openConversation.other_user_id)?.email ||
+        null);
     return (
       <aside className="msgr-profile">
         <button type="button" className="msgr-profile-close" onClick={() => setRightPanelOpen(false)} aria-label="Fermer">
@@ -1183,6 +1221,24 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           </label>
           {panelSearch && <p className="msgr-profile-hint">{displayedMessages.length} résultat{displayedMessages.length > 1 ? 's' : ''}</p>}
         </div>
+
+        {activeChannel === 'private' && otherEmail && (
+          <div className="msgr-profile-section">
+            <p className="msgr-profile-label">Coordonnées</p>
+            <a className="msgr-profile-contact" href={`mailto:${otherEmail}`} title={`Écrire à ${otherEmail}`}>
+              <span className="msgr-contact-icon">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+                  <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span className="msgr-contact-text">
+                <span className="msgr-contact-kind">E-mail</span>
+                <span className="msgr-contact-value">{otherEmail}</span>
+              </span>
+            </a>
+          </div>
+        )}
 
         {activeChannel === 'group' && (openGroup?.members || []).length > 0 && (
           <div className="msgr-profile-section">

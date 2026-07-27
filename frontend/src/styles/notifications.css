@@ -1,0 +1,198 @@
+.topbar-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-menu {
+  position: relative;
+}
+
+.notification-panel {
+  position: fixed;
+  z-index: 80;
+  top: 76px;
+  right: 16px;
+  width: min(400px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 92px));
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  box-shadow: 0 20px 50px rgba(4, 12, 24, 0.28);
+  animation: notification-panel-in 180ms ease-out both;
+}
+
+.notification-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(180deg, var(--glass-overlay), transparent);
+}
+
+.notification-panel-header h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.notification-panel-header p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.notification-read-status {
+  flex: none;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.notification-list {
+  max-height: min(535px, calc(100vh - 177px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.notification-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 8px;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 76px;
+  min-width: 0;
+  width: 100%;
+  padding: 14px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  transition: background 180ms ease;
+}
+
+.notification-item:hover,
+.notification-item--unread {
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+
+.notification-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent-lighter);
+}
+
+.notification-item-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.notification-item-copy strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.notification-item-copy span {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-item-copy time {
+  color: var(--color-text-muted);
+  font-size: 11.5px;
+}
+
+.notification-unread-dot {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.notification-empty {
+  display: flex;
+  min-height: 180px;
+  margin: 0;
+  padding: 28px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+  text-align: center;
+  font-size: 13px;
+}
+
+.notification-empty svg {
+  width: 30px;
+  height: 30px;
+  color: var(--color-accent-lighter);
+}
+
+.notification-empty strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.notification-retry {
+  display: block;
+  min-height: 44px;
+  margin: 28px auto;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+@keyframes notification-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .notification-panel {
+    top: 126px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100vh - 138px);
+  }
+
+  .notification-list {
+    max-height: calc(100vh - 223px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-panel {
+    animation: none;
+  }
+}

@@ -15,6 +15,7 @@ import Planning from './pages/Planning';
 import Messaging from './pages/Messaging';
 import Profile from './pages/Profile';
 import Resources from './pages/Resources';
+import EmployeeAssistant from './pages/EmployeeAssistant';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminCreateTask from './pages/admin/AdminCreateTask';
@@ -140,6 +141,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Planning />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/assistant"
+          element={
+            <ProtectedRoute>
+              <EmployeeAssistant />
             </ProtectedRoute>
           }
         />

@@ -39,8 +39,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1px solid var(--color-border);
   background: var(--color-bg-secondary);
@@ -51,9 +51,20 @@
 }
 
 .icon-btn:hover {
-  color: var(--color-error);
-  border-color: var(--color-error);
-  transform: scale(1.05);
+  color: var(--color-accent-lighter);
+  border-color: var(--color-accent-light);
+  transform: translateY(-1px);
+}
+
+.icon-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-accent-light) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.icon-btn--active {
+  color: var(--color-on-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent);
 }
 
 .icon-btn-badge {
@@ -482,6 +493,22 @@
 .app-link:hover {
   color: var(--color-text-primary);
   text-decoration: underline;
+}
+
+/* Lien "Assigné à" : nom de l'employé cliquable ouvrant la discussion messagerie. */
+.detail-assignee-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.detail-assignee-link svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* --- Section titre --- */
@@ -919,6 +946,8 @@
 /* --- Table des tâches du jour --- */
 
 .task-table-wrap {
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
 }
 
@@ -1161,20 +1190,23 @@
   overflow: hidden;
 }
 
+/* Petit logo net, en haut à droite (au-dessus de l'icône de statut) — plus un filigrane. */
 .dash-hero-watermark {
   position: absolute;
-  top: 50%;
-  right: -30px;
-  transform: translateY(-50%);
-  width: 220px;
-  opacity: 0.08;
+  top: 16px;
+  right: 18px;
+  width: 82px;
+  opacity: 0.5;
   pointer-events: none;
+  z-index: 2;
 }
 
 .dash-hero-watermark img {
+  display: block;
   width: 100%;
   height: auto;
-  filter: var(--logo-filter);
+  opacity: .3;
+  filter: var(--logo-filter) blur(.2px);
 }
 
 .dash-hero-info {

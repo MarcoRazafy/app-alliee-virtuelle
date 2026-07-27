@@ -29,7 +29,7 @@ async function createSpace(req, res, next) {
   try {
     const { name, description } = req.body;
     if (!validateName(name)) {
-      return res.status(400).json({ error: 'Le nom du space est requis (max 150 caractères)' });
+      return res.status(400).json({ error: "Le nom de l’espace est requis (max 150 caractères)" });
     }
     const space = await hierarchyModel.createSpace({ name, description, createdBy: req.user.id });
     await taskModel.recordAudit({
@@ -50,13 +50,16 @@ async function updateSpace(req, res, next) {
     const { id } = req.params;
     const { name, description } = req.body;
     if (!validateName(name)) {
-      return res.status(400).json({ error: 'Le nom du space est requis (max 150 caractères)' });
+      return res.status(400).json({ error: "Le nom de l’espace est requis (max 150 caractères)" });
     }
     const space = await hierarchyModel.findSpaceById(id);
-    if (!space) {
-      return res.status(404).json({ error: 'Space introuvable' });
+    if (!space || space.deleted_at) {
+      return res.status(404).json({ error: 'Espace introuvable' });
     }
     const updated = await hierarchyModel.updateSpace(id, { name, description });
+    if (!updated) {
+      return res.status(409).json({ error: 'Cet espace a déjà été supprimé' });
+    }
     await taskModel.recordAudit({
       userId: req.user.id,
       action: 'UPDATE_SPACE',
@@ -74,18 +77,21 @@ async function deleteSpace(req, res, next) {
   try {
     const { id } = req.params;
     const space = await hierarchyModel.findSpaceById(id);
-    if (!space) {
-      return res.status(404).json({ error: 'Space introuvable' });
+    if (!space || space.deleted_at) {
+      return res.status(404).json({ error: 'Espace introuvable' });
     }
-    await hierarchyModel.deleteSpace(id);
+    const deleted = await hierarchyModel.deleteSpace(id, req.user.id);
+    if (!deleted) {
+      return res.status(409).json({ error: 'Cet espace a déjà été supprimé' });
+    }
     await taskModel.recordAudit({
       userId: req.user.id,
       action: 'DELETE_SPACE',
       entityType: 'task_space',
       entityId: id,
-      details: { name: space.name },
+      details: { name: space.name, hierarchy_preserved: true },
     });
-    res.status(200).json({ deleted: true });
+    res.status(200).json({ deleted: true, hierarchy_preserved: true });
   } catch (err) {
     next(err);
   }
@@ -116,8 +122,8 @@ async function createFolder(req, res, next) {
       return res.status(400).json({ error: 'space_id est requis' });
     }
     const space = await hierarchyModel.findSpaceById(spaceId);
-    if (!space) {
-      return res.status(400).json({ error: 'Space introuvable' });
+    if (!space || space.deleted_at) {
+      return res.status(400).json({ error: 'Espace introuvable' });
     }
     const folder = await hierarchyModel.createFolder({ spaceId, name });
     await taskModel.recordAudit({
@@ -141,10 +147,13 @@ async function updateFolder(req, res, next) {
       return res.status(400).json({ error: 'Le nom du dossier est requis (max 150 caractères)' });
     }
     const folder = await hierarchyModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
     const updated = await hierarchyModel.updateFolder(id, name);
+    if (!updated) {
+      return res.status(409).json({ error: 'Ce dossier a déjà été supprimé' });
+    }
     await taskModel.recordAudit({
       userId: req.user.id,
       action: 'UPDATE_FOLDER',
@@ -162,18 +171,21 @@ async function deleteFolder(req, res, next) {
   try {
     const { id } = req.params;
     const folder = await hierarchyModel.findFolderById(id);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
-    await hierarchyModel.deleteFolder(id);
+    const deleted = await hierarchyModel.deleteFolder(id, req.user.id);
+    if (!deleted) {
+      return res.status(409).json({ error: 'Ce dossier a déjà été supprimé' });
+    }
     await taskModel.recordAudit({
       userId: req.user.id,
       action: 'DELETE_FOLDER',
       entityType: 'task_folder',
       entityId: id,
-      details: { name: folder.name },
+      details: { name: folder.name, projects_preserved: true },
     });
-    res.status(200).json({ deleted: true });
+    res.status(200).json({ deleted: true, projects_preserved: true });
   } catch (err) {
     next(err);
   }
@@ -204,7 +216,7 @@ async function createList(req, res, next) {
       return res.status(400).json({ error: 'folder_id est requis' });
     }
     const folder = await hierarchyModel.findFolderById(folderId);
-    if (!folder) {
+    if (!folder || folder.deleted_at) {
       return res.status(400).json({ error: 'Dossier introuvable' });
     }
     const list = await hierarchyModel.createList({ folderId, name });
@@ -250,18 +262,21 @@ async function deleteList(req, res, next) {
   try {
     const { id } = req.params;
     const list = await hierarchyModel.findListById(id);
-    if (!list) {
-      return res.status(404).json({ error: 'Liste introuvable' });
+    if (!list || list.deleted_at) {
+      return res.status(404).json({ error: 'Projet introuvable' });
     }
-    await hierarchyModel.deleteList(id);
+    const deleted = await hierarchyModel.deleteList(id, req.user.id);
+    if (!deleted) {
+      return res.status(409).json({ error: 'Ce projet a déjà été supprimé' });
+    }
     await taskModel.recordAudit({
       userId: req.user.id,
-      action: 'DELETE_LIST',
+      action: 'DELETE_PROJECT',
       entityType: 'task_list',
       entityId: id,
-      details: { name: list.name },
+      details: { name: list.name, tasks_preserved: true },
     });
-    res.status(200).json({ deleted: true });
+    res.status(200).json({ deleted: true, tasks_preserved: true });
   } catch (err) {
     next(err);
   }

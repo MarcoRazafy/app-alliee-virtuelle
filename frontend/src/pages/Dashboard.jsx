@@ -5,6 +5,7 @@ import * as taskService from '../services/taskService';
 import * as statsService from '../services/statsService';
 import * as messageService from '../services/messageService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
+import AnimatedNumber from '../components/AnimatedNumber';
 import { formatDurationShort, formatRelativeTime } from '../utils/formatters';
 import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
 import {
@@ -63,6 +64,7 @@ function Dashboard() {
   const navigate = useNavigate();
 
   const [dayValidated, setDayValidated] = useState(false);
+  const [noTasksAvailable, setNoTasksAvailable] = useState(false);
   const [todoCount, setTodoCount] = useState(0);
   const [inProgressCount, setInProgressCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -81,10 +83,12 @@ function Dashboard() {
     }
     if (user?.role !== 'EMPLOYEE') return;
 
-    taskService
-      .getMyDay()
-      .then((selection) => {
-        setDayValidated(selection.length > 0 && selection.every((item) => item.validated_at));
+    Promise.all([taskService.getMyDay(), taskService.getTasks()])
+      .then(([selection, allTasks]) => {
+        const selectionValidated = selection.length > 0 && selection.every((item) => item.validated_at);
+        const hasAvailableTasks = allTasks.some((task) => task.status === 'VALIDEE' || task.status === 'EN_COURS');
+        setNoTasksAvailable(!hasAvailableTasks);
+        setDayValidated(selectionValidated || !hasAvailableTasks);
         setTodoCount(selection.filter((item) => item.task_data.status === 'VALIDEE').length);
         setInProgressCount(selection.filter((item) => item.task_data.status === 'EN_COURS').length);
       })
@@ -122,7 +126,9 @@ function Dashboard() {
             <h2 className="dash-hero-title">Bonjour, {firstName} 👋</h2>
             <p className="dash-hero-text">
               {dayValidated
-                ? 'Heureux de vous revoir ! Voici un aperçu de votre journée.'
+                ? noTasksAvailable
+                  ? "Aucune tâche ne vous est assignée. Profitez-en pour parcourir librement la plateforme."
+                  : 'Heureux de vous revoir ! Voici un aperçu de votre journée.'
                 : 'Validez votre journée pour commencer à travailler sur vos tâches.'}
             </p>
             <span className="status-badge status-badge--validated">
@@ -136,8 +142,12 @@ function Dashboard() {
                 <span className="dash-hero-check">
                   <IconCheckCircle />
                 </span>
-                <p className="dash-hero-status-title">Journée validée</p>
-                <p className="dash-hero-status-text">Belle journée productive !</p>
+                <p className="dash-hero-status-title">
+                  {noTasksAvailable ? 'Plateforme accessible' : 'Journée validée'}
+                </p>
+                <p className="dash-hero-status-text">
+                  {noTasksAvailable ? 'Vous pouvez consulter tous vos espaces.' : 'Belle journée productive !'}
+                </p>
               </>
             ) : (
               <>
@@ -166,7 +176,7 @@ function Dashboard() {
                 <IconChecklist />
               </span>
               <div>
-                <div className="stat-tile-value">{todoCount}</div>
+                <AnimatedNumber className="stat-tile-value" value={todoCount} />
                 <div className="stat-tile-label">Tâches à faire</div>
               </div>
             </div>
@@ -175,7 +185,7 @@ function Dashboard() {
                 <IconClock />
               </span>
               <div>
-                <div className="stat-tile-value">{inProgressCount}</div>
+                <AnimatedNumber className="stat-tile-value" value={inProgressCount} />
                 <div className="stat-tile-label">En cours</div>
               </div>
             </div>
@@ -184,7 +194,7 @@ function Dashboard() {
                 <IconChat />
               </span>
               <div>
-                <div className="stat-tile-value">{unreadCount}</div>
+                <AnimatedNumber className="stat-tile-value" value={unreadCount} />
                 <div className="stat-tile-label">Messages non lus</div>
               </div>
             </div>
@@ -193,7 +203,11 @@ function Dashboard() {
                 <IconLayers />
               </span>
               <div>
-                <div className="stat-tile-value">{formatDurationShort(secondsWorkedToday)}</div>
+                <AnimatedNumber
+                  className="stat-tile-value"
+                  value={secondsWorkedToday}
+                  format={(value) => formatDurationShort(Math.round(value))}
+                />
                 <div className="stat-tile-label">Temps travaillé</div>
               </div>
             </div>
@@ -202,7 +216,11 @@ function Dashboard() {
                 <IconClock />
               </span>
               <div>
-                <div className="stat-tile-value">{formatDurationShort(secondsConnectedToday)}</div>
+                <AnimatedNumber
+                  className="stat-tile-value"
+                  value={secondsConnectedToday}
+                  format={(value) => formatDurationShort(Math.round(value))}
+                />
                 <div className="stat-tile-label">Temps de connexion</div>
               </div>
             </div>

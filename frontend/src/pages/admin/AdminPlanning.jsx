@@ -80,7 +80,7 @@ function SummaryCards({ summary }) {
   );
 }
 
-function PlanningDetailModal({ planningId, onClose, onSaved }) {
+function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
   const [detail, setDetail] = useState(null);
   const [draftDays, setDraftDays] = useState([]);
   const [draftNote, setDraftNote] = useState('');
@@ -228,7 +228,15 @@ function PlanningDetailModal({ planningId, onClose, onSaved }) {
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="aplan-modal-head">
-          <span className="aplan-modal-avatar">{initials(detail?.user?.full_name)}</span>
+          {avatarUrls[detail?.user?.id] ? (
+            <img
+              src={avatarUrls[detail.user.id]}
+              alt={`Photo de ${detail.user.full_name}`}
+              className="aplan-modal-avatar aplan-modal-avatar--image"
+            />
+          ) : (
+            <span className="aplan-modal-avatar">{initials(detail?.user?.full_name)}</span>
+          )}
           <div className="aplan-modal-identity">
             <h2 id="aplan-detail-title">{detail?.user ? detail.user.full_name : 'Détail du planning'}</h2>
             <p>
@@ -414,23 +422,40 @@ function AdminPlanning() {
 
   useEffect(() => {
     let cancelled = false;
+    const objectUrls = [];
     const loadAvatars = async () => {
       const entries = await Promise.all(
         employees.filter((employee) => employee.has_avatar).map(async (employee) => {
           try {
             const blob = await avatarService.getUserAvatarBlob(employee.id);
-            return [employee.id, URL.createObjectURL(blob)];
+            const objectUrl = URL.createObjectURL(blob);
+            objectUrls.push(objectUrl);
+            return [employee.id, objectUrl];
           } catch { return null; }
         })
       );
-      if (!cancelled) setAvatarUrls(Object.fromEntries(entries.filter(Boolean)));
+      if (!cancelled) {
+        setAvatarUrls(Object.fromEntries(entries.filter(Boolean)));
+      }
     };
     loadAvatars();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    };
   }, [employees]);
 
-  function employeeAvatar(userId, name) {
-    return avatarUrls[userId] ? <img src={avatarUrls[userId]} alt="" className="aplan-row-avatar aplan-row-avatar--image" /> : <span className="aplan-row-avatar">{initials(name)}</span>;
+  function employeeAvatar(userId, name, size = 'default') {
+    const className = `aplan-row-avatar${size === 'sm' ? ' aplan-row-avatar--sm' : ''}`;
+    return avatarUrls[userId] ? (
+      <img
+        src={avatarUrls[userId]}
+        alt={`Photo de ${name}`}
+        className={`${className} aplan-row-avatar--image`}
+      />
+    ) : (
+      <span className={className}>{initials(name)}</span>
+    );
   }
 
   function loadTable(activeFilters) {
@@ -719,7 +744,7 @@ function AdminPlanning() {
                 <div className="aplan-availability-chips">
                   {availabilityResults.map((employee) => (
                     <span className="aplan-availability-chip" key={employee.user_id}>
-                      <span className="aplan-row-avatar aplan-row-avatar--sm">{initials(employee.full_name)}</span>
+                      {employeeAvatar(employee.user_id, employee.full_name, 'sm')}
                       {employee.full_name}
                       <small>{employee.position}</small>
                     </span>
@@ -734,6 +759,7 @@ function AdminPlanning() {
       {selectedPlanningId && (
         <PlanningDetailModal
           planningId={selectedPlanningId}
+          avatarUrls={avatarUrls}
           onClose={() => setSelectedPlanningId(null)}
           onSaved={handleDetailSaved}
         />

@@ -1,0 +1,103 @@
+- generic [ref=e22]:
+  - complementary [ref=e23]:
+    - button "Fermer le menu" [ref=e24] [cursor=pointer]
+    - img "L'Alliée Virtuelle" [ref=e28]
+    - navigation [ref=e29]:
+      - generic "Validez votre journée pour continuer" [ref=e30]: Dashboard
+      - generic "Validez votre journée pour continuer" [ref=e38]: Mon espace
+      - link "Ma journée" [ref=e46] [cursor=pointer]:
+        - /url: /my-day
+      - generic "Validez votre journée pour continuer" [ref=e52]: Mes tâches
+      - generic "Validez votre journée pour continuer" [ref=e60]: Messagerie
+      - generic "Validez votre journée pour continuer" [ref=e67]: Stats
+      - generic "Validez votre journée pour continuer" [ref=e74]: Planning
+      - generic "Validez votre journée pour continuer" [ref=e83]: Ressources
+      - generic "Validez votre journée pour continuer" [ref=e90]: Profil
+    - generic [ref=e98]:
+      - paragraph [ref=e103]: Validez votre journée
+      - paragraph [ref=e104]: pour débloquer le reste de l'application
+  - generic [ref=e105]:
+    - banner [ref=e106]:
+      - generic [ref=e107]:
+        - button "Ouvrir le menu" [ref=e108] [cursor=pointer]
+        - generic [ref=e111]:
+          - heading "Ma journée" [level=1] [ref=e112]
+          - paragraph [ref=e113]:
+            - link "Accueil" [ref=e115] [cursor=pointer]:
+              - /url: /dashboard
+            - generic [ref=e116]: ›Ma journée
+          - paragraph [ref=e117]: vendredi 24 juillet 2026
+      - generic [ref=e118]:
+        - textbox "Validez votre journée pour continuer" [disabled] [ref=e123]
+        - button "Passer en mode sombre" [ref=e128] [cursor=pointer]
+        - button "Employee Test Employee Test Employé" [ref=e132] [cursor=pointer]:
+          - img "Employee Test" [ref=e133]
+          - generic [ref=e134]:
+            - generic [ref=e135]: Employee Test
+            - generic [ref=e136]: Employé
+    - main [ref=e139]:
+      - generic [ref=e140]: En attente de validation
+      - generic [ref=e147]:
+        - text: Glissez au moins une tâche vers
+        - strong [ref=e148]: « Mes tâches aujourd'hui »
+        - text: et validez pour accéder au reste de l'application.
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - paragraph [ref=e152]: Tâches disponibles
+            - generic [ref=e153]: "12"
+          - generic [ref=e154]:
+            - generic [ref=e156]: Répondre aux emails clients
+            - 'generic "Échéance : 09/07/2026" [ref=e157]': Retard 16 j
+            - generic [ref=e161]: URGENT
+          - generic [ref=e162]:
+            - generic [ref=e164]: Corriger le bug de connexion
+            - 'generic "Échéance : 10/07/2026" [ref=e165]': Retard 15 j
+            - generic [ref=e169]: URGENT
+          - generic [ref=e170]:
+            - generic [ref=e172]: Préparer le rapport mensuel
+            - 'generic "Échéance : 13/07/2026" [ref=e173]': Retard 12 j
+            - generic [ref=e177]: HAUTE
+          - generic [ref=e178]:
+            - generic [ref=e180]: Préparer la présentation client
+            - 'generic "Échéance : 18/07/2026" [ref=e181]': Retard 7 j
+            - generic [ref=e185]: FAIBLE
+          - generic [ref=e186]:
+            - generic [ref=e188]: Nouvelle tâche test
+            - 'generic "Échéance : 01/08/2026" [ref=e189]': 31 juil.
+            - generic [ref=e193]: NORMALE
+          - generic [ref=e194]:
+            - generic [ref=e196]: Sous-tâche 1
+            - 'generic "Échéance : 01/11/2026" [ref=e197]': 31 oct.
+            - generic [ref=e201]: NORMALE
+          - generic [ref=e202]:
+            - generic [ref=e204]: Tâche parente ClickUp
+            - 'generic "Échéance : 01/12/2026" [ref=e205]': 30 nov.
+            - generic [ref=e209]: NORMALE
+          - generic [ref=e210]:
+            - generic [ref=e212]: Traiter la demande de Jean Dupont
+            - 'generic "Échéance : 15/12/2026" [ref=e213]': 14 déc.
+            - generic [ref=e217]: HAUTE
+          - generic [ref=e218]:
+            - generic [ref=e220]: Analyser l'email
+            - 'generic "Échéance : 16/12/2026" [ref=e221]': 15 déc.
+            - generic [ref=e225]: NORMALE
+          - generic [ref=e226]:
+            - generic [ref=e228]: Créer le dossier client
+            - 'generic "Échéance : 17/12/2026" [ref=e229]': 16 déc.
+            - generic [ref=e233]: NORMALE
+          - generic [ref=e234]:
+            - generic [ref=e236]: Répondre au client
+            - 'generic "Échéance : 18/12/2026" [ref=e237]': 17 déc.
+            - generic [ref=e241]: NORMALE
+          - generic [ref=e242]:
+            - generic [ref=e244]: Traiter la demande de Jean Dupont
+            - 'generic "Échéance : 20/12/2026" [ref=e245]': 19 déc.
+            - generic [ref=e249]: HAUTE
+        - generic [ref=e250]:
+          - generic [ref=e251]:
+            - paragraph [ref=e252]: Mes tâches aujourd'hui
+            - generic [ref=e253]: "0"
+          - generic [ref=e254]: Glissez des tâches ici.
+      - button "Valider ma journée" [disabled] [ref=e256]
+  - generic "Temps de connexion depuis votre arrivée": 00:00:00
