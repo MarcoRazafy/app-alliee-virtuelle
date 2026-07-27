@@ -1,36 +1,42 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { heartbeatSession, signalSessionDisconnect } from './services/sessionService';
 import { getToken } from './services/auth';
+// Gardés en chargement immédiat : la 1re page (Login), le garde de route et le shell admin
+// (partagé par toutes les pages admin, donc mieux vaut le charger une seule fois).
 import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Workspace from './pages/Workspace';
-import MyTasks from './pages/MyTasks';
-import TaskDetail from './pages/TaskDetail';
-import MyDay from './pages/MyDay';
-import MyStats from './pages/MyStats';
-import Planning from './pages/Planning';
-import Messaging from './pages/Messaging';
-import Profile from './pages/Profile';
-import Resources from './pages/Resources';
-import EmployeeAssistant from './pages/EmployeeAssistant';
 import AdminLayout from './components/admin/AdminLayout';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminCreateTask from './pages/admin/AdminCreateTask';
-import AdminListView from './pages/admin/AdminListView';
-import AdminTasksToValidate from './pages/admin/AdminTasksToValidate';
-import AdminLateTasks from './pages/admin/AdminLateTasks';
-import AdminTaskRequests from './pages/admin/AdminTaskRequests';
-import AdminStatistics from './pages/admin/AdminStatistics';
-import AdminPlanningPresence from './pages/admin/AdminPlanningPresence';
-import AdminAssistant from './pages/admin/AdminAssistant';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminMessaging from './pages/admin/AdminMessaging';
-import AdminResources from './pages/admin/AdminResources';
-import AdminProfile from './pages/admin/AdminProfile';
 import ProtectedRoute from './components/ProtectedRoute';
+import RouteFallback from './components/RouteFallback';
+
+// Toutes les autres pages sont chargées à la demande (code-splitting) : chacune devient
+// un fichier séparé, téléchargé seulement quand on visite sa route. Le bundle initial fond.
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Workspace = lazy(() => import('./pages/Workspace'));
+const MyTasks = lazy(() => import('./pages/MyTasks'));
+const TaskDetail = lazy(() => import('./pages/TaskDetail'));
+const MyDay = lazy(() => import('./pages/MyDay'));
+const MyStats = lazy(() => import('./pages/MyStats'));
+const Planning = lazy(() => import('./pages/Planning'));
+const Messaging = lazy(() => import('./pages/Messaging'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Resources = lazy(() => import('./pages/Resources'));
+const EmployeeAssistant = lazy(() => import('./pages/EmployeeAssistant'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminCreateTask = lazy(() => import('./pages/admin/AdminCreateTask'));
+const AdminListView = lazy(() => import('./pages/admin/AdminListView'));
+const AdminTasksToValidate = lazy(() => import('./pages/admin/AdminTasksToValidate'));
+const AdminLateTasks = lazy(() => import('./pages/admin/AdminLateTasks'));
+const AdminTaskRequests = lazy(() => import('./pages/admin/AdminTaskRequests'));
+const AdminStatistics = lazy(() => import('./pages/admin/AdminStatistics'));
+const AdminPlanningPresence = lazy(() => import('./pages/admin/AdminPlanningPresence'));
+const AdminAssistant = lazy(() => import('./pages/admin/AdminAssistant'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminMessaging = lazy(() => import('./pages/admin/AdminMessaging'));
+const AdminResources = lazy(() => import('./pages/admin/AdminResources'));
+const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
 
 function AdminRoute({ children }) {
   return (
@@ -61,6 +67,7 @@ function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -169,6 +176,7 @@ function App() {
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
