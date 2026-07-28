@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -33,10 +35,6 @@ app.use(cors());
 // Limite la taille des corps JSON (les fichiers passent par multer, pas par ici).
 app.use(express.json({ limit: '1mb' }));
 
-app.get('/', (req, res) => {
-  res.json({ message: "L'Alliée Virtuelle API" });
-});
-
 // Health check pour la supervision de l'hébergeur (non authentifié). Vérifie que le process
 // répond ET que la base est joignable → 200 si tout va bien, 503 sinon (pour que la plateforme
 // puisse détecter une instance dégradée et la redémarrer / la sortir du load-balancer).
@@ -48,6 +46,17 @@ app.get('/health', async (req, res) => {
     res.status(503).json({ status: 'error', db: 'down' });
   }
 });
+
+// Déploiement en SERVICE UNIQUE : si le build Vite est présent, le backend sert aussi le
+// frontend (same-origin → le cookie httpOnly d'auth fonctionne sans config CORS). Absent en
+// dev/test (Vite tourne à part) → on garde juste une bannière API à la racine.
+const distPath = path.join(__dirname, '../../frontend/dist');
+const hasFrontendBuild = fs.existsSync(path.join(distPath, 'index.html'));
+if (hasFrontendBuild) {
+  app.use(express.static(distPath));
+} else {
+  app.get('/', (req, res) => res.json({ message: "L'Alliée Virtuelle API" }));
+}
 
 app.use('/api/auth', authRoutes);
 app.use('/api', taskRoutes);
@@ -62,6 +71,15 @@ app.use('/api', hierarchyRoutes);
 app.use('/api', planningRoutes);
 app.use('/api', sessionRoutes);
 app.use('/api', notificationRoutes);
+
+// Fallback SPA : toute route non-API/non-socket renvoie index.html pour que les deep-links du
+// routeur React (ex. /admin/stats rafraîchi) fonctionnent au lieu de renvoyer 404.
+if (hasFrontendBuild) {
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 app.use(errorHandler);
 

@@ -18,7 +18,8 @@ if (missing.length > 0) {
 }
 
 module.exports = {
-  port: process.env.API_PORT || 3001,
+  // Railway/Render/Fly injectent le port via PORT → prioritaire. API_PORT reste pour le dev local.
+  port: process.env.PORT || process.env.API_PORT || 3001,
   nodeEnv,
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
