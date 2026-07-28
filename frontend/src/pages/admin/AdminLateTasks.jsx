@@ -5,14 +5,15 @@ import { notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconAlert, IconSearch, IconExternalLink, IconChevronDown } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
+import { priorityLabel } from '../../utils/taskStatus';
 import '../../styles/admin.css';
 
 const STATUS_META = {
-  DECLAREE: { label: 'Déclarée', pill: 'declared' },
-  VALIDEE: { label: 'À faire', pill: 'todo' },
-  EN_COURS: { label: 'En cours', pill: 'progress' },
-  TERMINEE: { label: 'Terminée', pill: 'done' },
-  CONFIRMEE: { label: 'Confirmée', pill: 'confirmed' },
+  DECLAREE: { label: 'Declared', pill: 'declared' },
+  VALIDEE: { label: 'To do', pill: 'todo' },
+  EN_COURS: { label: 'In progress', pill: 'progress' },
+  TERMINEE: { label: 'Completed', pill: 'done' },
+  CONFIRMEE: { label: 'Confirmed', pill: 'confirmed' },
 };
 
 const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAIBLE: 'faible' };
@@ -35,7 +36,7 @@ function AdminLateTasks() {
     taskService
       .getLateTasks()
       .then(setTasks)
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches en retard'))
+      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load overdue tasks'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -71,14 +72,14 @@ function AdminLateTasks() {
         </span>
         <div className="late-summary-copy">
           <strong>
-            {tasks.length} tâche{tasks.length > 1 ? 's' : ''} en retard
+            {tasks.length} overdue task{tasks.length > 1 ? 's' : ''}
           </strong>
-          <span>Une tâche confirmée n'est jamais considérée en retard.</span>
+          <span>A confirmed task is never considered overdue.</span>
         </div>
         {maxDays > 0 && (
           <div className="late-summary-worst">
             <span className="late-summary-worst-value">{maxDays}</span>
-            <span className="late-summary-worst-label">jours max</span>
+            <span className="late-summary-worst-label">max days</span>
           </div>
         )}
       </div>
@@ -88,18 +89,18 @@ function AdminLateTasks() {
           <IconSearch />
           <input
             type="text"
-            placeholder="Rechercher une tâche ou un employé…"
+            placeholder="Search a task or an employee…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
         <div className="filter-group">
           <select className="filter-select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-            <option value="">Toutes priorités</option>
+            <option value="">All priorities</option>
             <option value="URGENT">Urgent</option>
-            <option value="HAUTE">Haute</option>
-            <option value="NORMALE">Normale</option>
-            <option value="FAIBLE">Faible</option>
+            <option value="HAUTE">High</option>
+            <option value="NORMALE">Normal</option>
+            <option value="FAIBLE">Low</option>
           </select>
           {hasFilters && (
             <button
@@ -110,7 +111,7 @@ function AdminLateTasks() {
                 setPriorityFilter('');
               }}
             >
-              Réinitialiser
+              Reset
             </button>
           )}
         </div>
@@ -118,25 +119,25 @@ function AdminLateTasks() {
 
       {visibleTasks.length === 0 ? (
         <div className="empty-state">
-          {tasks.length === 0 ? 'Aucune tâche en retard. 🎉' : 'Aucune tâche ne correspond à ces filtres.'}
+          {tasks.length === 0 ? 'No overdue task. 🎉' : 'No task matches these filters.'}
         </div>
       ) : (
         <div className="task-table-wrap late-table-wrap">
           <table className="task-table">
             <thead>
               <tr>
-                <th>Tâche</th>
-                <th>Employé</th>
-                <th>Priorité</th>
-                <th>Statut</th>
-                <th>Échéance</th>
+                <th>Task</th>
+                <th>Employee</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Deadline</th>
                 <th>
                   <button type="button" className="late-sort-btn" onClick={toggleSort}>
-                    Retard
+                    Lateness
                     <IconChevronDown className={`late-sort-arrow${sortDirection === 'asc' ? ' late-sort-arrow--up' : ''}`} />
                   </button>
                 </th>
-                <th aria-label="Ouvrir" />
+                <th aria-label="Open" />
               </tr>
             </thead>
             <tbody>
@@ -153,7 +154,7 @@ function AdminLateTasks() {
                     <td>
                       <span className="lists-priority">
                         <span className={`priority-dot priority-dot--${PRIORITY_CLS[task.priority] || 'normale'}`} />
-                        {task.priority}
+                        {priorityLabel(task.priority)}
                       </span>
                     </td>
                     <td>
@@ -162,11 +163,11 @@ function AdminLateTasks() {
                     <td>{task.deadline ? formatDate(task.deadline) : '—'}</td>
                     <td>
                       <span className={`late-badge late-badge--${lateSeverity(task.days_late)}`}>
-                        {task.days_late} j
+                        {task.days_late} d
                       </span>
                     </td>
                     <td>
-                      <Link to={`/tasks/${task.id}`} className="icon-link-btn" title="Ouvrir la tâche">
+                      <Link to={`/tasks/${task.id}`} className="icon-link-btn" title="Open task">
                         <IconExternalLink />
                       </Link>
                     </td>

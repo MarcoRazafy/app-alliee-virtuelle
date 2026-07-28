@@ -130,7 +130,7 @@ function ConnectionChrono() {
       ref={nodeRef}
       className={`connection-chrono${dragging ? ' connection-chrono--dragging' : ''}`}
       style={style}
-      title="Temps de connexion — glissez pour déplacer"
+      title="Connection time — drag to move"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

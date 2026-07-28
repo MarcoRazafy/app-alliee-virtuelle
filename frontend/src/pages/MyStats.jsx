@@ -7,11 +7,11 @@ import { notifyError } from '../utils/toast';
 import '../styles/my-stats.css';
 
 const PRESETS = [
-  { id: 'day', label: "Aujourd'hui" },
-  { id: 'week', label: '7 jours' },
-  { id: 'month', label: '30 jours' },
-  { id: 'year', label: 'Cette année' },
-  { id: 'custom', label: 'Personnalisé' },
+  { id: 'day', label: 'Today' },
+  { id: 'week', label: '7 days' },
+  { id: 'month', label: '30 days' },
+  { id: 'year', label: 'This year' },
+  { id: 'custom', label: 'Custom' },
 ];
 
 function toDateString(date) {
@@ -34,7 +34,7 @@ function computeRange(preset) {
 
 function formatDate(dateString, options = {}) {
   if (!dateString) return '—';
-  return new Intl.DateTimeFormat('fr-FR', {
+  return new Intl.DateTimeFormat('en-US', {
     day: '2-digit',
     month: 'short',
     year: options.withYear ? 'numeric' : undefined,
@@ -43,7 +43,7 @@ function formatDate(dateString, options = {}) {
 
 function formatLongDate(dateString) {
   if (!dateString) return '—';
-  return new Intl.DateTimeFormat('fr-FR', {
+  return new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -142,7 +142,7 @@ function CompletionRing({ value }) {
   const dashOffset = circumference - (safeValue / 100) * circumference;
 
   return (
-    <div className="employee-stats-completion-ring" aria-label={`Taux de complétion : ${safeValue}%`}>
+    <div className="employee-stats-completion-ring" aria-label={`Completion rate: ${safeValue}%`}>
       <svg viewBox="0 0 104 104" aria-hidden="true">
         <circle className="employee-stats-ring-track" cx="52" cy="52" r={radius} />
         <circle
@@ -167,8 +167,8 @@ function ActivityChart({ rows }) {
     return (
       <div className="employee-stats-empty-chart">
         <span className="employee-stats-empty-icon"><Icon type="trend" /></span>
-        <h3>Aucune activité sur cette période</h3>
-        <p>Les tâches confirmées et le temps travaillé apparaîtront ici.</p>
+        <h3>No activity in this period</h3>
+        <p>Confirmed tasks and time worked will appear here.</p>
       </div>
     );
   }
@@ -194,7 +194,7 @@ function ActivityChart({ rows }) {
   const labelEvery = displayedRows.length > 10 ? 2 : 1;
 
   return (
-    <div className="employee-stats-chart-scroll" role="img" aria-label="Évolution des tâches confirmées et du temps travaillé">
+    <div className="employee-stats-chart-scroll" role="img" aria-label="Trend of confirmed tasks and time worked">
       <svg className="employee-stats-activity-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const y = padding.top + innerHeight - ratio * innerHeight;
@@ -209,7 +209,7 @@ function ActivityChart({ rows }) {
 
           return (
             <g key={row.date}>
-              <title>{`${formatLongDate(row.date)} — ${row.tasks_confirmed} tâche(s) confirmée(s), ${formatDurationShort(row.hours_worked_seconds)}`}</title>
+              <title>{`${formatLongDate(row.date)} — ${row.tasks_confirmed} confirmed task(s), ${formatDurationShort(row.hours_worked_seconds)}`}</title>
               <rect
                 className="employee-stats-chart-bar"
                 x={x}
@@ -275,7 +275,7 @@ function MyStats() {
     if (from > to) {
       setStats(null);
       setLoading(false);
-      setError('La date de début doit précéder la date de fin.');
+      setError('The start date must come before the end date.');
       return undefined;
     }
 
@@ -290,7 +290,7 @@ function MyStats() {
       })
       .catch((requestError) => {
         if (cancelled) return;
-        const message = requestError.response?.data?.error || 'Impossible de charger vos statistiques';
+        const message = requestError.response?.data?.error || 'Unable to load your statistics';
         setError(message);
         setStats(null);
         notifyError(message);
@@ -334,18 +334,18 @@ function MyStats() {
 
   return (
     <EmployeeLayout
-      title="Mes statistiques"
-      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Statistiques' }]}
-      subtitle="Analysez votre activité, votre temps de travail et vos tâches confirmées"
+      title="My statistics"
+      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'Statistics' }]}
+      subtitle="Analyze your activity, your working time and your confirmed tasks"
       skeleton={loading && !stats ? 'stats' : null}
     >
       <section className="employee-stats-page">
         <div className="employee-stats-toolbar">
           <div>
-            <p className="employee-stats-eyebrow">Tableau de performance</p>
+            <p className="employee-stats-eyebrow">Performance dashboard</p>
             <p className="employee-stats-period-label">
               <Icon type="calendar" />
-              Période analysée : <strong>{periodLabel}</strong>
+              Analyzed period: <strong>{periodLabel}</strong>
             </p>
           </div>
 
@@ -356,11 +356,11 @@ function MyStats() {
             disabled={loading}
           >
             <Icon type="refresh" />
-            Actualiser
+            Refresh
           </button>
         </div>
 
-        <div className="employee-stats-filter-card" aria-label="Sélection de la période">
+        <div className="employee-stats-filter-card" aria-label="Period selection">
           <div className="employee-stats-segmented-control">
             {PRESETS.map((item) => (
               <button
@@ -378,12 +378,12 @@ function MyStats() {
           {preset === 'custom' && (
             <div className="employee-stats-custom-range">
               <label>
-                <span>Du</span>
+                <span>From</span>
                 <input type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} />
               </label>
               <span className="employee-stats-range-separator">→</span>
               <label>
-                <span>Au</span>
+                <span>To</span>
                 <input type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} />
               </label>
             </div>
@@ -393,17 +393,17 @@ function MyStats() {
         {loading && (
           <div className="employee-stats-loading" role="status">
             <span className="employee-stats-loader" />
-            <p>Chargement de vos statistiques…</p>
+            <p>Loading your statistics…</p>
           </div>
         )}
 
         {!loading && error && (
           <div className="employee-stats-error-card" role="alert">
             <div>
-              <strong>Impossible d’afficher les statistiques</strong>
+              <strong>Unable to display statistics</strong>
               <p>{error}</p>
             </div>
-            <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>Réessayer</button>
+            <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>Retry</button>
           </div>
         )}
 
@@ -412,49 +412,49 @@ function MyStats() {
             <div className="employee-stats-kpi-grid">
               <StatCard
                 icon="check"
-                label="Tâches confirmées"
+                label="Confirmed tasks"
                 value={summary.tasks_confirmed ?? 0}
-                helper="Travail validé par un administrateur"
+                helper="Work validated by an administrator"
                 variant="confirmed"
               />
 
               <article className="employee-stats-kpi-card employee-stats-kpi-card--completion">
                 <CompletionRing value={summary.completion_rate} />
                 <div className="employee-stats-kpi-copy">
-                  <p>Taux de complétion</p>
+                  <p>Completion rate</p>
                   <AnimatedNumber
                     as="strong"
                     value={summary.completion_rate ?? 0}
                     format={(value) => `${Math.round(value)}%`}
                   />
-                  <span>Basé sur les tâches confirmées</span>
+                  <span>Based on confirmed tasks</span>
                 </div>
               </article>
 
               <StatCard
                 icon="timer"
-                label="Temps moyen par tâche"
+                label="Average time per task"
                 value={summary.average_time_per_task_seconds || 0}
                 format={(value) => formatDurationShort(Math.round(value))}
-                helper="Moyenne des tâches chronométrées"
+                helper="Average of timed tasks"
                 variant="average"
               />
 
               <StatCard
                 icon="clock"
-                label="Temps travaillé total"
+                label="Total time worked"
                 value={summary.total_hours_worked_seconds || 0}
                 format={(value) => formatDurationShort(Math.round(value))}
-                helper="Somme des sessions terminées"
+                helper="Sum of completed sessions"
                 variant="time"
               />
 
               <StatCard
                 icon="login"
-                label="Temps de connexion"
+                label="Connection time"
                 value={summary.total_connected_seconds || 0}
                 format={(value) => formatDurationShort(Math.round(value))}
-                helper="Indépendant du temps travaillé sur les tâches"
+                helper="Independent of time worked on tasks"
                 variant="connection"
               />
             </div>
@@ -463,17 +463,17 @@ function MyStats() {
               <article className="employee-stats-panel employee-stats-chart-panel">
                 <header className="employee-stats-panel-header">
                   <div>
-                    <p className="employee-stats-panel-eyebrow">Évolution</p>
-                    <h2>Activité sur la période</h2>
+                    <p className="employee-stats-panel-eyebrow">Trend</p>
+                    <h2>Activity over the period</h2>
                     <p>
                       {stats.by_day.length > 14
-                        ? 'Affichage des 14 derniers jours avec activité.'
-                        : 'Comparaison du temps travaillé et des tâches confirmées.'}
+                        ? 'Showing the last 14 days with activity.'
+                        : 'Comparison of time worked and confirmed tasks.'}
                     </p>
                   </div>
-                  <div className="employee-stats-chart-legend" aria-label="Légende du graphique">
-                    <span><i className="employee-stats-legend-bar" /> Temps travaillé</span>
-                    <span><i className="employee-stats-legend-line" /> Tâches confirmées</span>
+                  <div className="employee-stats-chart-legend" aria-label="Chart legend">
+                    <span><i className="employee-stats-legend-bar" /> Time worked</span>
+                    <span><i className="employee-stats-legend-line" /> Confirmed tasks</span>
                   </div>
                 </header>
                 <ActivityChart rows={stats.by_day} />
@@ -483,35 +483,35 @@ function MyStats() {
                 <div className="employee-stats-insights-heading">
                   <span className="employee-stats-insights-icon"><Icon type="trend" /></span>
                   <div>
-                    <p>Résumé</p>
-                    <h2>Vos repères</h2>
+                    <p>Summary</p>
+                    <h2>Your benchmarks</h2>
                   </div>
                 </div>
 
                 <div className="employee-stats-insight-list">
                   <div className="employee-stats-insight-item">
-                    <span>Jours avec activité</span>
+                    <span>Days with activity</span>
                     <AnimatedNumber as="strong" value={insights.activeDays} />
-                    <small>{insights.regularity}% de la période sélectionnée</small>
+                    <small>{insights.regularity}% of the selected period</small>
                   </div>
 
                   <div className="employee-stats-insight-item">
-                    <span>Moyenne par jour actif</span>
+                    <span>Average per active day</span>
                     <AnimatedNumber
                       as="strong"
                       value={insights.dailyAverageSeconds}
                       format={(value) => formatDurationShort(Math.round(value))}
                     />
-                    <small>Temps travaillé enregistré</small>
+                    <small>Recorded time worked</small>
                   </div>
 
                   <div className="employee-stats-insight-item">
-                    <span>Journée la plus productive</span>
+                    <span>Most productive day</span>
                     <strong>{insights.bestDay ? formatDate(insights.bestDay.date, { withYear: true }) : '—'}</strong>
                     <small>
                       {insights.bestDay
-                        ? `${insights.bestDay.tasks_confirmed} tâche(s) · ${formatDurationShort(insights.bestDay.hours_worked_seconds)}`
-                        : 'Aucune donnée disponible'}
+                        ? `${insights.bestDay.tasks_confirmed} task(s) · ${formatDurationShort(insights.bestDay.hours_worked_seconds)}`
+                        : 'No data available'}
                     </small>
                   </div>
                 </div>
@@ -519,7 +519,7 @@ function MyStats() {
                 <div className="employee-stats-definition-note">
                   <Icon type="target" />
                   <p>
-                    Une tâche est comptée comme complétée uniquement lorsqu’elle est au statut <strong>Confirmée</strong>.
+                    A task counts as completed only when it has the <strong>Confirmed</strong> status.
                   </p>
                 </div>
               </aside>
@@ -528,17 +528,17 @@ function MyStats() {
             <article className="employee-stats-panel employee-stats-table-panel">
               <header className="employee-stats-panel-header employee-stats-table-header">
                 <div>
-                  <p className="employee-stats-panel-eyebrow">Historique</p>
-                  <h2>Détail par jour</h2>
-                  <p>{stats.by_day.length} journée(s) avec des données sur la période.</p>
+                  <p className="employee-stats-panel-eyebrow">History</p>
+                  <h2>Daily breakdown</h2>
+                  <p>{stats.by_day.length} day(s) with data in the period.</p>
                 </div>
               </header>
 
               {stats.by_day.length === 0 ? (
                 <div className="employee-stats-empty-table">
                   <span className="employee-stats-empty-icon"><Icon type="calendar" /></span>
-                  <h3>Aucune donnée quotidienne</h3>
-                  <p>Essayez une autre période ou commencez à chronométrer vos tâches.</p>
+                  <h3>No daily data</h3>
+                  <p>Try another period or start timing your tasks.</p>
                 </div>
               ) : (
                 <div className="employee-stats-table-scroll">
@@ -546,9 +546,9 @@ function MyStats() {
                     <thead>
                       <tr>
                         <th>Date</th>
-                        <th>Tâches confirmées</th>
-                        <th>Temps travaillé</th>
-                        <th>Répartition du temps</th>
+                        <th>Confirmed tasks</th>
+                        <th>Time worked</th>
+                        <th>Time distribution</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -569,7 +569,7 @@ function MyStats() {
                             </td>
                             <td>{formatDurationShort(day.hours_worked_seconds)}</td>
                             <td>
-                              <div className="employee-stats-time-progress" aria-label={`${progress}% du jour le plus travaillé`}>
+                              <div className="employee-stats-time-progress" aria-label={`${progress}% of the busiest day`}>
                                 <span style={{ width: `${progress}%`, '--progress-scale': progress / 100 }} />
                               </div>
                             </td>

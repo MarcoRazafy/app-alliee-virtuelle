@@ -29,13 +29,13 @@ import '../../styles/layout.css';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: IconDashboard, end: true },
-  { to: '/workspace', label: 'Mon espace', icon: IconWorkspace },
-  { to: '/my-day', label: 'Ma journée', icon: IconCalendarCheck },
-  { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
+  { to: '/workspace', label: 'My space', icon: IconWorkspace },
+  { to: '/my-day', label: 'My day', icon: IconCalendarCheck },
+  { to: '/tasks', label: 'My tasks', icon: IconChecklist },
   { to: '/stats', label: 'Stats', icon: IconBarChart },
   { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
-  { to: '/resources', label: 'Ressources', icon: IconFolder },
-  { to: '/profile', label: 'Profil', icon: IconUser },
+  { to: '/resources', label: 'Resources', icon: IconFolder },
+  { to: '/profile', label: 'Profile', icon: IconUser },
 ];
 
 function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, children }) {
@@ -133,7 +133,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
           type="button"
           className="sidebar-close-btn"
           onClick={() => setMobileNavOpen(false)}
-          aria-label="Fermer le menu"
+          aria-label="Close menu"
         >
           <IconX />
         </button>
@@ -149,7 +149,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
             // (cf. règle métier : au moins une tâche sélectionnée + validation avant le reste de l'app)
             if (locked && !isActive) {
               return (
-                <span key={to} className="sidebar-link sidebar-link--locked" title="Validez votre journée pour continuer">
+                <span key={to} className="sidebar-link sidebar-link--locked" title="Validate your day to continue">
                   <Icon />
                   <span>{label}</span>
                   <IconLock className="sidebar-lock-icon" />
@@ -170,17 +170,17 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
             <span className="sidebar-cta-icon">
               <IconLock />
             </span>
-            <p className="sidebar-cta-title">Validez votre journée</p>
-            <p className="sidebar-cta-link">pour débloquer le reste de l'application</p>
+            <p className="sidebar-cta-title">Validate your day</p>
+            <p className="sidebar-cta-link">to unlock the rest of the application</p>
           </span>
         ) : (
           <Link to="/stats" className="sidebar-cta">
             <span className="sidebar-cta-icon">
               <IconTrendingUp />
             </span>
-            <p className="sidebar-cta-title">Boostez votre productivité</p>
+            <p className="sidebar-cta-title">Boost your productivity</p>
             <p className="sidebar-cta-link">
-              Voir mes statistiques <IconChevronDown style={{ transform: 'rotate(-90deg)' }} />
+              View my statistics <IconChevronDown style={{ transform: 'rotate(-90deg)' }} />
             </p>
           </Link>
         )}
@@ -193,7 +193,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
               type="button"
               className="mobile-menu-btn"
               onClick={() => setMobileNavOpen(true)}
-              aria-label="Ouvrir le menu"
+              aria-label="Open menu"
             >
               <IconMenu />
             </button>
@@ -219,7 +219,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder={locked ? 'Validez votre journée pour continuer' : "Rechercher (Ctrl + K)"}
+                placeholder={locked ? 'Validate your day to continue' : 'Search (Ctrl + K)'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
@@ -256,7 +256,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
                 )}
                 <span className="user-menu-info">
                   <span className="user-menu-name">{user?.full_name}</span>
-                  <span className="user-menu-role">Employé</span>
+                  <span className="user-menu-role">Employee</span>
                 </span>
                 <IconChevronDown />
               </button>
@@ -264,15 +264,15 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
                 <div className="user-menu-dropdown">
                   {locked ? (
                     <span className="user-menu-dropdown-disabled">
-                      <IconUser /> Mon profil
+                      <IconUser /> My profile
                     </span>
                   ) : (
                     <Link to="/profile" onClick={() => setMenuOpen(false)}>
-                      <IconUser /> Mon profil
+                      <IconUser /> My profile
                     </Link>
                   )}
                   <button type="button" onClick={handleLogout}>
-                    <IconLogout /> Déconnexion
+                    <IconLogout /> Sign out
                   </button>
                 </div>
               )}

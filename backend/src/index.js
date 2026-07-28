@@ -1,49 +1,16 @@
-const express = require('express');
-const cors = require('cors');
+const http = require('http');
 const env = require('./config/env');
-const authRoutes = require('./routes/auth');
-const taskRoutes = require('./routes/tasks');
-const messageRoutes = require('./routes/messages');
-const resourceRoutes = require('./routes/resources');
-const userRoutes = require('./routes/users');
-const dashboardRoutes = require('./routes/dashboard');
-const statsRoutes = require('./routes/stats');
-const auditLogRoutes = require('./routes/auditLog');
-const aiRoutes = require('./routes/ai');
-const hierarchyRoutes = require('./routes/hierarchy');
-const planningRoutes = require('./routes/planning');
-const sessionRoutes = require('./routes/sessions');
-const notificationRoutes = require('./routes/notifications');
+const app = require('./app');
+const db = require('./config/database');
+const { initRealtime } = require('./realtime/io');
 const sessionModel = require('./models/session.model');
-const errorHandler = require('./middleware/errorHandler.middleware');
 
-const app = express();
+// Serveur HTTP explicite pour héberger à la fois Express (REST) et Socket.IO (WebSockets).
+const server = http.createServer(app);
+initRealtime(server);
 
-app.use(cors());
-app.use(express.json());
-
-app.get('/', (req, res) => {
-  res.json({ message: "L'Alliée Virtuelle API" });
-});
-
-app.use('/api/auth', authRoutes);
-app.use('/api', taskRoutes);
-app.use('/api', messageRoutes);
-app.use('/api', resourceRoutes);
-app.use('/api', userRoutes);
-app.use('/api', dashboardRoutes);
-app.use('/api', statsRoutes);
-app.use('/api', auditLogRoutes);
-app.use('/api', aiRoutes);
-app.use('/api', hierarchyRoutes);
-app.use('/api', planningRoutes);
-app.use('/api', sessionRoutes);
-app.use('/api', notificationRoutes);
-
-app.use(errorHandler);
-
-app.listen(env.port, () => {
-  console.log(`API démarrée sur http://localhost:${env.port}`);
+server.listen(env.port, () => {
+  console.log(`API démarrée sur http://localhost:${env.port} (REST + WebSocket)`);
 });
 
 // Nettoyage autonome des navigateurs fermés : présence et tâche sont clôturées
@@ -54,3 +21,33 @@ const presenceCleanupTimer = setInterval(() => {
   });
 }, env.presenceCleanupIntervalSeconds * 1000);
 presenceCleanupTimer.unref();
+
+// Arrêt propre : les plateformes managées (Railway/Render/Fly…) envoient SIGTERM à chaque
+// redéploiement. On cesse d'accepter de nouvelles connexions, on attend la fin des requêtes
+// en cours, puis on ferme le pool PostgreSQL — avec un filet de sécurité si des sockets traînent.
+let shuttingDown = false;
+function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} reçu — arrêt propre en cours…`);
+  clearInterval(presenceCleanupTimer);
+
+  server.close(async () => {
+    try {
+      await db.pool.end();
+    } catch (err) {
+      console.error('Erreur à la fermeture du pool PostgreSQL', err);
+    }
+    console.log('Arrêt propre terminé.');
+    process.exit(0);
+  });
+
+  // Filet de sécurité : si des connexions (ex. WebSocket) empêchent la fermeture, on force la sortie.
+  setTimeout(() => {
+    console.error('Arrêt forcé après délai de grâce.');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

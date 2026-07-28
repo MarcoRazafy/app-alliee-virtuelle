@@ -28,6 +28,16 @@ export function submitNextWeekPlanning() {
   return api.post('/api/planning/next-week/submit').then((res) => res.data);
 }
 
+// Rattrapage : écriture sur la semaine EN COURS (autorisée seulement si l'employé n'a jamais
+// touché à la semaine prochaine et que sa semaine en cours n'est pas soumise).
+export function saveCurrentWeekPlanning({ generalNote, days }) {
+  return api.put('/api/planning/current-week', { general_note: generalNote, days }).then((res) => res.data);
+}
+
+export function submitCurrentWeekPlanning() {
+  return api.post('/api/planning/current-week/submit').then((res) => res.data);
+}
+
 export function getMyPlanningHistory(params = {}) {
   return api.get('/api/planning/history', { params }).then((res) => res.data);
 }

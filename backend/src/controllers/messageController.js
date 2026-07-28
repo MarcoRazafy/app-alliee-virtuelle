@@ -1,6 +1,8 @@
 const db = require('../config/database');
 const messageModel = require('../models/message.model');
 const userModel = require('../models/user.model');
+const sessionModel = require('../models/session.model');
+const realtime = require('../realtime/io');
 
 const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
@@ -27,10 +29,12 @@ async function getGlobalMessages(req, res, next) {
 async function postGlobalMessage(req, res, next) {
   try {
     if (!hasBody(req)) {
-      return res.status(400).json({ error: 'Le message ne peut pas être vide' });
+      return res.status(400).json({ error: 'The message cannot be empty' });
     }
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await messageModel.createGlobalMessage(req.user.id, content, attachmentFrom(req));
+    // Temps réel : prévenir tout le monde qu'un message a été posté dans le salon global.
+    realtime.broadcast('message:new', { scope: 'global', authorId: req.user.id });
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -68,10 +72,10 @@ async function postPrivateMessage(req, res, next) {
   try {
     const { userId } = req.params;
     if (!hasBody(req)) {
-      return res.status(400).json({ error: 'Le message ne peut pas être vide' });
+      return res.status(400).json({ error: 'The message cannot be empty' });
     }
     if (userId === req.user.id) {
-      return res.status(400).json({ error: 'Impossible de vous envoyer un message à vous-même' });
+      return res.status(400).json({ error: 'You cannot send a message to yourself' });
     }
 
     const recipient = await userModel.findById(userId);
@@ -88,6 +92,12 @@ async function postPrivateMessage(req, res, next) {
 
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await messageModel.createPrivateMessage(req.user.id, userId, content, attachmentFrom(req));
+    // Temps réel : prévenir le destinataire (et les autres onglets de l'auteur).
+    realtime.emitToUsers([userId, req.user.id], 'message:new', {
+      scope: 'private',
+      authorId: req.user.id,
+      recipientId: userId,
+    });
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -114,12 +124,12 @@ async function createGroup(req, res, next) {
     if (!Array.isArray(requestedMemberIds)) requestedMemberIds = [];
 
     if (normalizedName.length < 2 || normalizedName.length > 100) {
-      return res.status(400).json({ error: 'Le nom du groupe doit contenir entre 2 et 100 caractères' });
+      return res.status(400).json({ error: 'The group name must be between 2 and 100 characters' });
     }
 
     const memberIds = [...new Set(requestedMemberIds.filter((id) => typeof id === 'string' && id !== req.user.id))];
     if (memberIds.length === 0) {
-      return res.status(400).json({ error: 'Sélectionnez au moins une personne pour créer le groupe' });
+      return res.status(400).json({ error: 'Select at least one person to create the group' });
     }
     if (memberIds.length > 50) {
       return res.status(400).json({ error: 'Un groupe ne peut pas contenir plus de 50 personnes' });
@@ -129,7 +139,7 @@ async function createGroup(req, res, next) {
     const activeUserIds = new Set(activeUsers.map((user) => user.id));
     const invalidMemberIds = memberIds.filter((id) => !activeUserIds.has(id));
     if (invalidMemberIds.length > 0) {
-      return res.status(400).json({ error: 'Une ou plusieurs personnes sélectionnées ne sont plus disponibles' });
+      return res.status(400).json({ error: 'One or more selected people are no longer available' });
     }
 
     const avatarPath = req.file ? req.file.path : null;
@@ -157,7 +167,7 @@ async function getGroupMessages(req, res, next) {
     const { groupId } = req.params;
     const group = await messageModel.findGroupForUser(groupId, req.user.id);
     if (!group) {
-      return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
+      return res.status(404).json({ error: 'Group not found or access denied' });
     }
 
     const messages = await messageModel.findGroupMessages(groupId, req.user.id);
@@ -172,18 +182,21 @@ async function postGroupMessage(req, res, next) {
   try {
     const { groupId } = req.params;
     if (!hasBody(req)) {
-      return res.status(400).json({ error: 'Le message ne peut pas être vide' });
+      return res.status(400).json({ error: 'The message cannot be empty' });
     }
 
     const group = await messageModel.findGroupForUser(groupId, req.user.id);
     if (!group) {
-      return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
+      return res.status(404).json({ error: 'Group not found or access denied' });
     }
 
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await db.withTransaction((client) =>
       messageModel.createGroupMessage(groupId, req.user.id, content, attachmentFrom(req), client)
     );
+    // Temps réel : prévenir tous les membres du groupe.
+    const memberIds = await messageModel.findGroupMemberIds(groupId);
+    realtime.emitToUsers(memberIds, 'message:new', { scope: 'group', groupId, authorId: req.user.id });
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -205,12 +218,12 @@ async function editMessage(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
     if (!raw) return res.status(404).json({ error: 'Message introuvable' });
-    if (raw.deleted_at) return res.status(400).json({ error: 'Message supprimé' });
+    if (raw.deleted_at) return res.status(400).json({ error: 'Message deleted' });
     if (raw.author_id !== req.user.id) {
       return res.status(403).json({ error: 'Vous ne pouvez modifier que vos propres messages' });
     }
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
-    if (!content) return res.status(400).json({ error: 'Le message ne peut pas être vide' });
+    if (!content) return res.status(400).json({ error: 'The message cannot be empty' });
     const message = await messageModel.updateMessageContent(req.params.id, content, req.user.id);
     res.status(200).json(message);
   } catch (err) {
@@ -224,7 +237,7 @@ async function deleteMessage(req, res, next) {
     if (!raw) return res.status(404).json({ error: 'Message introuvable' });
     // L'auteur ou un administrateur peut supprimer.
     if (raw.author_id !== req.user.id && req.user.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Suppression non autorisée' });
+      return res.status(403).json({ error: 'Deletion not allowed' });
     }
     await messageModel.softDeleteMessage(req.params.id);
     res.status(200).json({ deleted: true, id: req.params.id });
@@ -237,12 +250,12 @@ async function reactMessage(req, res, next) {
   try {
     const emoji = typeof req.body.emoji === 'string' ? req.body.emoji : '';
     if (!ALLOWED_REACTIONS.includes(emoji)) {
-      return res.status(400).json({ error: 'Réaction non autorisée' });
+      return res.status(400).json({ error: 'Reaction not allowed' });
     }
     const raw = await messageModel.findRawMessageById(req.params.id);
     if (!raw || raw.deleted_at) return res.status(404).json({ error: 'Message introuvable' });
     if (!(await canAccessMessage(raw, req.user))) {
-      return res.status(403).json({ error: 'Accès refusé' });
+      return res.status(403).json({ error: 'Access denied' });
     }
     const message = await messageModel.toggleReaction(req.params.id, req.user.id, emoji);
     res.status(200).json(message);
@@ -255,10 +268,10 @@ async function getMessageAttachment(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
     if (!raw || raw.deleted_at || !raw.attachment_path) {
-      return res.status(404).json({ error: 'Pièce jointe introuvable' });
+      return res.status(404).json({ error: 'Attachment not found' });
     }
     if (!(await canAccessMessage(raw, req.user))) {
-      return res.status(403).json({ error: 'Accès refusé' });
+      return res.status(403).json({ error: 'Access denied' });
     }
     res.download(raw.attachment_path, raw.attachment_name || 'piece-jointe');
   } catch (err) {
@@ -279,8 +292,9 @@ async function getGroupAvatar(req, res, next) {
 // Ids des utilisateurs actuellement connectés (session ouverte) — pour le statut « en ligne ».
 async function getOnlineUsers(req, res, next) {
   try {
-    const result = await db.query(`SELECT DISTINCT user_id FROM user_sessions WHERE logout_at IS NULL`);
-    res.status(200).json(result.rows.map((row) => row.user_id));
+    // Présence "temps réel" : uniquement les utilisateurs réellement en ligne (définition
+    // partagée) — plus de pastille verte qui reste allumée après la fermeture du navigateur.
+    res.status(200).json(await sessionModel.findLiveUserIds());
   } catch (err) {
     next(err);
   }

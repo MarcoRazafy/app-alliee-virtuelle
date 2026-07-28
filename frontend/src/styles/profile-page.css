@@ -416,22 +416,36 @@
 }
 
 .profile-form input,
+.profile-form textarea,
 .profile-security-summary input,
 .profile-password-form input {
   width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
   border: 1px solid var(--profile-border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   outline: none;
   color: var(--profile-text);
   background: var(--profile-surface-soft);
   font: inherit;
   font-size: 0.75rem;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.profile-form input:hover:not(:focus):not(:disabled),
+.profile-form textarea:hover:not(:focus) {
+  border-color: color-mix(in srgb, var(--profile-blue) 45%, var(--profile-border));
+}
+
+.profile-form textarea {
+  padding: 10px 12px;
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.5;
 }
 
 .profile-form input:focus,
+.profile-form textarea:focus,
 .profile-password-form input:focus {
   border-color: var(--profile-blue);
   box-shadow: 0 0 0 3px var(--profile-blue-soft);

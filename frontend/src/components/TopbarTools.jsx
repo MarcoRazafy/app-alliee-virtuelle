@@ -53,7 +53,7 @@ function TopbarTools({ messagingPath, assistantPath, locked = false }) {
   return (
     <div className="topbar-tools" aria-label="Communication et notifications">
       {locked ? (
-        <span className="icon-btn icon-btn--disabled" aria-label="Messagerie verrouillée" title="Messagerie verrouillée">
+        <span className="icon-btn icon-btn--disabled" aria-label="Messaging locked" title="Messaging locked">
           <IconChat />
         </span>
       ) : (
@@ -66,7 +66,7 @@ function TopbarTools({ messagingPath, assistantPath, locked = false }) {
       <NotificationMenu />
 
       {locked ? (
-        <span className="icon-btn icon-btn--disabled" aria-label="Chatbot verrouillé" title="Chatbot verrouillé">
+        <span className="icon-btn icon-btn--disabled" aria-label="Chatbot locked" title="Chatbot locked">
           <IconSparkle />
         </span>
       ) : (

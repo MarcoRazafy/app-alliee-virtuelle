@@ -91,7 +91,7 @@ function SlotBlock({ day, slot, slotIndex, canEdit, drag, onHandlePointerDown, o
           className="cal-slot-delete"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => onDelete(slotIndex)}
-          aria-label="Supprimer cette plage"
+          aria-label="Delete this slot"
         >
           <IconX />
         </button>
@@ -111,23 +111,23 @@ function PresenceBlock({ segment }) {
   const height = Math.max(4, ((segment.end - segment.start) / 60) * ROW_HEIGHT);
   const startLabel = minutesToTime(segment.start);
   const endLabel = minutesToTime(segment.end);
-  const variantLabel = PRESENCE_VARIANT_LABELS[segment.variant] || 'Présence';
+  const variantLabel = PRESENCE_VARIANT_LABELS[segment.variant] || 'Presence';
   return (
     <div
       className={`cal-session-block cal-session-block--${segment.variant}${segment.isLive ? ' cal-session-block--live' : ''}`}
       style={{ top: `${top}px`, height: `${height}px` }}
-      title={`${variantLabel} · ${startLabel}–${endLabel}${segment.isLive ? ' · en cours' : ''}`}
+      title={`${variantLabel} · ${startLabel}–${endLabel}${segment.isLive ? ' · in progress' : ''}`}
       aria-hidden="true"
     />
   );
 }
 
 function PresenceDaySummary({ summary, expanded, onToggle }) {
-  let detailText = summary.firstConnection ? `Connexion ${summary.firstConnection}` : 'Aucune connexion';
-  if (summary.status.label === 'À venir' || summary.status.label === 'En attente') {
-    detailText = summary.plannedIntervals[0] ? `Prévu ${minutesToTime(summary.plannedIntervals[0].start)}` : 'À venir';
-  } else if (summary.status.label === 'Non planifié') {
-    detailText = 'Aucun créneau';
+  let detailText = summary.firstConnection ? `Connection ${summary.firstConnection}` : 'No connection';
+  if (summary.status.label === 'Upcoming' || summary.status.label === 'Waiting') {
+    detailText = summary.plannedIntervals[0] ? `Planned ${minutesToTime(summary.plannedIntervals[0].start)}` : 'Upcoming';
+  } else if (summary.status.label === 'Not scheduled') {
+    detailText = 'No slot';
   }
   return (
     <button
@@ -135,7 +135,7 @@ function PresenceDaySummary({ summary, expanded, onToggle }) {
       className={`cal-presence-summary cal-presence-summary--${summary.status.variant}`}
       onClick={onToggle}
       aria-expanded={expanded}
-      aria-label={`${summary.status.label}. ${detailText}. ${formatPresenceMinutes(summary.connectedMinutes)} connectées sur ${formatPresenceMinutes(summary.plannedMinutes)} planifiées. Afficher le détail.`}
+      aria-label={`${summary.status.label}. ${detailText}. ${formatPresenceMinutes(summary.connectedMinutes)} connected out of ${formatPresenceMinutes(summary.plannedMinutes)} planned. Show details.`}
     >
       <span className="cal-presence-summary-dot" aria-hidden="true" />
       <span className="cal-presence-summary-copy">
@@ -151,7 +151,7 @@ function PresenceDetailPanel({ day, dayIndex, summary, onClose, panelRef }) {
     (interval) => `${minutesToTime(interval.start)}–${minutesToTime(interval.end)}`
   );
   const actualSessions = summary.sessionIntervals.map(
-    (interval) => `${minutesToTime(interval.start)}–${minutesToTime(interval.end)}${interval.isLive ? ' · en cours' : ''}`
+    (interval) => `${minutesToTime(interval.start)}–${minutesToTime(interval.end)}${interval.isLive ? ' · in progress' : ''}`
   );
   const timelineSegments = [...summary.displaySegments, ...summary.missingSegments]
     .sort((first, second) => first.start - second.start || first.end - second.end);
@@ -165,10 +165,10 @@ function PresenceDetailPanel({ day, dayIndex, summary, onClose, panelRef }) {
     >
       <header className="cal-presence-detail-head">
         <div>
-          <p className="cal-presence-detail-kicker">Détail de présence</p>
+          <p className="cal-presence-detail-kicker">Presence details</p>
           <h3 id={`presence-detail-${day.date}`}>{formatDayLabel(day.date, dayIndex)}</h3>
         </div>
-        <button type="button" className="cal-presence-detail-close" onClick={onClose} aria-label="Fermer le détail de présence">
+        <button type="button" className="cal-presence-detail-close" onClick={onClose} aria-label="Close presence details">
           <IconX />
         </button>
       </header>
@@ -177,38 +177,38 @@ function PresenceDetailPanel({ day, dayIndex, summary, onClose, panelRef }) {
         <span className={`cal-presence-detail-badge cal-presence-detail-badge--${summary.status.variant}`}>
           <span aria-hidden="true" /> {summary.status.label}
         </span>
-        {summary.delayMinutes > 10 && <strong>{formatPresenceMinutes(summary.delayMinutes)} de retard</strong>}
+        {summary.delayMinutes > 10 && <strong>{formatPresenceMinutes(summary.delayMinutes)} late</strong>}
       </div>
 
       <dl className="cal-presence-detail-metrics">
-        <div><dt>Planifié</dt><dd>{formatPresenceMinutes(summary.plannedMinutes)}</dd></div>
-        <div><dt>Connecté</dt><dd>{formatPresenceMinutes(summary.connectedMinutes)}</dd></div>
-        <div><dt>Couvert</dt><dd>{formatPresenceMinutes(summary.coveredMinutes)}</dd></div>
-        <div><dt>Hors planning</dt><dd>{formatPresenceMinutes(summary.outsideMinutes)}</dd></div>
-        <div><dt>Non couvert à cette heure</dt><dd>{formatPresenceMinutes(summary.missedMinutes)}</dd></div>
+        <div><dt>Planned</dt><dd>{formatPresenceMinutes(summary.plannedMinutes)}</dd></div>
+        <div><dt>Connected</dt><dd>{formatPresenceMinutes(summary.connectedMinutes)}</dd></div>
+        <div><dt>Covered</dt><dd>{formatPresenceMinutes(summary.coveredMinutes)}</dd></div>
+        <div><dt>Off schedule</dt><dd>{formatPresenceMinutes(summary.outsideMinutes)}</dd></div>
+        <div><dt>Not covered at this time</dt><dd>{formatPresenceMinutes(summary.missedMinutes)}</dd></div>
       </dl>
 
       <div className="cal-presence-detail-ranges">
         <div>
-          <h4>Créneaux planifiés</h4>
-          {plannedSlots.length > 0 ? <p>{plannedSlots.join(' · ')}</p> : <p>Aucun créneau planifié.</p>}
+          <h4>Planned slots</h4>
+          {plannedSlots.length > 0 ? <p>{plannedSlots.join(' · ')}</p> : <p>No planned slots.</p>}
         </div>
         <div>
-          <h4>Connexions enregistrées</h4>
-          {actualSessions.length > 0 ? <p>{actualSessions.join(' · ')}</p> : <p>Aucune connexion enregistrée.</p>}
+          <h4>Recorded connections</h4>
+          {actualSessions.length > 0 ? <p>{actualSessions.join(' · ')}</p> : <p>No recorded connections.</p>}
         </div>
       </div>
 
       {timelineSegments.length > 0 && (
         <div className="cal-presence-detail-timeline">
-          <h4>Lecture de la ligne de présence</h4>
+          <h4>Reading the presence line</h4>
           <ul>
             {timelineSegments.map((segment, index) => (
               <li key={`${segment.variant}-${segment.start}-${segment.end}-${index}`}>
                 <span className={`cal-presence-timeline-mark cal-presence-timeline-mark--${segment.variant}`} aria-hidden="true" />
                 <strong>{minutesToTime(segment.start)}–{minutesToTime(segment.end)}</strong>
                 <span>{PRESENCE_VARIANT_LABELS[segment.variant]}</span>
-                {segment.isLive && <em>En cours</em>}
+                {segment.isLive && <em>In progress</em>}
               </li>
             ))}
           </ul>
@@ -367,7 +367,7 @@ function WeekCalendarGrid({
               <div className="cal-day-header">
                 <span className="cal-day-title">{formatDayLabel(day.date, dayIndex)}</span>
                 {canEdit ? (
-                  <div className="cal-day-status-toggle" role="group" aria-label="Statut de disponibilité">
+                  <div className="cal-day-status-toggle" role="group" aria-label="Availability status">
                     {statusOptions.map((option) => (
                       <button
                         key={option.value}
@@ -384,13 +384,13 @@ function WeekCalendarGrid({
                       <select
                         className="cal-copy-select"
                         value=""
-                        aria-label={`Copier vers un autre jour depuis ${formatDayLabel(day.date, dayIndex)}`}
+                        aria-label={`Copy to another day from ${formatDayLabel(day.date, dayIndex)}`}
                         onChange={(event) => {
                           if (event.target.value) onCopyTo(day.date, event.target.value);
                           event.target.value = '';
                         }}
                       >
-                        <option value="">Copier vers...</option>
+                        <option value="">Copy to...</option>
                         {days
                           .filter((other) => other.date !== day.date)
                           .map((other, otherIndex) => (
@@ -436,7 +436,7 @@ function WeekCalendarGrid({
                 ))}
 
                 {!day.availability_status && canEdit && (
-                  <div className="cal-day-empty-hint">Choisissez un statut</div>
+                  <div className="cal-day-empty-hint">Choose a status</div>
                 )}
                 {isBlocked && (
                   <div className="cal-day-empty-hint">{STATUS_LABELS[day.availability_status]}</div>

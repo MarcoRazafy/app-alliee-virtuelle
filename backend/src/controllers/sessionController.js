@@ -33,7 +33,7 @@ async function getMySessionsForWeek(req, res, next) {
   try {
     const { week_start_date: requestedDate } = req.query;
     if (!requestedDate) {
-      return res.status(400).json({ error: 'Le paramètre week_start_date est requis.' });
+      return res.status(400).json({ error: 'The week_start_date parameter is required.' });
     }
     const segments = await buildWeekSegments(req.user.id, requestedDate);
     res.status(200).json(segments);
@@ -48,7 +48,7 @@ async function getUserSessionsForWeekAdmin(req, res, next) {
   try {
     const { user_id: userId, week_start_date: requestedDate } = req.query;
     if (!userId || !requestedDate) {
-      return res.status(400).json({ error: 'Les paramètres user_id et week_start_date sont requis.' });
+      return res.status(400).json({ error: 'The user_id and week_start_date parameters are required.' });
     }
     const segments = await buildWeekSegments(userId, requestedDate);
     res.status(200).json(segments);
@@ -69,12 +69,16 @@ async function closeMySession(req, res, next) {
   }
 }
 
-// POST /api/sessions/heartbeat — crée ou rafraîchit l'unique session de présence ouverte.
-// Ce mécanisme résiste aux rechargements et borne automatiquement les sessions abandonnées.
+// POST /api/sessions/heartbeat — PROLONGE la session de présence ouverte (résiste aux
+// rechargements). Ne crée jamais de session : rouvrir l'app sans se reconnecter ne rend pas
+// le compte actif. Renvoie login_at:null s'il n'y a aucune session ouverte.
 async function heartbeatMySession(req, res, next) {
   try {
     const session = await sessionModel.heartbeatSession(req.user.id);
-    res.status(200).json({ login_at: session.login_at, last_seen_at: session.last_seen_at });
+    res.status(200).json({
+      login_at: session ? session.login_at : null,
+      last_seen_at: session ? session.last_seen_at : null,
+    });
   } catch (err) {
     next(err);
   }

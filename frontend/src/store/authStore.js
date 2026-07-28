@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '../services/api';
 import * as authService from '../services/auth';
+import { disconnectSocket } from '../services/socket';
 
 function extractErrorMessage(err, fallback) {
   const data = err.response?.data;
@@ -29,7 +30,7 @@ const useAuthStore = create((set, get) => ({
       set({ user, isAuthenticated: true, dayValidated: user.role === 'EMPLOYEE' ? null : true });
       return true;
     } catch (err) {
-      set({ error: extractErrorMessage(err, 'Impossible de se connecter. Vérifiez vos identifiants.') });
+      set({ error: extractErrorMessage(err, 'Unable to sign in. Check your credentials.') });
       return false;
     }
   },
@@ -40,7 +41,7 @@ const useAuthStore = create((set, get) => ({
       const response = await api.post('/api/auth/register', payload);
       return { success: true, message: response.data.message };
     } catch (err) {
-      const message = extractErrorMessage(err, 'Impossible de créer le compte.');
+      const message = extractErrorMessage(err, 'Unable to create the account.');
       set({ error: message });
       return { success: false, message };
     }
@@ -54,7 +55,7 @@ const useAuthStore = create((set, get) => ({
       });
       return { success: true };
     } catch (err) {
-      return { success: false, message: extractErrorMessage(err, 'Impossible de changer le mot de passe.') };
+      return { success: false, message: extractErrorMessage(err, 'Unable to change the password.') };
     }
   },
 
@@ -66,7 +67,7 @@ const useAuthStore = create((set, get) => ({
       set({ user: updatedUser });
       return { success: true, user: response.data };
     } catch (err) {
-      return { success: false, message: extractErrorMessage(err, 'Impossible de mettre à jour le profil.') };
+      return { success: false, message: extractErrorMessage(err, 'Unable to update the profile.') };
     }
   },
 
@@ -99,6 +100,7 @@ const useAuthStore = create((set, get) => ({
     } catch (err) {
       // La session locale est nettoyée même si l'appel réseau échoue
     }
+    disconnectSocket(); // ferme la connexion temps réel pour éviter de rester connecté avec un ancien token
     authService.removeToken();
     authService.removeUser();
     set({ user: null, isAuthenticated: false, dayValidated: null });

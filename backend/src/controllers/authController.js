@@ -4,14 +4,11 @@ const userModel = require('../models/user.model');
 const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
 const sessionModel = require('../models/session.model');
+const realtime = require('../realtime/io');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
 
 const SALT_ROUNDS = 10;
-
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 async function register(req, res, next) {
   try {
@@ -31,7 +28,7 @@ async function register(req, res, next) {
 
     const existingEmail = await userModel.findByEmail(email);
     if (existingEmail) {
-      return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
+      return res.status(409).json({ error: 'An account already exists with this email' });
     }
     const existingUsername = await userModel.findByUsername(normalizedUsername);
     if (existingUsername) {
@@ -52,7 +49,7 @@ async function register(req, res, next) {
     });
 
     res.status(201).json({
-      message: 'Inscription envoyée, attente validation admin',
+      message: 'Registration submitted, awaiting admin approval',
       user,
     });
   } catch (err) {
@@ -81,19 +78,20 @@ async function login(req, res, next) {
       return res.status(403).json({ error: 'Compte suspendu' });
     }
     if (user.status === userModel.USER_STATUS.REJECTED) {
-      return res.status(403).json({ error: 'Compte refusé' });
+      return res.status(403).json({ error: 'Account rejected' });
     }
 
-    // L'employé doit revalider sa journée à chaque connexion : on repart d'une sélection vide
-    if (user.role === userModel.USER_ROLE.EMPLOYEE) {
-      await taskModel.replaceDailySelection(user.id, todayDateString(), []);
-    }
+    // La sélection de la journée est faite UNE SEULE FOIS par jour : elle persiste toute la
+    // journée. Se reconnecter le même jour ne la remet plus à zéro (l'employé retrouve sa
+    // sélection déjà validée). Le lendemain, une nouvelle date = nouvelle sélection.
 
     const token = generateToken(user);
 
     // Chrono de connexion (présence) : indépendant du chrono de tâche, jamais visible
     // à l'employé autrement que comme une plage colorée sur son planning de la semaine.
     await sessionModel.startSession(user.id);
+    // Nouvelle présence (arrivée) → rafraîchit le dashboard temps réel des admins.
+    realtime.broadcast('presence:update', {});
 
     res.status(200).json({
       token,
@@ -130,6 +128,7 @@ async function me(req, res, next) {
       position: user.position,
       postal_address: user.postal_address,
       birth_date: user.birth_date,
+      description: user.description,
       role: user.role,
       status: user.status,
       has_avatar: !!avatar,
@@ -148,9 +147,28 @@ async function updateProfile(req, res, next) {
       phone,
       postal_address: postalAddress,
       birth_date: birthDate,
+      position,
+      email,
+      description,
     } = req.body;
 
-    const updated = await userModel.updateProfile(req.user.id, { firstName, lastName, phone, postalAddress, birthDate });
+    // Email modifiable : refuser s'il est déjà utilisé par un autre compte.
+    if (email && (await userModel.emailTakenByOther(email, req.user.id))) {
+      return res.status(409).json({ error: 'An account already exists with this email' });
+    }
+
+    // Champs non fournis : on conserve la valeur actuelle (pas d'écrasement involontaire).
+    const current = await userModel.findById(req.user.id);
+    const updated = await userModel.updateProfile(req.user.id, {
+      firstName,
+      lastName,
+      phone,
+      postalAddress,
+      birthDate,
+      position: position !== undefined ? position : current.position,
+      email: email !== undefined ? email : current.email,
+      description: description !== undefined ? description : current.description,
+    });
 
     res.status(200).json({
       id: updated.id,
@@ -163,6 +181,7 @@ async function updateProfile(req, res, next) {
       position: updated.position,
       postal_address: updated.postal_address,
       birth_date: updated.birth_date,
+      description: updated.description,
       role: updated.role,
       status: updated.status,
     });
@@ -216,7 +235,7 @@ async function changePassword(req, res, next) {
     const { current_password: currentPassword, new_password: newPassword } = req.body;
 
     if (!isValidPassword(newPassword)) {
-      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
+      return res.status(400).json({ error: 'The new password must be at least 8 characters long' });
     }
 
     const user = await userModel.findById(req.user.id);
@@ -228,7 +247,7 @@ async function changePassword(req, res, next) {
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await userModel.updatePasswordHash(user.id, passwordHash);
 
-    res.status(200).json({ message: 'Mot de passe mis à jour' });
+    res.status(200).json({ message: 'Password updated' });
   } catch (err) {
     next(err);
   }
@@ -252,7 +271,7 @@ async function logout(req, res, next) {
     // Ferme aussi le chrono de connexion (présence), indépendant du chrono de tâche ci-dessus.
     await sessionModel.closeOpenSessions(req.user.id);
 
-    res.status(200).json({ message: 'Déconnexion réussie' });
+    res.status(200).json({ message: 'Successfully logged out' });
   } catch (err) {
     next(err);
   }

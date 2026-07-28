@@ -62,7 +62,7 @@ async function approveUser(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.PENDING) {
-      return res.status(400).json({ error: 'Seul un compte en attente peut être approuvé' });
+      return res.status(400).json({ error: 'Only a pending account can be approved' });
     }
 
     await db.withTransaction(async (client) => {
@@ -89,7 +89,7 @@ async function rejectUser(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.PENDING) {
-      return res.status(400).json({ error: 'Seul un compte en attente peut être refusé' });
+      return res.status(400).json({ error: 'Only a pending account can be rejected' });
     }
 
     await db.withTransaction(async (client) => {
@@ -125,7 +125,7 @@ async function suspendUser(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.ACTIVE) {
-      return res.status(400).json({ error: 'Seul un compte actif peut être suspendu' });
+      return res.status(400).json({ error: 'Only an active account can be suspended' });
     }
 
     await db.withTransaction(async (client) => {
@@ -150,7 +150,7 @@ async function activateUser(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.SUSPENDED) {
-      return res.status(400).json({ error: 'Seul un compte suspendu peut être réactivé' });
+      return res.status(400).json({ error: 'Only a suspended account can be reactivated' });
     }
 
     await db.withTransaction(async (client) => {
@@ -172,7 +172,7 @@ async function promoteUser(req, res, next) {
     const { id } = req.params;
 
     if (id === req.user.id) {
-      return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre rôle' });
+      return res.status(400).json({ error: 'You cannot change your own role' });
     }
 
     const user = await userModel.findById(id);
@@ -180,7 +180,7 @@ async function promoteUser(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.role !== userModel.USER_ROLE.EMPLOYEE) {
-      return res.status(400).json({ error: 'Seul un employé peut être promu administrateur' });
+      return res.status(400).json({ error: 'Only an employee can be promoted to administrator' });
     }
 
     await db.withTransaction(async (client) => {
@@ -205,11 +205,13 @@ async function getUserDetail(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    const [stats, tasks, recentActivity, avatar] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10);
+    const [stats, tasks, recentActivity, avatar, dailySelection] = await Promise.all([
       taskModel.computeEmployeeStats(id),
       taskModel.findTasksForEmployee(id),
       taskModel.findRecentAuditForUser(id, 10),
       avatarModel.findByUserId(id),
+      taskModel.findDailySelection(id, today),
     ]);
 
     res.status(200).json({
@@ -223,6 +225,8 @@ async function getUserDetail(req, res, next) {
       },
       stats,
       tasks,
+      // Tâches que l'employé a sélectionnées dans « Ma journée » aujourd'hui (onglet "Aujourd'hui").
+      daily_task_ids: dailySelection.map((row) => row.task_id),
       recent_activity: recentActivity,
     });
   } catch (err) {

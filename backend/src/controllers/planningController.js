@@ -10,7 +10,7 @@ const ALL_AVAILABILITY_STATUSES = Object.values(planningDates.AVAILABILITY_STATU
 const EMPLOYEE_AVAILABILITY_STATUSES = planningDates.EMPLOYEE_AVAILABILITY_STATUSES;
 
 const WINDOW_CLOSED_MESSAGE =
-  'La période de saisie du planning est fermée. Seul un administrateur peut modifier le planning pendant la semaine.';
+  'The schedule entry period is closed. Only an administrator can modify the schedule during the week.';
 
 const toDateString = planningDates.formatDbDate;
 
@@ -31,7 +31,7 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
       return;
     }
     if (!weekDates.includes(day.date)) {
-      errors.push(`La date ${day.date} n'appartient pas à la semaine du planning.`);
+      errors.push(`Date ${day.date} does not belong to the schedule week.`);
       return;
     }
     providedDates.add(day.date);
@@ -39,7 +39,7 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
     const dayLabel = planningDates.formatFrenchDayDate(day.date);
 
     if (!allowedStatuses.includes(day.availability_status)) {
-      errors.push(`Statut de disponibilité invalide pour le ${dayLabel}.`);
+      errors.push(`Invalid availability status for ${dayLabel}.`);
       return;
     }
 
@@ -48,7 +48,7 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
 
     if (isUnavailableStyle) {
       if (slots.length > 0) {
-        errors.push(`Une journée indisponible ne peut pas contenir de plage horaire (${dayLabel}).`);
+        errors.push(`An unavailable day cannot contain a time slot (${dayLabel}).`);
       }
       return;
     }
@@ -56,11 +56,11 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
     const sortedSlots = [...slots].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
     sortedSlots.forEach((slot, index) => {
       if (!slot.start_time || !slot.end_time) {
-        errors.push(`Heure de début et de fin requises pour le ${dayLabel}.`);
+        errors.push(`Start and end time required for ${dayLabel}.`);
         return;
       }
       if (slot.end_time <= slot.start_time) {
-        errors.push(`L'heure de fin doit être postérieure à l'heure de début (${dayLabel}).`);
+        errors.push(`The end time must be after the start time (${dayLabel}).`);
       }
       if (index > 0 && slot.start_time < sortedSlots[index - 1].end_time) {
         errors.push(`Deux plages horaires se chevauchent pour le ${dayLabel}.`);
@@ -75,14 +75,37 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
   return errors;
 }
 
-function buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee }) {
+// Statuts d'un planning qui comptent comme "déjà soumis" (donc plus éligibles au rattrapage
+// de la semaine en cours).
+const SUBMITTED_LIKE_STATUSES = [
+  planningDates.PLANNING_STATUS.SUBMITTED,
+  planningDates.PLANNING_STATUS.LOCKED,
+  planningDates.PLANNING_STATUS.ADMIN_MODIFIED,
+];
+
+// Contexte nécessaire à la règle de rattrapage : l'employé a-t-il déjà un planning pour la
+// semaine prochaine, et sa semaine en cours est-elle déjà soumise ? (2 lectures légères)
+async function employeeEditContext(userId, now, client = db) {
+  const currentWeekStart = planningDates.formatDate(planningDates.getCurrentWeekStart(now));
+  const nextWeekStart = planningDates.formatDate(planningDates.getNextWeekStart(now));
+  const [current, nextPlanning] = await Promise.all([
+    planningModel.findPlanningByUserAndWeek(userId, currentWeekStart, client),
+    planningModel.findPlanningByUserAndWeek(userId, nextWeekStart, client),
+  ]);
+  return {
+    hasNextWeekPlanning: Boolean(nextPlanning),
+    currentWeekSubmitted: Boolean(current) && SUBMITTED_LIKE_STATUSES.includes(current.status),
+  };
+}
+
+function buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee, editContext = {} }) {
   const effectiveStatus = planningDates.computeEffectiveStatus({
     status: planning?.status || null,
     weekStartDateString: weekStart,
     referenceDateTime: now,
   });
   const { closesAt } = planningDates.getEditingWindowBounds(now);
-  const canEdit = forEmployee ? planningDates.canEmployeeEditWeek(weekStart, now) : true;
+  const canEdit = forEmployee ? planningDates.canEmployeeEditWeek(weekStart, now, editContext) : true;
 
   return {
     week_start_date: weekStart,
@@ -133,8 +156,9 @@ async function getCurrentWeek(req, res, next) {
 
     const planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
     const days = planning ? await planningModel.findDaysWithSlots(planning.id) : planningModel.buildEmptyWeekDays(weekStart);
+    const editContext = await employeeEditContext(req.user.id, now);
 
-    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true }));
+    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext }));
   } catch (err) {
     next(err);
   }
@@ -149,8 +173,9 @@ async function getNextWeek(req, res, next) {
 
     const planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
     const days = planning ? await planningModel.findDaysWithSlots(planning.id) : planningModel.buildEmptyWeekDays(weekStart);
+    const editContext = await employeeEditContext(req.user.id, now);
 
-    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true }));
+    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext }));
   } catch (err) {
     next(err);
   }
@@ -163,7 +188,7 @@ async function getWeekByDate(req, res, next) {
   try {
     const { week_start_date: requestedDate } = req.query;
     if (!requestedDate) {
-      return res.status(400).json({ error: 'Le paramètre week_start_date est requis.' });
+      return res.status(400).json({ error: 'The week_start_date parameter is required.' });
     }
 
     const now = planningDates.nowInPlanningZone();
@@ -173,174 +198,198 @@ async function getWeekByDate(req, res, next) {
 
     const planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
     const days = planning ? await planningModel.findDaysWithSlots(planning.id) : planningModel.buildEmptyWeekDays(weekStart);
+    const editContext = await employeeEditContext(req.user.id, now);
 
-    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true }));
+    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext }));
   } catch (err) {
     next(err);
   }
 }
 
-async function createNextWeekPlanning(req, res, next) {
-  try {
-    const now = planningDates.nowInPlanningZone();
-    const weekStartDT = planningDates.getNextWeekStart(now);
-    const weekStart = planningDates.formatDate(weekStartDT);
-    const weekEnd = planningDates.formatDate(planningDates.getWeekEnd(weekStartDT));
-
-    if (!planningDates.canEmployeeEditWeek(weekStart, now)) {
-      return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
-    }
-
-    const existing = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
-    if (existing) {
-      return res.status(409).json({ error: 'Un planning existe déjà pour cette semaine.' });
-    }
-
-    const planning = await planningModel.createPlanning({ userId: req.user.id, weekStartDate: weekStart, weekEndDate: weekEnd });
-    await planningModel.recordPlanningHistory(db, {
-      planningId: planning.id,
-      action: 'CREATE_WEEKLY_PLANNING',
-      oldValue: null,
-      newValue: { status: planning.status },
-      changedBy: req.user.id,
-      changeReason: null,
-    });
-    await planningModel.recordAudit({
-      userId: req.user.id,
-      action: 'CREATE_WEEKLY_PLANNING',
-      entityType: 'weekly_planning',
-      entityId: planning.id,
-      details: { week_start_date: weekStart },
-    });
-
-    const days = planningModel.buildEmptyWeekDays(weekStart);
-    res.status(201).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true }));
-  } catch (err) {
-    next(err);
-  }
+// Semaine ciblée par une écriture employé : 'next' (préparation normale) ou 'current' (rattrapage).
+function planningWeekBounds(weekMode, now) {
+  const weekStartDT = weekMode === 'current' ? planningDates.getCurrentWeekStart(now) : planningDates.getNextWeekStart(now);
+  return {
+    weekStart: planningDates.formatDate(weekStartDT),
+    weekEnd: planningDates.formatDate(planningDates.getWeekEnd(weekStartDT)),
+  };
 }
 
-async function updateNextWeekPlanning(req, res, next) {
-  try {
-    const now = planningDates.nowInPlanningZone();
-    const weekStartDT = planningDates.getNextWeekStart(now);
-    const weekStart = planningDates.formatDate(weekStartDT);
-    const weekEnd = planningDates.formatDate(planningDates.getWeekEnd(weekStartDT));
+function makeCreatePlanning(weekMode) {
+  return async function createPlanningHandler(req, res, next) {
+    try {
+      const now = planningDates.nowInPlanningZone();
+      const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
-    if (!planningDates.canEmployeeEditWeek(weekStart, now)) {
-      return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
-    }
-
-    const { general_note: generalNote, days } = req.body;
-    const errors = validateDaysPayload(days, weekStart, { allowedStatuses: EMPLOYEE_AVAILABILITY_STATUSES });
-    if (errors.length > 0) {
-      return res.status(400).json({ errors });
-    }
-
-    const updatedPlanning = await db.withTransaction(async (client) => {
-      let planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart, client);
-      if (!planning) {
-        planning = await planningModel.createPlanning({ userId: req.user.id, weekStartDate: weekStart, weekEndDate: weekEnd }, client);
+      const editContext = await employeeEditContext(req.user.id, now);
+      if (!planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
+        return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
       }
 
-      const before = await planningModel.fullSnapshot(planning.id, client);
-      const wasSubmitted = planning.status === planningDates.PLANNING_STATUS.SUBMITTED;
-
-      await planningModel.replacePlanningDays(client, planning.id, days);
-
-      const metaUpdates = { general_note: generalNote ?? null };
-      if (wasSubmitted) {
-        // Règle métier §6 : modifier un planning déjà soumis le repasse en brouillon.
-        metaUpdates.status = planningDates.PLANNING_STATUS.DRAFT;
-        metaUpdates.submitted_at = null;
+      const existing = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
+      if (existing) {
+        return res.status(409).json({ error: 'A schedule already exists for this week.' });
       }
-      const result = await planningModel.updatePlanningMeta(client, planning.id, metaUpdates);
 
-      const after = await planningModel.fullSnapshot(planning.id, client);
-      await planningModel.recordPlanningHistory(client, {
+      const planning = await planningModel.createPlanning({ userId: req.user.id, weekStartDate: weekStart, weekEndDate: weekEnd });
+      await planningModel.recordPlanningHistory(db, {
         planningId: planning.id,
+        action: 'CREATE_WEEKLY_PLANNING',
+        oldValue: null,
+        newValue: { status: planning.status },
+        changedBy: req.user.id,
+        changeReason: null,
+      });
+      await planningModel.recordAudit({
+        userId: req.user.id,
+        action: 'CREATE_WEEKLY_PLANNING',
+        entityType: 'weekly_planning',
+        entityId: planning.id,
+        details: { week_start_date: weekStart },
+      });
+
+      const days = planningModel.buildEmptyWeekDays(weekStart);
+      const responseContext = await employeeEditContext(req.user.id, now);
+      res.status(201).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext: responseContext }));
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+function makeUpdatePlanning(weekMode) {
+  return async function updatePlanningHandler(req, res, next) {
+    try {
+      const now = planningDates.nowInPlanningZone();
+      const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
+
+      const editContext = await employeeEditContext(req.user.id, now);
+      if (!planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
+        return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
+      }
+
+      const { general_note: generalNote, days } = req.body;
+      const errors = validateDaysPayload(days, weekStart, { allowedStatuses: EMPLOYEE_AVAILABILITY_STATUSES });
+      if (errors.length > 0) {
+        return res.status(400).json({ errors });
+      }
+
+      const updatedPlanning = await db.withTransaction(async (client) => {
+        let planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart, client);
+        if (!planning) {
+          planning = await planningModel.createPlanning({ userId: req.user.id, weekStartDate: weekStart, weekEndDate: weekEnd }, client);
+        }
+
+        const before = await planningModel.fullSnapshot(planning.id, client);
+        const wasSubmitted = planning.status === planningDates.PLANNING_STATUS.SUBMITTED;
+
+        await planningModel.replacePlanningDays(client, planning.id, days);
+
+        const metaUpdates = { general_note: generalNote ?? null };
+        if (wasSubmitted) {
+          // Règle métier §6 : modifier un planning déjà soumis le repasse en brouillon.
+          metaUpdates.status = planningDates.PLANNING_STATUS.DRAFT;
+          metaUpdates.submitted_at = null;
+        }
+        const result = await planningModel.updatePlanningMeta(client, planning.id, metaUpdates);
+
+        const after = await planningModel.fullSnapshot(planning.id, client);
+        await planningModel.recordPlanningHistory(client, {
+          planningId: planning.id,
+          action: 'UPDATE_WEEKLY_PLANNING',
+          oldValue: before,
+          newValue: after,
+          changedBy: req.user.id,
+          changeReason: null,
+        });
+
+        return result;
+      });
+
+      await planningModel.recordAudit({
+        userId: req.user.id,
         action: 'UPDATE_WEEKLY_PLANNING',
-        oldValue: before,
-        newValue: after,
-        changedBy: req.user.id,
-        changeReason: null,
+        entityType: 'weekly_planning',
+        entityId: updatedPlanning.id,
+        details: { week_start_date: weekStart },
       });
 
-      return result;
-    });
-
-    await planningModel.recordAudit({
-      userId: req.user.id,
-      action: 'UPDATE_WEEKLY_PLANNING',
-      entityType: 'weekly_planning',
-      entityId: updatedPlanning.id,
-      details: { week_start_date: weekStart },
-    });
-
-    const daysWithSlots = await planningModel.findDaysWithSlots(updatedPlanning.id);
-    res
-      .status(200)
-      .json(buildPlanningResponse({ planning: updatedPlanning, days: daysWithSlots, weekStart, weekEnd, now, forEmployee: true }));
-  } catch (err) {
-    next(err);
-  }
+      const daysWithSlots = await planningModel.findDaysWithSlots(updatedPlanning.id);
+      const responseContext = await employeeEditContext(req.user.id, now);
+      res
+        .status(200)
+        .json(buildPlanningResponse({ planning: updatedPlanning, days: daysWithSlots, weekStart, weekEnd, now, forEmployee: true, editContext: responseContext }));
+    } catch (err) {
+      next(err);
+    }
+  };
 }
 
-async function submitNextWeekPlanning(req, res, next) {
-  try {
-    const now = planningDates.nowInPlanningZone();
-    const weekStartDT = planningDates.getNextWeekStart(now);
-    const weekStart = planningDates.formatDate(weekStartDT);
-    const weekEnd = planningDates.formatDate(planningDates.getWeekEnd(weekStartDT));
+function makeSubmitPlanning(weekMode) {
+  return async function submitPlanningHandler(req, res, next) {
+    try {
+      const now = planningDates.nowInPlanningZone();
+      const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
-    if (!planningDates.canEmployeeEditWeek(weekStart, now)) {
-      return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
-    }
+      const editContext = await employeeEditContext(req.user.id, now);
+      if (!planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
+        return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
+      }
 
-    const planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
-    if (!planning) {
-      return res.status(404).json({ error: 'Planning introuvable.' });
-    }
+      const planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
+      if (!planning) {
+        return res.status(404).json({ error: 'Planning introuvable.' });
+      }
 
-    const days = await planningModel.findDaysWithSlots(planning.id);
-    if (days.length !== 7 || days.some((day) => !day.availability_status)) {
-      return res
-        .status(400)
-        .json({ error: 'Les sept jours de la semaine doivent être renseignés avant de soumettre le planning.' });
-    }
+      const days = await planningModel.findDaysWithSlots(planning.id);
+      if (days.length !== 7 || days.some((day) => !day.availability_status)) {
+        return res
+          .status(400)
+          .json({ error: 'All seven days of the week must be filled in before submitting the schedule.' });
+      }
 
-    const updatedPlanning = await db.withTransaction(async (client) => {
-      const before = { status: planning.status, submitted_at: planning.submitted_at };
-      const result = await planningModel.updatePlanningMeta(client, planning.id, {
-        status: planningDates.PLANNING_STATUS.SUBMITTED,
-        submitted_at: new Date().toISOString(),
+      const updatedPlanning = await db.withTransaction(async (client) => {
+        const before = { status: planning.status, submitted_at: planning.submitted_at };
+        const result = await planningModel.updatePlanningMeta(client, planning.id, {
+          status: planningDates.PLANNING_STATUS.SUBMITTED,
+          submitted_at: new Date().toISOString(),
+        });
+        await planningModel.recordPlanningHistory(client, {
+          planningId: planning.id,
+          action: 'SUBMIT_WEEKLY_PLANNING',
+          oldValue: before,
+          newValue: { status: result.status, submitted_at: result.submitted_at },
+          changedBy: req.user.id,
+          changeReason: null,
+        });
+        return result;
       });
-      await planningModel.recordPlanningHistory(client, {
-        planningId: planning.id,
+
+      await planningModel.recordAudit({
+        userId: req.user.id,
         action: 'SUBMIT_WEEKLY_PLANNING',
-        oldValue: before,
-        newValue: { status: result.status, submitted_at: result.submitted_at },
-        changedBy: req.user.id,
-        changeReason: null,
+        entityType: 'weekly_planning',
+        entityId: planning.id,
+        details: { week_start_date: weekStart },
       });
-      return result;
-    });
 
-    await planningModel.recordAudit({
-      userId: req.user.id,
-      action: 'SUBMIT_WEEKLY_PLANNING',
-      entityType: 'weekly_planning',
-      entityId: planning.id,
-      details: { week_start_date: weekStart },
-    });
-
-    res
-      .status(200)
-      .json(buildPlanningResponse({ planning: updatedPlanning, days, weekStart, weekEnd, now, forEmployee: true }));
-  } catch (err) {
-    next(err);
-  }
+      const responseContext = await employeeEditContext(req.user.id, now);
+      res
+        .status(200)
+        .json(buildPlanningResponse({ planning: updatedPlanning, days, weekStart, weekEnd, now, forEmployee: true, editContext: responseContext }));
+    } catch (err) {
+      next(err);
+    }
+  };
 }
+
+// Semaine prochaine (préparation normale) + semaine en cours (rattrapage) partagent la même logique.
+const createNextWeekPlanning = makeCreatePlanning('next');
+const updateNextWeekPlanning = makeUpdatePlanning('next');
+const submitNextWeekPlanning = makeSubmitPlanning('next');
+const createCurrentWeekPlanning = makeCreatePlanning('current');
+const updateCurrentWeekPlanning = makeUpdatePlanning('current');
+const submitCurrentWeekPlanning = makeSubmitPlanning('current');
 
 async function getMyPlanningHistory(req, res, next) {
   try {
@@ -563,7 +612,7 @@ async function adminCreatePlanningForUser(req, res, next) {
 
     const existing = await planningModel.findPlanningByUserAndWeek(userId, weekStartDate);
     if (existing) {
-      return res.status(409).json({ error: 'Un planning existe déjà pour cette semaine.' });
+      return res.status(409).json({ error: 'A schedule already exists for this week.' });
     }
 
     const weekEnd = planningDates.formatDate(planningDates.getWeekEnd(planningDates.parsePlanningDate(weekStartDate)));
@@ -595,7 +644,7 @@ async function adminNonSubmitted(req, res, next) {
   try {
     const { week_start_date: weekStartDate } = req.query;
     if (!weekStartDate) {
-      return res.status(400).json({ error: 'Le paramètre week_start_date est requis.' });
+      return res.status(400).json({ error: 'The week_start_date parameter is required.' });
     }
     const employees = await planningModel.findNonSubmittedEmployees(weekStartDate);
     res.status(200).json(employees);
@@ -608,10 +657,10 @@ async function adminAvailabilitySearch(req, res, next) {
   try {
     const { date, start_time: startTime, end_time: endTime } = req.query;
     if (!date || !startTime || !endTime) {
-      return res.status(400).json({ error: 'Les paramètres date, start_time et end_time sont requis.' });
+      return res.status(400).json({ error: 'The date, start_time and end_time parameters are required.' });
     }
     if (endTime <= startTime) {
-      return res.status(400).json({ error: "L'heure de fin doit être postérieure à l'heure de début." });
+      return res.status(400).json({ error: 'The end time must be after the start time.' });
     }
     const employees = await planningModel.findAvailableEmployees({ date, startTime, endTime });
     res.status(200).json(employees);
@@ -802,19 +851,19 @@ async function adminSetAttendanceOverride(req, res, next) {
     const { userId } = req.params;
     const { date, status, late_minutes: requestedLateMinutes, reason } = req.body || {};
     if (!UUID_PATTERN.test(userId)) {
-      return res.status(400).json({ error: 'Identifiant employé invalide.' });
+      return res.status(400).json({ error: 'Invalid employee identifier.' });
     }
     const day = planningDates.parsePlanningDate(date);
     if (!date || !day.isValid || planningDates.formatDate(day) !== date) {
       return res.status(400).json({ error: 'La date doit respecter le format YYYY-MM-DD.' });
     }
     if (date > planningDates.formatDate(planningDates.nowInPlanningZone())) {
-      return res.status(400).json({ error: 'Une présence future ne peut pas être corrigée.' });
+      return res.status(400).json({ error: 'Future attendance cannot be corrected.' });
     }
 
     const employee = await userModel.findById(userId);
     if (!employee || employee.role !== userModel.USER_ROLE.EMPLOYEE) {
-      return res.status(404).json({ error: 'Employé introuvable.' });
+      return res.status(404).json({ error: 'Employee not found.' });
     }
 
     if (status == null || status === 'automatic') {
@@ -836,15 +885,15 @@ async function adminSetAttendanceOverride(req, res, next) {
     }
 
     if (!MANUAL_ATTENDANCE_STATUSES.has(status)) {
-      return res.status(400).json({ error: 'Le statut doit être présent, en retard, absent ou automatique.' });
+      return res.status(400).json({ error: 'The status must be present, late, absent or automatic.' });
     }
     const lateMinutes = status === 'late' ? Number(requestedLateMinutes) : 0;
     if (status === 'late' && (!Number.isInteger(lateMinutes) || lateMinutes < 1 || lateMinutes > 1440)) {
-      return res.status(400).json({ error: 'Le nombre de minutes de retard doit être compris entre 1 et 1440.' });
+      return res.status(400).json({ error: 'The number of minutes late must be between 1 and 1440.' });
     }
     const normalizedReason = typeof reason === 'string' ? reason.trim() : '';
     if (normalizedReason.length > 500) {
-      return res.status(400).json({ error: 'Le motif ne peut pas dépasser 500 caractères.' });
+      return res.status(400).json({ error: 'The reason cannot exceed 500 characters.' });
     }
 
     const correction = await db.withTransaction(async (client) => {
@@ -882,7 +931,7 @@ async function adminAttendanceStats(req, res, next) {
     const { userId } = req.params;
     const month = req.query.month || planningDates.formatDate(planningDates.nowInPlanningZone()).slice(0, 7);
     if (!UUID_PATTERN.test(userId)) {
-      return res.status(400).json({ error: 'Identifiant employé invalide.' });
+      return res.status(400).json({ error: 'Invalid employee identifier.' });
     }
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
       return res.status(400).json({ error: 'Le mois doit respecter le format YYYY-MM.' });
@@ -890,7 +939,7 @@ async function adminAttendanceStats(req, res, next) {
 
     const employee = await userModel.findById(userId);
     if (!employee || employee.role !== userModel.USER_ROLE.EMPLOYEE) {
-      return res.status(404).json({ error: 'Employé introuvable.' });
+      return res.status(404).json({ error: 'Employee not found.' });
     }
 
     const monthStart = planningDates.parsePlanningDate(`${month}-01`);
@@ -984,6 +1033,9 @@ module.exports = {
   createNextWeekPlanning,
   updateNextWeekPlanning,
   submitNextWeekPlanning,
+  createCurrentWeekPlanning,
+  updateCurrentWeekPlanning,
+  submitCurrentWeekPlanning,
   getMyPlanningHistory,
   getMyPlannings,
   adminListPlannings,

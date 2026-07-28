@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthBanner from '../components/auth/AuthBanner';
+import PasswordInput from '../components/auth/PasswordInput';
 import SplashScreen from '../components/SplashScreen';
 
 const SPLASH_DURATION = 5000; // écran de démarrage après connexion (façon Facebook)
@@ -38,34 +39,33 @@ function Login() {
 
   return (
     <AuthLayout
-      title="Connexion"
-      subtitle="Accédez à votre espace L'Alliée Virtuelle"
+      title="Sign in"
+      subtitle="Access your L'Alliée Virtuelle space"
       footer={
         <>
-          Pas encore de compte ? <Link to="/register">S'inscrire</Link>
+          Don't have an account yet? <Link to="/register">Sign up</Link>
         </>
       }
     >
       <form className="auth-form" onSubmit={handleSubmit}>
         <div className="auth-field">
-          <label htmlFor="identifier">Email ou nom d'utilisateur</label>
+          <label htmlFor="identifier">Email or username</label>
           <input
             id="identifier"
             type="text"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="vous@exemple.com"
+            placeholder="you@example.com"
             required
           />
         </div>
         <div className="auth-field">
-          <label htmlFor="password">Mot de passe</label>
-          <input
+          <label htmlFor="password">Password</label>
+          <PasswordInput
             id="password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
+            autoComplete="current-password"
             required
           />
         </div>
@@ -74,7 +74,7 @@ function Login() {
 
         <button type="submit" className="auth-button" disabled={isSubmitting}>
           {isSubmitting && <span className="auth-spinner" />}
-          {isSubmitting ? 'Connexion...' : 'Se connecter'}
+          {isSubmitting ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
     </AuthLayout>

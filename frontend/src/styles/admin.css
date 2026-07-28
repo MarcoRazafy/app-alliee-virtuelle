@@ -149,12 +149,22 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 20px 22px;
-  border-radius: 18px;
+  padding: var(--space-5) var(--space-6);
+  border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--glass-overlay), transparent 45%), var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--card-shadow);
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.admin-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-kpi-card:hover { transform: none; }
 }
 
 /* Couleur d'icône réservée au sémantique : actifs = vert, retard = rouge.
@@ -612,6 +622,62 @@
   flex-direction: column;
 }
 
+/* Onglets "Tâches" / "Aujourd'hui" dans le panneau de détail employé. */
+.emp-drawer-tasks-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--input-bg);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  align-self: flex-start;
+}
+
+.emp-drawer-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.emp-drawer-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.emp-drawer-tab--active {
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.emp-drawer-tab-count {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-text-muted) 22%, transparent);
+  color: inherit;
+}
+
+.emp-drawer-tab--active .emp-drawer-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .emp-drawer-muted {
   font-size: 13px;
   color: var(--color-text-muted);
@@ -876,15 +942,23 @@
   color: var(--color-text-primary);
   background: var(--input-bg);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 11px 13px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.form-input:hover:not(:focus),
+.form-select:hover:not(:focus),
+.form-textarea:hover:not(:focus) {
+  border-color: color-mix(in srgb, var(--color-accent-light) 45%, var(--color-border));
 }
 
 .form-textarea {
   resize: vertical;
   min-height: 92px;
   line-height: 1.5;
+  padding: var(--space-3) var(--space-4);
 }
 
 .form-input::placeholder,
@@ -897,7 +971,7 @@
 .form-textarea:focus {
   outline: none;
   border-color: var(--color-accent-light);
-  box-shadow: 0 0 0 3px var(--glow-accent);
+  box-shadow: var(--ring-accent);
 }
 
 .form-select:disabled {

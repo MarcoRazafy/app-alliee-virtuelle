@@ -4,13 +4,16 @@
   "description": "",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "dev:lan": "vite --mode lan",
     "cert:lan": "bash scripts/generate-lan-cert.sh",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node src/utils/presenceMetrics.test.js"
+    "test": "node --import ./test/register.mjs --test 'src/**/*.test.js' 'src/**/*.test.jsx'"
   },
   "dependencies": {
     "axios": "^1.7.2",
@@ -21,6 +24,7 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.24.0",
+    "socket.io-client": "^4.8.3",
     "zustand": "^4.5.2"
   },
   "devDependencies": {

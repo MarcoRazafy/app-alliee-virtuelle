@@ -86,17 +86,25 @@ async function updatePasswordHash(id, passwordHash) {
 }
 
 // full_name reste dérivé de first_name + last_name pour rester cohérent avec create()
-async function updateProfile(id, { firstName, lastName, phone, postalAddress, birthDate }) {
+async function updateProfile(id, { firstName, lastName, phone, postalAddress, birthDate, position, email, description }) {
   const fullName = `${firstName} ${lastName}`.trim();
   const result = await db.query(
     `UPDATE users
      SET first_name = $1, last_name = $2, full_name = $3, phone_number = $4,
-         postal_address = $5, birth_date = $6, updated_at = now()
-     WHERE id = $7
-     RETURNING id, email, username, first_name, last_name, full_name, phone_number, position, postal_address, birth_date, role, status`,
-    [firstName, lastName, fullName, phone, postalAddress || null, birthDate || null, id]
+         postal_address = $5, birth_date = $6, position = $7, email = $8, description = $9,
+         updated_at = now()
+     WHERE id = $10
+     RETURNING id, email, username, first_name, last_name, full_name, phone_number, position,
+               postal_address, birth_date, description, role, status`,
+    [firstName, lastName, fullName, phone, postalAddress || null, birthDate || null, position || null, email, description || null, id]
   );
   return result.rows[0];
+}
+
+// Vrai si l'email est déjà utilisé par un AUTRE utilisateur (pour la modification de profil).
+async function emailTakenByOther(email, exceptUserId) {
+  const result = await db.query('SELECT 1 FROM users WHERE email = $1 AND id <> $2 LIMIT 1', [email, exceptUserId]);
+  return result.rowCount > 0;
 }
 
 // Annuaire minimal pour démarrer une conversation : seuls les comptes actifs, sans données sensibles
@@ -178,6 +186,7 @@ module.exports = {
   create,
   updatePasswordHash,
   updateProfile,
+  emailTakenByOther,
   findActiveExcept,
   findAllFiltered,
   findPending,

@@ -98,6 +98,9 @@ function Profile() {
     phone: '',
     postal_address: '',
     birth_date: '',
+    email: '',
+    position: '',
+    description: '',
   });
 
   const [stats, setStats] = useState(null);
@@ -115,8 +118,8 @@ function Profile() {
   });
 
   const fullName = useMemo(() => {
-    if (!profile) return authUser?.full_name || 'Utilisateur';
-    return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Utilisateur';
+    if (!profile) return authUser?.full_name || 'User';
+    return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User';
   }, [profile, authUser]);
 
   const profileInitials = useMemo(
@@ -175,6 +178,9 @@ function Profile() {
         phone: currentProfile.phone || '',
         postal_address: currentProfile.postal_address || '',
         birth_date: currentProfile.birth_date ? String(currentProfile.birth_date).slice(0, 10) : '',
+        email: currentProfile.email || '',
+        position: currentProfile.position || '',
+        description: currentProfile.description || '',
       });
 
       if (statsResponse.status === 'fulfilled') {
@@ -183,7 +189,7 @@ function Profile() {
 
       await loadAvatar(currentProfile.has_avatar);
     } catch (error) {
-      notifyError(error.response?.data?.error || 'Impossible de charger le profil');
+      notifyError(error.response?.data?.error || 'Unable to load the profile');
     } finally {
       setLoading(false);
     }
@@ -217,9 +223,9 @@ function Profile() {
           : state.user,
       }));
 
-      notifySuccess('Profil mis à jour');
+      notifySuccess('Profile updated');
     } catch (error) {
-      notifyError(error.response?.data?.errors?.join(', ') || error.response?.data?.error || 'Impossible de mettre à jour le profil');
+      notifyError(error.response?.data?.errors?.join(', ') || error.response?.data?.error || 'Unable to update the profile');
     } finally {
       setSavingProfile(false);
     }
@@ -230,13 +236,13 @@ function Profile() {
     if (!file) return;
 
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      notifyError('La photo doit être au format PNG ou JPEG');
+      notifyError('The photo must be in PNG or JPEG format');
       event.target.value = '';
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      notifyError('La photo ne doit pas dépasser 5 Mo');
+      notifyError('The photo must not exceed 5 MB');
       event.target.value = '';
       return;
     }
@@ -251,9 +257,9 @@ function Profile() {
 
       await loadAvatar(true);
       setProfile((current) => ({ ...current, has_avatar: true }));
-      notifySuccess('Photo de profil mise à jour');
+      notifySuccess('Profile photo updated');
     } catch (error) {
-      notifyError(error.response?.data?.error || "Impossible d'envoyer la photo");
+      notifyError(error.response?.data?.error || 'Unable to upload the photo');
     } finally {
       setUploadingAvatar(false);
       event.target.value = '';
@@ -264,12 +270,12 @@ function Profile() {
     event.preventDefault();
 
     if (passwordForm.new_password.length < 8) {
-      notifyError('Le nouveau mot de passe doit contenir au moins 8 caractères');
+      notifyError('The new password must be at least 8 characters long');
       return;
     }
 
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      notifyError('La confirmation du mot de passe ne correspond pas');
+      notifyError('The password confirmation does not match');
       return;
     }
 
@@ -286,9 +292,9 @@ function Profile() {
         confirm_password: '',
       });
       setShowPasswordForm(false);
-      notifySuccess('Mot de passe mis à jour');
+      notifySuccess('Password updated');
     } catch (error) {
-      notifyError(error.response?.data?.error || 'Impossible de modifier le mot de passe');
+      notifyError(error.response?.data?.error || 'Unable to change the password');
     } finally {
       setChangingPassword(false);
     }
@@ -296,7 +302,7 @@ function Profile() {
 
   const summary = stats?.summary || {};
   const joinedAt = profile?.created_at
-    ? new Intl.DateTimeFormat('fr-FR', {
+    ? new Intl.DateTimeFormat('en-US', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -304,14 +310,14 @@ function Profile() {
     : '—';
 
   if (loading) {
-    return <EmployeeLayout title="Profil" subtitle="Gérez vos informations personnelles et vos préférences" skeleton="form" />;
+    return <EmployeeLayout title="Profile" subtitle="Manage your personal information and preferences" skeleton="form" />;
   }
 
   return (
     <EmployeeLayout
-      title="Profil"
-      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Profil' }]}
-      subtitle="Gérez vos informations personnelles et vos préférences"
+      title="Profile"
+      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'Profile' }]}
+      subtitle="Manage your personal information and preferences"
     >
       <section className="employee-profile-page">
         <div className="profile-top-grid">
@@ -319,9 +325,9 @@ function Profile() {
             <div className="profile-avatar-wrap">
               <div className="profile-large-avatar">
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt={`Photo de ${fullName}`} />
+                  <img src={avatarUrl} alt={`Photo of ${fullName}`} />
                 ) : (
-                  <span aria-label={`Initiales de ${fullName}`}>{profileInitials || '?'}</span>
+                  <span aria-label={`Initials of ${fullName}`}>{profileInitials || '?'}</span>
                 )}
               </div>
               <button
@@ -329,7 +335,7 @@ function Profile() {
                 className="profile-camera-button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingAvatar}
-                aria-label="Modifier la photo de profil"
+                aria-label="Change profile photo"
               >
                 <Icon type="camera" />
               </button>
@@ -345,11 +351,11 @@ function Profile() {
             <div className="profile-identity">
               <h1>{fullName}</h1>
               <div className="profile-badges">
-                <span className="profile-role-badge"><Icon type="check" /> {profile?.role === 'ADMIN' ? 'Administrateur' : 'Employé'}</span>
-                <span className="profile-status-badge"><Icon type="check" /> Compte actif</span>
+                <span className="profile-role-badge"><Icon type="check" /> {profile?.role === 'ADMIN' ? 'Administrator' : 'Employee'}</span>
+                <span className="profile-status-badge"><Icon type="check" /> Active account</span>
               </div>
-              <p><Icon type="mail" /> {profile?.email || 'Adresse courriel non disponible'}</p>
-              <p><Icon type="user" /> {profile?.position || 'Poste non renseigné'}</p>
+              <p><Icon type="mail" /> {profile?.email || 'Email address not available'}</p>
+              <p><Icon type="user" /> {profile?.position || 'Position not set'}</p>
 
               <div className="profile-hero-actions">
                 <button
@@ -359,7 +365,7 @@ function Profile() {
                   disabled={uploadingAvatar}
                 >
                   <Icon type="camera" />
-                  {uploadingAvatar ? 'Envoi…' : 'Modifier la photo'}
+                  {uploadingAvatar ? 'Uploading…' : 'Change photo'}
                 </button>
                 <button
                   type="submit"
@@ -368,7 +374,7 @@ function Profile() {
                   disabled={savingProfile}
                 >
                   <Icon type="save" />
-                  {savingProfile ? 'Enregistrement…' : 'Enregistrer'}
+                  {savingProfile ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </div>
@@ -377,23 +383,23 @@ function Profile() {
           <div className="profile-metrics-grid">
             <MetricCard
               icon="check"
-              label="Tâches confirmées"
+              label="Confirmed tasks"
               value={summary.tasks_confirmed ?? 0}
-              helper="Sur les 30 derniers jours"
+              helper="Over the last 30 days"
               variant="cyan"
             />
             <MetricCard
               icon="clock"
-              label="Temps travaillé"
+              label="Time worked"
               value={formatDurationShort(summary.total_hours_worked_seconds || 0)}
-              helper="Sessions terminées"
+              helper="Completed sessions"
               variant="blue"
             />
             <MetricCard
               icon="calendar"
-              label="Membre depuis"
+              label="Member since"
               value={joinedAt}
-              helper="Date de création du compte"
+              helper="Account creation date"
               variant="sky"
             />
           </div>
@@ -405,15 +411,15 @@ function Profile() {
               <header className="profile-panel-header">
                 <span><Icon type="user" /></span>
                 <div>
-                  <p>Informations</p>
-                  <h2>Informations personnelles</h2>
+                  <p>Information</p>
+                  <h2>Personal information</h2>
                 </div>
               </header>
 
               <form id="employee-profile-form" className="profile-form" onSubmit={handleProfileSubmit}>
                 <div className="profile-form-grid">
                   <label>
-                    <span>Prénom</span>
+                    <span>First name</span>
                     <input
                       type="text"
                       value={form.first_name}
@@ -423,7 +429,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Nom</span>
+                    <span>Last name</span>
                     <input
                       type="text"
                       value={form.last_name}
@@ -433,12 +439,17 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Adresse courriel</span>
-                    <input type="email" value={profile?.email || ''} disabled />
+                    <span>Email address</span>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                      required
+                    />
                   </label>
 
                   <label>
-                    <span>Téléphone</span>
+                    <span>Phone</span>
                     <input
                       type="tel"
                       value={form.phone}
@@ -448,12 +459,17 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Poste</span>
-                    <input type="text" value={profile?.position || ''} disabled />
+                    <span>Position</span>
+                    <input
+                      type="text"
+                      value={form.position}
+                      onChange={(event) => setForm((current) => ({ ...current, position: event.target.value }))}
+                      placeholder="Your position / role"
+                    />
                   </label>
 
                   <label>
-                    <span>Date de naissance</span>
+                    <span>Date of birth</span>
                     <input
                       type="date"
                       value={form.birth_date}
@@ -462,12 +478,22 @@ function Profile() {
                   </label>
 
                   <label className="profile-form-full">
-                    <span>Adresse postale</span>
+                    <span>Postal address</span>
                     <input
                       type="text"
                       value={form.postal_address}
                       onChange={(event) => setForm((current) => ({ ...current, postal_address: event.target.value }))}
-                      placeholder="Votre adresse"
+                      placeholder="Your address"
+                    />
+                  </label>
+
+                  <label className="profile-form-full">
+                    <span>Description / bio</span>
+                    <textarea
+                      rows="3"
+                      value={form.description}
+                      onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                      placeholder="A few words about yourself: background, education, responsibilities…"
                     />
                   </label>
                 </div>
@@ -480,14 +506,14 @@ function Profile() {
               <header className="profile-panel-header">
                 <span><Icon type="shield" /></span>
                 <div>
-                  <p>Sécurité</p>
-                  <h2>Sécurité du compte</h2>
+                  <p>Security</p>
+                  <h2>Account security</h2>
                 </div>
               </header>
 
               <div className="profile-security-summary">
                 <label>
-                  <span>Nom d’utilisateur</span>
+                  <span>Username</span>
                   <input type="text" value={profile?.username || ''} disabled />
                 </label>
 
@@ -497,14 +523,14 @@ function Profile() {
                   onClick={() => setShowPasswordForm((current) => !current)}
                 >
                   <Icon type="lock" />
-                  {showPasswordForm ? 'Fermer le formulaire' : 'Changer le mot de passe'}
+                  {showPasswordForm ? 'Close form' : 'Change password'}
                 </button>
               </div>
 
               {showPasswordForm && (
                 <form className="profile-password-form" onSubmit={handlePasswordSubmit}>
                   <label>
-                    <span>Mot de passe actuel</span>
+                    <span>Current password</span>
                     <input
                       type={showPasswords ? 'text' : 'password'}
                       value={passwordForm.current_password}
@@ -514,7 +540,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Nouveau mot de passe</span>
+                    <span>New password</span>
                     <input
                       type={showPasswords ? 'text' : 'password'}
                       value={passwordForm.new_password}
@@ -525,7 +551,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Confirmer le mot de passe</span>
+                    <span>Confirm password</span>
                     <input
                       type={showPasswords ? 'text' : 'password'}
                       value={passwordForm.confirm_password}
@@ -541,12 +567,12 @@ function Profile() {
                       checked={showPasswords}
                       onChange={(event) => setShowPasswords(event.target.checked)}
                     />
-                    Afficher les mots de passe
+                    Show passwords
                   </label>
 
                   <button type="submit" className="profile-primary-button" disabled={changingPassword}>
                     <Icon type="shield" />
-                    {changingPassword ? 'Mise à jour…' : 'Mettre à jour le mot de passe'}
+                    {changingPassword ? 'Updating…' : 'Update password'}
                   </button>
                 </form>
               )}
@@ -556,26 +582,26 @@ function Profile() {
               <header className="profile-panel-header">
                 <span><Icon type="calendar" /></span>
                 <div>
-                  <p>Compte</p>
-                  <h2>Informations professionnelles</h2>
+                  <p>Account</p>
+                  <h2>Professional information</h2>
                 </div>
               </header>
 
               <dl className="profile-professional-list">
                 <div>
-                  <dt>Rôle</dt>
-                  <dd>{profile?.role === 'ADMIN' ? 'Administrateur' : 'Employé'}</dd>
+                  <dt>Role</dt>
+                  <dd>{profile?.role === 'ADMIN' ? 'Administrator' : 'Employee'}</dd>
                 </div>
                 <div>
-                  <dt>Poste</dt>
-                  <dd>{profile?.position || 'Non renseigné'}</dd>
+                  <dt>Position</dt>
+                  <dd>{profile?.position || 'Not set'}</dd>
                 </div>
                 <div>
-                  <dt>Statut du compte</dt>
-                  <dd className="profile-active-value">Actif</dd>
+                  <dt>Account status</dt>
+                  <dd className="profile-active-value">Active</dd>
                 </div>
                 <div>
-                  <dt>Adresse courriel</dt>
+                  <dt>Email address</dt>
                   <dd>{profile?.email || '—'}</dd>
                 </div>
               </dl>
@@ -584,8 +610,8 @@ function Profile() {
             <article className="profile-help-card">
               <span><Icon type="shield" /></span>
               <div>
-                <strong>Protection des données</strong>
-                <p>Vos informations personnelles sont accessibles uniquement depuis votre compte authentifié.</p>
+                <strong>Data protection</strong>
+                <p>Your personal information is only accessible from your authenticated account.</p>
               </div>
             </article>
           </div>
