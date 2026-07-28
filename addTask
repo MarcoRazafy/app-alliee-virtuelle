@@ -39,3 +39,7 @@ Dans l'ordre : (1) le bloc sécurité au moment du déploiement, (2) étendre le
 
 En résumé : le projet devient de plus en plus fiable et carré. Le vrai palier suivant reste le déploiement avec la sécurité — c'est lui qui fera passer la note au-dessus de 18.
 
+--------------------------------------------------------------------
+(a) ajoute le support SSL conditionnel dans database.js (activé seulement en prod),
+(b) ajoute un endpoint /health,
+(c) mette à jour le DEPLOIEMENT.md avec ces points manquants ?

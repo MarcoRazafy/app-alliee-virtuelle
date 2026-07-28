@@ -14,6 +14,7 @@ const hierarchyRoutes = require('./routes/hierarchy');
 const planningRoutes = require('./routes/planning');
 const sessionRoutes = require('./routes/sessions');
 const notificationRoutes = require('./routes/notifications');
+const db = require('./config/database');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 // Construit l'application Express (middlewares + routes), SANS écouter de port ni
@@ -34,6 +35,18 @@ app.use(express.json({ limit: '1mb' }));
 
 app.get('/', (req, res) => {
   res.json({ message: "L'Alliée Virtuelle API" });
+});
+
+// Health check pour la supervision de l'hébergeur (non authentifié). Vérifie que le process
+// répond ET que la base est joignable → 200 si tout va bien, 503 sinon (pour que la plateforme
+// puisse détecter une instance dégradée et la redémarrer / la sortir du load-balancer).
+app.get('/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.status(200).json({ status: 'ok', db: 'up', uptime: process.uptime() });
+  } catch (err) {
+    res.status(503).json({ status: 'error', db: 'down' });
+  }
 });
 
 app.use('/api/auth', authRoutes);
