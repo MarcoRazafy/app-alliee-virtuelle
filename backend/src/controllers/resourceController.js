@@ -1,3 +1,4 @@
+const { sendFileOr404 } = require('../utils/sendFile');
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/database');
@@ -283,7 +284,7 @@ async function serveFile(req, res, next, { disposition }) {
     if (file.mime_type) res.type(file.mime_type);
     const encoded = encodeURIComponent(file.file_name);
     res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encoded}`);
-    res.sendFile(path.resolve(file.file_path));
+    return sendFileOr404(res, path.resolve(file.file_path), 'File not found');
   } catch (err) {
     next(err);
   }

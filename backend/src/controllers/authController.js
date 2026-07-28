@@ -8,6 +8,7 @@ const realtime = require('../realtime/io');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
 const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
+const { sendFileOr404 } = require('../utils/sendFile');
 const env = require('../config/env');
 
 const SALT_ROUNDS = 10;
@@ -230,7 +231,7 @@ async function getMyAvatar(req, res, next) {
       return res.status(404).json({ error: 'No profile photo' });
     }
 
-    res.sendFile(avatar.file_path);
+    return sendFileOr404(res, avatar.file_path, 'No profile photo');
   } catch (err) {
     next(err);
   }

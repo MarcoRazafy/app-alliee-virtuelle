@@ -1,3 +1,4 @@
+const { sendFileOr404 } = require('../utils/sendFile');
 const { DateTime } = require('luxon');
 const taskModel = require('../models/task.model');
 const statsModel = require('../models/stats.model');
@@ -303,7 +304,7 @@ async function getConversationAttachment(req, res, next) {
     if (!conversation || !conversation.attachment_path) {
       return res.status(404).json({ error: 'Attachment not found' });
     }
-    res.sendFile(conversation.attachment_path);
+    return sendFileOr404(res, conversation.attachment_path, 'Attachment not found');
   } catch (err) {
     next(err);
   }
