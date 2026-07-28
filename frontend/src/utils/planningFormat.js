@@ -1,26 +1,26 @@
 // Constantes et formatteurs partagés entre la page employé (Planning.jsx) et la page
 // admin (AdminPlanning.jsx), pour ne jamais dupliquer ces règles d'affichage.
 
-export const WEEKDAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+export const WEEKDAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export const EMPLOYEE_STATUS_OPTIONS = [
-  { value: 'AVAILABLE', label: 'Disponible' },
-  { value: 'PARTIALLY_AVAILABLE', label: 'Partiellement disponible' },
-  { value: 'UNAVAILABLE', label: 'Indisponible' },
+  { value: 'AVAILABLE', label: 'Available' },
+  { value: 'PARTIALLY_AVAILABLE', label: 'Partially available' },
+  { value: 'UNAVAILABLE', label: 'Unavailable' },
 ];
 
 export const ADMIN_STATUS_OPTIONS = [
   ...EMPLOYEE_STATUS_OPTIONS,
-  { value: 'LEAVE', label: 'Congé' },
-  { value: 'SICK', label: 'Maladie' },
+  { value: 'LEAVE', label: 'Leave' },
+  { value: 'SICK', label: 'Sick' },
 ];
 
 export const STATUS_LABELS = {
-  AVAILABLE: 'Disponible',
-  PARTIALLY_AVAILABLE: 'Partiellement disponible',
-  UNAVAILABLE: 'Indisponible',
-  LEAVE: 'Congé',
-  SICK: 'Maladie',
+  AVAILABLE: 'Available',
+  PARTIALLY_AVAILABLE: 'Partially available',
+  UNAVAILABLE: 'Unavailable',
+  LEAVE: 'Leave',
+  SICK: 'Sick',
 };
 
 export const STATUS_PILL_CLASS = {
@@ -32,11 +32,11 @@ export const STATUS_PILL_CLASS = {
 };
 
 export const EFFECTIVE_STATUS_LABELS = {
-  DRAFT: 'Brouillon',
-  SUBMITTED: 'Soumis',
-  LOCKED: 'Verrouillé',
-  ADMIN_MODIFIED: 'Modifié par un administrateur',
-  NOT_SUBMITTED: 'Non soumis',
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  LOCKED: 'Locked',
+  ADMIN_MODIFIED: 'Modified by an administrator',
+  NOT_SUBMITTED: 'Not submitted',
 };
 
 export const EFFECTIVE_STATUS_PILL_CLASS = {
@@ -51,20 +51,20 @@ export const HAS_SLOTS_STATUSES = ['AVAILABLE', 'PARTIALLY_AVAILABLE'];
 
 export function formatDayLabel(dateString, index) {
   const date = new Date(dateString);
-  const day = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  const day = date.toLocaleDateString('en-US', { day: 'numeric', month: 'long' });
   return `${WEEKDAY_LABELS[index]} ${day}`;
 }
 
 export function formatWeekRange(weekStart, weekEnd) {
-  const start = new Date(weekStart).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-  const end = new Date(weekEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const start = new Date(weekStart).toLocaleDateString('en-US', { day: 'numeric', month: 'long' });
+  const end = new Date(weekEnd).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
   return `${start} - ${end}`;
 }
 
 // Version compacte ("15 janv. - 21 janv.") pour les listes déroulantes de semaines.
 export function formatWeekRangeShort(weekStart, weekEnd) {
-  const start = new Date(weekStart).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-  const end = new Date(weekEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const start = new Date(weekStart).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  const end = new Date(weekEnd).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
   return `${start} - ${end}`;
 }
 
@@ -89,7 +89,7 @@ export function generateWeekOptions({ pastCount = 12, futureCount = 1 } = {}) {
 
 export function formatDateTime(isoString) {
   if (!isoString) return '';
-  return new Date(isoString).toLocaleString('fr-FR', {
+  return new Date(isoString).toLocaleString('en-US', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

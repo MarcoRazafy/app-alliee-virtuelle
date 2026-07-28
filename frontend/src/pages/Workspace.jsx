@@ -5,7 +5,7 @@ import * as statsService from '../services/statsService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import AnimatedNumber from '../components/AnimatedNumber';
 import { formatClock, formatDurationShort } from '../utils/formatters';
-import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
+import { STATUS_PILL, priorityPillClass, priorityLabel, formatRelativeDeadline } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
 import {
   IconPlay,
@@ -96,16 +96,16 @@ function Workspace() {
     try {
       const result = await taskService.startTimelog(taskId);
       if (result.switchedFromTaskId) {
-        notifySuccess(`Chrono précédent arrêté (${formatDurationShort(result.switchedFromDuration)}), nouveau chrono démarré`);
+        notifySuccess(`Previous timer stopped (${formatDurationShort(result.switchedFromDuration)}), new timer started`);
       } else {
-        notifySuccess('Chrono démarré');
+        notifySuccess('Timer started');
       }
       await loadDay();
     } catch (err) {
       if (err.response?.status === 409) {
-        notifyError('Le chrono est déjà actif sur cette tâche');
+        notifyError('The timer is already running on this task');
       } else {
-        notifyError(err.response?.data?.error || 'Impossible de démarrer le chrono');
+        notifyError(err.response?.data?.error || 'Unable to start the timer');
       }
     } finally {
       setPendingTaskId(null);
@@ -117,11 +117,11 @@ function Workspace() {
     setPendingTaskId(activeTaskId);
     try {
       const result = await taskService.stopTimelog(activeTaskId);
-      notifySuccess(`Chrono arrêté - ${formatDurationShort(result.duration)} enregistrées`);
+      notifySuccess(`Timer stopped - ${formatDurationShort(result.duration)} recorded`);
       await loadDay();
       await loadStatsToday();
     } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'arrêter le chrono");
+      notifyError(err.response?.data?.error || 'Unable to stop the timer');
     } finally {
       setPendingTaskId(null);
     }
@@ -137,9 +137,9 @@ function Workspace() {
 
   return (
     <EmployeeLayout
-      title="Mon espace"
-      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Mon espace' }]}
-      subtitle="Vue d'aujourd'hui et suivi de vos tâches sélectionnées"
+      title="My space"
+      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'My space' }]}
+      subtitle="Today's view and tracking of your selected tasks"
       skeleton={loading ? 'cards' : null}
     >
       <div className="workspace-grid">
@@ -148,30 +148,30 @@ function Workspace() {
             <div className="chrono-hero">
               <div className="chrono-hero-info">
                 <p className="chrono-hero-label">
-                  <span className="chrono-hero-dot" /> Chrono actif
+                  <span className="chrono-hero-dot" /> Active timer
                 </p>
                 <h2 className="chrono-hero-title">{activeTask.title}</h2>
                 {activeTask.list_name && <p className="chrono-hero-project">{activeTask.list_name}</p>}
                 <div className="chrono-hero-meta">
                   <div>
-                    <span className="chrono-hero-meta-label">Statut</span>
+                    <span className="chrono-hero-meta-label">Status</span>
                     <span className={`pill ${STATUS_PILL[activeTask.status]?.className || ''}`}>
                       {STATUS_PILL[activeTask.status]?.label || activeTask.status}
                     </span>
                   </div>
                   <div>
-                    <span className="chrono-hero-meta-label">Priorité</span>
+                    <span className="chrono-hero-meta-label">Priority</span>
                     <span className={`pill ${priorityPillClass(activeTask.priority)}`}>
-                      {activeTask.priority}
+                      {priorityLabel(activeTask.priority)}
                     </span>
                   </div>
                 </div>
                 <div className="chrono-hero-actions">
                   <button className="btn-danger" onClick={handleStop} disabled={pendingTaskId === activeTaskId}>
-                    <IconStop /> Arrêter le chrono
+                    <IconStop /> Stop the timer
                   </button>
                   <Link to={`/tasks/${activeTask.id}`} className="btn-outline">
-                    Voir le détail <IconArrowRight />
+                    View details <IconArrowRight />
                   </Link>
                 </div>
               </div>
@@ -179,7 +179,7 @@ function Workspace() {
                 <div className="chrono-ring" />
                 <div className="chrono-ring-inner">
                   <span className="chrono-ring-value">{formatClock(elapsed)}</span>
-                  <span className="chrono-ring-caption">Temps écoulé</span>
+                  <span className="chrono-ring-caption">Elapsed time</span>
                 </div>
               </div>
             </div>
@@ -189,10 +189,10 @@ function Workspace() {
                 <IconPlay />
               </span>
               <div>
-                <strong>Aucun chrono actif.</strong>{' '}
+                <strong>No active timer.</strong>{' '}
                 {noTasksAvailable
-                  ? 'Aucune tâche ne vous est assignée, mais toute la plateforme reste accessible.'
-                  : 'Démarrez une tâche ci-dessous pour commencer à suivre votre temps.'}
+                  ? 'No task is assigned to you, but the whole platform remains accessible.'
+                  : 'Start a task below to begin tracking your time.'}
               </div>
             </div>
           )}
@@ -200,10 +200,10 @@ function Workspace() {
           <div className="side-card">
             <div className="side-card-header">
               <p className="side-card-title">
-                Mes tâches du jour <span className="dnd-column-count">{dayTasks.length} sélectionnée{dayTasks.length > 1 ? 's' : ''}</span>
+                My tasks for today <span className="dnd-column-count">{dayTasks.length} selected</span>
               </p>
               <Link to="/tasks" className="app-link">
-                Voir toutes les tâches <IconArrowRight />
+                View all tasks <IconArrowRight />
               </Link>
             </div>
 
@@ -211,16 +211,15 @@ function Workspace() {
               <div className="info-banner">
                 <IconChecklist />
                 <span>
-                  Aucune tâche sélectionnée ? Retournez à <Link to="/my-day">Ma journée</Link> pour constituer votre
-                  sélection.
+                  No tasks selected? Go back to <Link to="/my-day">My day</Link> to build your selection.
                 </span>
               </div>
             )}
             {dayTasks.length === 0 && dayValidated && (
               <div className="empty-state">
                 {noTasksAvailable
-                  ? 'Aucune tâche assignée pour le moment. Vous pouvez continuer à visiter la plateforme.'
-                  : "Aucune tâche sélectionnée pour aujourd'hui."}
+                  ? 'No task assigned at the moment. You can keep browsing the platform.'
+                  : 'No task selected for today.'}
               </div>
             )}
 
@@ -230,9 +229,9 @@ function Workspace() {
                   <thead>
                     <tr>
                       <th />
-                      <th>Tâche</th>
-                      <th>Échéance</th>
-                      <th>Statut</th>
+                      <th>Task</th>
+                      <th>Deadline</th>
+                      <th>Status</th>
                       <th />
                     </tr>
                   </thead>
@@ -248,7 +247,7 @@ function Workspace() {
                                 className="play-btn play-btn--stop"
                                 onClick={handleStop}
                                 disabled={pendingTaskId === task.id}
-                                aria-label="Arrêter le chrono"
+                                aria-label="Stop the timer"
                               >
                                 <IconStop />
                               </button>
@@ -257,7 +256,7 @@ function Workspace() {
                                 className="play-btn play-btn--start"
                                 onClick={() => handleStart(task.id)}
                                 disabled={!canStart || pendingTaskId === task.id}
-                                aria-label="Démarrer le chrono"
+                                aria-label="Start the timer"
                               >
                                 <IconPlay />
                               </button>
@@ -278,7 +277,7 @@ function Workspace() {
                             </span>
                           </td>
                           <td>
-                            <Link to={`/tasks/${task.id}`} className="icon-link-btn" aria-label="Ouvrir la tâche">
+                            <Link to={`/tasks/${task.id}`} className="icon-link-btn" aria-label="Open task">
                               <IconExternalLink />
                             </Link>
                           </td>
@@ -295,9 +294,9 @@ function Workspace() {
         <div className="workspace-side">
           <div className="side-card">
             <div className="side-card-header">
-              <p className="side-card-title">Résumé du jour</p>
+              <p className="side-card-title">Today's summary</p>
               <Link to="/stats" className="app-link">
-                Voir tout <IconArrowRight />
+                View all <IconArrowRight />
               </Link>
             </div>
             <div className="stat-tile-grid">
@@ -307,7 +306,7 @@ function Workspace() {
                 </span>
                 <div>
                   <AnimatedNumber className="stat-tile-value" value={dayTasks.length} />
-                  <div className="stat-tile-label">Total sélectionnées</div>
+                  <div className="stat-tile-label">Total selected</div>
                 </div>
               </div>
               <div className="stat-tile">
@@ -316,7 +315,7 @@ function Workspace() {
                 </span>
                 <div>
                   <AnimatedNumber className="stat-tile-value" value={inCourseCount} />
-                  <div className="stat-tile-label">En cours</div>
+                  <div className="stat-tile-label">In progress</div>
                 </div>
               </div>
               <div className="stat-tile">
@@ -325,7 +324,7 @@ function Workspace() {
                 </span>
                 <div>
                   <AnimatedNumber className="stat-tile-value" value={doneCount} />
-                  <div className="stat-tile-label">Terminées</div>
+                  <div className="stat-tile-label">Completed</div>
                 </div>
               </div>
               <div className="stat-tile">
@@ -338,7 +337,7 @@ function Workspace() {
                     value={secondsWorkedToday}
                     format={(value) => formatDurationShort(Math.round(value))}
                   />
-                  <div className="stat-tile-label">Temps travaillé</div>
+                  <div className="stat-tile-label">Time worked</div>
                 </div>
               </div>
             </div>
@@ -346,12 +345,12 @@ function Workspace() {
 
           <div className="side-card">
             <div className="side-card-header">
-              <p className="side-card-title">Prochaines échéances</p>
+              <p className="side-card-title">Upcoming deadlines</p>
               <Link to="/tasks" className="app-link">
-                Voir tout <IconArrowRight />
+                View all <IconArrowRight />
               </Link>
             </div>
-            {upcoming.length === 0 && <div className="empty-state">Aucune échéance à venir.</div>}
+            {upcoming.length === 0 && <div className="empty-state">No upcoming deadlines.</div>}
             {upcoming.map((task) => (
               <Link key={task.id} to={`/tasks/${task.id}`} className="deadline-item">
                 <span className="deadline-item-icon">
@@ -372,10 +371,10 @@ function Workspace() {
                 <IconLightbulb />
               </span>
               <div>
-                <p className="tip-card-title">Astuce du jour</p>
-                <p className="tip-card-text">Planifiez vos priorités le matin pour une journée plus productive.</p>
+                <p className="tip-card-title">Tip of the day</p>
+                <p className="tip-card-text">Plan your priorities in the morning for a more productive day.</p>
               </div>
-              <button className="tip-card-close" onClick={() => setShowTip(false)} aria-label="Fermer">
+              <button className="tip-card-close" onClick={() => setShowTip(false)} aria-label="Close">
                 <IconX />
               </button>
             </div>

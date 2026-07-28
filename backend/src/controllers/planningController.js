@@ -10,7 +10,7 @@ const ALL_AVAILABILITY_STATUSES = Object.values(planningDates.AVAILABILITY_STATU
 const EMPLOYEE_AVAILABILITY_STATUSES = planningDates.EMPLOYEE_AVAILABILITY_STATUSES;
 
 const WINDOW_CLOSED_MESSAGE =
-  'La période de saisie du planning est fermée. Seul un administrateur peut modifier le planning pendant la semaine.';
+  'The schedule entry period is closed. Only an administrator can modify the schedule during the week.';
 
 const toDateString = planningDates.formatDbDate;
 
@@ -31,7 +31,7 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
       return;
     }
     if (!weekDates.includes(day.date)) {
-      errors.push(`La date ${day.date} n'appartient pas à la semaine du planning.`);
+      errors.push(`Date ${day.date} does not belong to the schedule week.`);
       return;
     }
     providedDates.add(day.date);
@@ -39,7 +39,7 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
     const dayLabel = planningDates.formatFrenchDayDate(day.date);
 
     if (!allowedStatuses.includes(day.availability_status)) {
-      errors.push(`Statut de disponibilité invalide pour le ${dayLabel}.`);
+      errors.push(`Invalid availability status for ${dayLabel}.`);
       return;
     }
 
@@ -48,7 +48,7 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
 
     if (isUnavailableStyle) {
       if (slots.length > 0) {
-        errors.push(`Une journée indisponible ne peut pas contenir de plage horaire (${dayLabel}).`);
+        errors.push(`An unavailable day cannot contain a time slot (${dayLabel}).`);
       }
       return;
     }
@@ -56,11 +56,11 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
     const sortedSlots = [...slots].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
     sortedSlots.forEach((slot, index) => {
       if (!slot.start_time || !slot.end_time) {
-        errors.push(`Heure de début et de fin requises pour le ${dayLabel}.`);
+        errors.push(`Start and end time required for ${dayLabel}.`);
         return;
       }
       if (slot.end_time <= slot.start_time) {
-        errors.push(`L'heure de fin doit être postérieure à l'heure de début (${dayLabel}).`);
+        errors.push(`The end time must be after the start time (${dayLabel}).`);
       }
       if (index > 0 && slot.start_time < sortedSlots[index - 1].end_time) {
         errors.push(`Deux plages horaires se chevauchent pour le ${dayLabel}.`);
@@ -188,7 +188,7 @@ async function getWeekByDate(req, res, next) {
   try {
     const { week_start_date: requestedDate } = req.query;
     if (!requestedDate) {
-      return res.status(400).json({ error: 'Le paramètre week_start_date est requis.' });
+      return res.status(400).json({ error: 'The week_start_date parameter is required.' });
     }
 
     const now = planningDates.nowInPlanningZone();
@@ -228,7 +228,7 @@ function makeCreatePlanning(weekMode) {
 
       const existing = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
       if (existing) {
-        return res.status(409).json({ error: 'Un planning existe déjà pour cette semaine.' });
+        return res.status(409).json({ error: 'A schedule already exists for this week.' });
       }
 
       const planning = await planningModel.createPlanning({ userId: req.user.id, weekStartDate: weekStart, weekEndDate: weekEnd });
@@ -345,7 +345,7 @@ function makeSubmitPlanning(weekMode) {
       if (days.length !== 7 || days.some((day) => !day.availability_status)) {
         return res
           .status(400)
-          .json({ error: 'Les sept jours de la semaine doivent être renseignés avant de soumettre le planning.' });
+          .json({ error: 'All seven days of the week must be filled in before submitting the schedule.' });
       }
 
       const updatedPlanning = await db.withTransaction(async (client) => {
@@ -612,7 +612,7 @@ async function adminCreatePlanningForUser(req, res, next) {
 
     const existing = await planningModel.findPlanningByUserAndWeek(userId, weekStartDate);
     if (existing) {
-      return res.status(409).json({ error: 'Un planning existe déjà pour cette semaine.' });
+      return res.status(409).json({ error: 'A schedule already exists for this week.' });
     }
 
     const weekEnd = planningDates.formatDate(planningDates.getWeekEnd(planningDates.parsePlanningDate(weekStartDate)));
@@ -644,7 +644,7 @@ async function adminNonSubmitted(req, res, next) {
   try {
     const { week_start_date: weekStartDate } = req.query;
     if (!weekStartDate) {
-      return res.status(400).json({ error: 'Le paramètre week_start_date est requis.' });
+      return res.status(400).json({ error: 'The week_start_date parameter is required.' });
     }
     const employees = await planningModel.findNonSubmittedEmployees(weekStartDate);
     res.status(200).json(employees);
@@ -657,10 +657,10 @@ async function adminAvailabilitySearch(req, res, next) {
   try {
     const { date, start_time: startTime, end_time: endTime } = req.query;
     if (!date || !startTime || !endTime) {
-      return res.status(400).json({ error: 'Les paramètres date, start_time et end_time sont requis.' });
+      return res.status(400).json({ error: 'The date, start_time and end_time parameters are required.' });
     }
     if (endTime <= startTime) {
-      return res.status(400).json({ error: "L'heure de fin doit être postérieure à l'heure de début." });
+      return res.status(400).json({ error: 'The end time must be after the start time.' });
     }
     const employees = await planningModel.findAvailableEmployees({ date, startTime, endTime });
     res.status(200).json(employees);
@@ -851,19 +851,19 @@ async function adminSetAttendanceOverride(req, res, next) {
     const { userId } = req.params;
     const { date, status, late_minutes: requestedLateMinutes, reason } = req.body || {};
     if (!UUID_PATTERN.test(userId)) {
-      return res.status(400).json({ error: 'Identifiant employé invalide.' });
+      return res.status(400).json({ error: 'Invalid employee identifier.' });
     }
     const day = planningDates.parsePlanningDate(date);
     if (!date || !day.isValid || planningDates.formatDate(day) !== date) {
       return res.status(400).json({ error: 'La date doit respecter le format YYYY-MM-DD.' });
     }
     if (date > planningDates.formatDate(planningDates.nowInPlanningZone())) {
-      return res.status(400).json({ error: 'Une présence future ne peut pas être corrigée.' });
+      return res.status(400).json({ error: 'Future attendance cannot be corrected.' });
     }
 
     const employee = await userModel.findById(userId);
     if (!employee || employee.role !== userModel.USER_ROLE.EMPLOYEE) {
-      return res.status(404).json({ error: 'Employé introuvable.' });
+      return res.status(404).json({ error: 'Employee not found.' });
     }
 
     if (status == null || status === 'automatic') {
@@ -885,15 +885,15 @@ async function adminSetAttendanceOverride(req, res, next) {
     }
 
     if (!MANUAL_ATTENDANCE_STATUSES.has(status)) {
-      return res.status(400).json({ error: 'Le statut doit être présent, en retard, absent ou automatique.' });
+      return res.status(400).json({ error: 'The status must be present, late, absent or automatic.' });
     }
     const lateMinutes = status === 'late' ? Number(requestedLateMinutes) : 0;
     if (status === 'late' && (!Number.isInteger(lateMinutes) || lateMinutes < 1 || lateMinutes > 1440)) {
-      return res.status(400).json({ error: 'Le nombre de minutes de retard doit être compris entre 1 et 1440.' });
+      return res.status(400).json({ error: 'The number of minutes late must be between 1 and 1440.' });
     }
     const normalizedReason = typeof reason === 'string' ? reason.trim() : '';
     if (normalizedReason.length > 500) {
-      return res.status(400).json({ error: 'Le motif ne peut pas dépasser 500 caractères.' });
+      return res.status(400).json({ error: 'The reason cannot exceed 500 characters.' });
     }
 
     const correction = await db.withTransaction(async (client) => {
@@ -931,7 +931,7 @@ async function adminAttendanceStats(req, res, next) {
     const { userId } = req.params;
     const month = req.query.month || planningDates.formatDate(planningDates.nowInPlanningZone()).slice(0, 7);
     if (!UUID_PATTERN.test(userId)) {
-      return res.status(400).json({ error: 'Identifiant employé invalide.' });
+      return res.status(400).json({ error: 'Invalid employee identifier.' });
     }
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
       return res.status(400).json({ error: 'Le mois doit respecter le format YYYY-MM.' });
@@ -939,7 +939,7 @@ async function adminAttendanceStats(req, res, next) {
 
     const employee = await userModel.findById(userId);
     if (!employee || employee.role !== userModel.USER_ROLE.EMPLOYEE) {
-      return res.status(404).json({ error: 'Employé introuvable.' });
+      return res.status(404).json({ error: 'Employee not found.' });
     }
 
     const monthStart = planningDates.parsePlanningDate(`${month}-01`);

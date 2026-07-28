@@ -24,10 +24,10 @@ import { todayDateInputValue, shiftDays, initials } from '../../components/admin
 function SummaryCards({ summary }) {
   if (!summary) return null;
   const tiles = [
-    { icon: <IconUser />, value: summary.active_employees, label: 'Employés actifs' },
-    { icon: <IconCheckCircle />, value: summary.submitted_count, label: 'Plannings soumis' },
-    { icon: <IconAlert />, value: summary.not_submitted_count, label: 'Non soumis' },
-    { icon: <IconClock />, value: summary.available_today, label: "Disponibles aujourd'hui" },
+    { icon: <IconUser />, value: summary.active_employees, label: 'Active employees' },
+    { icon: <IconCheckCircle />, value: summary.submitted_count, label: 'Submitted schedules' },
+    { icon: <IconAlert />, value: summary.not_submitted_count, label: 'Not submitted' },
+    { icon: <IconClock />, value: summary.available_today, label: 'Available today' },
   ];
   return (
     <div className="aplan-summary">
@@ -111,7 +111,7 @@ function AdminPlanning() {
     return avatarUrls[userId] ? (
       <img
         src={avatarUrls[userId]}
-        alt={`Photo de ${name}`}
+        alt={`Photo of ${name}`}
         className={`${className} aplan-row-avatar--image`}
       />
     ) : (
@@ -135,7 +135,7 @@ function AdminPlanning() {
         setNonSubmitted(nonSubmittedData);
         setSummary(summaryData);
       })
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les plannings'))
+      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load schedules'))
       .finally(() => setLoadingTable(false));
   }
 
@@ -167,7 +167,7 @@ function AdminPlanning() {
       setSelectedPlanningId(result.planning_id);
       loadTable(filters);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de créer ce planning');
+      notifyError(err.response?.data?.error || 'Unable to create this schedule');
     }
   }
 
@@ -182,7 +182,7 @@ function AdminPlanning() {
       });
       setAvailabilityResults(results);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de rechercher les disponibilités');
+      notifyError(err.response?.data?.error || 'Unable to search for availability');
     } finally {
       setAvailabilityLoading(false);
     }
@@ -199,7 +199,7 @@ function AdminPlanning() {
   );
 
   function actionLabel(status) {
-    return status === 'SUBMITTED' || status === 'ADMIN_MODIFIED' ? 'Modifier' : 'Consulter';
+    return status === 'SUBMITTED' || status === 'ADMIN_MODIFIED' ? 'Edit' : 'View';
   }
 
   return (
@@ -208,20 +208,20 @@ function AdminPlanning() {
 
       <div className="admin-filter-bar aplan-filters">
         <div className="filter-group">
-          <span className="filter-group-label">Semaine</span>
+          <span className="filter-group-label">Week</span>
           <button
             type="button"
             className={`filter-chip${filters.week_start_date === currentWeekStart ? ' filter-chip--active' : ''}`}
             onClick={() => handleFilterChange('week_start_date', currentWeekStart)}
           >
-            Cette semaine
+            This week
           </button>
           <button
             type="button"
             className={`filter-chip${filters.week_start_date === nextWeekStart ? ' filter-chip--active' : ''}`}
             onClick={() => handleFilterChange('week_start_date', nextWeekStart)}
           >
-            Semaine prochaine
+            Next week
           </button>
           <input
             type="date"
@@ -231,9 +231,9 @@ function AdminPlanning() {
           />
         </div>
         <div className="filter-group">
-          <span className="filter-group-label">Employé</span>
+          <span className="filter-group-label">Employee</span>
           <select className="filter-select" value={filters.user_id} onChange={(e) => handleFilterChange('user_id', e.target.value)}>
-            <option value="">Tous</option>
+            <option value="">All</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
                 {employee.full_name}
@@ -242,27 +242,27 @@ function AdminPlanning() {
           </select>
         </div>
         <div className="filter-group">
-          <span className="filter-group-label">Statut</span>
+          <span className="filter-group-label">Status</span>
           <select className="filter-select" value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)}>
-            <option value="">Tous</option>
-            <option value="DRAFT">Brouillon</option>
-            <option value="SUBMITTED">Soumis</option>
-            <option value="ADMIN_MODIFIED">Modifié par un admin</option>
+            <option value="">All</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="ADMIN_MODIFIED">Modified by an admin</option>
           </select>
         </div>
         <div className="filter-group">
-          <span className="filter-group-label">Soumission</span>
+          <span className="filter-group-label">Submission</span>
           <select className="filter-select" value={filters.submitted} onChange={(e) => handleFilterChange('submitted', e.target.value)}>
-            <option value="">Toutes</option>
-            <option value="true">Soumis</option>
-            <option value="false">Non soumis</option>
+            <option value="">All</option>
+            <option value="true">Submitted</option>
+            <option value="false">Not submitted</option>
           </select>
         </div>
         <div className="filter-search aplan-search">
           <IconSearch />
           <input
             type="text"
-            placeholder="Rechercher un employé…"
+            placeholder="Search an employee…"
             value={filters.search}
             onChange={(e) => handleFilterChange('search', e.target.value)}
           />
@@ -275,31 +275,31 @@ function AdminPlanning() {
               setFilters((c) => ({ ...c, user_id: '', search: '', status: '', availability_status: '', submitted: '' }))
             }
           >
-            Réinitialiser
+            Reset
           </button>
         )}
       </div>
 
       <section className="aplan-panel">
         <header className="aplan-panel-head">
-          <h2>Plannings de la semaine</h2>
+          <h2>Schedules for the week</h2>
           <span className="aplan-panel-count">{plannings.length}</span>
         </header>
         {loadingTable ? (
-          <div className="admin-loading"><span className="admin-loading-spinner" /><p>Chargement…</p></div>
+          <div className="admin-loading"><span className="admin-loading-spinner" /><p>Loading…</p></div>
         ) : plannings.length === 0 ? (
-          <div className="empty-state">Aucun planning ne correspond à ces filtres.</div>
+          <div className="empty-state">No schedule matches these filters.</div>
         ) : (
           <div className="task-table-wrap">
             <table className="task-table">
               <thead>
                 <tr>
-                  <th>Employé</th>
-                  <th>Poste</th>
-                  <th>Semaine</th>
-                  <th>Statut</th>
-                  <th>Heures</th>
-                  <th>Soumis le</th>
+                  <th>Employee</th>
+                  <th>Position</th>
+                  <th>Week</th>
+                  <th>Status</th>
+                  <th>Hours</th>
+                  <th>Submitted on</th>
                   <th aria-label="Action" />
                 </tr>
               </thead>
@@ -344,11 +344,11 @@ function AdminPlanning() {
       <div className="aplan-two-col">
         <section className="aplan-panel">
           <header className="aplan-panel-head">
-            <h2>Plannings non soumis</h2>
+            <h2>Unsubmitted schedules</h2>
             {nonSubmitted.length > 0 && <span className="aplan-panel-count aplan-panel-count--warn">{nonSubmitted.length}</span>}
           </header>
           {nonSubmitted.length === 0 ? (
-            <div className="empty-state">Tous les employés actifs ont soumis leur planning. 🎉</div>
+            <div className="empty-state">All active employees have submitted their schedule. 🎉</div>
           ) : (
             <ul className="aplan-nonsubmitted">
               {nonSubmitted.map((employee) => (
@@ -360,11 +360,11 @@ function AdminPlanning() {
                   </span>
                   {employee.planning_id ? (
                     <button type="button" className="aplan-action" onClick={() => setSelectedPlanningId(employee.planning_id)}>
-                      Consulter
+                      View
                     </button>
                   ) : (
                     <button type="button" className="aplan-action aplan-action--create" onClick={() => handleCreateForNonSubmitted(employee)}>
-                      + Créer
+                      + Create
                     </button>
                   )}
                 </li>
@@ -375,7 +375,7 @@ function AdminPlanning() {
 
         <section className="aplan-panel">
           <header className="aplan-panel-head">
-            <h2>Recherche de disponibilité</h2>
+            <h2>Availability search</h2>
           </header>
           <form className="aplan-availability-form" onSubmit={handleSearchAvailability}>
             <label>
@@ -384,23 +384,23 @@ function AdminPlanning() {
             </label>
             <div className="aplan-availability-times">
               <label>
-                <span>Début</span>
+                <span>Start</span>
                 <input type="time" value={availabilityStart} onChange={(e) => setAvailabilityStart(e.target.value)} required />
               </label>
               <label>
-                <span>Fin</span>
+                <span>End</span>
                 <input type="time" value={availabilityEnd} onChange={(e) => setAvailabilityEnd(e.target.value)} required />
               </label>
             </div>
             <button type="submit" className="btn-primary" disabled={availabilityLoading}>
-              {availabilityLoading ? 'Recherche…' : 'Rechercher les disponibles'}
+              {availabilityLoading ? 'Searching…' : 'Search available'}
             </button>
           </form>
 
           {availabilityResults && (
             <div className="aplan-availability-results">
               {availabilityResults.length === 0 ? (
-                <p className="planning-day-empty">Aucun employé disponible sur ce créneau.</p>
+                <p className="planning-day-empty">No employee available for this slot.</p>
               ) : (
                 <div className="aplan-availability-chips">
                   {availabilityResults.map((employee) => (

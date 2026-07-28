@@ -71,7 +71,7 @@ export function CompletionRing({ value }) {
   const c = 2 * Math.PI * r;
   const dashOffset = c - (v / 100) * c;
   return (
-    <div className="astat-ring" aria-label={`Taux de complétion : ${v}%`}>
+    <div className="astat-ring" aria-label={`Completion rate: ${v}%`}>
       <svg viewBox="0 0 84 84" aria-hidden="true">
         <circle className="astat-ring-track" cx="42" cy="42" r={r} />
         <circle
@@ -98,8 +98,8 @@ export function ActivityChart({ rows, metric }) {
     return (
       <div className="astat-empty-chart">
         <span className="astat-empty-icon"><Icon type="trend" /></span>
-        <h3>Aucune activité sur cette période</h3>
-        <p>Le temps travaillé et les tâches confirmées de l'équipe apparaîtront ici.</p>
+        <h3>No activity in this period</h3>
+        <p>The team's time worked and confirmed tasks will appear here.</p>
       </div>
     );
   }
@@ -142,7 +142,7 @@ export function ActivityChart({ rows, metric }) {
   return (
     <div className="astat-chart-wrap">
       <svg className="astat-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img"
-        aria-label={`Évolution : ${isHours ? 'heures travaillées' : 'tâches confirmées'}`}>
+        aria-label={`Trend: ${isHours ? 'hours worked' : 'confirmed tasks'}`}>
         <defs>
           <linearGradient id="astat-area-grad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-accent-lighter)" stopOpacity="0.32" />
@@ -199,7 +199,7 @@ export function ActivityChart({ rows, metric }) {
         >
           <span className="astat-tooltip-date">{formatLongDate(hp.row.date)}</span>
           <span className="astat-tooltip-value">
-            {isHours ? formatDurationShort(hp.row.hours_worked_seconds) : `${hp.row.tasks_confirmed} tâche(s)`}
+            {isHours ? formatDurationShort(hp.row.hours_worked_seconds) : `${hp.row.tasks_confirmed} task(s)`}
           </span>
         </div>
       )}
@@ -260,7 +260,7 @@ export function StatusDonut({ byStatus }) {
         </svg>
         <div className="astat-donut-center">
           <AnimatedNumber as="strong" value={total} />
-          <span>tâches</span>
+          <span>tasks</span>
         </div>
       </div>
 

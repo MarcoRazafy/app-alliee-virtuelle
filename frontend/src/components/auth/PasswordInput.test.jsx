@@ -9,9 +9,9 @@ test('PasswordInput masque le mot de passe par défaut', () => {
   assert.match(html, /value="secret"/);
 });
 
-test('PasswordInput expose un bouton "Afficher le mot de passe"', () => {
+test('PasswordInput expose un bouton "Show password"', () => {
   const html = renderToStaticMarkup(<PasswordInput id="pwd" value="" onChange={() => {}} />);
-  assert.match(html, /aria-label="Afficher le mot de passe"/);
+  assert.match(html, /aria-label="Show password"/);
 });
 
 test('PasswordInput transmet le placeholder et l’attribut required', () => {

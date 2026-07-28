@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { IconSearch } from './icons';
+import { priorityLabel } from '../utils/taskStatus';
 
 const STATUS_OPTIONS = [
-  { value: 'DECLAREE', label: 'Déclarée' },
-  { value: 'EN_COURS', label: 'En cours' },
-  { value: 'A_REPRENDRE', label: 'À reprendre' },
-  { value: 'TERMINEE', label: 'Terminée' },
-  { value: 'CONFIRMEE', label: 'Confirmée' },
+  { value: 'DECLAREE', label: 'Declared' },
+  { value: 'EN_COURS', label: 'In progress' },
+  { value: 'A_REPRENDRE', label: 'To resume' },
+  { value: 'TERMINEE', label: 'Completed' },
+  { value: 'CONFIRMEE', label: 'Confirmed' },
 ];
 
 const PRIORITY_OPTIONS = ['URGENT', 'HAUTE', 'NORMALE', 'FAIBLE'];
@@ -56,12 +57,12 @@ function SearchBar({ onChange }) {
     <div className="filter-bar">
       <div className="filter-search">
         <IconSearch />
-        <input placeholder="Rechercher une tâche..." value={search} onChange={handleSearchChange} />
+        <input placeholder="Search a task..." value={search} onChange={handleSearchChange} />
       </div>
 
       <div className="filter-groups">
         <div className="filter-group">
-          <span className="filter-group-label">Statut</span>
+          <span className="filter-group-label">Status</span>
           {STATUS_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -75,7 +76,7 @@ function SearchBar({ onChange }) {
         </div>
 
         <div className="filter-group">
-          <span className="filter-group-label">Priorité</span>
+          <span className="filter-group-label">Priority</span>
           {PRIORITY_OPTIONS.map((value) => (
             <button
               key={value}
@@ -83,19 +84,19 @@ function SearchBar({ onChange }) {
               className={`filter-chip${priorities.includes(value) ? ' filter-chip--active' : ''}`}
               onClick={() => handlePriorityToggle(value)}
             >
-              {value}
+              {priorityLabel(value)}
             </button>
           ))}
         </div>
 
         <div className="filter-group">
-          <span className="filter-group-label">Échéance</span>
+          <span className="filter-group-label">Deadline</span>
           <select className="filter-select" value={deadlineRange} onChange={handleDeadlineChange}>
-            <option value="">Toutes</option>
-            <option value="today">Aujourd'hui</option>
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-            <option value="past">Passée</option>
+            <option value="">All</option>
+            <option value="today">Today</option>
+            <option value="week">This week</option>
+            <option value="month">This month</option>
+            <option value="past">Past</option>
           </select>
         </div>
       </div>

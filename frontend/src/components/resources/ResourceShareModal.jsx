@@ -2,7 +2,7 @@ import { IconX } from '../icons';
 
 const PERMISSION_LABELS = {
   LECTURE_SEULE: 'Lecture seule',
-  LECTURE_ECRITURE: 'Lecture-écriture',
+  LECTURE_ECRITURE: 'Read-write',
 };
 
 // Modale de partage d'un dossier de ressources — présentationnelle.
@@ -32,20 +32,20 @@ function ResourceShareModal({
       >
         <div className="resources-modal-head">
           <div>
-            <p className="resources-modal-eyebrow">Partage de dossier</p>
+            <p className="resources-modal-eyebrow">Folder sharing</p>
             <h2 id="share-title">{folderName}</h2>
           </div>
-          <button type="button" className="resources-modal-close" onClick={onClose} aria-label="Fermer">
+          <button type="button" className="resources-modal-close" onClick={onClose} aria-label="Close">
             <IconX />
           </button>
         </div>
 
         <form className="resources-modal-body" onSubmit={onSubmit}>
           <p className="resources-modal-label">
-            Employés ({selectedUserIds.length} sélectionné{selectedUserIds.length > 1 ? 's' : ''})
+            Employees ({selectedUserIds.length} selected)
           </p>
           <div className="resources-share-members">
-            {employees.length === 0 && <p className="empty-state">Aucun employé actif.</p>}
+            {employees.length === 0 && <p className="empty-state">No active employee.</p>}
             {employees.map((emp) => (
               <label
                 key={emp.id}
@@ -65,12 +65,12 @@ function ResourceShareModal({
             <label className="form-field">
               <span className="form-label">Permission</span>
               <select className="form-select" value={permission} onChange={(e) => onPermissionChange(e.target.value)}>
-                <option value="LECTURE_SEULE">Lecture seule</option>
-                <option value="LECTURE_ECRITURE">Lecture-écriture</option>
+                <option value="LECTURE_SEULE">Read only</option>
+                <option value="LECTURE_ECRITURE">Read-write</option>
               </select>
             </label>
             <label className="form-field">
-              <span className="form-label">Expiration (optionnelle)</span>
+              <span className="form-label">Expiration (optional)</span>
               <input
                 className="form-input"
                 type="date"
@@ -82,17 +82,17 @@ function ResourceShareModal({
 
           <div className="resources-modal-foot">
             <button type="button" className="btn-outline" onClick={onClose}>
-              Fermer
+              Close
             </button>
             <button type="submit" className="btn-primary" disabled={selectedUserIds.length === 0}>
-              Partager
+              Share
             </button>
           </div>
         </form>
 
         <div className="resources-share-existing">
-          <p className="resources-modal-label">Partages existants</p>
-          {shares.length === 0 && <p className="empty-state">Aucun partage pour l'instant.</p>}
+          <p className="resources-modal-label">Existing shares</p>
+          {shares.length === 0 && <p className="empty-state">No shares yet.</p>}
           {shares.length > 0 && (
             <ul className="resources-share-list">
               {shares.map((share) => (
@@ -108,8 +108,8 @@ function ResourceShareModal({
                     type="button"
                     className="icon-link-btn icon-link-btn--danger"
                     onClick={() => onRevoke(share.id)}
-                    aria-label="Révoquer le partage"
-                    title="Révoquer"
+                    aria-label="Revoke share"
+                    title="Revoke"
                   >
                     <IconX />
                   </button>

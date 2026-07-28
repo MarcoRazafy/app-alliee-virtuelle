@@ -7,7 +7,7 @@ import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconX } from '../components/icons';
 
-const today = new Date().toLocaleDateString('fr-FR', {
+const today = new Date().toLocaleDateString('en-US', {
   weekday: 'long',
   year: 'numeric',
   month: 'long',
@@ -67,7 +67,7 @@ function MyDay() {
   }, [setDayValidated]);
 
   useEffect(() => {
-    load().catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches'));
+    load().catch((err) => notifyError(err.response?.data?.error || 'Unable to load tasks'));
   }, [load]);
 
   // Polling seulement en mode validé : sinon on écraserait le drag-drop en cours de l'employé.
@@ -89,7 +89,7 @@ function MyDay() {
 
   async function handleValidate() {
     if (selected.length < 1) {
-      notifyError('Sélectionnez au moins une tâche avant de valider');
+      notifyError('Select at least one task before validating');
       return;
     }
     setIsValidating(true);
@@ -98,9 +98,9 @@ function MyDay() {
       await taskService.validateMyDay();
       setValidated(true);
       setDayValidated(true);
-      notifySuccess('Votre journée est validée');
+      notifySuccess('Your day is validated');
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de valider la journée');
+      notifyError(err.response?.data?.error || 'Unable to validate the day');
     } finally {
       setIsValidating(false);
     }
@@ -117,11 +117,11 @@ function MyDay() {
     setIsSending(true);
     try {
       await taskService.createExtraTaskRequest(requestingTask.id, requestMessage.trim() || undefined);
-      notifySuccess("Demande envoyée à l'administrateur");
+      notifySuccess('Request sent to the administrator');
       setRequestingTask(null);
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'envoyer la demande");
+      notifyError(err.response?.data?.error || 'Unable to send the request');
     } finally {
       setIsSending(false);
     }
@@ -129,15 +129,15 @@ function MyDay() {
 
   return (
     <EmployeeLayout
-      title="Ma journée"
-      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Ma journée' }]}
+      title="My day"
+      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'My day' }]}
       subtitle={today}
       locked={!platformAccessible}
     >
       <div className="app-page-header">
         <span className={`status-badge ${platformAccessible ? 'status-badge--validated' : 'status-badge--pending'}`}>
           <span className={`status-dot ${platformAccessible ? '' : 'status-dot--pending'}`} />
-          {validated ? 'Journée validée' : noTasksAvailable ? 'Plateforme accessible' : 'En attente de validation'}
+          {validated ? 'Day validated' : noTasksAvailable ? 'Platform accessible' : 'Awaiting validation'}
         </span>
       </div>
 
@@ -149,8 +149,8 @@ function MyDay() {
             <circle cx="12" cy="16" r="1" fill="currentColor" />
           </svg>
           <span>
-            Glissez au moins une tâche vers <strong>« Mes tâches aujourd'hui »</strong> et validez pour accéder au
-            reste de l'application.
+            Drag at least one task into <strong>“My tasks today”</strong> and validate to access the rest of the
+            application.
           </span>
         </div>
       )}
@@ -162,8 +162,7 @@ function MyDay() {
             <path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span>
-            Aucune tâche ne vous est assignée pour le moment. Vous pouvez visiter librement toutes les pages de la
-            plateforme.
+            No task is assigned to you at the moment. You can freely browse every page of the platform.
           </span>
         </div>
       )}
@@ -175,8 +174,8 @@ function MyDay() {
             <path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span>
-            Votre journée est validée. Vous avez terminé vos tâches ? Cliquez sur <strong>« Demander »</strong> à côté
-            d'une tâche disponible : un administrateur doit l'approuver avant qu'elle rejoigne votre journée.
+            Your day is validated. Finished your tasks? Click <strong>“Request”</strong> next to an available task:
+            an administrator must approve it before it joins your day.
           </span>
         </div>
       )}
@@ -196,12 +195,12 @@ function MyDay() {
         {!platformAccessible && (
           <button className="btn-primary" onClick={handleValidate} disabled={selected.length < 1 || isValidating}>
             {isValidating && <span className="btn-spinner" />}
-            {isValidating ? 'Validation...' : 'Valider ma journée'}
+            {isValidating ? 'Validating...' : 'Validate my day'}
           </button>
         )}
         {platformAccessible && (
           <Link to="/dashboard" className="btn-primary">
-            Accéder au tableau de bord
+            Go to dashboard
           </Link>
         )}
       </div>
@@ -217,39 +216,38 @@ function MyDay() {
           >
             <div className="modal-card-head">
               <div>
-                <p className="modal-card-eyebrow">Tâche supplémentaire</p>
-                <h2 id="extra-request-title">Demander « {requestingTask.title} »</h2>
+                <p className="modal-card-eyebrow">Extra task</p>
+                <h2 id="extra-request-title">Request “{requestingTask.title}”</h2>
               </div>
-              <button type="button" className="modal-card-close" onClick={() => setRequestingTask(null)} aria-label="Fermer">
+              <button type="button" className="modal-card-close" onClick={() => setRequestingTask(null)} aria-label="Close">
                 <IconX />
               </button>
             </div>
 
             <p className="modal-card-hint">
-              Votre journée est déjà validée. Cette tâche sera ajoutée à votre journée une fois approuvée par un
-              administrateur.
+              Your day is already validated. This task will be added to your day once approved by an administrator.
             </p>
 
             <form className="modal-card-form" onSubmit={submitRequest}>
               <label className="modal-field">
-                <span className="modal-label">Message à l'administrateur (facultatif)</span>
+                <span className="modal-label">Message to the administrator (optional)</span>
                 <textarea
                   className="modal-input modal-textarea"
                   rows={3}
                   value={requestMessage}
                   onChange={(e) => setRequestMessage(e.target.value)}
-                  placeholder="Ex : j'ai terminé toutes mes tâches, je peux prendre celle-ci."
+                  placeholder="e.g. I finished all my tasks, I can take this one."
                   autoFocus
                 />
               </label>
 
               <div className="modal-card-foot">
                 <button type="button" className="btn-outline" onClick={() => setRequestingTask(null)}>
-                  Annuler
+                  Cancel
                 </button>
                 <button type="submit" className="btn-primary" disabled={isSending}>
                   {isSending && <span className="btn-spinner" />}
-                  {isSending ? 'Envoi...' : 'Envoyer la demande'}
+                  {isSending ? 'Sending...' : 'Send request'}
                 </button>
               </div>
             </form>
