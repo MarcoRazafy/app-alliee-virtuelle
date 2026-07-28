@@ -216,7 +216,7 @@ async function ask(req, res, next) {
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
     const sessionId = req.body.session_id;
     if (!question) {
-      return res.status(400).json({ error: 'La question est requise' });
+      return res.status(400).json({ error: 'The question is required' });
     }
     // Le front envoie l'id de la conversation en cours ; sinon le modèle en génère un.
     const validSessionId = sessionId && UUID_RE.test(sessionId) ? sessionId : null;
@@ -255,9 +255,9 @@ async function getHistory(req, res, next) {
 async function editConversation(req, res, next) {
   try {
     const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
-    if (!conversation) return res.status(404).json({ error: 'Échange introuvable' });
+    if (!conversation) return res.status(404).json({ error: 'Conversation entry not found' });
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
-    if (!question) return res.status(400).json({ error: 'La question est requise' });
+    if (!question) return res.status(400).json({ error: 'The question is required' });
     const { answer } = await generateAnswer(question, conversation.attachment_name, req.user);
     const updated = await aiModel.updateConversation(req.params.id, req.user.id, { question, answer });
     res.status(200).json(updated);
@@ -269,7 +269,7 @@ async function editConversation(req, res, next) {
 async function deleteConversation(req, res, next) {
   try {
     const count = await aiModel.deleteConversation(req.params.id, req.user.id);
-    if (count === 0) return res.status(404).json({ error: 'Échange introuvable' });
+    if (count === 0) return res.status(404).json({ error: 'Conversation entry not found' });
     res.status(200).json({ deleted: true });
   } catch (err) {
     next(err);
@@ -288,9 +288,9 @@ async function deleteSession(req, res, next) {
 async function renameSession(req, res, next) {
   try {
     const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
-    if (!title) return res.status(400).json({ error: 'Le titre est requis' });
+    if (!title) return res.status(400).json({ error: 'The title is required' });
     const count = await aiModel.renameSession(req.params.sessionId, req.user.id, title.slice(0, 120));
-    if (count === 0) return res.status(404).json({ error: 'Discussion introuvable' });
+    if (count === 0) return res.status(404).json({ error: 'Conversation not found' });
     res.status(200).json({ title: title.slice(0, 120) });
   } catch (err) {
     next(err);

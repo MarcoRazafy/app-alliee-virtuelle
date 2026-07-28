@@ -8,9 +8,12 @@ export const apiBaseUrl = (import.meta.env.VITE_API_URL?.trim() || '').replace(/
 const api = axios.create({
   baseURL: apiBaseUrl,
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 10000,
+  // Envoie le cookie d'authentification httpOnly à chaque requête (same-origin).
+  withCredentials: true,
 });
 
-// Attache le token JWT à chaque requête sortante
+// L'auth repose désormais sur le cookie httpOnly. On garde le fallback Authorization: Bearer
+// au cas où un token serait encore présent (rétrocompatibilité), mais il n'est plus stocké.
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
