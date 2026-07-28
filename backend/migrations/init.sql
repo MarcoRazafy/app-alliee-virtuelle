@@ -205,64 +205,8 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_conversations_admin_id ON ai_conversations(admin_id);
 
--- DONNEES DE TEST
--- Mot de passe en clair pour les deux comptes : test123
-INSERT INTO users (email, password_hash, full_name, phone_number, position, role, status)
-VALUES (
-    'admin@alliee.test',
-    '$2b$10$FzXoiBY3q2wGlBZvcMiAD.tgjfppAukDA6vPu1sbMUV/Fdd3CSqXu',
-    'Admin Test',
-    '+33612345678',
-    'Administrateur',
-    'ADMIN',
-    'ACTIF'
-) ON CONFLICT (email) DO NOTHING;
-
-INSERT INTO users (email, password_hash, full_name, phone_number, position, role, status)
-VALUES (
-    'employee@alliee.test',
-    '$2b$10$FzXoiBY3q2wGlBZvcMiAD.tgjfppAukDA6vPu1sbMUV/Fdd3CSqXu',
-    'Employee Test',
-    '+33687654321',
-    'Développeur',
-    'EMPLOYEE',
-    'ACTIF'
-) ON CONFLICT (email) DO NOTHING;
-
--- 5 tâches de test assignées à employee@alliee.test, statuts et deadlines variés
-INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
-SELECT 'Préparer le rapport mensuel', 'Rassembler les chiffres de vente du mois en cours',
-       (SELECT id FROM users WHERE email = 'employee@alliee.test'),
-       (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'HAUTE', 'DECLAREE', CURRENT_DATE + INTERVAL '5 days', CURRENT_DATE
-WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Préparer le rapport mensuel');
-
-INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
-SELECT 'Mettre à jour le site vitrine', 'Actualiser les tarifs et les visuels de la page d''accueil',
-       (SELECT id FROM users WHERE email = 'employee@alliee.test'),
-       (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'NORMALE', 'VALIDEE', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE
-WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Mettre à jour le site vitrine');
-
-INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
-SELECT 'Répondre aux emails clients', 'Traiter les demandes en attente dans la boîte support',
-       (SELECT id FROM users WHERE email = 'employee@alliee.test'),
-       (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'URGENT', 'VALIDEE', CURRENT_DATE + INTERVAL '1 day', CURRENT_DATE
-WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Répondre aux emails clients');
-
-INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
-SELECT 'Corriger le bug de connexion', 'Investiguer le rapport de bug #142 sur le formulaire de login',
-       (SELECT id FROM users WHERE email = 'employee@alliee.test'),
-       (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'URGENT', 'EN_COURS', CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE - INTERVAL '1 day'
-WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Corriger le bug de connexion');
-
-INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
-SELECT 'Préparer la présentation client', 'Slides pour la réunion de suivi de projet',
-       (SELECT id FROM users WHERE email = 'employee@alliee.test'),
-       (SELECT id FROM users WHERE email = 'admin@alliee.test'),
-       'FAIBLE', 'DECLAREE', CURRENT_DATE + INTERVAL '10 days', CURRENT_DATE
-WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Préparer la présentation client');
+-- (Données de test retirées : une base fraîche ne contient que le schéma.
+--  Le 1er administrateur est créé au déploiement via scripts/bootstrap-admin.js
+--  ou la commande `npm run create-admin`.)
 
 COMMIT;

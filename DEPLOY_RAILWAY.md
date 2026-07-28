@@ -29,6 +29,13 @@ Fichiers déjà prêts à la racine `app/` : `package.json` (orchestration), `ra
 | `JWT_SECRET` | une chaîne longue et aléatoire (≠ celle de dev) |
 | `MISTRAL_API_KEY` | ta clé Mistral (pour le chatbot / l'assistant) |
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (référence, cf. étape 2) |
+| `ADMIN_EMAIL` | `ucan.mih@gmail.com` |
+| `ADMIN_PASSWORD` | ton mot de passe admin (saisi ici comme **secret Railway**, jamais dans Git) |
+| `ADMIN_NAME` | `Admin l'Alliée Virtuelle` |
+
+> Les variables `ADMIN_*` créent **automatiquement** ton compte administrateur au 1er
+> déploiement (voir étape 7). Le login se fait ensuite par **email**. Le mot de passe ne doit
+> **jamais** être écrit dans le code / le dépôt — uniquement ici, dans les variables Railway.
 
 > Le **port** est géré automatiquement (Railway injecte `PORT`, l'app l'utilise).
 > **SSL** : activé automatiquement en production. Si la connexion DB échoue avec une erreur
@@ -45,19 +52,21 @@ disparaissent à chaque redéploiement.
 Déjà défini dans `railway.json` (`/health`). Rien à faire, mais tu peux le vérifier dans
 **Settings → Deploy → Health Check Path** = `/health`.
 
-### 6. Premier déploiement
+### 6. Premier déploiement (base + admin automatiques)
 - Railway lance automatiquement : `npm run build` (build frontend + install backend) puis
-  `npm start` (**migrations** `npm run migrate` + démarrage du serveur).
-- Attends que le déploiement soit **vert** et que le health check passe.
+  `npm start`, qui enchaîne :
+  1. **`npm run migrate`** — crée tout le **schéma** de la base (aucune donnée de test).
+  2. **`npm run bootstrap-admin`** — crée **automatiquement** ton administrateur à partir des
+     variables `ADMIN_*` (idempotent : ignoré si le compte existe déjà, aucun doublon).
+  3. démarrage du serveur (REST + WebSocket + frontend servi).
+- Attends que le déploiement soit **vert** et que le health check `/health` passe.
 
-### 7. Créer le premier administrateur (une fois)
-Sur une base vierge, aucun compte n'existe. Ouvre un **shell** sur le service (ou une commande
-one-off Railway) et lance :
-```bash
-npm --prefix backend run create-admin -- \
-  --email admin@ton-domaine.com --password 'MotDePasseFort' --name "Prénom Nom"
-```
-(ou définis `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` puis lance la commande sans args.)
+### 7. Se connecter
+Rien de manuel : le compte admin (`ucan.mih@gmail.com`) a été créé à l'étape 6.
+- Ouvre le domaine (étape 8) → connecte-toi avec **l'email** et le mot de passe (`ADMIN_PASSWORD`).
+- Besoin d'un **admin supplémentaire** plus tard, ou **réinitialiser** un mot de passe ? Depuis un
+  shell Railway : `npm --prefix backend run create-admin -- --email … --password … --name "…"`
+  (ajouter `--reset-password` pour un compte existant).
 
 ### 8. Exposer le domaine
 - Service → **Settings → Networking** → **Generate Domain**.

@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "migrate": "node scripts/migrate.js",
     "create-admin": "node scripts/create-admin.js",
+    "bootstrap-admin": "node scripts/bootstrap-admin.js",
     "backup": "bash scripts/backup-db.sh",
     "seed:employee-photos": "node scripts/seedEmployeeProfilePhotos.js",
     "test": "node --test test/*.test.js",
