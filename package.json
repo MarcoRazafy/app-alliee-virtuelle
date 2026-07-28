@@ -8,6 +8,6 @@
   },
   "scripts": {
     "build": "npm --prefix frontend ci && npm --prefix frontend run build && npm --prefix backend ci --omit=dev",
-    "start": "cd backend && npm run migrate && node src/index.js"
+    "start": "cd backend && npm run migrate && npm run bootstrap-admin && node src/index.js"
   }
 }
