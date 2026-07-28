@@ -1,7 +1,11 @@
+const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads/attachments');
+// multer.diskStorage échoue si le dossier n'existe pas → on le crée au démarrage
+// (indispensable sur un volume persistant vide, ex. Railway).
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
 
 const ALLOWED_MIME_TYPES = [
