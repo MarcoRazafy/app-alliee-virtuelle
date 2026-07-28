@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const { verifyToken } = require('../utils/jwt.util');
+const { AUTH_COOKIE, parseCookieHeader } = require('../utils/cookies');
 
 // Serveur temps réel (WebSockets via Socket.IO). Remplace le polling pour pousser
 // les événements (nouveaux messages…) instantanément aux bons utilisateurs.
@@ -20,8 +21,9 @@ function initRealtime(httpServer) {
   io.use((socket, next) => {
     const token =
       socket.handshake.auth?.token ||
-      (socket.handshake.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    if (!token) return next(new Error('Token manquant'));
+      (socket.handshake.headers.authorization || '').replace(/^Bearer\s+/i, '') ||
+      parseCookieHeader(socket.handshake.headers.cookie)[AUTH_COOKIE];
+    if (!token) return next(new Error('Token missing'));
     try {
       socket.user = verifyToken(token);
       next();

@@ -56,7 +56,7 @@ async function getPrivateMessages(req, res, next) {
 
     const otherUser = await userModel.findById(userId);
     if (!otherUser) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     const messages = await messageModel.findPrivateMessages(req.user.id, userId);
@@ -80,7 +80,7 @@ async function postPrivateMessage(req, res, next) {
 
     const recipient = await userModel.findById(userId);
     if (!recipient) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     let conversation = await messageModel.findConversationBetween(req.user.id, userId);
@@ -217,7 +217,7 @@ async function canAccessMessage(raw, user) {
 async function editMessage(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
-    if (!raw) return res.status(404).json({ error: 'Message introuvable' });
+    if (!raw) return res.status(404).json({ error: 'Message not found' });
     if (raw.deleted_at) return res.status(400).json({ error: 'Message deleted' });
     if (raw.author_id !== req.user.id) {
       return res.status(403).json({ error: 'Vous ne pouvez modifier que vos propres messages' });
@@ -234,7 +234,7 @@ async function editMessage(req, res, next) {
 async function deleteMessage(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
-    if (!raw) return res.status(404).json({ error: 'Message introuvable' });
+    if (!raw) return res.status(404).json({ error: 'Message not found' });
     // L'auteur ou un administrateur peut supprimer.
     if (raw.author_id !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Deletion not allowed' });
@@ -253,7 +253,7 @@ async function reactMessage(req, res, next) {
       return res.status(400).json({ error: 'Reaction not allowed' });
     }
     const raw = await messageModel.findRawMessageById(req.params.id);
-    if (!raw || raw.deleted_at) return res.status(404).json({ error: 'Message introuvable' });
+    if (!raw || raw.deleted_at) return res.status(404).json({ error: 'Message not found' });
     if (!(await canAccessMessage(raw, req.user))) {
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -282,7 +282,7 @@ async function getMessageAttachment(req, res, next) {
 async function getGroupAvatar(req, res, next) {
   try {
     const avatarPath = await messageModel.findGroupAvatarForMember(req.params.groupId, req.user.id);
-    if (!avatarPath) return res.status(404).json({ error: 'Avatar introuvable' });
+    if (!avatarPath) return res.status(404).json({ error: 'Avatar not found' });
     res.sendFile(avatarPath);
   } catch (err) {
     next(err);

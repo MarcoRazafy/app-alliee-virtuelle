@@ -338,7 +338,7 @@ function makeSubmitPlanning(weekMode) {
 
       const planning = await planningModel.findPlanningByUserAndWeek(req.user.id, weekStart);
       if (!planning) {
-        return res.status(404).json({ error: 'Planning introuvable.' });
+        return res.status(404).json({ error: 'Schedule not found.' });
       }
 
       const days = await planningModel.findDaysWithSlots(planning.id);
@@ -513,7 +513,7 @@ async function adminGetPlanningDetail(req, res, next) {
     const { planningId } = req.params;
     const planning = await planningModel.findPlanningById(planningId);
     if (!planning) {
-      return res.status(404).json({ error: 'Planning introuvable.' });
+      return res.status(404).json({ error: 'Schedule not found.' });
     }
 
     const weekStart = toDateString(planning.week_start_date);
@@ -540,7 +540,7 @@ async function adminUpdatePlanning(req, res, next) {
     // Le motif est désormais facultatif : une modification peut être enregistrée sans motif.
     const planning = await planningModel.findPlanningById(planningId);
     if (!planning) {
-      return res.status(404).json({ error: 'Planning introuvable.' });
+      return res.status(404).json({ error: 'Schedule not found.' });
     }
 
     const weekStart = toDateString(planning.week_start_date);
@@ -607,7 +607,7 @@ async function adminCreatePlanningForUser(req, res, next) {
   try {
     const { user_id: userId, week_start_date: weekStartDate } = req.body;
     if (!userId || !weekStartDate) {
-      return res.status(400).json({ error: 'user_id et week_start_date sont requis.' });
+      return res.status(400).json({ error: 'user_id and week_start_date are required.' });
     }
 
     const existing = await planningModel.findPlanningByUserAndWeek(userId, weekStartDate);
@@ -674,7 +674,7 @@ async function adminPlanningHistory(req, res, next) {
     const { planningId } = req.params;
     const planning = await planningModel.findPlanningById(planningId);
     if (!planning) {
-      return res.status(404).json({ error: 'Planning introuvable.' });
+      return res.status(404).json({ error: 'Schedule not found.' });
     }
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
