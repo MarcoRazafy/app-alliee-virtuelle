@@ -7,6 +7,8 @@ const sessionModel = require('../models/session.model');
 const realtime = require('../realtime/io');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
+const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
+const env = require('../config/env');
 
 const SALT_ROUNDS = 10;
 
@@ -32,7 +34,7 @@ async function register(req, res, next) {
     }
     const existingUsername = await userModel.findByUsername(normalizedUsername);
     if (existingUsername) {
-      return res.status(409).json({ error: "Ce nom d'utilisateur est déjà pris" });
+      return res.status(409).json({ error: 'This username is already taken' });
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -63,19 +65,19 @@ async function login(req, res, next) {
 
     const user = await userModel.findByEmailOrUsername(identifier);
     if (!user) {
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+      return res.status(401).json({ error: 'Incorrect email or password' });
     }
 
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatches) {
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+      return res.status(401).json({ error: 'Incorrect email or password' });
     }
 
     if (user.status === userModel.USER_STATUS.PENDING) {
-      return res.status(403).json({ error: 'Compte en attente de validation par un administrateur' });
+      return res.status(403).json({ error: 'Account awaiting approval by an administrator' });
     }
     if (user.status === userModel.USER_STATUS.SUSPENDED) {
-      return res.status(403).json({ error: 'Compte suspendu' });
+      return res.status(403).json({ error: 'Account suspended' });
     }
     if (user.status === userModel.USER_STATUS.REJECTED) {
       return res.status(403).json({ error: 'Account rejected' });
@@ -92,6 +94,10 @@ async function login(req, res, next) {
     await sessionModel.startSession(user.id);
     // Nouvelle présence (arrivée) → rafraîchit le dashboard temps réel des admins.
     realtime.broadcast('presence:update', {});
+
+    // Le navigateur reçoit le token dans un cookie httpOnly (invisible au JS → anti-XSS).
+    // Le token reste aussi dans le corps pour les clients non-navigateur (tests, API).
+    res.cookie(AUTH_COOKIE, token, authCookieOptions(env.nodeEnv));
 
     res.status(200).json({
       token,
@@ -113,7 +119,7 @@ async function me(req, res, next) {
   try {
     const user = await userModel.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
     const avatar = await avatarModel.findByUserId(req.user.id);
 
@@ -193,7 +199,7 @@ async function updateProfile(req, res, next) {
 async function uploadAvatar(req, res, next) {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Image requise' });
+      return res.status(400).json({ error: 'Image required' });
     }
 
     const previous = await avatarModel.findByUserId(req.user.id);
@@ -221,7 +227,7 @@ async function getMyAvatar(req, res, next) {
   try {
     const avatar = await avatarModel.findByUserId(req.user.id);
     if (!avatar) {
-      return res.status(404).json({ error: 'Aucune photo de profil' });
+      return res.status(404).json({ error: 'No profile photo' });
     }
 
     res.sendFile(avatar.file_path);
@@ -241,7 +247,7 @@ async function changePassword(req, res, next) {
     const user = await userModel.findById(req.user.id);
     const passwordMatches = await bcrypt.compare(currentPassword || '', user.password_hash);
     if (!passwordMatches) {
-      return res.status(400).json({ error: 'Mot de passe actuel incorrect' });
+      return res.status(400).json({ error: 'Current password is incorrect' });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
@@ -270,6 +276,9 @@ async function logout(req, res, next) {
 
     // Ferme aussi le chrono de connexion (présence), indépendant du chrono de tâche ci-dessus.
     await sessionModel.closeOpenSessions(req.user.id);
+
+    // Supprime le cookie d'authentification côté navigateur.
+    res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(env.nodeEnv), maxAge: undefined });
 
     res.status(200).json({ message: 'Successfully logged out' });
   } catch (err) {

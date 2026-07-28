@@ -32,7 +32,7 @@ async function askMistral(messages) {
 
   if (!response.ok) {
     const body = await response.text();
-    const err = new Error(`Erreur API Mistral (${response.status})`);
+    const err = new Error(`Mistral API error (${response.status})`);
     err.status = 502;
     err.details = body;
     throw err;

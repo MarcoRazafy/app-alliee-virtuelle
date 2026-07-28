@@ -13,7 +13,9 @@ function extractErrorMessage(err, fallback) {
 
 const useAuthStore = create((set, get) => ({
   user: authService.getUser(),
-  isAuthenticated: !!authService.getToken(),
+  // Le token vit dans un cookie httpOnly (invisible au JS) : on déduit l'état connecté de la
+  // présence de l'objet utilisateur. Un cookie expiré → 401 → nettoyage + redirection login.
+  isAuthenticated: !!authService.getUser(),
   error: null,
   // null = pas encore vérifié (ex: rechargement de page), true/false = état connu
   dayValidated: null,
@@ -22,8 +24,9 @@ const useAuthStore = create((set, get) => ({
     set({ error: null });
     try {
       const response = await api.post('/api/auth/login', { identifier, password });
-      const { token, user } = response.data;
-      authService.setToken(token);
+      const { user } = response.data;
+      // On NE stocke PAS le token côté JS : il est déjà posé en cookie httpOnly par le backend.
+      // Seul l'objet utilisateur (non sensible) est conservé pour l'affichage / la reprise de session.
       authService.setUser(user);
       // La vérification serveur décide si l'employé doit valider sa journée. Elle autorise
       // immédiatement la plateforme lorsqu'aucune tâche actionnable ne lui est assignée.
