@@ -27,9 +27,28 @@ const app = express();
 // récupérer la vraie IP client (utile au rate-limiting). Sans effet en local direct.
 app.set('trust proxy', 1);
 
-// En-têtes de sécurité HTTP (X-Content-Type-Options, HSTS, referrer-policy, …).
-// Sûr sur une API JSON. Sans effet indésirable en local.
-app.use(helmet());
+// En-têtes de sécurité HTTP (X-Content-Type-Options, HSTS, referrer-policy, …) + CSP.
+// La CSP par défaut de Helmet bloquerait des choses dont l'app a besoin ; on l'ajuste :
+// - blob: pour les images/avatars ET les messages vocaux affichés via URL.createObjectURL,
+// - Google Fonts (feuille de style + fichiers de police),
+// - 'unsafe-inline' pour le petit script inline du thème (anti-flash) et les styles inline React,
+// - ws:/wss: pour le temps réel Socket.IO (même origine).
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        mediaSrc: ["'self'", 'blob:'],
+        connectSrc: ["'self'", 'ws:', 'wss:'],
+        objectSrc: ["'none'"],
+      },
+    },
+  })
+);
 
 app.use(cors());
 // Limite la taille des corps JSON (les fichiers passent par multer, pas par ici).
