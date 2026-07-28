@@ -1,3 +1,4 @@
+const { sendFileOr404 } = require('../utils/sendFile');
 const db = require('../config/database');
 const messageModel = require('../models/message.model');
 const userModel = require('../models/user.model');
@@ -283,7 +284,7 @@ async function getGroupAvatar(req, res, next) {
   try {
     const avatarPath = await messageModel.findGroupAvatarForMember(req.params.groupId, req.user.id);
     if (!avatarPath) return res.status(404).json({ error: 'Avatar not found' });
-    res.sendFile(avatarPath);
+    return sendFileOr404(res, avatarPath, 'Avatar not found');
   } catch (err) {
     next(err);
   }

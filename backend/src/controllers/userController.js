@@ -2,6 +2,7 @@ const db = require('../config/database');
 const userModel = require('../models/user.model');
 const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
+const { sendFileOr404 } = require('../utils/sendFile');
 
 // Annuaire minimal, ouvert à tout utilisateur connecté (nécessaire pour démarrer une conversation)
 async function listDirectory(req, res, next) {
@@ -29,7 +30,7 @@ async function getUserAvatar(req, res, next) {
       return res.status(404).json({ error: 'No profile photo' });
     }
 
-    res.sendFile(avatar.file_path);
+    return sendFileOr404(res, avatar.file_path, 'No profile photo');
   } catch (err) {
     next(err);
   }
