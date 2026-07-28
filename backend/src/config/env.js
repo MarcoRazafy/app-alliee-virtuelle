@@ -1,8 +1,25 @@
 require('dotenv').config();
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+
+// Fail-fast : en PRODUCTION, on refuse de démarrer si une variable critique manque, avec un
+// message clair — plutôt que de laisser fuiter une erreur cryptique au premier appel JWT/DB.
+// En dev/test, on se contente d'un avertissement (les valeurs viennent en général de .env).
+const REQUIRED_IN_PROD = ['DATABASE_URL', 'JWT_SECRET'];
+const missing = REQUIRED_IN_PROD.filter((key) => !process.env[key] || !process.env[key].trim());
+if (missing.length > 0) {
+  const msg = `Variables d'environnement requises manquantes : ${missing.join(', ')}`;
+  if (nodeEnv === 'production') {
+    console.error(`❌ ${msg}. Démarrage annulé.`);
+    process.exit(1);
+  } else {
+    console.warn(`⚠️  ${msg} (toléré en ${nodeEnv}, mais OBLIGATOIRE en production).`);
+  }
+}
+
 module.exports = {
   port: process.env.API_PORT || 3001,
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiry: process.env.JWT_EXPIRY || '7d',

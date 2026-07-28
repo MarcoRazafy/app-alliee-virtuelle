@@ -21,12 +21,12 @@ async function getUserAvatar(req, res, next) {
 
     // L'annuaire de messagerie n'expose que les membres actifs de l'équipe.
     if (!user || user.status !== userModel.USER_STATUS.ACTIVE) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     const avatar = await avatarModel.findByUserId(id);
     if (!avatar) {
-      return res.status(404).json({ error: 'Aucune photo de profil' });
+      return res.status(404).json({ error: 'No profile photo' });
     }
 
     res.sendFile(avatar.file_path);
@@ -59,7 +59,7 @@ async function approveUser(req, res, next) {
     const { id } = req.params;
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
     if (user.status !== userModel.USER_STATUS.PENDING) {
       return res.status(400).json({ error: 'Only a pending account can be approved' });
@@ -86,7 +86,7 @@ async function rejectUser(req, res, next) {
 
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
     if (user.status !== userModel.USER_STATUS.PENDING) {
       return res.status(400).json({ error: 'Only a pending account can be rejected' });
@@ -122,7 +122,7 @@ async function suspendUser(req, res, next) {
 
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
     if (user.status !== userModel.USER_STATUS.ACTIVE) {
       return res.status(400).json({ error: 'Only an active account can be suspended' });
@@ -147,7 +147,7 @@ async function activateUser(req, res, next) {
     const { id } = req.params;
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
     if (user.status !== userModel.USER_STATUS.SUSPENDED) {
       return res.status(400).json({ error: 'Only a suspended account can be reactivated' });
@@ -177,7 +177,7 @@ async function promoteUser(req, res, next) {
 
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
     if (user.role !== userModel.USER_ROLE.EMPLOYEE) {
       return res.status(400).json({ error: 'Only an employee can be promoted to administrator' });
@@ -202,7 +202,7 @@ async function getUserDetail(req, res, next) {
     const { id } = req.params;
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     const today = new Date().toISOString().slice(0, 10);

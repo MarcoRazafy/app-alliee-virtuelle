@@ -54,7 +54,7 @@ async function updateSpace(req, res, next) {
     }
     const space = await hierarchyModel.findSpaceById(id);
     if (!space || space.deleted_at) {
-      return res.status(404).json({ error: 'Espace introuvable' });
+      return res.status(404).json({ error: 'Space not found' });
     }
     const updated = await hierarchyModel.updateSpace(id, { name, description });
     if (!updated) {
@@ -78,7 +78,7 @@ async function deleteSpace(req, res, next) {
     const { id } = req.params;
     const space = await hierarchyModel.findSpaceById(id);
     if (!space || space.deleted_at) {
-      return res.status(404).json({ error: 'Espace introuvable' });
+      return res.status(404).json({ error: 'Space not found' });
     }
     const deleted = await hierarchyModel.deleteSpace(id, req.user.id);
     if (!deleted) {
@@ -119,11 +119,11 @@ async function createFolder(req, res, next) {
       return res.status(400).json({ error: 'The folder name is required (max 150 characters)' });
     }
     if (!spaceId) {
-      return res.status(400).json({ error: 'space_id est requis' });
+      return res.status(400).json({ error: 'space_id is required' });
     }
     const space = await hierarchyModel.findSpaceById(spaceId);
     if (!space || space.deleted_at) {
-      return res.status(400).json({ error: 'Espace introuvable' });
+      return res.status(400).json({ error: 'Space not found' });
     }
     const folder = await hierarchyModel.createFolder({ spaceId, name });
     await taskModel.recordAudit({
@@ -148,7 +148,7 @@ async function updateFolder(req, res, next) {
     }
     const folder = await hierarchyModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Dossier introuvable' });
+      return res.status(404).json({ error: 'Folder not found' });
     }
     const updated = await hierarchyModel.updateFolder(id, name);
     if (!updated) {
@@ -172,7 +172,7 @@ async function deleteFolder(req, res, next) {
     const { id } = req.params;
     const folder = await hierarchyModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Dossier introuvable' });
+      return res.status(404).json({ error: 'Folder not found' });
     }
     const deleted = await hierarchyModel.deleteFolder(id, req.user.id);
     if (!deleted) {
@@ -213,11 +213,11 @@ async function createList(req, res, next) {
       return res.status(400).json({ error: 'The list name is required (max 150 characters)' });
     }
     if (!folderId) {
-      return res.status(400).json({ error: 'folder_id est requis' });
+      return res.status(400).json({ error: 'folder_id is required' });
     }
     const folder = await hierarchyModel.findFolderById(folderId);
     if (!folder || folder.deleted_at) {
-      return res.status(400).json({ error: 'Dossier introuvable' });
+      return res.status(400).json({ error: 'Folder not found' });
     }
     const list = await hierarchyModel.createList({ folderId, name });
     await taskModel.recordAudit({
@@ -242,7 +242,7 @@ async function updateList(req, res, next) {
     }
     const list = await hierarchyModel.findListById(id);
     if (!list) {
-      return res.status(404).json({ error: 'Liste introuvable' });
+      return res.status(404).json({ error: 'List not found' });
     }
     const updated = await hierarchyModel.updateList(id, name);
     await taskModel.recordAudit({
@@ -263,7 +263,7 @@ async function deleteList(req, res, next) {
     const { id } = req.params;
     const list = await hierarchyModel.findListById(id);
     if (!list || list.deleted_at) {
-      return res.status(404).json({ error: 'Projet introuvable' });
+      return res.status(404).json({ error: 'Project not found' });
     }
     const deleted = await hierarchyModel.deleteList(id, req.user.id);
     if (!deleted) {

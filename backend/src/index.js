@@ -3,11 +3,22 @@ const env = require('./config/env');
 const app = require('./app');
 const db = require('./config/database');
 const { initRealtime } = require('./realtime/io');
+const { initObservability, captureError } = require('./config/observability');
 const sessionModel = require('./models/session.model');
+
+// Monitoring d'erreurs optionnel (inerte sans SENTRY_DSN — voir config/observability.js).
+initObservability();
 
 // Serveur HTTP explicite pour héberger à la fois Express (REST) et Socket.IO (WebSockets).
 const server = http.createServer(app);
 initRealtime(server);
+
+// Les rejets de promesse non gérés ne doivent pas passer inaperçus : on les journalise et on
+// les remonte au monitoring (sans faire crasher le process, contrairement à uncaughtException).
+process.on('unhandledRejection', (reason) => {
+  console.error('Rejet de promesse non géré :', reason);
+  captureError(reason instanceof Error ? reason : new Error(String(reason)));
+});
 
 server.listen(env.port, () => {
   console.log(`API démarrée sur http://localhost:${env.port} (REST + WebSocket)`);

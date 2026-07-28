@@ -554,7 +554,7 @@ async function rejectTask(req, res, next) {
     const { motif } = req.body;
 
     if (!motif || !motif.trim()) {
-      return res.status(400).json({ error: 'Le motif est requis' });
+      return res.status(400).json({ error: 'The reason is required' });
     }
 
     const task = await taskModel.findById(id);
@@ -619,7 +619,7 @@ async function createComment(req, res, next) {
     const { content } = req.body;
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ error: 'Le contenu est requis' });
+      return res.status(400).json({ error: 'The content is required' });
     }
 
     const task = await taskModel.findById(id);
@@ -666,7 +666,7 @@ async function createNote(req, res, next) {
     const { content } = req.body;
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ error: 'Le contenu est requis' });
+      return res.status(400).json({ error: 'The content is required' });
     }
 
     const task = await taskModel.findById(id);
@@ -726,7 +726,7 @@ async function uploadAttachment(req, res, next) {
       return res.status(403).json({ error: 'Access denied to this task' });
     }
     if (!req.file) {
-      return res.status(400).json({ error: 'Fichier requis' });
+      return res.status(400).json({ error: 'File required' });
     }
 
     const attachment = await taskModel.createAttachment({
@@ -749,7 +749,7 @@ async function downloadAttachment(req, res, next) {
     const { fileId } = req.params;
     const attachment = await taskModel.findAttachmentById(fileId);
     if (!attachment) {
-      return res.status(404).json({ error: 'Fichier introuvable' });
+      return res.status(404).json({ error: 'File not found' });
     }
 
     const task = await taskModel.findById(attachment.task_id);
@@ -768,7 +768,7 @@ async function deleteAttachment(req, res, next) {
     const { id, fileId } = req.params;
     const attachment = await taskModel.findAttachmentById(fileId);
     if (!attachment || attachment.task_id !== id) {
-      return res.status(404).json({ error: 'Fichier introuvable' });
+      return res.status(404).json({ error: 'File not found' });
     }
 
     const task = await taskModel.findById(id);
@@ -800,7 +800,7 @@ async function createExtraTaskRequest(req, res, next) {
   try {
     const { task_id: taskId, message } = req.body;
     if (!taskId) {
-      return res.status(400).json({ error: 'task_id est requis' });
+      return res.status(400).json({ error: 'task_id is required' });
     }
 
     const date = todayDateString();
@@ -809,7 +809,7 @@ async function createExtraTaskRequest(req, res, next) {
     const selection = await taskModel.findDailySelection(req.user.id, date);
     const dayValidated = selection.length > 0 && selection.every((row) => row.validated_at);
     if (!dayValidated) {
-      return res.status(400).json({ error: "Validez d'abord votre journée avant de demander une tâche supplémentaire" });
+      return res.status(400).json({ error: 'Validate your day first before requesting an extra task' });
     }
 
     const task = await taskModel.findById(taskId);
