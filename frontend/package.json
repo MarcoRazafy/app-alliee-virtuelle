@@ -2,12 +2,33 @@
   "name": "frontend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "scripts": {
+    "dev": "vite",
+    "dev:lan": "vite --mode lan",
+    "cert:lan": "bash scripts/generate-lan-cert.sh",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --import ./test/register.mjs --test 'src/**/*.test.js' 'src/**/*.test.jsx'"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "html2pdf.js": "^0.10.3",
+    "react": "^18.2.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^6.30.4",
+    "socket.io-client": "^4.8.3",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.2.0"
+  }
 }

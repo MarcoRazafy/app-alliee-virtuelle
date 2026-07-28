@@ -1,0 +1,41 @@
+require('dotenv').config();
+
+const nodeEnv = process.env.NODE_ENV || 'development';
+
+// Fail-fast : en PRODUCTION, on refuse de démarrer si une variable critique manque, avec un
+// message clair — plutôt que de laisser fuiter une erreur cryptique au premier appel JWT/DB.
+// En dev/test, on se contente d'un avertissement (les valeurs viennent en général de .env).
+const REQUIRED_IN_PROD = ['DATABASE_URL', 'JWT_SECRET'];
+const missing = REQUIRED_IN_PROD.filter((key) => !process.env[key] || !process.env[key].trim());
+if (missing.length > 0) {
+  const msg = `Variables d'environnement requises manquantes : ${missing.join(', ')}`;
+  if (nodeEnv === 'production') {
+    console.error(`❌ ${msg}. Démarrage annulé.`);
+    process.exit(1);
+  } else {
+    console.warn(`⚠️  ${msg} (toléré en ${nodeEnv}, mais OBLIGATOIRE en production).`);
+  }
+}
+
+module.exports = {
+  // Railway/Render/Fly injectent le port via PORT → prioritaire. API_PORT reste pour le dev local.
+  port: process.env.PORT || process.env.API_PORT || 3001,
+  nodeEnv,
+  databaseUrl: process.env.DATABASE_URL,
+  jwtSecret: process.env.JWT_SECRET,
+  jwtExpiry: process.env.JWT_EXPIRY || '7d',
+  mistralApiKey: process.env.MISTRAL_API_KEY,
+  mistralModel: process.env.MISTRAL_MODEL || 'mistral-medium',
+  planningTimezone: process.env.PLANNING_TIMEZONE || 'Indian/Antananarivo',
+  // Le frontend envoie un heartbeat toutes les 20 secondes. Après ce délai, une session
+  // ouverte sans activité récente n'est plus considérée en ligne ni prolongée indéfiniment.
+  presenceHeartbeatTimeoutSeconds: Math.max(45, Number(process.env.PRESENCE_HEARTBEAT_TIMEOUT_SECONDS) || 60),
+  // pagehide est aussi émis lors d'un simple rechargement. Cette courte tolérance laisse
+  // le nouveau document annuler la demande avant de clôturer réellement présence + tâche.
+  presenceDisconnectGraceSeconds: Math.max(20, Number(process.env.PRESENCE_DISCONNECT_GRACE_SECONDS) || 30),
+  presenceCleanupIntervalSeconds: Math.max(5, Number(process.env.PRESENCE_CLEANUP_INTERVAL_SECONDS) || 10),
+  // Bascule de TEST uniquement : force la fenêtre de saisie employé (samedi/dimanche) à
+  // rester ouverte en permanence, pour pouvoir qualifier l'interface sans attendre le week-end.
+  // Doit rester à false hors environnement de test/démo (voir .env.example).
+  planningForceEditWindow: process.env.PLANNING_FORCE_EDIT_WINDOW === 'true',
+};

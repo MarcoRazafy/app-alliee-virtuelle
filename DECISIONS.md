@@ -11,7 +11,7 @@
 
 | # | Arbitrage | Décision |
 |---|-----------|----------|
-| 1 | **Statut final unique** | Déclarée → Validée → En cours → Terminée → Confirmée |
+| 1 | **Statut final unique** | Déclarée → En cours → Terminée → Confirmée |
 | 2 | **Définition des KPI** | Les deux comptent séparément (taux termination vs taux validation) |
 | 3 | **Notes vs Commentaires** | Notes = admin seul \| Commentaires = employé visible |
 | 4 | **Messagerie privée** | Non - Conversations privées totalement fermées aux admins |
@@ -26,13 +26,12 @@
 ### Workflow complet des statuts
 
 ```
-Déclarée → Validée → En cours → Terminée → Confirmée
+Déclarée → En cours → Terminée → Confirmée
 ```
 
 ### Explication
 
-- **Déclarée** : Tâche créée par l'admin, pas encore visible à l'employé
-- **Validée** : Admin a validé la tâche, elle peut être sélectionnée dans "Ma journée"
+- **Déclarée** : Tâche envoyée par l'admin, visible et sélectionnable par l'employé
 - **En cours** : Employé a démarré le chrono, travaille activement
 - **Terminée** : Employé a arrêté le chrono, marque la tâche complétée (auto-déclaration)
 - **Confirmée** : Admin a validé le travail, tâche finalisée (état final)
@@ -41,8 +40,7 @@ Déclarée → Validée → En cours → Terminée → Confirmée
 
 - Chaque transition doit être tracée dans l'historique avec timestamp et responsable
 - Transitions possibles :
-  - Déclarée → Validée (admin uniquement)
-  - Validée → En cours (employé au démarrage du chrono)
+  - Déclarée → En cours (employé au démarrage du chrono)
   - En cours → Terminée (employé à l'arrêt du chrono)
   - Terminée → Confirmée (admin confirme)
   - Terminée → En cours (employé redémarre le chrono)

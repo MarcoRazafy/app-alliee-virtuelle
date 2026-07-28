@@ -1,0 +1,324 @@
+{
+  "generated_at": "2026-07-24T09:27:36.236Z",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "counts": {
+    "public": 2,
+    "employee": 11,
+    "admin": 15,
+    "total": 28
+  },
+  "complete": true,
+  "captures": [
+    {
+      "file": "00-public/01-connexion.png",
+      "route": "/login",
+      "title": "Connexion",
+      "summary": "Cette page ouvre une session sécurisée dans L’Alliée Virtuelle. L’application reconnaît ensuite le rôle du compte et dirige automatiquement vers l’espace employé ou administrateur.",
+      "steps": [
+        "Saisir l’adresse e-mail ou le nom d’utilisateur.",
+        "Saisir le mot de passe puis cliquer sur « Se connecter ».",
+        "Utiliser le lien « S’inscrire » lorsqu’aucun compte n’existe encore."
+      ]
+    },
+    {
+      "file": "00-public/02-inscription.png",
+      "route": "/register",
+      "title": "Inscription",
+      "summary": "Cette page permet de demander la création d’un compte employé. Les informations saisies constituent le profil qui sera ensuite contrôlé par un administrateur.",
+      "steps": [
+        "Renseigner les informations personnelles et professionnelles demandées.",
+        "Choisir un identifiant et un mot de passe conforme.",
+        "Envoyer la demande puis attendre l’activation du compte par un administrateur."
+      ]
+    },
+    {
+      "file": "02-admin/01-vue-ensemble.png",
+      "route": "/admin",
+      "title": "Vue d’ensemble administrateur",
+      "summary": "Cette page offre une vue en temps réel de l’équipe : employés connectés, tâches en cours, retards et principaux indicateurs. Elle aide l’administrateur à repérer rapidement les situations nécessitant une action.",
+      "steps": [
+        "Observer les indicateurs globaux et les alertes.",
+        "Filtrer les employés ou les tâches pour cibler une situation.",
+        "Ouvrir la fiche d’un employé pour consulter son activité détaillée."
+      ]
+    },
+    {
+      "file": "02-admin/02-creer-une-tache.png",
+      "route": "/admin/create-task",
+      "title": "Créer une tâche",
+      "summary": "Le formulaire de création permet de formaliser un travail et de l’assigner à un employé. La tâche entre ensuite dans le circuit de validation prévu par l’application.",
+      "steps": [
+        "Saisir le titre, la description et les dates utiles.",
+        "Choisir l’employé, la priorité et éventuellement la liste ou le projet.",
+        "Créer la tâche puis la retrouver dans la vue Projets ou dans les contrôles à effectuer."
+      ]
+    },
+    {
+      "file": "02-admin/03-projets.png",
+      "route": "/admin/lists",
+      "title": "Projets et listes",
+      "summary": "Cette page organise l’ensemble des tâches par listes ou projets. Elle fournit une vision transversale du travail de l’équipe et facilite le classement des nouvelles tâches.",
+      "steps": [
+        "Sélectionner une liste ou utiliser les filtres disponibles.",
+        "Comparer les tâches, leurs responsables et leurs statuts.",
+        "Créer une liste, ajouter une tâche ou ouvrir un élément pour intervenir."
+      ]
+    },
+    {
+      "file": "02-admin/04-taches-a-controler.png",
+      "route": "/admin/validate",
+      "title": "Tâches à contrôler",
+      "summary": "Cette page centralise les déclarations de nouvelles tâches et les livraisons terminées qui attendent une décision administrative.",
+      "steps": [
+        "Filtrer les éléments selon leur état de validation.",
+        "Examiner la description, l’employé et les preuves fournies.",
+        "Valider, confirmer ou rejeter en ajoutant une explication lorsque nécessaire."
+      ]
+    },
+    {
+      "file": "02-admin/05-taches-en-retard.png",
+      "route": "/admin/late",
+      "title": "Tâches en retard",
+      "summary": "Cette vue regroupe les tâches dont l’échéance est dépassée et qui ne sont pas encore clôturées. Elle sert à prioriser les relances et les réaffectations.",
+      "steps": [
+        "Identifier les retards les plus urgents.",
+        "Vérifier le responsable, le statut courant et la date limite.",
+        "Ouvrir la tâche ou contacter l’employé pour décider de la suite."
+      ]
+    },
+    {
+      "file": "02-admin/06-demandes-de-tache.png",
+      "route": "/admin/task-requests",
+      "title": "Demandes de tâche supplémentaire",
+      "summary": "Les employés ayant terminé leur programme peuvent demander une tâche supplémentaire. Cette page permet à l’administrateur d’autoriser ou de refuser l’ajout.",
+      "steps": [
+        "Consulter la tâche demandée, le message et l’employé concerné.",
+        "Approuver pour ajouter la tâche à la journée déjà validée.",
+        "Refuser si nécessaire en laissant une note compréhensible."
+      ]
+    },
+    {
+      "file": "02-admin/07-statistiques-equipe.png",
+      "route": "/admin/stats",
+      "title": "Statistiques de l’équipe",
+      "summary": "Cette page consolide les données de performance de l’équipe : temps, volumes de tâches, tendances et comparaisons entre employés sur une période choisie.",
+      "steps": [
+        "Définir la période et les filtres d’analyse.",
+        "Lire les indicateurs globaux puis comparer les graphiques.",
+        "Descendre au niveau des employés ou des tâches pour expliquer les résultats."
+      ]
+    },
+    {
+      "file": "02-admin/08-planning-equipe.png",
+      "route": "/admin/planning",
+      "title": "Planning de l’équipe",
+      "summary": "L’onglet Planning permet de contrôler les horaires hebdomadaires soumis par les employés et d’assurer une couverture cohérente de l’activité.",
+      "steps": [
+        "Choisir la semaine et filtrer les collaborateurs.",
+        "Examiner les horaires soumis et les anomalies éventuelles.",
+        "Modifier, verrouiller ou compléter le planning selon les règles de gestion."
+      ]
+    },
+    {
+      "file": "02-admin/09-presence-equipe.png",
+      "route": "/admin/planning",
+      "title": "Présence de l’équipe",
+      "summary": "L’onglet Présence montre les connexions réelles et les durées de présence. Il aide à distinguer le planning prévu de l’activité effectivement observée.",
+      "steps": [
+        "Ouvrir l’onglet « Présence » et choisir la période.",
+        "Comparer les durées et les plages de connexion par employé.",
+        "Ouvrir un détail ou demander une déconnexion lorsqu’une session doit être fermée."
+      ]
+    },
+    {
+      "file": "02-admin/10-assistant-ia.png",
+      "route": "/admin/assistant",
+      "title": "Assistant IA",
+      "summary": "L’assistant aide l’administrateur à interroger les données de l’activité en langage naturel et à conserver un historique d’analyses ou de recommandations.",
+      "steps": [
+        "Commencer une nouvelle conversation ou reprendre une session de l’historique.",
+        "Poser une question précise et joindre un document si nécessaire.",
+        "Contrôler la réponse, puis renommer, corriger ou supprimer la session selon le besoin."
+      ]
+    },
+    {
+      "file": "02-admin/11-equipe-utilisateurs.png",
+      "route": "/admin/users",
+      "title": "Équipe et utilisateurs",
+      "summary": "Cette page gère le cycle de vie des comptes : demandes d’inscription, activation, suspension, rôles et consultation des informations d’un membre.",
+      "steps": [
+        "Filtrer les comptes par statut ou rechercher une personne.",
+        "Ouvrir la fiche pour vérifier les informations et l’activité.",
+        "Approuver, refuser, suspendre ou promouvoir uniquement lorsque la situation le justifie."
+      ]
+    },
+    {
+      "file": "02-admin/12-messagerie.png",
+      "route": "/admin/messaging",
+      "title": "Messagerie administrateur",
+      "summary": "La messagerie administrateur réunit les échanges collectifs, privés et de groupe avec les employés. Elle facilite les relances et le partage de contexte.",
+      "steps": [
+        "Choisir le canal ou le collaborateur à contacter.",
+        "Consulter l’historique et les fichiers déjà partagés.",
+        "Envoyer un message, une pièce jointe, une réaction ou créer un groupe si nécessaire."
+      ]
+    },
+    {
+      "file": "02-admin/13-ressources-internes.png",
+      "route": "/admin/resources",
+      "title": "Gestion des ressources internes",
+      "summary": "Cette vue permet de structurer la documentation interne et de contrôler précisément qui peut accéder à chaque dossier ou document.",
+      "steps": [
+        "Créer ou sélectionner un dossier interne.",
+        "Ajouter, éditer, renommer ou supprimer les fichiers nécessaires.",
+        "Partager le dossier avec les employés en choisissant les droits et une éventuelle expiration."
+      ]
+    },
+    {
+      "file": "02-admin/14-ressources-clients.png",
+      "route": "/admin/resources",
+      "title": "Gestion des ressources clients",
+      "summary": "L’onglet Client sépare les livrables et documents externes des ressources internes. L’administrateur maîtrise le classement et les autorisations de chaque dossier.",
+      "steps": [
+        "Ouvrir l’onglet « Client » puis choisir ou créer un dossier.",
+        "Téléverser ou créer les fichiers liés au client.",
+        "Définir les personnes autorisées et leur niveau d’accès."
+      ]
+    },
+    {
+      "file": "02-admin/15-profil.png",
+      "route": "/admin/profile",
+      "title": "Profil administrateur",
+      "summary": "Cette page permet à l’administrateur de maintenir ses propres informations de compte, son avatar et ses paramètres de sécurité.",
+      "steps": [
+        "Vérifier et mettre à jour les coordonnées autorisées.",
+        "Ajouter ou remplacer la photo de profil.",
+        "Changer le mot de passe depuis la section sécurité."
+      ]
+    },
+    {
+      "file": "01-employe/01-tableau-de-bord.png",
+      "route": "/dashboard",
+      "title": "Tableau de bord employé",
+      "summary": "Le tableau de bord résume la journée : tâches prévues, activité en cours, temps travaillé, messages et alertes importantes. Il sert de point d’entrée vers toutes les fonctions de l’espace employé.",
+      "steps": [
+        "Consulter les indicateurs et le statut de la journée.",
+        "Ouvrir une tâche urgente ou reprendre une activité récente.",
+        "Utiliser les raccourcis pour accéder rapidement aux autres pages."
+      ]
+    },
+    {
+      "file": "01-employe/02-mon-espace.png",
+      "route": "/workspace",
+      "title": "Mon espace",
+      "summary": "Cette page est le poste de travail quotidien. Elle regroupe les tâches sélectionnées et permet de suivre l’avancement réel sans quitter la vue principale.",
+      "steps": [
+        "Repérer la tâche à réaliser dans la liste du jour.",
+        "Démarrer ou arrêter le chronomètre associé à la tâche.",
+        "Ouvrir le détail pour ajouter des informations ou terminer le travail."
+      ]
+    },
+    {
+      "file": "01-employe/03-ma-journee.png",
+      "route": "/my-day",
+      "title": "Ma journée",
+      "summary": "Cette page sert à préparer le programme du jour. Une fois la sélection validée, le reste de l’application est déverrouillé et l’ordre choisi devient la feuille de route quotidienne.",
+      "steps": [
+        "Choisir au moins une tâche disponible et organiser l’ordre par glisser-déposer.",
+        "Cliquer sur « Valider ma journée » pour confirmer la sélection.",
+        "Après validation, demander une tâche supplémentaire si le travail prévu est terminé."
+      ]
+    },
+    {
+      "file": "01-employe/04-mes-taches.png",
+      "route": "/tasks",
+      "title": "Mes tâches",
+      "summary": "Cette page rassemble toutes les tâches attribuées à l’employé. Les filtres permettent de retrouver rapidement un travail selon son statut, sa priorité ou son échéance.",
+      "steps": [
+        "Filtrer ou rechercher une tâche dans la liste.",
+        "Lire le statut, la priorité et l’échéance de chaque élément.",
+        "Cliquer sur une tâche pour ouvrir sa fiche détaillée."
+      ]
+    },
+    {
+      "file": "01-employe/05-detail-tache.png",
+      "route": "/tasks/add443f8-849e-49f6-bddb-ed7b03418902",
+      "title": "Détail d’une tâche",
+      "summary": "La fiche détail centralise toutes les informations d’une tâche : consignes, échéance, progression, temps enregistré, commentaires et pièces jointes.",
+      "steps": [
+        "Lire la description, la priorité et la date limite.",
+        "Démarrer le chrono lorsque le travail commence, puis l’arrêter si nécessaire.",
+        "Échanger dans les commentaires, joindre des fichiers et signaler la tâche terminée."
+      ]
+    },
+    {
+      "file": "01-employe/06-messagerie.png",
+      "route": "/messaging",
+      "title": "Messagerie",
+      "summary": "La messagerie réunit le salon général, les conversations privées et les groupes. Elle permet de collaborer avec l’équipe tout en conservant l’historique des échanges.",
+      "steps": [
+        "Choisir un canal ou une conversation dans la colonne de gauche.",
+        "Lire les messages et leurs pièces jointes dans la zone centrale.",
+        "Envoyer un texte, un fichier, une réaction ou un message vocal selon les besoins."
+      ]
+    },
+    {
+      "file": "01-employe/07-mes-statistiques.png",
+      "route": "/stats",
+      "title": "Mes statistiques",
+      "summary": "Cette page transforme l’activité enregistrée en indicateurs personnels : temps connecté, temps productif, tâches réalisées et évolution sur la période choisie.",
+      "steps": [
+        "Choisir la période à analyser.",
+        "Comparer les indicateurs, graphiques et répartitions par tâche.",
+        "Consulter le tableau détaillé ou exporter le rapport lorsque l’option est proposée."
+      ]
+    },
+    {
+      "file": "01-employe/08-planning-hebdomadaire.png",
+      "route": "/planning",
+      "title": "Planning hebdomadaire",
+      "summary": "Le planning permet de préparer les disponibilités de la semaine suivante et de consulter les horaires déjà validés. Les règles d’édition dépendent de la période autorisée.",
+      "steps": [
+        "Sélectionner la semaine affichée.",
+        "Renseigner les plages de travail ou les indisponibilités autorisées.",
+        "Soumettre le planning afin qu’il puisse être contrôlé et verrouillé par l’administrateur."
+      ]
+    },
+    {
+      "file": "01-employe/09-ressources-internes.png",
+      "route": "/resources",
+      "title": "Ressources internes",
+      "summary": "Cette vue donne accès aux documents internes partagés avec l’employé. Les droits accordés déterminent si un fichier peut seulement être consulté ou également modifié.",
+      "steps": [
+        "Choisir l’onglet « Interne » puis sélectionner un dossier.",
+        "Rechercher un fichier par son nom.",
+        "Ouvrir le document pour le consulter, le télécharger ou l’éditer selon les permissions."
+      ]
+    },
+    {
+      "file": "01-employe/10-ressources-clients.png",
+      "route": "/resources",
+      "title": "Ressources clients",
+      "summary": "Cette vue isole les dossiers et fichiers liés aux clients afin de ne pas les mélanger aux documents internes. Seules les ressources explicitement partagées sont visibles.",
+      "steps": [
+        "Ouvrir l’onglet « Client ».",
+        "Sélectionner le dossier du client concerné.",
+        "Consulter ou modifier les fichiers selon le niveau d’autorisation reçu."
+      ]
+    },
+    {
+      "file": "01-employe/11-profil.png",
+      "route": "/profile",
+      "title": "Profil employé",
+      "summary": "Le profil regroupe les informations personnelles du compte et les réglages de sécurité. Il permet de maintenir les coordonnées et l’identité visuelle à jour.",
+      "steps": [
+        "Vérifier ou modifier les informations personnelles autorisées.",
+        "Ajouter ou remplacer la photo de profil.",
+        "Utiliser la section sécurité pour changer le mot de passe."
+      ]
+    }
+  ]
+}

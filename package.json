@@ -1,0 +1,13 @@
+{
+  "name": "alliee-virtuelle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "L'Alliée Virtuelle — déploiement en service unique (le backend sert le frontend buildé)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm --prefix frontend ci && npm --prefix frontend run build && npm --prefix backend ci --omit=dev",
+    "start": "cd backend && npm run migrate && node src/index.js"
+  }
+}

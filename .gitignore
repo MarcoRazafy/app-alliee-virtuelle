@@ -1,0 +1,7 @@
+node_modules/
+.env
+dist/
+*.log
+backend/uploads/*
+!backend/uploads/.gitkeep
+frontend/.cert/

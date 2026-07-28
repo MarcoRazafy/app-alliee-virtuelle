@@ -1,0 +1,113 @@
+import { create } from 'zustand';
+import api from '../services/api';
+import * as authService from '../services/auth';
+import { disconnectSocket } from '../services/socket';
+
+function extractErrorMessage(err, fallback) {
+  const data = err.response?.data;
+  if (!data) return fallback;
+  if (data.errors) return data.errors.join(', ');
+  if (data.error) return data.error;
+  return fallback;
+}
+
+const useAuthStore = create((set, get) => ({
+  user: authService.getUser(),
+  // Le token vit dans un cookie httpOnly (invisible au JS) : on déduit l'état connecté de la
+  // présence de l'objet utilisateur. Un cookie expiré → 401 → nettoyage + redirection login.
+  isAuthenticated: !!authService.getUser(),
+  error: null,
+  // null = pas encore vérifié (ex: rechargement de page), true/false = état connu
+  dayValidated: null,
+
+  login: async (identifier, password) => {
+    set({ error: null });
+    try {
+      const response = await api.post('/api/auth/login', { identifier, password });
+      const { user } = response.data;
+      // On NE stocke PAS le token côté JS : il est déjà posé en cookie httpOnly par le backend.
+      // Seul l'objet utilisateur (non sensible) est conservé pour l'affichage / la reprise de session.
+      authService.setUser(user);
+      // La vérification serveur décide si l'employé doit valider sa journée. Elle autorise
+      // immédiatement la plateforme lorsqu'aucune tâche actionnable ne lui est assignée.
+      set({ user, isAuthenticated: true, dayValidated: user.role === 'EMPLOYEE' ? null : true });
+      return true;
+    } catch (err) {
+      set({ error: extractErrorMessage(err, 'Unable to sign in. Check your credentials.') });
+      return false;
+    }
+  },
+
+  register: async (payload) => {
+    set({ error: null });
+    try {
+      const response = await api.post('/api/auth/register', payload);
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      const message = extractErrorMessage(err, 'Unable to create the account.');
+      set({ error: message });
+      return { success: false, message };
+    }
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      await api.post('/api/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: extractErrorMessage(err, 'Unable to change the password.') };
+    }
+  },
+
+  updateProfile: async (payload) => {
+    try {
+      const response = await api.put('/api/auth/me', payload);
+      const updatedUser = { ...get().user, ...response.data };
+      authService.setUser(updatedUser);
+      set({ user: updatedUser });
+      return { success: true, user: response.data };
+    } catch (err) {
+      return { success: false, message: extractErrorMessage(err, 'Unable to update the profile.') };
+    }
+  },
+
+  setDayValidated: (value) => set({ dayValidated: value }),
+
+  // Restaure l'état réel depuis le serveur (utile après un rechargement de page,
+  // où l'état mémoire de dayValidated est perdu mais la validation serveur, elle, persiste).
+  // Si l'employé n'a plus aucune tâche disponible à sélectionner, on ne le bloque pas.
+  checkDayValidated: async () => {
+    if (get().user?.role !== 'EMPLOYEE') {
+      set({ dayValidated: true });
+      return;
+    }
+    try {
+      const [selectionRes, tasksRes] = await Promise.all([api.get('/api/my-day'), api.get('/api/tasks')]);
+      const selection = selectionRes.data;
+      const tasks = tasksRes.data;
+      const validated = selection.length > 0 && selection.every((item) => item.validated_at);
+      const hasAvailableTasks = tasks.some((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
+      set({ dayValidated: validated || !hasAvailableTasks });
+    } catch (err) {
+      // Ne jamais bloquer l'employé à cause d'une erreur réseau
+      set({ dayValidated: true });
+    }
+  },
+
+  logout: async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (err) {
+      // La session locale est nettoyée même si l'appel réseau échoue
+    }
+    disconnectSocket(); // ferme la connexion temps réel pour éviter de rester connecté avec un ancien token
+    authService.removeToken();
+    authService.removeUser();
+    set({ user: null, isAuthenticated: false, dayValidated: null });
+  },
+}));
+
+export default useAuthStore;

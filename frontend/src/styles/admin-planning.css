@@ -1,0 +1,524 @@
+/* Gestion des plannings (admin) — réutilise les tokens partagés, le shell admin,
+   la table (.task-table), les pills planning (planning.css) et le calendrier visuel
+   (week-calendar.css, le même que côté employé). Icônes neutres (règle d'icônes). */
+
+.aplan-page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Résumé (KPI) --- */
+
+.aplan-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.aplan-kpi {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--glass-overlay), transparent 45%), var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--card-shadow);
+}
+
+.aplan-kpi-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  color: var(--color-text-secondary);
+}
+
+.aplan-kpi-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.aplan-kpi strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+.aplan-kpi span {
+  display: block;
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* --- Filtres --- */
+
+.aplan-filters {
+  align-items: flex-end;
+}
+
+.aplan-search {
+  min-width: 220px;
+  flex: 0 1 240px;
+}
+
+/* --- Panneaux --- */
+
+.aplan-panel {
+  background: linear-gradient(180deg, var(--glass-overlay), transparent 40%), var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.aplan-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.aplan-panel-head h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.aplan-panel-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--input-bg);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aplan-panel-count--warn {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--color-warning);
+}
+
+.aplan-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+/* --- Lignes de table --- */
+
+.aplan-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.aplan-row:hover {
+  background: var(--glass-overlay);
+}
+
+.aplan-row-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.aplan-row-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  color: var(--color-on-accent);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.aplan-row-avatar--image { object-fit: cover; }
+
+.aplan-row-avatar--sm {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 10px;
+}
+
+.aplan-action {
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.aplan-action:hover {
+  border-color: var(--color-accent-light);
+  color: var(--color-accent-lighter);
+}
+
+.aplan-action--create {
+  color: var(--color-accent-lighter);
+  border-color: var(--color-accent-light);
+  background: var(--glow-accent);
+}
+
+/* --- Non soumis --- */
+
+.aplan-nonsubmitted {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aplan-nonsubmitted li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
+}
+
+.aplan-nonsubmitted-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.aplan-nonsubmitted-info strong {
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aplan-nonsubmitted-info span {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* --- Recherche de disponibilité --- */
+
+.aplan-availability-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.aplan-availability-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.aplan-availability-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.aplan-availability-form input {
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  padding: 9px 11px;
+}
+
+.aplan-availability-form input:focus {
+  outline: none;
+  border-color: var(--color-accent-light);
+}
+
+[data-theme='dark'] .aplan-availability-form input { color-scheme: dark; }
+[data-theme='light'] .aplan-availability-form input { color-scheme: light; }
+
+.aplan-availability-form .btn-primary {
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.aplan-availability-results {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.aplan-availability-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.aplan-availability-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.aplan-availability-chip small {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* --- Modale de détail / édition --- */
+
+.aplan-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+  background: rgba(4, 12, 26, 0.6);
+  backdrop-filter: blur(2px);
+  animation: app-fade-in 0.2s ease-out both;
+}
+
+.aplan-modal {
+  width: 100%;
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+  border-radius: 20px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--card-shadow);
+  animation: app-card-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.aplan-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.aplan-modal-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  color: var(--color-on-accent);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.aplan-modal-avatar--image {
+  object-fit: cover;
+}
+
+.aplan-modal-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.aplan-modal-identity h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 3px;
+}
+
+.aplan-modal-identity p {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.aplan-modal-identity svg {
+  width: 14px;
+  height: 14px;
+}
+
+.aplan-modal-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.aplan-modal-close:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.aplan-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aplan-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aplan-modal-toolbar .app-link {
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  color: var(--color-accent-lighter);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+
+.aplan-modal-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.aplan-modal-total svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+}
+
+.aplan-modal-total strong {
+  color: var(--color-text-primary);
+}
+
+.aplan-modal-hint {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.aplan-note {
+  margin: 0;
+}
+
+.aplan-history {
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--input-bg);
+  padding: 6px 12px;
+}
+
+.aplan-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.aplan-history li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12.5px;
+}
+
+.aplan-history li:last-child {
+  border-bottom: none;
+}
+
+.aplan-history-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent-lighter);
+}
+
+.aplan-history-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-secondary);
+}
+
+.aplan-history-time {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.aplan-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 900px) {
+  .aplan-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .aplan-two-col {
+    grid-template-columns: 1fr;
+  }
+}
