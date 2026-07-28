@@ -470,22 +470,32 @@ async function computeRealtimeDashboard() {
 
   const [todoResult, inProgressResult, doneResult, connectedUserIds] = await Promise.all([
     db.query(
+      // Uniquement les tâches que l'employé a sélectionnées dans « Ma journée » aujourd'hui.
       `SELECT id, assigned_to, title, priority FROM tasks
-       WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE' ORDER BY deadline ASC`,
+       WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE'
+         AND EXISTS (SELECT 1 FROM user_daily_selection uds
+                     WHERE uds.task_id = tasks.id AND uds.user_id = tasks.assigned_to AND uds.date = CURRENT_DATE)
+       ORDER BY deadline ASC`,
       [employeeIds]
     ),
     db.query(
+      // Toutes les tâches EN_COURS de la sélection du jour (LEFT JOIN : qu'un chrono soit
+      // actif ou non). session_start_time n'est renseigné que si un chrono tourne réellement.
       `SELECT t.id, t.assigned_to, t.title, t.priority, tl.start_time AS session_start_time
        FROM tasks t
-       JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
-       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status = 'EN_COURS'`,
+       LEFT JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
+       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status = 'EN_COURS'
+         AND EXISTS (SELECT 1 FROM user_daily_selection uds
+                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = CURRENT_DATE)`,
       [employeeIds]
     ),
     db.query(
       `SELECT t.id, t.assigned_to, t.title,
               COALESCE((SELECT SUM(duration_seconds) FROM timelog WHERE task_id = t.id), 0)::BIGINT AS total_duration_seconds
        FROM tasks t
-       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')`,
+       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')
+         AND EXISTS (SELECT 1 FROM user_daily_selection uds
+                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = CURRENT_DATE)`,
       [employeeIds]
     ),
     // "Actif" = réellement en ligne (définition partagée : session ouverte, pas de

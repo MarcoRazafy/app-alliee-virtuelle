@@ -205,11 +205,13 @@ async function getUserDetail(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    const [stats, tasks, recentActivity, avatar] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10);
+    const [stats, tasks, recentActivity, avatar, dailySelection] = await Promise.all([
       taskModel.computeEmployeeStats(id),
       taskModel.findTasksForEmployee(id),
       taskModel.findRecentAuditForUser(id, 10),
       avatarModel.findByUserId(id),
+      taskModel.findDailySelection(id, today),
     ]);
 
     res.status(200).json({
@@ -223,6 +225,8 @@ async function getUserDetail(req, res, next) {
       },
       stats,
       tasks,
+      // Tâches que l'employé a sélectionnées dans « Ma journée » aujourd'hui (onglet "Aujourd'hui").
+      daily_task_ids: dailySelection.map((row) => row.task_id),
       recent_activity: recentActivity,
     });
   } catch (err) {

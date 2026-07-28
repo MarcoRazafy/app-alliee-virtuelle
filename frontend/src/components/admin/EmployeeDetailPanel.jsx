@@ -32,6 +32,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [motifs, setMotifs] = useState({});
   const [noteDrafts, setNoteDrafts] = useState({});
+  const [taskTab, setTaskTab] = useState('all'); // 'all' = toutes les tâches, 'daily' = sélection du jour
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -176,10 +177,42 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
             </button>
 
             <section className="emp-drawer-section">
-              <h3 className="app-section-title">Tâches</h3>
-              {detail.tasks.length === 0 && <p className="emp-drawer-muted">Aucune tâche assignée.</p>}
-              <div className="emp-drawer-tasks">
-                {detail.tasks.map((task) => {
+              <div className="emp-drawer-tasks-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={taskTab === 'all'}
+                  className={`emp-drawer-tab${taskTab === 'all' ? ' emp-drawer-tab--active' : ''}`}
+                  onClick={() => setTaskTab('all')}
+                >
+                  Tâches
+                  <span className="emp-drawer-tab-count">{detail.tasks.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={taskTab === 'daily'}
+                  className={`emp-drawer-tab${taskTab === 'daily' ? ' emp-drawer-tab--active' : ''}`}
+                  onClick={() => setTaskTab('daily')}
+                >
+                  Aujourd'hui
+                  <span className="emp-drawer-tab-count">{(detail.daily_task_ids || []).length}</span>
+                </button>
+              </div>
+              {(() => {
+                const dailyIds = new Set(detail.daily_task_ids || []);
+                const shownTasks = taskTab === 'daily' ? detail.tasks.filter((t) => dailyIds.has(t.id)) : detail.tasks;
+                return (
+                  <>
+                    {shownTasks.length === 0 && (
+                      <p className="emp-drawer-muted">
+                        {taskTab === 'daily'
+                          ? "Aucune tâche sélectionnée pour aujourd'hui."
+                          : 'Aucune tâche assignée.'}
+                      </p>
+                    )}
+                    <div className="emp-drawer-tasks">
+                      {shownTasks.map((task) => {
                   const meta = STATUS_PILL[task.status] || { label: task.status, cls: 'declared' };
                   const canReview = task.status === 'TERMINEE';
                   return (
@@ -229,8 +262,11 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                       </div>
                     </div>
                   );
-                })}
-              </div>
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
             </section>
 
             <section className="emp-drawer-section">
