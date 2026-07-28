@@ -49,28 +49,28 @@ function HierarchyTree({
     try {
       if (creating.type === 'space') {
         await hierarchyService.createSpace({ name: newName });
-        notifySuccess('Espace créé');
+        notifySuccess('Space created');
       } else if (creating.type === 'folder') {
         await hierarchyService.createFolder({ name: newName, space_id: creating.parentId });
-        notifySuccess('Dossier créé');
+        notifySuccess('Folder created');
       } else if (creating.type === 'list') {
         await hierarchyService.createList({ name: newName, folder_id: creating.parentId });
-        notifySuccess('Liste créée');
+        notifySuccess('List created');
       }
       setCreating(null);
       setNewName('');
       loadTree();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de créer cet élément');
+      notifyError(err.response?.data?.error || 'Unable to create this item');
     }
   }
 
   async function handleDelete(type, item) {
     if (busyId) return;
     const messages = {
-      space: `Supprimer l’espace « ${item.name} » ?\n\nIl disparaîtra avec ses projets de l’arborescence. Les tâches resteront conservées dans l’historique.`,
-      folder: `Supprimer le projet « ${item.name} » ?\n\nIl disparaîtra avec ses listes de l’arborescence. Les tâches resteront conservées dans l’historique.`,
-      list: `Supprimer « ${item.name} » ?\n\nSes tâches resteront conservées dans l’historique.`,
+      space: `Delete the space “${item.name}”?\n\nIt will disappear with its projects from the tree. Tasks will be kept in the history.`,
+      folder: `Delete the project “${item.name}”?\n\nIt will disappear with its lists from the tree. Tasks will be kept in the history.`,
+      list: `Delete “${item.name}”?\n\nIts tasks will be kept in the history.`,
     };
     if (!window.confirm(messages[type])) return;
 
@@ -79,12 +79,12 @@ function HierarchyTree({
       if (type === 'space') await hierarchyService.deleteSpace(item.id);
       if (type === 'folder') await hierarchyService.deleteFolder(item.id);
       if (type === 'list') await hierarchyService.deleteList(item.id);
-      notifySuccess(type === 'space' ? 'Espace supprimé' : type === 'folder' ? 'Projet supprimé' : 'Liste supprimée');
+      notifySuccess(type === 'space' ? 'Space deleted' : type === 'folder' ? 'Project deleted' : 'List deleted');
       setCreating(null);
       onHierarchyDeleted?.();
       loadTree();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de supprimer cet élément');
+      notifyError(err.response?.data?.error || 'Unable to delete this item');
     } finally {
       setBusyId(null);
     }
@@ -102,10 +102,10 @@ function HierarchyTree({
           autoFocus
         />
         <button type="submit" className="tree-create-save">
-          Créer
+          Create
         </button>
         <button type="button" className="tree-create-cancel" onClick={() => setCreating(null)}>
-          Annuler
+          Cancel
         </button>
       </form>
     );
@@ -114,11 +114,11 @@ function HierarchyTree({
   return (
     <div className="lists-tree">
       <button type="button" className="tree-add-root" onClick={() => startCreating('space', null)}>
-        + Nouvel espace
+        + New space
       </button>
-      {renderCreateForm('space', null, "Nom de l'espace")}
+      {renderCreateForm('space', null, 'Space name')}
 
-      {tree.length === 0 && <p className="tree-empty">Aucun espace créé pour le moment.</p>}
+      {tree.length === 0 && <p className="tree-empty">No space created yet.</p>}
 
       {tree.map((space) => {
         const spaceOpen = !collapsed.has(space.id);
@@ -129,7 +129,7 @@ function HierarchyTree({
                 type="button"
                 className={`tree-toggle${spaceOpen ? ' tree-toggle--open' : ''}`}
                 onClick={() => toggle(space.id)}
-                aria-label={spaceOpen ? 'Replier' : 'Déplier'}
+                aria-label={spaceOpen ? 'Collapse' : 'Expand'}
               >
                 <IconChevronDown />
               </button>
@@ -141,7 +141,7 @@ function HierarchyTree({
                 <button
                   type="button"
                   className="tree-node-action"
-                  title="Ajouter un projet"
+                  title="Add a project"
                   aria-label={`Ajouter un projet dans ${space.name}`}
                   onClick={() => startCreating('folder', space.id)}
                   disabled={Boolean(busyId)}
@@ -151,7 +151,7 @@ function HierarchyTree({
                 <button
                   type="button"
                   className="tree-node-action tree-node-action--danger"
-                  title="Supprimer l’espace"
+                  title="Delete the space"
                   aria-label={`Supprimer l’espace ${space.name}`}
                   onClick={() => handleDelete('space', space)}
                   disabled={Boolean(busyId)}
@@ -172,7 +172,7 @@ function HierarchyTree({
                         type="button"
                         className={`tree-toggle${folderOpen ? ' tree-toggle--open' : ''}`}
                         onClick={() => toggle(folder.id)}
-                        aria-label={folderOpen ? 'Replier' : 'Déplier'}
+                        aria-label={folderOpen ? 'Collapse' : 'Expand'}
                       >
                         <IconChevronDown />
                       </button>
@@ -184,7 +184,7 @@ function HierarchyTree({
                         <button
                           type="button"
                           className="tree-node-action"
-                          title="Ajouter une liste"
+                          title="Add a list"
                           aria-label={`Ajouter une liste dans ${folder.name}`}
                           onClick={() => startCreating('list', folder.id)}
                           disabled={Boolean(busyId)}
@@ -194,7 +194,7 @@ function HierarchyTree({
                         <button
                           type="button"
                           className="tree-node-action tree-node-action--danger"
-                          title="Supprimer le projet"
+                          title="Delete the project"
                           aria-label={`Supprimer le projet ${folder.name}`}
                           onClick={() => handleDelete('folder', folder)}
                           disabled={Boolean(busyId)}
@@ -206,7 +206,7 @@ function HierarchyTree({
                     {renderCreateForm('list', folder.id, 'Nom de la liste')}
 
                     {folderOpen && folder.lists.length === 0 && (
-                      <p className="tree-empty tree-empty--nested">Aucune liste</p>
+                      <p className="tree-empty tree-empty--nested">No list</p>
                     )}
                     {folderOpen &&
                       folder.lists.map((list) => (
@@ -232,8 +232,8 @@ function HierarchyTree({
                             <button
                               type="button"
                               className="tree-node-action"
-                              title="Ajouter une tâche"
-                              aria-label={`Ajouter une tâche dans ${list.name}`}
+                              title="Add a task"
+                              aria-label={`Add a task in ${list.name}`}
                               onClick={() => onAddTask?.(list.id, list)}
                               disabled={Boolean(busyId)}
                             >
@@ -242,7 +242,7 @@ function HierarchyTree({
                             <button
                               type="button"
                               className="tree-node-action tree-node-action--danger"
-                              title="Supprimer la liste"
+                              title="Delete the list"
                               aria-label={`Supprimer la liste ${list.name}`}
                               onClick={() => handleDelete('list', list)}
                               disabled={Boolean(busyId)}

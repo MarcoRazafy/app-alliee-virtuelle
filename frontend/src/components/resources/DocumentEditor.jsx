@@ -8,12 +8,12 @@ import { IconX } from '../icons';
 const TOOLBAR = [
   { cmd: 'bold', label: 'G', title: 'Gras', style: { fontWeight: 800 } },
   { cmd: 'italic', label: 'I', title: 'Italique', style: { fontStyle: 'italic' } },
-  { cmd: 'underline', label: 'S', title: 'Souligné', style: { textDecoration: 'underline' } },
-  { block: 'H1', label: 'H1', title: 'Titre 1' },
-  { block: 'H2', label: 'H2', title: 'Titre 2' },
+  { cmd: 'underline', label: 'U', title: 'Underline', style: { textDecoration: 'underline' } },
+  { block: 'H1', label: 'H1', title: 'Heading 1' },
+  { block: 'H2', label: 'H2', title: 'Heading 2' },
   { block: 'P', label: '¶', title: 'Paragraphe' },
-  { cmd: 'insertUnorderedList', label: '• Liste', title: 'Liste à puces' },
-  { cmd: 'insertOrderedList', label: '1. Liste', title: 'Liste numérotée' },
+  { cmd: 'insertUnorderedList', label: '• List', title: 'Bulleted list' },
+  { cmd: 'insertOrderedList', label: '1. List', title: 'Numbered list' },
 ];
 
 function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
@@ -23,7 +23,7 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
 
   useEffect(() => {
     if (editorRef.current) {
-      editorRef.current.innerHTML = existing?.content || '<p>Commencez à écrire votre document…</p>';
+      editorRef.current.innerHTML = existing?.content || '<p>Start writing your document…</p>';
     }
   }, [existing]);
 
@@ -39,7 +39,7 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
   async function handleSave() {
     const name = title.trim();
     if (name.length < 2) {
-      notifyError('Le titre doit contenir au moins 2 caractères');
+      notifyError('The title must be at least 2 characters long');
       return;
     }
     const content = editorRef.current?.innerHTML || '';
@@ -47,11 +47,11 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
     try {
       if (existing?.id) {
         const updated = await resourceService.updateDocument(existing.id, { file_name: name, content });
-        notifySuccess('Document mis à jour');
+        notifySuccess('Document updated');
         onSaved?.(updated);
       } else {
         const created = await resourceService.createDocument(folderId, { file_name: name, content });
-        notifySuccess('Document créé');
+        notifySuccess('Document created');
         onSaved?.(created);
       }
     } catch (err) {
@@ -67,21 +67,21 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
         className="resources-modal resources-editor-modal"
         role="dialog"
         aria-modal="true"
-        aria-label={existing ? 'Modifier le document' : 'Nouveau document'}
+        aria-label={existing ? 'Edit document' : 'New document'}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="resources-modal-head">
           <div>
-            <p className="resources-modal-eyebrow">{existing ? 'Édition' : 'Nouveau document'}</p>
+            <p className="resources-modal-eyebrow">{existing ? 'Editing' : 'New document'}</p>
             <input
               className="resources-doc-title-input"
-              placeholder="Titre du document"
+              placeholder="Document title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
             />
           </div>
-          <button type="button" className="resources-modal-close" onClick={onClose} aria-label="Fermer">
+          <button type="button" className="resources-modal-close" onClick={onClose} aria-label="Close">
             <IconX />
           </button>
         </div>
@@ -115,10 +115,10 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
 
         <div className="resources-modal-foot">
           <button type="button" className="btn-outline" onClick={onClose}>
-            Annuler
+            Cancel
           </button>
           <button type="button" className="btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

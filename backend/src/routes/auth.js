@@ -15,7 +15,7 @@ const authLimiter = rateLimit({
   max: 20, // 20 tentatives / IP / fenêtre
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Trop de tentatives. Réessayez dans quelques minutes.' },
+  message: { error: 'Too many attempts. Try again in a few minutes.' },
   skip: () => process.env.NODE_ENV !== 'production',
 });
 

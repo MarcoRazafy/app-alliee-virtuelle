@@ -26,7 +26,7 @@ function initRealtime(httpServer) {
       socket.user = verifyToken(token);
       next();
     } catch {
-      next(new Error('Token invalide ou expiré'));
+      next(new Error('Invalid or expired token'));
     }
   });
 

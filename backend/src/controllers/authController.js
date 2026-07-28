@@ -28,7 +28,7 @@ async function register(req, res, next) {
 
     const existingEmail = await userModel.findByEmail(email);
     if (existingEmail) {
-      return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
+      return res.status(409).json({ error: 'An account already exists with this email' });
     }
     const existingUsername = await userModel.findByUsername(normalizedUsername);
     if (existingUsername) {
@@ -49,7 +49,7 @@ async function register(req, res, next) {
     });
 
     res.status(201).json({
-      message: 'Inscription envoyée, attente validation admin',
+      message: 'Registration submitted, awaiting admin approval',
       user,
     });
   } catch (err) {
@@ -78,7 +78,7 @@ async function login(req, res, next) {
       return res.status(403).json({ error: 'Compte suspendu' });
     }
     if (user.status === userModel.USER_STATUS.REJECTED) {
-      return res.status(403).json({ error: 'Compte refusé' });
+      return res.status(403).json({ error: 'Account rejected' });
     }
 
     // La sélection de la journée est faite UNE SEULE FOIS par jour : elle persiste toute la
@@ -154,7 +154,7 @@ async function updateProfile(req, res, next) {
 
     // Email modifiable : refuser s'il est déjà utilisé par un autre compte.
     if (email && (await userModel.emailTakenByOther(email, req.user.id))) {
-      return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
+      return res.status(409).json({ error: 'An account already exists with this email' });
     }
 
     // Champs non fournis : on conserve la valeur actuelle (pas d'écrasement involontaire).
@@ -235,7 +235,7 @@ async function changePassword(req, res, next) {
     const { current_password: currentPassword, new_password: newPassword } = req.body;
 
     if (!isValidPassword(newPassword)) {
-      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
+      return res.status(400).json({ error: 'The new password must be at least 8 characters long' });
     }
 
     const user = await userModel.findById(req.user.id);
@@ -247,7 +247,7 @@ async function changePassword(req, res, next) {
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await userModel.updatePasswordHash(user.id, passwordHash);
 
-    res.status(200).json({ message: 'Mot de passe mis à jour' });
+    res.status(200).json({ message: 'Password updated' });
   } catch (err) {
     next(err);
   }
@@ -271,7 +271,7 @@ async function logout(req, res, next) {
     // Ferme aussi le chrono de connexion (présence), indépendant du chrono de tâche ci-dessus.
     await sessionModel.closeOpenSessions(req.user.id);
 
-    res.status(200).json({ message: 'Déconnexion réussie' });
+    res.status(200).json({ message: 'Successfully logged out' });
   } catch (err) {
     next(err);
   }

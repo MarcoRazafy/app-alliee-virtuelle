@@ -6,14 +6,15 @@ import * as avatarService from '../../services/avatarService';
 import { formatDurationShort, formatDateTime, formatDate } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { IconX, IconChat, IconCheckCircle, IconClock } from '../icons';
+import { priorityLabel, userStatusLabel } from '../../utils/taskStatus';
 
 const STATUS_PILL = {
-  DECLAREE: { label: 'Déclarée', cls: 'declared' },
-  VALIDEE: { label: 'À faire', cls: 'todo' },
-  EN_COURS: { label: 'En cours', cls: 'progress' },
-  EN_PAUSE: { label: 'En pause', cls: 'paused' },
-  TERMINEE: { label: 'Terminée', cls: 'done' },
-  CONFIRMEE: { label: 'Confirmée', cls: 'confirmed' },
+  DECLAREE: { label: 'Declared', cls: 'declared' },
+  VALIDEE: { label: 'To do', cls: 'todo' },
+  EN_COURS: { label: 'In progress', cls: 'progress' },
+  EN_PAUSE: { label: 'Paused', cls: 'paused' },
+  TERMINEE: { label: 'Completed', cls: 'done' },
+  CONFIRMEE: { label: 'Confirmed', cls: 'confirmed' },
 };
 
 function Initials({ name }) {
@@ -40,7 +41,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
       const data = await userService.getUserDetail(employeeId);
       setDetail(data);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de charger le détail employé');
+      notifyError(err.response?.data?.error || 'Unable to load employee details');
     }
   }, [employeeId]);
 
@@ -79,37 +80,37 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   async function handleConfirm(taskId) {
     try {
       await taskService.confirmTask(taskId);
-      notifySuccess('Tâche confirmée');
+      notifySuccess('Task confirmed');
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de confirmer la tâche');
+      notifyError(err.response?.data?.error || 'Unable to confirm the task');
     }
   }
 
   async function handleReject(taskId) {
     const motif = motifs[taskId];
     if (!motif || !motif.trim()) {
-      notifyError('Le motif est requis pour renvoyer une tâche');
+      notifyError('A reason is required to send a task back');
       return;
     }
     try {
       await taskService.rejectTask(taskId, motif);
-      notifySuccess("Tâche renvoyée à l'employé");
+      notifySuccess('Task sent back to the employee');
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de renvoyer la tâche');
+      notifyError(err.response?.data?.error || 'Unable to send the task back');
     }
   }
 
   async function handleAddNote(taskId) {
     const content = noteDrafts[taskId];
     if (!content || !content.trim()) {
-      notifyError('La note ne peut pas être vide');
+      notifyError('The note cannot be empty');
       return;
     }
     try {
       await taskService.createNote(taskId, content);
-      notifySuccess('Note ajoutée');
+      notifySuccess('Note added');
       setNoteDrafts({ ...noteDrafts, [taskId]: '' });
     } catch (err) {
       notifyError(err.response?.data?.error || "Impossible d'ajouter la note");
@@ -119,15 +120,15 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   return (
     <>
       <div className="emp-drawer-overlay" onClick={onClose} />
-      <aside className="emp-drawer" role="dialog" aria-label="Détail employé">
-        <button type="button" className="emp-drawer-close" onClick={onClose} aria-label="Fermer">
+      <aside className="emp-drawer" role="dialog" aria-label="Employee details">
+        <button type="button" className="emp-drawer-close" onClick={onClose} aria-label="Close">
           <IconX />
         </button>
 
         {!detail ? (
           <div className="admin-loading admin-loading--drawer">
             <span className="admin-loading-spinner" />
-            <p>Chargement…</p>
+            <p>Loading…</p>
           </div>
         ) : (
           <>
@@ -142,28 +143,28 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                 <p>{detail.user.email}</p>
               </div>
               <span className={`pill ${detail.user.status === 'ACTIF' ? 'pill--confirmed' : 'pill--paused'}`}>
-                {detail.user.status}
+                {userStatusLabel(detail.user.status)}
               </span>
             </header>
 
             <div className="emp-drawer-stats">
               <div className="emp-drawer-stat">
                 <span className="emp-drawer-stat-value">{detail.stats.tasks_confirmed}</span>
-                <span className="emp-drawer-stat-label">Complétées</span>
+                <span className="emp-drawer-stat-label">Completed</span>
               </div>
               <div className="emp-drawer-stat">
                 <span className="emp-drawer-stat-value">{detail.stats.completion_rate}%</span>
-                <span className="emp-drawer-stat-label">Complétion</span>
+                <span className="emp-drawer-stat-label">Completion</span>
               </div>
               <div className="emp-drawer-stat">
                 <span className="emp-drawer-stat-value">{formatDurationShort(detail.stats.hours_worked_seconds)}</span>
-                <span className="emp-drawer-stat-label">Travaillé</span>
+                <span className="emp-drawer-stat-label">Worked</span>
               </div>
               <div className="emp-drawer-stat">
                 <span className={`emp-drawer-stat-value${detail.stats.tasks_late > 0 ? ' emp-drawer-stat-value--late' : ''}`}>
                   {detail.stats.tasks_late}
                 </span>
-                <span className="emp-drawer-stat-label">En retard</span>
+                <span className="emp-drawer-stat-label">Late</span>
               </div>
             </div>
 
@@ -173,7 +174,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
               onClick={() => navigate('/admin/messaging', { state: { employeeId: detail.user.id } })}
             >
               <IconChat />
-              Voir les messages
+              View messages
             </button>
 
             <section className="emp-drawer-section">
@@ -185,7 +186,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                   className={`emp-drawer-tab${taskTab === 'all' ? ' emp-drawer-tab--active' : ''}`}
                   onClick={() => setTaskTab('all')}
                 >
-                  Tâches
+                  Tasks
                   <span className="emp-drawer-tab-count">{detail.tasks.length}</span>
                 </button>
                 <button
@@ -195,7 +196,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                   className={`emp-drawer-tab${taskTab === 'daily' ? ' emp-drawer-tab--active' : ''}`}
                   onClick={() => setTaskTab('daily')}
                 >
-                  Aujourd'hui
+                  Today
                   <span className="emp-drawer-tab-count">{(detail.daily_task_ids || []).length}</span>
                 </button>
               </div>
@@ -207,8 +208,8 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                     {shownTasks.length === 0 && (
                       <p className="emp-drawer-muted">
                         {taskTab === 'daily'
-                          ? "Aucune tâche sélectionnée pour aujourd'hui."
-                          : 'Aucune tâche assignée.'}
+                          ? 'No task selected for today.'
+                          : 'No task assigned.'}
                       </p>
                     )}
                     <div className="emp-drawer-tasks">
@@ -222,7 +223,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                         <span className={`pill pill--${meta.cls}`}>{meta.label}</span>
                       </div>
                       <div className="emp-task-meta">
-                        <span>{task.priority}</span>
+                        <span>{priorityLabel(task.priority)}</span>
                         {task.deadline && (
                           <span className="emp-task-deadline">
                             <IconClock /> {formatDate(task.deadline)}
@@ -233,17 +234,17 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                       {canReview && (
                         <div className="emp-task-review">
                           <button type="button" className="emp-task-confirm" onClick={() => handleConfirm(task.id)}>
-                            <IconCheckCircle /> Confirmer
+                            <IconCheckCircle /> Confirm
                           </button>
                           <div className="emp-task-reject-row">
                             <input
                               type="text"
-                              placeholder="Motif de renvoi"
+                              placeholder="Reason for sending back"
                               value={motifs[task.id] || ''}
                               onChange={(e) => setMotifs({ ...motifs, [task.id]: e.target.value })}
                             />
                             <button type="button" className="emp-task-reject" onClick={() => handleReject(task.id)}>
-                              Renvoyer
+                              Send back
                             </button>
                           </div>
                         </div>
@@ -252,12 +253,12 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                       <div className="emp-task-note-row">
                         <input
                           type="text"
-                          placeholder="Ajouter une note…"
+                          placeholder="Add a note…"
                           value={noteDrafts[task.id] || ''}
                           onChange={(e) => setNoteDrafts({ ...noteDrafts, [task.id]: e.target.value })}
                         />
                         <button type="button" className="emp-task-note-btn" onClick={() => handleAddNote(task.id)}>
-                          Noter
+                          Add note
                         </button>
                       </div>
                     </div>
@@ -270,8 +271,8 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
             </section>
 
             <section className="emp-drawer-section">
-              <h3 className="app-section-title">Activité récente</h3>
-              {detail.recent_activity.length === 0 && <p className="emp-drawer-muted">Aucune activité récente.</p>}
+              <h3 className="app-section-title">Recent activity</h3>
+              {detail.recent_activity.length === 0 && <p className="emp-drawer-muted">No recent activity.</p>}
               <ul className="emp-drawer-activity">
                 {detail.recent_activity.map((entry, index) => (
                   <li key={index}>

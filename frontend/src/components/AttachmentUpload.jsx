@@ -15,7 +15,7 @@ function AttachmentUpload({ taskId, canUpload }) {
       const data = await taskService.getAttachments(taskId);
       setAttachments(data);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de charger les pièces jointes');
+      notifyError(err.response?.data?.error || 'Unable to load attachments');
     }
   }, [taskId]);
 
@@ -29,14 +29,14 @@ function AttachmentUpload({ taskId, canUpload }) {
     if (!file) return;
 
     if (file.size > MAX_SIZE) {
-      notifyError('Le fichier dépasse la taille maximale de 5 Mo');
+      notifyError('The file exceeds the maximum size of 5 MB');
       return;
     }
 
     setUploading(true);
     try {
       await taskService.uploadAttachment(taskId, file);
-      notifySuccess('Fichier ajouté');
+      notifySuccess('File added');
       await loadAttachments();
     } catch (err) {
       notifyError(err.response?.data?.error || "Impossible d'ajouter le fichier");
@@ -55,15 +55,15 @@ function AttachmentUpload({ taskId, canUpload }) {
       link.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de télécharger le fichier');
+      notifyError(err.response?.data?.error || 'Unable to download the file');
     }
   }
 
   async function handleDelete(attachment) {
-    if (!window.confirm(`Supprimer "${attachment.file_name}" ?`)) return;
+    if (!window.confirm(`Delete "${attachment.file_name}"?`)) return;
     try {
       await taskService.deleteAttachment(taskId, attachment.id);
-      notifySuccess('Fichier supprimé');
+      notifySuccess('File deleted');
       await loadAttachments();
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de supprimer le fichier');
@@ -76,13 +76,13 @@ function AttachmentUpload({ taskId, canUpload }) {
         <div className="upload-zone">
           <label className="upload-btn">
             <IconPaperclip />
-            {uploading ? 'Envoi en cours...' : 'Ajouter un fichier'}
+            {uploading ? 'Uploading...' : 'Add a file'}
             <input type="file" onChange={handleFileChange} disabled={uploading} />
           </label>
         </div>
       )}
 
-      {attachments.length === 0 && <div className="empty-state">Aucune pièce jointe pour le moment.</div>}
+      {attachments.length === 0 && <div className="empty-state">No attachments yet.</div>}
       {attachments.map((attachment) => (
         <div key={attachment.id} className="attachment-row">
           <span className="attachment-icon">
@@ -98,8 +98,8 @@ function AttachmentUpload({ taskId, canUpload }) {
             <button
               className="icon-link-btn"
               onClick={() => handleDownload(attachment)}
-              aria-label="Télécharger"
-              title="Télécharger"
+              aria-label="Download"
+              title="Download"
             >
               <IconDownload />
             </button>
@@ -107,8 +107,8 @@ function AttachmentUpload({ taskId, canUpload }) {
               <button
                 className="icon-link-btn"
                 onClick={() => handleDelete(attachment)}
-                aria-label="Supprimer"
-                title="Supprimer"
+                aria-label="Delete"
+                title="Delete"
               >
                 <IconTrash />
               </button>

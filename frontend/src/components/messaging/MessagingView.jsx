@@ -125,7 +125,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       return data;
     } catch (error) {
       setConversations([]);
-      notifyError(error.response?.data?.error || 'Impossible de charger les conversations');
+      notifyError(error.response?.data?.error || 'Unable to load conversations');
       return [];
     }
   }
@@ -137,7 +137,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       setGlobalMessages(data);
     } catch (error) {
       setGlobalMessages([]);
-      notifyError(error.response?.data?.error || 'Impossible de charger le salon général');
+      notifyError(error.response?.data?.error || 'Unable to load the general channel');
     } finally {
       setLoadingGlobal(false);
     }
@@ -150,7 +150,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       return data;
     } catch (error) {
       setGroups([]);
-      notifyError(error.response?.data?.error || 'Impossible de charger les groupes');
+      notifyError(error.response?.data?.error || 'Unable to load groups');
       return [];
     }
   }
@@ -189,7 +189,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             activeChannelRef.current === 'private' &&
             openConversationRef.current?.other_user_id === conversation.other_user_id;
           if ((conversation.unread_count || 0) > before && !isOpenConversation) {
-            notifyInfo(`Nouveau message de ${conversation.other_user_name}`);
+            notifyInfo(`New message from ${conversation.other_user_name}`);
           }
         });
       }
@@ -201,7 +201,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           const before = previousGroups.get(group.id) || 0;
           const isOpenGroup = activeChannelRef.current === 'group' && openGroupRef.current?.id === group.id;
           if ((group.unread_count || 0) > before && !isOpenGroup) {
-            notifyInfo(`Nouveau message dans ${group.name}`);
+            notifyInfo(`New message in ${group.name}`);
           }
         });
       }
@@ -347,7 +347,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       }
       if (first.last_message_at) return -1;
       if (second.last_message_at) return 1;
-      return (first.other_user_name || '').localeCompare(second.other_user_name || '', 'fr');
+      return (first.other_user_name || '').localeCompare(second.other_user_name || '', 'en');
     });
   }, [availableUsers, conversations, pinnedMemberIds]);
 
@@ -359,7 +359,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     return list.filter((member) => {
       const name = member.other_user_name?.toLowerCase() || '';
       const preview = member.last_message_content?.toLowerCase() || '';
-      const role = member.other_user_role === 'ADMIN' ? 'administrateur' : 'employé';
+      const role = member.other_user_role === 'ADMIN' ? 'administrator' : 'employee';
       return name.includes(query) || preview.includes(query) || role.includes(query);
     });
   }, [teamMembers, searchQuery, listFilter]);
@@ -389,19 +389,19 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
 
   const activeTitle =
     activeChannel === 'global'
-      ? 'Équipe — Général'
+      ? 'Team — General'
       : activeChannel === 'group'
-        ? openGroup?.name || 'Groupe'
+        ? openGroup?.name || 'Group'
         : openConversation?.other_user_name || 'Conversation';
   const otherOnline = activeChannel === 'private' && openConversation && onlineUserIds.has(openConversation.other_user_id);
   const activeSubtitle =
     activeChannel === 'global'
-      ? "Salon général de l'équipe"
+      ? 'Team general channel'
       : activeChannel === 'group'
-        ? `${openGroup?.member_count || 0} membre${Number(openGroup?.member_count) > 1 ? 's' : ''} · Groupe privé`
+        ? `${openGroup?.member_count || 0} member${Number(openGroup?.member_count) > 1 ? 's' : ''} · Private group`
         : otherOnline
-          ? 'En ligne'
-          : 'Hors ligne';
+          ? 'Online'
+          : 'Offline';
   const latestGlobalMessage = globalMessages[globalMessages.length - 1];
 
   // Charge les blobs des pièces jointes image/audio à afficher. Chaque message est traité
@@ -482,7 +482,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       const updated = await messageService.reactMessage(messageId, emoji);
       replaceMessage(updated);
     } catch (error) {
-      notifyError(requestErrorMessage(error, "Impossible d'ajouter la réaction"));
+      notifyError(requestErrorMessage(error, 'Unable to add the reaction'));
     }
   }
   function startEdit(message) {
@@ -498,16 +498,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       setEditingId(null);
       setEditText('');
     } catch (error) {
-      notifyError(requestErrorMessage(error, 'Impossible de modifier le message'));
+      notifyError(requestErrorMessage(error, 'Unable to edit the message'));
     }
   }
   async function handleDelete(messageId) {
-    if (!window.confirm('Supprimer ce message ?')) return;
+    if (!window.confirm('Delete this message?')) return;
     try {
       await messageService.deleteMessage(messageId);
       applyDelete(messageId);
     } catch (error) {
-      notifyError(requestErrorMessage(error, 'Impossible de supprimer le message'));
+      notifyError(requestErrorMessage(error, 'Unable to delete the message'));
     }
   }
   async function downloadAttachment(message) {
@@ -516,11 +516,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = message.attachment_name || 'piece-jointe';
+      link.download = message.attachment_name || 'attachment';
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      notifyError(requestErrorMessage(error, 'Impossible de télécharger la pièce jointe'));
+      notifyError(requestErrorMessage(error, 'Unable to download the attachment'));
     }
   }
 
@@ -533,7 +533,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       setGlobalInput('');
       await loadGlobalMessages();
     } catch (error) {
-      notifyError(requestErrorMessage(error, "Impossible d'envoyer le message"));
+      notifyError(requestErrorMessage(error, 'Unable to send the message'));
     } finally { setSending(false); }
   }
 
@@ -561,7 +561,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       await loadConversations();
     } catch (error) {
       setConversationMessages([]);
-      notifyError(error.response?.data?.error || 'Impossible de charger la conversation');
+      notifyError(error.response?.data?.error || 'Unable to load the conversation');
     } finally { setLoadingPrivate(false); }
   }
 
@@ -581,7 +581,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       if (refreshedGroup) setOpenGroup(refreshedGroup);
     } catch (error) {
       setGroupMessages([]);
-      notifyError(error.response?.data?.error || 'Impossible de charger le groupe');
+      notifyError(error.response?.data?.error || 'Unable to load the group');
     } finally { setLoadingGroup(false); }
   }
 
@@ -615,7 +615,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       ]);
       setConversationMessages(messages);
     } catch (error) {
-      notifyError(requestErrorMessage(error, "Impossible d'envoyer le message"));
+      notifyError(requestErrorMessage(error, 'Unable to send the message'));
     } finally { setSending(false); }
   }
 
@@ -632,7 +632,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       ]);
       setGroupMessages(messages);
     } catch (error) {
-      notifyError(requestErrorMessage(error, "Impossible d'envoyer le message au groupe"));
+      notifyError(requestErrorMessage(error, 'Unable to send the message to the group'));
     } finally { setSending(false); }
   }
 
@@ -649,11 +649,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       setNewMessageText('');
       setNewRecipientId('');
       setNewMessageOpen(false);
-      notifySuccess('Message envoyé');
+      notifySuccess('Message sent');
       const selectedMember = teamMembers.find((member) => member.other_user_id === recipientId);
       if (selectedMember) await openConversationWith({ ...selectedMember, ...(conversation || {}) });
     } catch (error) {
-      notifyError(requestErrorMessage(error, "Impossible d'envoyer le message"));
+      notifyError(requestErrorMessage(error, 'Unable to send the message'));
     } finally { setSending(false); }
   }
 
@@ -672,11 +672,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       setGroupMemberIds([]);
       setGroupPhoto(null);
       setGroupCreateOpen(false);
-      notifySuccess(`Groupe « ${createdGroup.name} » créé`);
+      notifySuccess(`Group “${createdGroup.name}” created`);
       await loadGroups();
       await openGroupWith(createdGroup);
     } catch (error) {
-      notifyError(requestErrorMessage(error, 'Impossible de créer le groupe'));
+      notifyError(requestErrorMessage(error, 'Unable to create the group'));
     } finally { setSending(false); }
   }
 
@@ -691,13 +691,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     setSending(true);
     try {
       await messageService.sendMessageToMultiple(bulkRecipientIds, content);
-      notifySuccess(`Message envoyé à ${bulkRecipientIds.length} destinataire(s)`);
+      notifySuccess(`Message sent to ${bulkRecipientIds.length} recipient(s)`);
       setBulkRecipientIds([]);
       setBulkMessage('');
       setBulkOpen(false);
       await loadConversations();
     } catch (error) {
-      notifyError(requestErrorMessage(error, "Impossible d'envoyer le message groupé"));
+      notifyError(requestErrorMessage(error, 'Unable to send the bulk message'));
     } finally { setSending(false); }
   }
 
@@ -723,7 +723,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             <span className="conversation-preview-row">
               <span className="conversation-preview">
                 {member.last_message_content ||
-                  (member.other_user_role === 'ADMIN' ? 'Administrateur · Aucun échange' : 'Membre · Aucun échange')}
+                  (member.other_user_role === 'ADMIN' ? 'Administrator · No messages' : 'Member · No messages')}
               </span>
               {member.unread_count > 0 && (
                 <span className="conversation-unread">{member.unread_count > 99 ? '99+' : member.unread_count}</span>
@@ -735,8 +735,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           type="button"
           className={`conversation-pin-button${isPinned ? ' conversation-pin-button--active' : ''}`}
           onClick={() => togglePinnedMember(member.other_user_id)}
-          aria-label={isPinned ? `Désépingler ${member.other_user_name}` : `Épingler ${member.other_user_name}`}
-          title={isPinned ? 'Désépingler' : 'Épingler'}
+          aria-label={isPinned ? `Unpin ${member.other_user_name}` : `Pin ${member.other_user_name}`}
+          title={isPinned ? 'Unpin' : 'Pin'}
         >
           ★
         </button>
@@ -761,7 +761,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           </span>
           <span className="conversation-preview-row">
             <span className="conversation-preview">
-              {group.last_message_content || `${group.member_count} membres · Aucun message`}
+              {group.last_message_content || `${group.member_count} members · No messages`}
             </span>
             {group.unread_count > 0 && (
               <span className="conversation-unread">{group.unread_count > 99 ? '99+' : group.unread_count}</span>
@@ -782,7 +782,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             key={reaction.emoji}
             className={`msgr-reaction${reaction.mine ? ' msgr-reaction--mine' : ''}`}
             onClick={() => handleReact(message.id, reaction.emoji)}
-            title={reaction.mine ? 'Retirer ma réaction' : 'Réagir'}
+            title={reaction.mine ? 'Remove my reaction' : 'React'}
           >
             <span>{reaction.emoji}</span>
             <span className="msgr-reaction-count">{reaction.count}</span>
@@ -798,7 +798,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       return (
         <div className="messaging-state" role="status">
           <span className="messaging-loader" />
-          <p>Chargement des messages...</p>
+          <p>Loading messages...</p>
         </div>
       );
     }
@@ -806,8 +806,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       return (
         <div className="messaging-state">
           <span className="messaging-state-icon"><IconChat /></span>
-          <h3>{panelSearch ? 'Aucun résultat' : 'Aucun message'}</h3>
-          <p>{panelSearch ? 'Aucun message ne correspond à votre recherche.' : 'Commencez la conversation en envoyant un premier message.'}</p>
+          <h3>{panelSearch ? 'No results' : 'No messages'}</h3>
+          <p>{panelSearch ? 'No message matches your search.' : 'Start the conversation by sending a first message.'}</p>
         </div>
       );
     }
@@ -831,9 +831,9 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               <div className="msgr-msg-line">
                 {!isDeleted && !isEditing && (
                   <div className="msgr-msg-actions">
-                    <button type="button" onClick={() => setReactPickerId((id) => (id === message.id ? null : message.id))} title="Réagir" aria-label="Réagir"><SmileyIcon /></button>
-                    {canEdit && <button type="button" onClick={() => startEdit(message)} title="Modifier" aria-label="Modifier"><IconPencil /></button>}
-                    {canDelete && <button type="button" onClick={() => handleDelete(message.id)} title="Supprimer" aria-label="Supprimer"><IconTrash /></button>}
+                    <button type="button" onClick={() => setReactPickerId((id) => (id === message.id ? null : message.id))} title="React" aria-label="React"><SmileyIcon /></button>
+                    {canEdit && <button type="button" onClick={() => startEdit(message)} title="Edit" aria-label="Edit"><IconPencil /></button>}
+                    {canDelete && <button type="button" onClick={() => handleDelete(message.id)} title="Delete" aria-label="Delete"><IconTrash /></button>}
                     {reactPickerId === message.id && (
                       <div className="msgr-react-picker">
                         {REACTIONS.map((emoji) => (
@@ -845,13 +845,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                 )}
                 <div className={`message-bubble${isOwnMessage ? ' message-bubble--own' : ''}${isDeleted ? ' message-bubble--deleted' : ''}`}>
                   {isDeleted ? (
-                    <p className="msgr-deleted">Message supprimé</p>
+                    <p className="msgr-deleted">Message deleted</p>
                   ) : isEditing ? (
                     <div className="msgr-edit">
                       <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={2} autoFocus />
                       <div className="msgr-edit-actions">
-                        <button type="button" className="msgr-edit-cancel" onClick={() => { setEditingId(null); setEditText(''); }}>Annuler</button>
-                        <button type="button" className="msgr-edit-save" onClick={() => saveEdit(message.id)} disabled={!editText.trim()}>Enregistrer</button>
+                        <button type="button" className="msgr-edit-cancel" onClick={() => { setEditingId(null); setEditText(''); }}>Cancel</button>
+                        <button type="button" className="msgr-edit-save" onClick={() => saveEdit(message.id)} disabled={!editText.trim()}>Save</button>
                       </div>
                     </div>
                   ) : (
@@ -863,13 +863,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                               <img src={attachmentUrls[message.id]} alt={message.attachment_name || 'image'} />
                             </a>
                           ) : (
-                            <div className="msgr-attach-loading"><ImageIcon /> Chargement…</div>
+                            <div className="msgr-attach-loading"><ImageIcon /> Loading…</div>
                           )
                         ) : isAudioType(message.attachment_type) ? (
                           attachmentUrls[message.id] ? (
                             <audio className="msgr-attach-audio" controls src={attachmentUrls[message.id]} />
                           ) : (
-                            <div className="msgr-attach-loading"><MicIcon /> Chargement…</div>
+                            <div className="msgr-attach-loading"><MicIcon /> Loading…</div>
                           )
                         ) : (
                           <button type="button" className="msgr-attach-file" onClick={() => downloadAttachment(message)}>
@@ -889,7 +889,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               {!isDeleted && (
                 <span className="message-time">
                   {formatMessageTime(message.created_at)}
-                  {message.edited_at && <span className="msgr-edited"> · modifié</span>}
+                  {message.edited_at && <span className="msgr-edited"> · edited</span>}
                 </span>
               )}
             </div>
@@ -908,7 +908,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         null);
     return (
       <aside className="msgr-profile">
-        <button type="button" className="msgr-profile-close" onClick={() => setRightPanelOpen(false)} aria-label="Fermer">
+        <button type="button" className="msgr-profile-close" onClick={() => setRightPanelOpen(false)} aria-label="Close">
           <IconX />
         </button>
         <div className="msgr-profile-hero">
@@ -923,15 +923,15 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           {activeChannel === 'private' && openConversation && (
             <>
               <span className={`msgr-role-badge msgr-role-badge--${openConversation.other_user_role === 'ADMIN' ? 'admin' : 'employee'}`}>
-                {openConversation.other_user_role === 'ADMIN' ? 'Administrateur' : 'Employé'}
+                {openConversation.other_user_role === 'ADMIN' ? 'Administrator' : 'Employee'}
               </span>
               <p className={`msgr-online-line${online ? ' msgr-online-line--on' : ''}`}>
-                <span className="msgr-online-dot" /> {online ? 'En ligne' : 'Hors ligne'}
+                <span className="msgr-online-dot" /> {online ? 'Online' : 'Offline'}
               </p>
             </>
           )}
-          {activeChannel === 'group' && <p className="msgr-profile-sub">{openGroup?.member_count || 0} membres · Groupe privé</p>}
-          {activeChannel === 'global' && <p className="msgr-profile-sub">Salon général de l'équipe</p>}
+          {activeChannel === 'group' && <p className="msgr-profile-sub">{openGroup?.member_count || 0} members · Private group</p>}
+          {activeChannel === 'global' && <p className="msgr-profile-sub">Team general channel</p>}
         </div>
 
         <div className="msgr-profile-section">
@@ -941,16 +941,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               type="search"
               value={panelSearch}
               onChange={(e) => setPanelSearch(e.target.value)}
-              placeholder="Rechercher dans la conversation"
+              placeholder="Search in the conversation"
             />
           </label>
-          {panelSearch && <p className="msgr-profile-hint">{displayedMessages.length} résultat{displayedMessages.length > 1 ? 's' : ''}</p>}
+          {panelSearch && <p className="msgr-profile-hint">{displayedMessages.length} result{displayedMessages.length > 1 ? 's' : ''}</p>}
         </div>
 
         {activeChannel === 'private' && otherEmail && (
           <div className="msgr-profile-section">
-            <p className="msgr-profile-label">Coordonnées</p>
-            <a className="msgr-profile-contact" href={`mailto:${otherEmail}`} title={`Écrire à ${otherEmail}`}>
+            <p className="msgr-profile-label">Contact</p>
+            <a className="msgr-profile-contact" href={`mailto:${otherEmail}`} title={`Email ${otherEmail}`}>
               <span className="msgr-contact-icon">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
@@ -967,16 +967,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
 
         {activeChannel === 'group' && (openGroup?.members || []).length > 0 && (
           <div className="msgr-profile-section">
-            <p className="msgr-profile-label">Membres de la discussion</p>
+            <p className="msgr-profile-label">Discussion members</p>
             <div className="msgr-profile-members">
               {(openGroup.members || []).map((member) => (
                 <div className="msgr-profile-member" key={member.id}>
                   <ProfileAvatar name={member.full_name} avatarUrl={avatarUrls[member.id]} className="msgr-member-avatar" />
                   <div>
                     <strong>{member.full_name}</strong>
-                    <span>{member.role === 'ADMIN' ? 'Administrateur' : 'Employé'}</span>
+                    <span>{member.role === 'ADMIN' ? 'Administrator' : 'Employee'}</span>
                   </div>
-                  {onlineUserIds.has(member.id) && <span className="msgr-member-online" title="En ligne" />}
+                  {onlineUserIds.has(member.id) && <span className="msgr-member-online" title="Online" />}
                 </div>
               ))}
             </div>
@@ -989,23 +989,23 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   const bulkRecipients = availableUsers.filter((u) => u.role === 'EMPLOYEE');
   const groupPhotoUrl = useMemo(() => (groupPhoto ? URL.createObjectURL(groupPhoto) : null), [groupPhoto]);
   const TABS = [
-    { key: 'all', label: 'Tout' },
-    { key: 'unread', label: 'Non lu' },
-    { key: 'members', label: 'Équipe' },
-    { key: 'groups', label: 'Groupes' },
+    { key: 'all', label: 'All' },
+    { key: 'unread', label: 'Unread' },
+    { key: 'members', label: 'Team' },
+    { key: 'groups', label: 'Groups' },
   ];
 
   return (
     <div className={`msgr msgr--${mobilePanel}${rightPanelOpen ? ' msgr--with-profile' : ''}`}>
-      <aside className="msgr-sidebar" aria-label="Liste des conversations">
+      <aside className="msgr-sidebar" aria-label="Conversation list">
         <div className="msgr-sidebar-head">
-          <h2>Discussions</h2>
+          <h2>Chats</h2>
           <div className="msgr-sidebar-head-actions">
-            <button type="button" onClick={() => setGroupCreateOpen(true)} title="Créer un groupe" aria-label="Créer un groupe"><UsersIcon /></button>
+            <button type="button" onClick={() => setGroupCreateOpen(true)} title="Create a group" aria-label="Create a group"><UsersIcon /></button>
             {enableBulk && (
-              <button type="button" onClick={() => setBulkOpen(true)} title="Message groupé" aria-label="Message groupé"><PlusIcon /></button>
+              <button type="button" onClick={() => setBulkOpen(true)} title="Bulk message" aria-label="Bulk message"><PlusIcon /></button>
             )}
-            <button type="button" onClick={() => setNewMessageOpen(true)} title="Nouveau message" aria-label="Nouveau message"><PlusIcon /></button>
+            <button type="button" onClick={() => setNewMessageOpen(true)} title="New message" aria-label="New message"><PlusIcon /></button>
           </div>
         </div>
 
@@ -1015,8 +1015,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             type="search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Rechercher dans Messenger"
-            aria-label="Rechercher un groupe ou un membre"
+            placeholder="Search in Messenger"
+            aria-label="Search a group or member"
           />
         </label>
 
@@ -1043,17 +1043,17 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               <span className="conversation-avatar conversation-avatar--team"><IconChat /></span>
               <span className="conversation-content">
                 <span className="conversation-name-row">
-                  <strong>Équipe — Général</strong>
+                  <strong>Team — General</strong>
                   <time>{formatConversationTime(latestGlobalMessage?.created_at)}</time>
                 </span>
-                <span className="conversation-preview">{latestGlobalMessage?.content || "Salon général de l'équipe"}</span>
+                <span className="conversation-preview">{latestGlobalMessage?.content || 'Team general channel'}</span>
               </span>
             </button>
           )}
 
           {listFilter !== 'members' && filteredGroups.length > 0 && (
             <>
-              <div className="conversation-section-label">Groupes</div>
+              <div className="conversation-section-label">Groups</div>
               {filteredGroups.map(renderGroup)}
             </>
           )}
@@ -1061,40 +1061,40 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           {listFilter === 'groups' && filteredGroups.length === 0 && (
             <div className="conversation-empty">
               <UsersIcon />
-              <p>Aucun groupe pour le moment.</p>
+              <p>No group yet.</p>
               <button type="button" className="messaging-secondary-button" onClick={() => setGroupCreateOpen(true)}>
-                <UsersIcon /> Créer un groupe
+                <UsersIcon /> Create a group
               </button>
             </div>
           )}
 
           {listFilter !== 'groups' && pinnedMembers.length > 0 && (
             <>
-              <div className="conversation-section-label">Épinglés</div>
+              <div className="conversation-section-label">Pinned</div>
               {pinnedMembers.map(renderMember)}
             </>
           )}
 
           {listFilter !== 'groups' && unpinnedMembers.length > 0 && (
             <>
-              <div className="conversation-section-label">{listFilter === 'unread' ? 'Non lus' : 'Membres'}</div>
+              <div className="conversation-section-label">{listFilter === 'unread' ? 'Unread' : 'Members'}</div>
               {unpinnedMembers.map(renderMember)}
             </>
           )}
 
           {listFilter === 'unread' && filteredMembers.length === 0 && filteredGroups.length === 0 && (
-            <div className="conversation-empty"><IconChat /><p>Aucun message non lu.</p></div>
+            <div className="conversation-empty"><IconChat /><p>No unread messages.</p></div>
           )}
 
           {filteredMembers.length === 0 && filteredGroups.length === 0 && searchQuery.trim() && (
-            <div className="conversation-empty"><IconSearch /><p>Aucun groupe ou membre trouvé.</p></div>
+            <div className="conversation-empty"><IconSearch /><p>No group or member found.</p></div>
           )}
         </div>
       </aside>
 
       <section className="msgr-chat" aria-label={activeTitle}>
         <header className="msgr-chat-head">
-          <button type="button" className="msgr-back" onClick={() => setMobilePanel('list')} aria-label="Retour aux conversations">
+          <button type="button" className="msgr-back" onClick={() => setMobilePanel('list')} aria-label="Back to conversations">
             <BackIcon />
           </button>
           {activeChannel === 'global' ? (
@@ -1111,13 +1111,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             <p className={otherOnline ? 'msgr-head-online' : ''}>{activeSubtitle}</p>
           </div>
           <div className="msgr-chat-head-actions">
-            <button type="button" onClick={() => { setRightPanelOpen(true); }} title="Rechercher" aria-label="Rechercher"><IconSearch /></button>
+            <button type="button" onClick={() => { setRightPanelOpen(true); }} title="Search" aria-label="Search"><IconSearch /></button>
             <button
               type="button"
               className={rightPanelOpen ? 'msgr-head-btn--active' : ''}
               onClick={() => setRightPanelOpen((v) => !v)}
-              title="Informations"
-              aria-label="Informations"
+              title="Information"
+              aria-label="Information"
             >
               <InfoIcon />
             </button>
@@ -1131,11 +1131,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
 
         <div className="msgr-composer-wrap">
           {activeChannel === 'global' ? (
-            <MessageComposer value={globalInput} onChange={setGlobalInput} onSend={handleSendGlobal} disabled={sending} placeholder="Écrire dans le salon général..." />
+            <MessageComposer value={globalInput} onChange={setGlobalInput} onSend={handleSendGlobal} disabled={sending} placeholder="Write in the general channel..." />
           ) : activeChannel === 'group' ? (
-            <MessageComposer value={groupReplyText} onChange={setGroupReplyText} onSend={handleGroupReply} disabled={sending || !openGroup} placeholder={`Écrire dans ${openGroup?.name || 'le groupe'}...`} />
+            <MessageComposer value={groupReplyText} onChange={setGroupReplyText} onSend={handleGroupReply} disabled={sending || !openGroup} placeholder={`Write in ${openGroup?.name || 'the group'}...`} />
           ) : (
-            <MessageComposer value={replyText} onChange={setReplyText} onSend={handleReply} disabled={sending || !openConversation} placeholder="Écrire un message..." />
+            <MessageComposer value={replyText} onChange={setReplyText} onSend={handleReply} disabled={sending || !openConversation} placeholder="Write a message..." />
           )}
         </div>
       </section>
@@ -1149,11 +1149,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               <div>
                 <span className="messaging-modal-icon"><UsersIcon /></span>
                 <div>
-                  <h2 id="create-group-title">Créer un groupe</h2>
-                  <p>Donnez un nom au groupe puis choisissez les personnes qui pourront y participer.</p>
+                  <h2 id="create-group-title">Create a group</h2>
+                  <p>Give the group a name, then choose who can take part.</p>
                 </div>
               </div>
-              <button type="button" className="messaging-modal-close" onClick={() => setGroupCreateOpen(false)} aria-label="Fermer la fenêtre"><IconX /></button>
+              <button type="button" className="messaging-modal-close" onClick={() => setGroupCreateOpen(false)} aria-label="Close window"><IconX /></button>
             </div>
             <form className="messaging-modal-form" onSubmit={handleCreateGroup}>
               <label className="msgr-group-photo">
@@ -1161,16 +1161,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                 <span className="msgr-group-photo-preview">
                   {groupPhotoUrl ? <img src={groupPhotoUrl} alt="" /> : <ImageIcon />}
                 </span>
-                <span className="msgr-group-photo-hint">{groupPhoto ? 'Changer la photo' : 'Ajouter une photo (facultatif)'}</span>
+                <span className="msgr-group-photo-hint">{groupPhoto ? 'Change photo' : 'Add a photo (optional)'}</span>
               </label>
               <label>
-                <span>Nom du groupe</span>
-                <input type="text" value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Ex. Dev" minLength="2" maxLength="100" autoFocus required />
+                <span>Group name</span>
+                <input type="text" value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="e.g. Dev" minLength="2" maxLength="100" autoFocus required />
               </label>
               <div className="msg-bulk-recipients-head">
-                <span>Personnes sélectionnées ({groupMemberIds.length})</span>
+                <span>Selected people ({groupMemberIds.length})</span>
                 <button type="button" className="msg-bulk-selectall" onClick={() => setGroupMemberIds(groupMemberIds.length === availableUsers.length ? [] : availableUsers.map((member) => member.id))}>
-                  {groupMemberIds.length === availableUsers.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                  {groupMemberIds.length === availableUsers.length ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
               <div className="msg-bulk-recipients">
@@ -1180,13 +1180,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                     {member.full_name}
                   </label>
                 ))}
-                {availableUsers.length === 0 && <p className="messaging-modal-empty">Aucune personne active n'est disponible.</p>}
+                {availableUsers.length === 0 && <p className="messaging-modal-empty">No active person is available.</p>}
               </div>
-              <p className="messaging-modal-hint">Vous serez automatiquement ajouté au groupe.</p>
+              <p className="messaging-modal-hint">You will be added to the group automatically.</p>
               <div className="messaging-modal-actions">
-                <button type="button" className="messaging-secondary-button" onClick={() => setGroupCreateOpen(false)}>Annuler</button>
+                <button type="button" className="messaging-secondary-button" onClick={() => setGroupCreateOpen(false)}>Cancel</button>
                 <button type="submit" className="messaging-primary-button" disabled={groupName.trim().length < 2 || groupMemberIds.length === 0 || sending}>
-                  <UsersIcon /> {sending ? 'Création...' : 'Créer le groupe'}
+                  <UsersIcon /> {sending ? 'Creating...' : 'Create the group'}
                 </button>
               </div>
             </form>
@@ -1201,33 +1201,33 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               <div>
                 <span className="messaging-modal-icon"><IconUser /></span>
                 <div>
-                  <h2 id="new-message-title">Nouveau message</h2>
-                  <p>Démarrez une conversation privée avec un membre de l'équipe.</p>
+                  <h2 id="new-message-title">New message</h2>
+                  <p>Start a private conversation with a team member.</p>
                 </div>
               </div>
-              <button type="button" className="messaging-modal-close" onClick={() => setNewMessageOpen(false)} aria-label="Fermer la fenêtre"><IconX /></button>
+              <button type="button" className="messaging-modal-close" onClick={() => setNewMessageOpen(false)} aria-label="Close window"><IconX /></button>
             </div>
             <form className="messaging-modal-form" onSubmit={handleStartConversation}>
               <label>
-                <span>Destinataire</span>
+                <span>Recipient</span>
                 <select value={newRecipientId} onChange={(event) => setNewRecipientId(event.target.value)} required>
-                  <option value="">Choisir un membre de l'équipe</option>
+                  <option value="">Choose a team member</option>
                   {availableUsers.map((availableUser) => (
                     <option key={availableUser.id} value={availableUser.id}>
-                      {availableUser.full_name} — {availableUser.role === 'ADMIN' ? 'Administrateur' : 'Employé'}
+                      {availableUser.full_name} — {availableUser.role === 'ADMIN' ? 'Administrator' : 'Employee'}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
                 <span>Message</span>
-                <textarea rows="5" value={newMessageText} onChange={(event) => setNewMessageText(event.target.value)} placeholder="Écrivez votre message..." required />
+                <textarea rows="5" value={newMessageText} onChange={(event) => setNewMessageText(event.target.value)} placeholder="Write your message..." required />
               </label>
-              {availableUsers.length === 0 && <p className="messaging-modal-empty">Aucun autre utilisateur actif n'est disponible.</p>}
+              {availableUsers.length === 0 && <p className="messaging-modal-empty">No other active user is available.</p>}
               <div className="messaging-modal-actions">
-                <button type="button" className="messaging-secondary-button" onClick={() => setNewMessageOpen(false)}>Annuler</button>
+                <button type="button" className="messaging-secondary-button" onClick={() => setNewMessageOpen(false)}>Cancel</button>
                 <button type="submit" className="messaging-primary-button" disabled={!newRecipientId || !newMessageText.trim() || sending}>
-                  <SendIcon /> {sending ? 'Envoi...' : 'Envoyer'}
+                  <SendIcon /> {sending ? 'Sending...' : 'Send'}
                 </button>
               </div>
             </form>
@@ -1242,17 +1242,17 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               <div>
                 <span className="messaging-modal-icon"><UsersIcon /></span>
                 <div>
-                  <h2 id="bulk-message-title">Message groupé</h2>
-                  <p>Chaque destinataire reçoit le message dans sa propre conversation, sans voir les autres.</p>
+                  <h2 id="bulk-message-title">Bulk message</h2>
+                  <p>Each recipient receives the message in their own conversation, without seeing the others.</p>
                 </div>
               </div>
-              <button type="button" className="messaging-modal-close" onClick={() => setBulkOpen(false)} aria-label="Fermer la fenêtre"><IconX /></button>
+              <button type="button" className="messaging-modal-close" onClick={() => setBulkOpen(false)} aria-label="Close window"><IconX /></button>
             </div>
             <form className="messaging-modal-form" onSubmit={handleSendBulk}>
               <div className="msg-bulk-recipients-head">
-                <span>Destinataires ({bulkRecipientIds.length})</span>
+                <span>Recipients ({bulkRecipientIds.length})</span>
                 <button type="button" className="msg-bulk-selectall" onClick={() => setBulkRecipientIds(bulkRecipientIds.length === bulkRecipients.length ? [] : bulkRecipients.map((r) => r.id))}>
-                  {bulkRecipientIds.length === bulkRecipients.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                  {bulkRecipientIds.length === bulkRecipients.length ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
               <div className="msg-bulk-recipients">
@@ -1262,16 +1262,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                     {emp.full_name}
                   </label>
                 ))}
-                {bulkRecipients.length === 0 && <p className="messaging-modal-empty">Aucun employé actif disponible.</p>}
+                {bulkRecipients.length === 0 && <p className="messaging-modal-empty">No active employee available.</p>}
               </div>
               <label>
                 <span>Message</span>
-                <textarea rows="4" value={bulkMessage} onChange={(event) => setBulkMessage(event.target.value)} placeholder="Message pour les destinataires sélectionnés..." required />
+                <textarea rows="4" value={bulkMessage} onChange={(event) => setBulkMessage(event.target.value)} placeholder="Message for the selected recipients..." required />
               </label>
               <div className="messaging-modal-actions">
-                <button type="button" className="messaging-secondary-button" onClick={() => setBulkOpen(false)}>Annuler</button>
+                <button type="button" className="messaging-secondary-button" onClick={() => setBulkOpen(false)}>Cancel</button>
                 <button type="submit" className="messaging-primary-button" disabled={bulkRecipientIds.length === 0 || !bulkMessage.trim() || sending}>
-                  <SendIcon /> {sending ? 'Envoi...' : `Envoyer (${bulkRecipientIds.length})`}
+                  <SendIcon /> {sending ? 'Sending...' : `Send (${bulkRecipientIds.length})`}
                 </button>
               </div>
             </form>

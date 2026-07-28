@@ -31,7 +31,7 @@ async function getFolders(req, res, next) {
   try {
     const { type } = req.query;
     if (!FOLDER_TYPES.includes(type)) {
-      return res.status(400).json({ error: 'Le paramètre type doit être INTERNE ou CLIENT' });
+      return res.status(400).json({ error: 'The type parameter must be INTERNE or CLIENT' });
     }
 
     const folders = await resourceModel.findFolders(type);
@@ -105,7 +105,7 @@ async function renameFolder(req, res, next) {
 
     const updated = await resourceModel.renameFolder(id, name);
     if (!updated) {
-      return res.status(409).json({ error: 'Ce dossier a déjà été supprimé' });
+      return res.status(409).json({ error: 'This folder has already been deleted' });
     }
 
     await taskModel.recordAudit({
@@ -133,7 +133,7 @@ async function deleteFolder(req, res, next) {
 
     const deleted = await resourceModel.deleteFolder(id, req.user.id);
     if (!deleted) {
-      return res.status(409).json({ error: 'Ce dossier se trouve déjà dans la corbeille' });
+      return res.status(409).json({ error: 'This folder is already in the trash' });
     }
 
     await taskModel.recordAudit({
@@ -308,7 +308,7 @@ async function deleteFile(req, res, next) {
 
     const deleted = await resourceModel.deleteFile(id, req.user.id);
     if (!deleted) {
-      return res.status(409).json({ error: 'Ce fichier se trouve déjà dans la corbeille' });
+      return res.status(409).json({ error: 'This file is already in the trash' });
     }
 
     await taskModel.recordAudit({
@@ -350,7 +350,7 @@ async function restoreFolder(req, res, next) {
 
     const restored = await resourceModel.restoreFolder(id);
     if (!restored) {
-      return res.status(409).json({ error: 'Ce dossier a déjà été restauré' });
+      return res.status(409).json({ error: 'This folder has already been restored' });
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -381,7 +381,7 @@ async function restoreFile(req, res, next) {
 
     const restored = await resourceModel.restoreFile(id);
     if (!restored) {
-      return res.status(409).json({ error: 'Ce fichier a déjà été restauré' });
+      return res.status(409).json({ error: 'This file has already been restored' });
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -407,7 +407,7 @@ async function permanentlyDeleteFolder(req, res, next) {
     const filePaths = await resourceModel.findFilePathsInFolderTree(id);
     const deleted = await resourceModel.permanentlyDeleteFolder(id);
     if (!deleted) {
-      return res.status(409).json({ error: 'Ce dossier ne peut plus être supprimé' });
+      return res.status(409).json({ error: 'This folder can no longer be deleted' });
     }
     for (const filePath of filePaths) {
       fs.unlink(filePath, () => {});
@@ -435,7 +435,7 @@ async function permanentlyDeleteFile(req, res, next) {
 
     const deleted = await resourceModel.permanentlyDeleteFile(id);
     if (!deleted) {
-      return res.status(409).json({ error: 'Ce fichier ne peut plus être supprimé' });
+      return res.status(409).json({ error: 'This file can no longer be deleted' });
     }
     if (file.kind === 'FILE' && file.file_path) {
       fs.unlink(file.file_path, () => {});
@@ -459,7 +459,7 @@ async function shareFolder(req, res, next) {
     const { user_ids: userIds, permission_type: permissionType, expires_at: expiresAt } = req.body;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(400).json({ error: 'Sélectionnez au moins un employé' });
+      return res.status(400).json({ error: 'Select at least one employee' });
     }
     if (!PERMISSION_TYPES.includes(permissionType)) {
       return res.status(400).json({ error: 'Permission invalide' });

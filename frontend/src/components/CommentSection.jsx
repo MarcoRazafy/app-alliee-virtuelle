@@ -36,10 +36,10 @@ function CommentSection({ taskId }) {
     try {
       if (isAdmin && asNote) {
         await taskService.createNote(taskId, content);
-        notifySuccess('Note ajoutée');
+        notifySuccess('Note added');
       } else {
         await taskService.createComment(taskId, content);
-        notifySuccess('Commentaire envoyé');
+        notifySuccess('Comment sent');
       }
       setContent('');
       setAsNote(false);
@@ -53,8 +53,8 @@ function CommentSection({ taskId }) {
     <div>
       {isAdmin && (
         <>
-          <p className="app-section-title">Notes internes (admin uniquement)</p>
-          {notes.length === 0 && <div className="empty-state">Aucune note.</div>}
+          <p className="app-section-title">Internal notes (admins only)</p>
+          {notes.length === 0 && <div className="empty-state">No note.</div>}
           {notes.length > 0 && (
             <div className="comment-list">
               {notes.map((note) => (
@@ -71,7 +71,7 @@ function CommentSection({ taskId }) {
         </>
       )}
 
-      {comments.length === 0 && <div className="empty-state">Aucun commentaire pour le moment.</div>}
+      {comments.length === 0 && <div className="empty-state">No comment yet.</div>}
       {comments.length > 0 && (
         <div className="comment-list">
           {comments.map((comment) => (
@@ -92,16 +92,16 @@ function CommentSection({ taskId }) {
             type="text"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Ajouter un commentaire"
+            placeholder="Add a comment"
           />
           <button type="submit" className="btn-primary">
-            Envoyer
+            Send
           </button>
         </div>
         {isAdmin && (
           <label className="comment-form-note-toggle">
             <input type="checkbox" checked={asNote} onChange={(e) => setAsNote(e.target.checked)} />
-            Note interne (visible uniquement par les admins)
+            Internal note (visible to admins only)
           </label>
         )}
       </form>
