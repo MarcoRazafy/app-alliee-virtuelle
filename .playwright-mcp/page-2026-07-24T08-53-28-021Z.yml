@@ -1,0 +1,20 @@
+- generic [ref=e3]:
+  - button "Passer en mode sombre" [ref=e4] [cursor=pointer]
+  - generic [ref=e7]:
+    - img "L'Alliée Virtuelle" [ref=e9]
+    - heading "Connexion" [level=1] [ref=e10]
+    - paragraph [ref=e11]: Accédez à votre espace L'Alliée Virtuelle
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: Email ou nom d'utilisateur
+        - textbox "Email ou nom d'utilisateur" [ref=e15]:
+          - /placeholder: vous@exemple.com
+      - generic [ref=e16]:
+        - generic [ref=e17]: Mot de passe
+        - textbox "Mot de passe" [ref=e18]:
+          - /placeholder: ••••••••
+      - button "Se connecter" [ref=e19] [cursor=pointer]
+    - generic [ref=e20]:
+      - text: Pas encore de compte ?
+      - link "S'inscrire" [ref=e21] [cursor=pointer]:
+        - /url: /register

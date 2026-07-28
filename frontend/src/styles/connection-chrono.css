@@ -1,0 +1,81 @@
+/* Chrono de connexion flottant : couleurs directement sur les tokens partagés
+   (tokens.css), toujours au-dessus du contenu, jamais lié à la mise en page d'une page. */
+.connection-chrono {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  box-shadow: var(--card-shadow);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  /* Déplaçable : reçoit les événements pointeur, curseur de préhension. */
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.connection-chrono:hover {
+  box-shadow: var(--card-shadow), 0 0 0 1px var(--color-accent-light);
+}
+
+.connection-chrono--dragging {
+  cursor: grabbing;
+  transform: scale(1.04);
+  box-shadow: var(--card-shadow), 0 0 0 2px var(--color-accent-light);
+  transition: none;
+}
+
+/* Petite poignée (points) qui signale que la pastille est déplaçable. */
+.connection-chrono-grip {
+  width: 8px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 4px 4px;
+  background-position: 0 1px;
+  color: var(--color-text-muted);
+  opacity: 0.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connection-chrono--dragging { transform: none; }
+}
+
+.connection-chrono-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+
+.connection-chrono-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.connection-chrono-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 620px) {
+  .connection-chrono {
+    right: 12px;
+    bottom: 12px;
+    padding: 8px 12px 8px 10px;
+  }
+}

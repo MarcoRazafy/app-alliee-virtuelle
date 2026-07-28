@@ -1,0 +1,149 @@
+/* Design tokens partagés — base pour la refonte visuelle progressive de l'app
+   (auth en premier, puis employé/admin réutiliseront ces mêmes variables).
+   Thème appliqué via l'attribut data-theme posé sur <html> (voir index.html et themeStore.js). */
+
+:root,
+[data-theme='dark'] {
+  --color-bg-primary: #07162d;
+  --color-bg-primary-alt: #0b1b33;
+  --color-bg-secondary: #0e2342;
+
+  --color-accent: #256bff;
+  --color-accent-light: #3d8bff;
+  --color-accent-lighter: #4da3ff;
+
+  --color-text-primary: #f7faff;
+  --color-text-secondary: #b8c4d9;
+  --color-text-muted: #7f8da3;
+
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+
+  --color-border: #163156;
+  --glow-accent: rgba(61, 139, 255, 0.35);
+  --glow-success: rgba(34, 197, 94, 0.16);
+  --glow-warning: rgba(245, 158, 11, 0.16);
+  --glow-info: rgba(59, 130, 246, 0.18);
+  --glass-overlay: rgba(255, 255, 255, 0.04);
+  --glass-dark: rgba(10, 20, 40, 0.75);
+
+  --input-bg: rgba(255, 255, 255, 0.03);
+  --card-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  /* Échelle d'élévation douce et étagée (moderne) — variante sombre. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.46);
+  --banner-error-text: #ffb4b4;
+  --banner-success-text: #8fe8ac;
+  --logo-filter: none;
+}
+
+[data-theme='light'] {
+  --color-bg-primary: #f4f7fc;
+  --color-bg-primary-alt: #e8eefb;
+  --color-bg-secondary: #ffffff;
+
+  --color-accent: #256bff;
+  --color-accent-light: #3d8bff;
+  --color-accent-lighter: #2f6fe0;
+
+  --color-text-primary: #0b1b33;
+  --color-text-secondary: #4a5568;
+  --color-text-muted: #7a879e;
+
+  --color-success: #16a34a;
+  --color-error: #dc2626;
+  --color-warning: #d97706;
+  --color-info: #2563eb;
+
+  --color-border: #dce3f0;
+  --glow-accent: rgba(37, 107, 255, 0.18);
+  --glow-success: rgba(22, 163, 74, 0.12);
+  --glow-warning: rgba(217, 119, 6, 0.13);
+  --glow-info: rgba(37, 99, 235, 0.14);
+  --glass-overlay: rgba(11, 27, 51, 0.02);
+  --glass-dark: rgba(255, 255, 255, 0.6);
+
+  --input-bg: rgba(11, 27, 51, 0.03);
+  --card-shadow: 0 24px 50px rgba(23, 43, 77, 0.12), 0 0 0 1px rgba(11, 27, 51, 0.02) inset;
+  /* Échelle d'élévation douce et étagée (moderne) — variante claire. */
+  --shadow-sm: 0 1px 2px rgba(23, 43, 77, 0.06), 0 2px 8px rgba(23, 43, 77, 0.05);
+  --shadow-md: 0 8px 24px rgba(23, 43, 77, 0.09);
+  --shadow-lg: 0 22px 48px rgba(23, 43, 77, 0.13);
+  --banner-error-text: #b91c1c;
+  --banner-success-text: #15803d;
+  /* Le logo est peint en blanc cassé dans le fichier source : sur fond clair,
+     on l'assombrit avec un filtre plutôt que de maintenir un second asset. */
+  --logo-filter: brightness(0) saturate(100%);
+}
+
+:root {
+  --font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Texte posé sur une surface toujours colorée en accent (ex: bouton primaire) :
+     ne doit jamais suivre --color-text-primary, qui bascule avec le thème. */
+  --color-on-accent: #ffffff;
+
+  /* La sidebar reste toujours sombre, y compris en thème clair (identité de marque) :
+     ces tokens ne sont volontairement PAS redéfinis dans [data-theme='light']. */
+  --sidebar-bg: #0b1b33;
+  --sidebar-border: #163156;
+  --sidebar-text: #b8c4d9;
+  --sidebar-text-hover: #f7faff;
+  --sidebar-overlay: rgba(255, 255, 255, 0.04);
+
+  /* --- Tokens modernes (refonte visuelle progressive) : rythme, rayons, transitions --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 999px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 150ms var(--ease-out);
+  --transition-base: 220ms var(--ease-out);
+  /* Anneau de focus accessible (utilise --glow-accent, donc s'adapte au thème). */
+  --ring-accent: 0 0 0 3px var(--glow-accent);
+}
+
+/* Reset minimal : sans lui, la marge par défaut du navigateur sur <body> provoque
+   un débordement horizontal dès qu'un enfant fait width: 100%. */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  transition: background-color 0.2s ease;
+}
+
+/* Bouton bascule thème — générique, réutilisable partout (auth pour l'instant,
+   employé/admin plus tard) */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--color-accent-lighter);
+  border-color: var(--color-accent-light);
+  transform: rotate(12deg);
+}
