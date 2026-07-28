@@ -1,286 +1,25 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as aiService from '../../services/aiService';
 import * as statsService from '../../services/statsService';
 import * as taskService from '../../services/taskService';
 import { formatDateTime, formatRelativeTime } from '../../utils/formatters';
 import { notifyError, notifySuccess } from '../../utils/toast';
 import { IconUsers, IconClock, IconUser, IconBarChart, IconCheckCircle, IconAlert, IconSearch, IconMenu, IconX } from '../../components/icons';
+import Markdown from '../../components/Markdown';
+import {
+  RobotIcon, ChatDotIcon, ArrowRightMini, SendIcon, ShieldIcon, PlusIcon, PencilIcon,
+  TrashIcon, PaperclipIcon, ImageIcon, MicIcon, XIcon, DownloadIcon, Sparkline,
+} from './adminAssistantIcons';
+import { newId, isImageType, weekRange } from './adminAssistantHelpers';
 import '../../styles/admin-assistant.css';
 
 // Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
 const SUGGESTIONS = [
-  { icon: IconUsers, text: 'Qui a le plus de tâches confirmées ce mois-ci ?' },
-  { icon: IconClock, text: 'Combien de tâches sont en retard actuellement ?' },
-  { icon: IconUser, text: "Quel employé a travaillé le plus d'heures cette semaine ?" },
-  { icon: IconBarChart, text: "Résume l'activité de l'équipe sur les 7 derniers jours" },
+  { icon: IconUsers, text: 'Who has the most confirmed tasks this month?' },
+  { icon: IconClock, text: 'How many tasks are currently overdue?' },
+  { icon: IconUser, text: 'Which employee worked the most hours this week?' },
+  { icon: IconBarChart, text: 'Summarize the team activity over the last 7 days' },
 ];
-
-function newId() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
-
-function isImageType(type) {
-  return typeof type === 'string' && type.startsWith('image/');
-}
-
-/* ---------- Rendu Markdown léger (l'assistant renvoie du markdown : **gras**, listes…) ---------- */
-
-function parseInline(text) {
-  const nodes = [];
-  const re = /(\*\*([^*]+?)\*\*|__([^_]+?)__|`([^`]+?)`|\*([^*]+?)\*|_([^_]+?)_)/g;
-  let last = 0;
-  let m;
-  let k = 0;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) nodes.push(text.slice(last, m.index));
-    if (m[2] != null) nodes.push(<strong key={k++}>{m[2]}</strong>);
-    else if (m[3] != null) nodes.push(<strong key={k++}>{m[3]}</strong>);
-    else if (m[4] != null) nodes.push(<code key={k++}>{m[4]}</code>);
-    else if (m[5] != null) nodes.push(<em key={k++}>{m[5]}</em>);
-    else if (m[6] != null) nodes.push(<em key={k++}>{m[6]}</em>);
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  return nodes;
-}
-
-function Markdown({ text }) {
-  const lines = (text || '').split('\n');
-  const blocks = [];
-  let list = null;
-  let para = [];
-  const flushPara = () => {
-    if (para.length) blocks.push({ t: 'p', lines: para });
-    para = [];
-  };
-  const flushList = () => {
-    if (list) blocks.push(list);
-    list = null;
-  };
-  lines.forEach((line) => {
-    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
-    const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
-    if (bullet) {
-      flushPara();
-      if (!list || list.t !== 'ul') {
-        flushList();
-        list = { t: 'ul', items: [] };
-      }
-      list.items.push(bullet[1]);
-    } else if (numbered) {
-      flushPara();
-      if (!list || list.t !== 'ol') {
-        flushList();
-        list = { t: 'ol', items: [] };
-      }
-      list.items.push(numbered[1]);
-    } else if (!line.trim()) {
-      flushPara();
-      flushList();
-    } else {
-      flushList();
-      para.push(line);
-    }
-  });
-  flushPara();
-  flushList();
-
-  return (
-    <div className="ai-md">
-      {blocks.map((blk, i) => {
-        if (blk.t === 'p') {
-          return (
-            <p key={i} className="ai-md-p">
-              {blk.lines.map((l, j) => (
-                <Fragment key={j}>
-                  {j > 0 && <br />}
-                  {parseInline(l)}
-                </Fragment>
-              ))}
-            </p>
-          );
-        }
-        if (blk.t === 'ul') {
-          return (
-            <ul key={i} className="ai-md-list">
-              {blk.items.map((it, j) => (
-                <li key={j}>{parseInline(it)}</li>
-              ))}
-            </ul>
-          );
-        }
-        return (
-          <ol key={i} className="ai-md-list">
-            {blk.items.map((it, j) => (
-              <li key={j}>{parseInline(it)}</li>
-            ))}
-          </ol>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ---------- Icônes ---------- */
-
-// Étoile "sparkle" façon Gemini (une grande + une petite) pour représenter l'assistant.
-function RobotIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M13 2c.6 5.4 2.6 7.4 8 8-5.4.6-7.4 2.6-8 8-.6-5.4-2.6-7.4-8-8 5.4-.6 7.4-2.6 8-8Z"
-        fill="currentColor"
-      />
-      <path
-        d="M5.5 2.5c.2 1.9.9 2.6 2.8 2.8-1.9.2-2.6.9-2.8 2.8-.2-1.9-.9-2.6-2.8-2.8 1.9-.2 2.6-.9 2.8-2.8Z"
-        fill="currentColor"
-        opacity="0.7"
-      />
-    </svg>
-  );
-}
-
-function ChatDotIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 5h16v11H8l-4 4V5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <circle cx="9" cy="10.5" r="1" fill="currentColor" />
-      <circle cx="12" cy="10.5" r="1" fill="currentColor" />
-      <circle cx="15" cy="10.5" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function ArrowRightMini() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 12 20 4l-4 16-4.5-6L4 12Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="m11.5 14 4.5-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3 5 6v5c0 4.2 2.9 7.6 7 9 4.1-1.4 7-4.8 7-9V6l-7-3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 20h4l10-10-4-4L4 16v4Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="m13.5 6.5 4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function PaperclipIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M20 12l-7.5 7.5a4 4 0 0 1-5.7-5.7l7.6-7.6a2.6 2.6 0 0 1 3.7 3.7l-7.6 7.6a1.2 1.2 0 0 1-1.7-1.7l6.8-6.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ImageIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
-      <circle cx="8.5" cy="9.5" r="1.4" stroke="currentColor" strokeWidth="1.5" />
-      <path d="m5 17 4.5-4.5 3 3L16 12l3 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function MicIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-// Mini graphe en ligne (sparkline) à partir d'une série de nombres.
-function Sparkline({ points, color = 'var(--color-accent)' }) {
-  if (!points || points.length < 2) return null;
-  const w = 100;
-  const h = 34;
-  const max = Math.max(...points, 1);
-  const min = Math.min(...points, 0);
-  const range = max - min || 1;
-  const step = w / (points.length - 1);
-  const d = points
-    .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)} ${(h - ((v - min) / range) * (h - 6) - 3).toFixed(1)}`)
-    .join(' ');
-  return (
-    <svg className="ai-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d={d} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function isoDate(d) {
-  return d.toISOString().slice(0, 10);
-}
-// Plage d'une semaine (lundi→dimanche) ; offsetWeeks=0 = semaine courante (bornée à aujourd'hui).
-function weekRange(offsetWeeks = 0) {
-  const now = new Date();
-  const day = (now.getDay() + 6) % 7; // 0 = lundi
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - day - offsetWeeks * 7);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  return { from: isoDate(monday), to: isoDate(offsetWeeks === 0 ? now : sunday) };
-}
 
 function AdminAssistant() {
   const [history, setHistory] = useState([]);
@@ -309,7 +48,7 @@ function AdminAssistant() {
     return aiService
       .getAiHistory()
       .then(setHistory)
-      .catch((err) => notifyError(err.response?.data?.error || "Impossible de charger l'historique"));
+      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load the history'));
   }
 
   useEffect(() => {
@@ -415,10 +154,10 @@ function AdminAssistant() {
     setPendingFile(null);
     if (fileRef.current) fileRef.current.value = '';
     try {
-      await aiService.askAssistant(q || 'Analyse ce fichier.', activeSessionId, fileToSend);
+      await aiService.askAssistant(q || 'Analyze this file.', activeSessionId, fileToSend);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'interroger l'assistant");
+      notifyError(err.response?.data?.error || 'Unable to query the assistant');
       setQuestion(q);
     } finally {
       setLoading(false);
@@ -455,19 +194,19 @@ function AdminAssistant() {
       await aiService.editConversation(id, q);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de modifier le message');
+      notifyError(err.response?.data?.error || 'Unable to edit the message');
     } finally {
       setLoading(false);
       setPending(null);
     }
   }
   async function handleDeleteExchange(id) {
-    if (!window.confirm('Supprimer cet échange ?')) return;
+    if (!window.confirm('Delete this exchange?')) return;
     try {
       await aiService.deleteConversation(id);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de supprimer');
+      notifyError(err.response?.data?.error || 'Unable to delete');
     }
   }
 
@@ -484,19 +223,19 @@ function AdminAssistant() {
       await aiService.renameSession(id, title);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de renommer');
+      notifyError(err.response?.data?.error || 'Unable to rename');
     }
   }
   async function handleDeleteSession(id, e) {
     e.stopPropagation();
-    if (!window.confirm('Supprimer toute cette discussion ?')) return;
+    if (!window.confirm('Delete this entire conversation?')) return;
     try {
       await aiService.deleteSession(id);
       if (id === activeSessionId) setActiveSessionId(newId());
       await loadHistory();
-      notifySuccess('Discussion supprimée');
+      notifySuccess('Conversation deleted');
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de supprimer la discussion');
+      notifyError(err.response?.data?.error || 'Unable to delete the conversation');
     }
   }
 
@@ -506,11 +245,11 @@ function AdminAssistant() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = entry.attachment_name || 'piece-jointe';
+      a.download = entry.attachment_name || 'attachment';
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      notifyError('Impossible de télécharger la pièce jointe');
+      notifyError('Unable to download the attachment');
     }
   }
 
@@ -529,11 +268,11 @@ function AdminAssistant() {
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      notifyError("La dictée vocale n'est pas supportée par ce navigateur");
+      notifyError('Voice dictation is not supported by this browser');
       return;
     }
     const rec = new SR();
-    rec.lang = 'fr-FR';
+    rec.lang = 'en-US';
     rec.interimResults = true;
     rec.continuous = false;
     const base = question ? question + ' ' : '';
@@ -557,7 +296,7 @@ function AdminAssistant() {
           <img src={attachmentUrls[entry.id]} alt={entry.attachment_name || ''} />
         </a>
       ) : (
-        <div className="ai-attach-loading"><ImageIcon /> Chargement…</div>
+        <div className="ai-attach-loading"><ImageIcon /> Loading…</div>
       );
     }
     return (
@@ -579,9 +318,9 @@ function AdminAssistant() {
               <div className="ai-edit">
                 <textarea value={editText} onChange={(ev) => setEditText(ev.target.value)} rows={2} autoFocus />
                 <div className="ai-edit-actions">
-                  <button type="button" className="ai-edit-cancel" onClick={() => setEditingId(null)}>Annuler</button>
+                  <button type="button" className="ai-edit-cancel" onClick={() => setEditingId(null)}>Cancel</button>
                   <button type="button" className="ai-edit-save" onClick={() => saveEdit(entry.id)} disabled={!editText.trim()}>
-                    Regénérer
+                    Regenerate
                   </button>
                 </div>
               </div>
@@ -593,8 +332,8 @@ function AdminAssistant() {
             )}
             {!isEditing && (
               <div className="ai-msg-actions">
-                <button type="button" onClick={() => startEdit(entry)} title="Modifier" aria-label="Modifier"><PencilIcon /></button>
-                <button type="button" onClick={() => handleDeleteExchange(entry.id)} title="Supprimer" aria-label="Supprimer"><TrashIcon /></button>
+                <button type="button" onClick={() => startEdit(entry)} title="Edit" aria-label="Edit"><PencilIcon /></button>
+                <button type="button" onClick={() => handleDeleteExchange(entry.id)} title="Delete" aria-label="Delete"><TrashIcon /></button>
               </div>
             )}
           </div>
@@ -620,13 +359,13 @@ function AdminAssistant() {
           type="button"
           className="ai-sidebar-close"
           onClick={() => setSidebarOpen(false)}
-          aria-label="Fermer l'historique"
+          aria-label="Close history"
         >
           <IconX />
         </button>
         <button type="button" className="ai-new-btn ai-new-btn--block" onClick={handleNewConversation}>
           <PlusIcon />
-          Nouvelle conversation
+          New conversation
         </button>
         <label className="ai-search">
           <IconSearch />
@@ -634,15 +373,15 @@ function AdminAssistant() {
             type="search"
             value={sidebarSearch}
             onChange={(e) => setSidebarSearch(e.target.value)}
-            placeholder="Rechercher une conversation"
-            aria-label="Rechercher une conversation"
+            placeholder="Search a conversation"
+            aria-label="Search a conversation"
           />
         </label>
-        <div className="ai-sidebar-label">Historique</div>
+        <div className="ai-sidebar-label">History</div>
         <div className="ai-session-list">
-          {sessions.length === 0 && <p className="ai-session-empty">Aucune conversation pour le moment.</p>}
+          {sessions.length === 0 && <p className="ai-session-empty">No conversation yet.</p>}
           {sessions.length > 0 && filteredSessions.length === 0 && (
-            <p className="ai-session-empty">Aucun résultat pour « {sidebarSearch} ».</p>
+            <p className="ai-session-empty">No results for “{sidebarSearch}”.</p>
           )}
           {visibleSessions.map((s) => (
             <div
@@ -677,15 +416,15 @@ function AdminAssistant() {
                 )}
               </span>
               <span className="ai-session-tools">
-                <button type="button" onClick={(e) => startRename(s, e)} title="Renommer" aria-label="Renommer"><PencilIcon /></button>
-                <button type="button" onClick={(e) => handleDeleteSession(s.id, e)} title="Supprimer" aria-label="Supprimer"><TrashIcon /></button>
+                <button type="button" onClick={(e) => startRename(s, e)} title="Rename" aria-label="Rename"><PencilIcon /></button>
+                <button type="button" onClick={(e) => handleDeleteSession(s.id, e)} title="Delete" aria-label="Delete"><TrashIcon /></button>
               </span>
             </div>
           ))}
         </div>
         {filteredSessions.length > 8 && (
           <button type="button" className="ai-see-all" onClick={() => setShowAllSessions((v) => !v)}>
-            {showAllSessions ? 'Réduire' : 'Voir toutes les conversations'}
+            {showAllSessions ? 'Collapse' : 'View all conversations'}
           </button>
         )}
       </aside>
@@ -696,8 +435,8 @@ function AdminAssistant() {
             type="button"
             className="ai-history-toggle"
             onClick={() => setSidebarOpen(true)}
-            aria-label="Ouvrir l'historique des conversations"
-            title="Historique des conversations"
+            aria-label="Open conversation history"
+            title="Conversation history"
           >
             <IconMenu />
           </button>
@@ -706,20 +445,20 @@ function AdminAssistant() {
               <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
             </span>
             <div className="ai-header-copy">
-              <h1>Assistant IA</h1>
-              <p className="ai-subtitle">Analyse et recommandations opérationnelles</p>
+              <h1>AI Assistant</h1>
+              <p className="ai-subtitle">Operational analysis and recommendations</p>
             </div>
           </div>
           <div className="ai-header-pills">
             <span className="ai-pill ai-pill--online">
-              <span className="ai-status-dot" /> En ligne
+              <span className="ai-status-dot" /> Online
             </span>
             <span className="ai-pill ai-pill--model">
               <RobotIcon /> MISTRAL AI
             </span>
             <button type="button" className="ai-new-btn ai-main-new" onClick={handleNewConversation}>
               <PlusIcon />
-              Nouveau
+              New
             </button>
           </div>
         </header>
@@ -727,8 +466,8 @@ function AdminAssistant() {
         <div className="ai-notice">
           <ShieldIcon />
           <span>
-            <strong>Mode lecture seule</strong> — l'assistant analyse les données existantes sans modifier les
-            informations.
+            <strong>Read-only mode</strong> — the assistant analyzes existing data without modifying any
+            information.
           </span>
         </div>
 
@@ -740,8 +479,8 @@ function AdminAssistant() {
                 <span className="ai-agent ai-agent--hero" aria-hidden="true">
                   <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
                 </span>
-                <h2>Comment puis-je vous aider ?</h2>
-                <p>Interrogez l'assistant sur l'activité, les tâches, les retards et les performances de votre équipe.</p>
+                <h2>How can I help you?</h2>
+                <p>Ask the assistant about your team's activity, tasks, delays and performance.</p>
                 <div className="ai-suggestions">
                   {SUGGESTIONS.map((s) => {
                     const Icon = s.icon;
@@ -761,10 +500,10 @@ function AdminAssistant() {
                   <div className="ai-kpi">
                     <span className="ai-kpi-icon ai-kpi-icon--ok"><IconCheckCircle /></span>
                     <div className="ai-kpi-body">
-                      <span className="ai-kpi-label">Tâches confirmées</span>
+                      <span className="ai-kpi-label">Confirmed tasks</span>
                       <span className="ai-kpi-value">{kpis.confirmed.value}</span>
                       <span className={`ai-kpi-delta${kpis.confirmed.delta >= 0 ? ' up' : ' down'}`}>
-                        {kpis.confirmed.delta >= 0 ? '+' : ''}{kpis.confirmed.delta}% vs la semaine dernière
+                        {kpis.confirmed.delta >= 0 ? '+' : ''}{kpis.confirmed.delta}% vs last week
                       </span>
                     </div>
                     <Sparkline points={kpis.confirmed.spark} color="var(--color-success)" />
@@ -773,10 +512,10 @@ function AdminAssistant() {
                   <div className="ai-kpi">
                     <span className="ai-kpi-icon ai-kpi-icon--warn"><IconAlert /></span>
                     <div className="ai-kpi-body">
-                      <span className="ai-kpi-label">Retards</span>
+                      <span className="ai-kpi-label">Delays</span>
                       <span className="ai-kpi-value">{kpis.late.value}</span>
                       <span className={`ai-kpi-delta${kpis.late.delta <= 0 ? ' up' : ' down'}`}>
-                        {kpis.late.delta >= 0 ? '+' : ''}{kpis.late.delta}% vs la semaine dernière
+                        {kpis.late.delta >= 0 ? '+' : ''}{kpis.late.delta}% vs last week
                       </span>
                     </div>
                     <Sparkline points={kpis.confirmed.spark?.map(() => kpis.late.value)} color="var(--color-warning)" />
@@ -785,10 +524,10 @@ function AdminAssistant() {
                   <div className="ai-kpi">
                     <span className="ai-kpi-icon ai-kpi-icon--time"><IconClock /></span>
                     <div className="ai-kpi-body">
-                      <span className="ai-kpi-label">Heures cette semaine</span>
+                      <span className="ai-kpi-label">Hours this week</span>
                       <span className="ai-kpi-value">{kpis.hours.value} h</span>
                       <span className={`ai-kpi-delta${kpis.hours.delta >= 0 ? ' up' : ' down'}`}>
-                        {kpis.hours.delta >= 0 ? '+' : ''}{kpis.hours.delta}% vs la semaine dernière
+                        {kpis.hours.delta >= 0 ? '+' : ''}{kpis.hours.delta}% vs last week
                       </span>
                     </div>
                     <Sparkline points={kpis.hours.spark} color="var(--color-accent)" />
@@ -814,7 +553,7 @@ function AdminAssistant() {
                   <RobotIcon />
                 </span>
                 <div className="ai-bubble ai-bubble--bot ai-typing">
-                  <span className="ai-typing-label">Analyse des données</span>
+                  <span className="ai-typing-label">Analyzing data</span>
                   <span className="ai-typing-dots">
                     <i />
                     <i />
@@ -831,25 +570,25 @@ function AdminAssistant() {
             <div className="ai-input-file">
               {isImageType(pendingFile.type) ? <ImageIcon /> : <PaperclipIcon />}
               <span className="ai-input-file-name">{pendingFile.name}</span>
-              <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ''; }} aria-label="Retirer">
+              <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ''; }} aria-label="Remove">
                 <XIcon />
               </button>
             </div>
           )}
           <div className="ai-input-row">
             <input ref={fileRef} type="file" hidden onChange={(e) => setPendingFile(e.target.files?.[0] || null)} />
-            <button type="button" className="ai-input-icon" onClick={() => pickFile(false)} disabled={loading} title="Pièce jointe" aria-label="Pièce jointe"><PaperclipIcon /></button>
+            <button type="button" className="ai-input-icon" onClick={() => pickFile(false)} disabled={loading} title="Attachment" aria-label="Attachment"><PaperclipIcon /></button>
             <button type="button" className="ai-input-icon" onClick={() => pickFile(true)} disabled={loading} title="Photo" aria-label="Photo"><ImageIcon /></button>
-            <button type="button" className={`ai-input-icon${recognizing ? ' ai-input-icon--rec' : ''}`} onClick={toggleDictation} disabled={loading} title="Dicter" aria-label="Dicter"><MicIcon /></button>
+            <button type="button" className={`ai-input-icon${recognizing ? ' ai-input-icon--rec' : ''}`} onClick={toggleDictation} disabled={loading} title="Dictate" aria-label="Dictate"><MicIcon /></button>
             <div className="ai-input-field">
               <input
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                placeholder={recognizing ? 'Parlez…' : "Posez votre question à l'assistant…"}
+                placeholder={recognizing ? 'Speak…' : 'Ask the assistant your question…'}
                 disabled={loading}
               />
             </div>
-            <button type="submit" className="ai-send" disabled={loading || (!question.trim() && !pendingFile)} aria-label="Envoyer">
+            <button type="submit" className="ai-send" disabled={loading || (!question.trim() && !pendingFile)} aria-label="Send">
               {loading ? <span className="ai-send-spinner" /> : <SendIcon />}
             </button>
           </div>

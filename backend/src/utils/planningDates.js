@@ -85,10 +85,25 @@ function isDateInWeek(dateString, weekStartDateString) {
   return date >= weekStart && date <= weekEnd;
 }
 
-// Un employé ne peut préparer que la semaine suivante, et uniquement pendant la fenêtre samedi/dimanche.
-function canEmployeeEditWeek(weekStartDateString, referenceDateTime = nowInPlanningZone()) {
+// Un employé prépare normalement la semaine suivante, uniquement pendant la fenêtre samedi/dimanche.
+// Exception "rattrapage" : la semaine EN COURS reste modifiable si l'employé n'a JAMAIS créé de
+// planning pour la semaine prochaine ET que sa semaine en cours n'est pas encore soumise
+// (nouveau compte arrivé en milieu de semaine, ou oubli de soumettre pendant la fenêtre).
+// Les deux drapeaux viennent de la base (fournis par l'appelant) ; par défaut (undefined),
+// seule la règle normale s'applique — donc aucun changement pour les appelants existants.
+function canEmployeeEditWeek(weekStartDateString, referenceDateTime = nowInPlanningZone(), options = {}) {
   const nextWeekStart = formatDate(getNextWeekStart(referenceDateTime));
-  return weekStartDateString === nextWeekStart && isEmployeeWindowOpen(referenceDateTime);
+  if (weekStartDateString === nextWeekStart && isEmployeeWindowOpen(referenceDateTime)) return true;
+
+  const currentWeekStart = formatDate(getCurrentWeekStart(referenceDateTime));
+  if (
+    weekStartDateString === currentWeekStart &&
+    options.hasNextWeekPlanning === false &&
+    options.currentWeekSubmitted === false
+  ) {
+    return true;
+  }
+  return false;
 }
 
 // La sécurité ne doit jamais dépendre uniquement du statut stocké en base : ce calcul

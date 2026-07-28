@@ -5,7 +5,7 @@ const PLACEHOLDER_KEY = 'your_mistral_key_here';
 
 async function askMistral(messages) {
   if (!env.mistralApiKey || env.mistralApiKey === PLACEHOLDER_KEY) {
-    const err = new Error("Assistant IA indisponible : aucune clé API Mistral n'est configurée (MISTRAL_API_KEY)");
+    const err = new Error('AI assistant unavailable: no Mistral API key is configured (MISTRAL_API_KEY)');
     err.status = 503;
     throw err;
   }
@@ -25,7 +25,7 @@ async function askMistral(messages) {
       }),
     });
   } catch (err) {
-    const networkError = new Error("Impossible de contacter l'API Mistral (problème réseau)");
+    const networkError = new Error('Unable to reach the Mistral API (network issue)');
     networkError.status = 502;
     throw networkError;
   }

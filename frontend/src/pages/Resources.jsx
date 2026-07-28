@@ -8,7 +8,7 @@ import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil } from
 import '../styles/resources.css';
 
 const TABS = [
-  { value: 'INTERNE', label: 'Interne' },
+  { value: 'INTERNE', label: 'Internal' },
   { value: 'CLIENT', label: 'Client' },
 ];
 
@@ -30,7 +30,7 @@ function Resources() {
     resourceService
       .getFolders(tab)
       .then(setFolders)
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
+      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load folders'))
       .finally(() => setLoadingFolders(false));
   }, [tab]);
 
@@ -43,7 +43,7 @@ function Resources() {
       setFiles(data);
     } catch (err) {
       setFiles([]);
-      notifyError(err.response?.data?.error || 'Impossible de charger les fichiers');
+      notifyError(err.response?.data?.error || 'Unable to load files');
     } finally {
       setLoadingFiles(false);
     }
@@ -54,16 +54,16 @@ function Resources() {
   return (
     <EmployeeLayout
       skeleton={loadingFolders && folders.length === 0 ? 'cards' : null}
-      title="Ressources"
+      title="Resources"
       breadcrumb={[
-        { label: 'Accueil', to: '/dashboard' },
-        { label: 'Ressources' },
+        { label: 'Home', to: '/dashboard' },
+        { label: 'Resources' },
         ...(selectedFolder ? [{ label: selectedFolder.name }] : []),
       ]}
-      subtitle="Documents internes et fichiers partagés avec les clients"
+      subtitle="Internal documents and files shared with clients"
     >
       <section className="resources-page">
-        <div className="resources-tabs" role="tablist" aria-label="Type de ressources">
+        <div className="resources-tabs" role="tablist" aria-label="Resource type">
           {TABS.map((item) => (
             <button
               key={item.value}
@@ -81,11 +81,11 @@ function Resources() {
         <div className="resources-shell">
           <aside className="side-card resources-folder-panel">
             <div className="side-card-header">
-              <p className="side-card-title">Dossiers</p>
+              <p className="side-card-title">Folders</p>
             </div>
 
-            {loadingFolders && <div className="empty-state">Chargement...</div>}
-            {!loadingFolders && folders.length === 0 && <div className="empty-state">Aucun dossier disponible.</div>}
+            {loadingFolders && <div className="empty-state">Loading...</div>}
+            {!loadingFolders && folders.length === 0 && <div className="empty-state">No folder available.</div>}
 
             {!loadingFolders && folders.length > 0 && (
               <ul className="resources-folder-list">
@@ -104,7 +104,7 @@ function Resources() {
                       <span className="resources-folder-info">
                         <strong>{folder.name}</strong>
                         <span>
-                          {folder.file_count} fichier{Number(folder.file_count) > 1 ? 's' : ''}
+                          {folder.file_count} file{Number(folder.file_count) > 1 ? 's' : ''}
                         </span>
                       </span>
                     </button>
@@ -116,11 +116,11 @@ function Resources() {
 
           <div className="side-card resources-files-panel">
             <div className="side-card-header">
-              <p className="side-card-title">{selectedFolder ? selectedFolder.name : 'Fichiers'}</p>
+              <p className="side-card-title">{selectedFolder ? selectedFolder.name : 'Files'}</p>
             </div>
 
             {!selectedFolder && (
-              <div className="empty-state">Sélectionnez un dossier pour consulter ses fichiers.</div>
+              <div className="empty-state">Select a folder to view its files.</div>
             )}
 
             {selectedFolder && (
@@ -129,17 +129,17 @@ function Resources() {
                   <IconSearch />
                   <input
                     type="search"
-                    placeholder="Rechercher un fichier..."
+                    placeholder="Search a file..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    aria-label="Rechercher un fichier"
+                    aria-label="Search a file"
                   />
                 </label>
 
-                {loadingFiles && <div className="empty-state">Chargement...</div>}
+                {loadingFiles && <div className="empty-state">Loading...</div>}
                 {!loadingFiles && filteredFiles.length === 0 && (
                   <div className="empty-state">
-                    {search.trim() ? 'Aucun fichier ne correspond à cette recherche.' : 'Ce dossier est vide.'}
+                    {search.trim() ? 'No file matches this search.' : 'This folder is empty.'}
                   </div>
                 )}
 
@@ -148,10 +148,10 @@ function Resources() {
                     <table className="task-table">
                       <thead>
                         <tr>
-                          <th>Nom</th>
+                          <th>Name</th>
                           <th>Type</th>
-                          <th>Taille</th>
-                          <th>Ajouté le</th>
+                          <th>Size</th>
+                          <th>Added on</th>
                           <th className="resources-actions-col" />
                         </tr>
                       </thead>
@@ -172,14 +172,14 @@ function Resources() {
                             </td>
                             <td>{file.file_type || '—'}</td>
                             <td>{file.kind === 'DOCUMENT' ? '—' : formatBytes(file.file_size)}</td>
-                            <td>{new Date(file.created_at).toLocaleDateString('fr-FR')}</td>
+                            <td>{new Date(file.created_at).toLocaleDateString('en-US')}</td>
                             <td className="resources-actions-col">
                               <button
                                 type="button"
                                 className="icon-link-btn"
                                 onClick={() => setViewerFile(file)}
-                                aria-label="Ouvrir"
-                                title="Ouvrir"
+                                aria-label="Open"
+                                title="Open"
                               >
                                 <IconArrowRight />
                               </button>

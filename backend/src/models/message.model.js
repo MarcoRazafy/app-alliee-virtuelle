@@ -243,6 +243,15 @@ async function markGroupAsRead(groupId, userId) {
   );
 }
 
+// IDs de tous les membres d'un groupe (pour pousser un événement temps réel à chacun).
+async function findGroupMemberIds(groupId) {
+  const result = await db.query(
+    `SELECT user_id FROM message_group_members WHERE group_id = $1`,
+    [groupId]
+  );
+  return result.rows.map((row) => row.user_id);
+}
+
 async function createGroupMessage(groupId, authorId, content, attachment = null, client = db) {
   const inserted = await client.query(
     `INSERT INTO messages (author_id, content, channel_type, group_id, attachment_path, attachment_name, attachment_type, attachment_size)
@@ -327,6 +336,7 @@ module.exports = {
   findGroupAvatarForMember,
   findGroupMessages,
   markGroupAsRead,
+  findGroupMemberIds,
   createGroupMessage,
   findRawMessageById,
   findEnrichedMessageById,

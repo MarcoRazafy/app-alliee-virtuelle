@@ -20,10 +20,18 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      // html2pdf (~660 kB) est chargé à la demande (import dynamique dans ResourceViewer),
+      // il n'affecte pas le bundle initial. On relève le seuil pour ne pas alerter dessus.
+      chunkSizeWarningLimit: 700,
+    },
     server: {
       host: isLanMode ? '0.0.0.0' : undefined,
       port: 5173,
       strictPort: isLanMode,
+      // Autorise l'hôte des tunnels HTTPS (cloudflared) pour partager l'app en test.
+      // Les adresses IP (accès LAN) et localhost restent autorisées d'office par Vite.
+      allowedHosts: ['.trycloudflare.com'],
       https: isLanMode
         ? {
             cert: certificatePath,
@@ -32,6 +40,11 @@ export default defineConfig(({ mode }) => {
         : undefined,
       proxy: {
         '/api': 'http://127.0.0.1:3001',
+        // WebSocket temps réel (Socket.IO) : relais avec upgrade WebSocket activé.
+        '/socket.io': {
+          target: 'http://127.0.0.1:3001',
+          ws: true,
+        },
       },
     },
   };

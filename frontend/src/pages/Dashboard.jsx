@@ -7,7 +7,7 @@ import * as messageService from '../services/messageService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import AnimatedNumber from '../components/AnimatedNumber';
 import { formatDurationShort, formatRelativeTime } from '../utils/formatters';
-import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
+import { STATUS_PILL, priorityPillClass, priorityLabel, formatRelativeDeadline } from '../utils/taskStatus';
 import {
   IconWorkspace,
   IconCalendarCheck,
@@ -32,27 +32,27 @@ function todayDateString() {
 }
 
 const QUICK_LINKS = [
-  { to: '/workspace', label: 'Mon espace', icon: IconWorkspace },
-  { to: '/my-day', label: 'Ma journée', icon: IconCalendarCheck },
-  { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
-  { to: '/messaging', label: 'Messagerie', icon: IconChat, badgeKey: 'messages' },
+  { to: '/workspace', label: 'My space', icon: IconWorkspace },
+  { to: '/my-day', label: 'My day', icon: IconCalendarCheck },
+  { to: '/tasks', label: 'My tasks', icon: IconChecklist },
+  { to: '/messaging', label: 'Messaging', icon: IconChat, badgeKey: 'messages' },
   { to: '/stats', label: 'Stats', icon: IconBarChart },
   { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
-  { to: '/resources', label: 'Ressources', icon: IconFolder },
-  { to: '/profile', label: 'Profil', icon: IconUser },
+  { to: '/resources', label: 'Resources', icon: IconFolder },
+  { to: '/profile', label: 'Profile', icon: IconUser },
 ];
 
 const ACTIVITY_META = {
-  VALIDATE_MY_DAY: { icon: IconCheckCircle, variant: 'success', label: () => 'Vous avez validé votre journée' },
-  START_TIMELOG: { icon: IconPlay, variant: 'info', label: (a) => `Chrono démarré sur « ${a.task_title || 'une tâche'} »` },
-  STOP_TIMELOG: { icon: IconStop, variant: 'muted', label: (a) => `Chrono arrêté sur « ${a.task_title || 'une tâche'} »` },
-  AUTO_STOP_TIMELOG: { icon: IconClock, variant: 'muted', label: (a) => `Chrono basculé depuis « ${a.task_title || 'une tâche'} »` },
+  VALIDATE_MY_DAY: { icon: IconCheckCircle, variant: 'success', label: () => 'You validated your day' },
+  START_TIMELOG: { icon: IconPlay, variant: 'info', label: (a) => `Timer started on “${a.task_title || 'a task'}”` },
+  STOP_TIMELOG: { icon: IconStop, variant: 'muted', label: (a) => `Timer stopped on “${a.task_title || 'a task'}”` },
+  AUTO_STOP_TIMELOG: { icon: IconClock, variant: 'muted', label: (a) => `Timer switched from “${a.task_title || 'a task'}”` },
   AUTO_STOP_TIMELOG_LOGOUT: {
     icon: IconClock,
     variant: 'muted',
-    label: () => 'Chrono arrêté automatiquement à la déconnexion',
+    label: () => 'Timer stopped automatically on logout',
   },
-  COMPLETE_TASK: { icon: IconCheckCircle, variant: 'success', label: (a) => `Tâche « ${a.task_title || ''} » terminée` },
+  COMPLETE_TASK: { icon: IconCheckCircle, variant: 'success', label: (a) => `Task “${a.task_title || ''}” completed` },
 };
 
 function isLate(deadline) {
@@ -116,24 +116,24 @@ function Dashboard() {
   }
 
   return (
-    <EmployeeLayout title="Dashboard" breadcrumb={[{ label: 'Accueil' }]} subtitle="Bienvenue sur votre espace employé" skeleton={loading ? 'dashboard' : null}>
+    <EmployeeLayout title="Dashboard" breadcrumb={[{ label: 'Home' }]} subtitle="Welcome to your employee space" skeleton={loading ? 'dashboard' : null}>
       <div className="dashboard-top-grid">
         <div className="dash-hero">
           <div className="dash-hero-watermark">
             <img src="/logo-mark.png" alt="" />
           </div>
           <div className="dash-hero-info">
-            <h2 className="dash-hero-title">Bonjour, {firstName} 👋</h2>
+            <h2 className="dash-hero-title">Hello, {firstName} 👋</h2>
             <p className="dash-hero-text">
               {dayValidated
                 ? noTasksAvailable
-                  ? "Aucune tâche ne vous est assignée. Profitez-en pour parcourir librement la plateforme."
-                  : 'Heureux de vous revoir ! Voici un aperçu de votre journée.'
-                : 'Validez votre journée pour commencer à travailler sur vos tâches.'}
+                  ? 'No task is assigned to you. Take the opportunity to explore the platform freely.'
+                  : 'Glad to see you back! Here is an overview of your day.'
+                : 'Validate your day to start working on your tasks.'}
             </p>
             <span className="status-badge status-badge--validated">
               <span className="status-dot" />
-              Compte actif
+              Active account
             </span>
           </div>
           <div className="dash-hero-status">
@@ -143,10 +143,10 @@ function Dashboard() {
                   <IconCheckCircle />
                 </span>
                 <p className="dash-hero-status-title">
-                  {noTasksAvailable ? 'Plateforme accessible' : 'Journée validée'}
+                  {noTasksAvailable ? 'Platform accessible' : 'Day validated'}
                 </p>
                 <p className="dash-hero-status-text">
-                  {noTasksAvailable ? 'Vous pouvez consulter tous vos espaces.' : 'Belle journée productive !'}
+                  {noTasksAvailable ? 'You can browse all your spaces.' : 'Have a productive day!'}
                 </p>
               </>
             ) : (
@@ -154,9 +154,9 @@ function Dashboard() {
                 <span className="dash-hero-check dash-hero-check--pending">
                   <IconCalendarCheck />
                 </span>
-                <p className="dash-hero-status-title">Journée non validée</p>
+                <p className="dash-hero-status-title">Day not validated</p>
                 <Link to="/my-day" className="app-link">
-                  Valider ma journée <IconArrowRight />
+                  Validate my day <IconArrowRight />
                 </Link>
               </>
             )}
@@ -165,9 +165,9 @@ function Dashboard() {
 
         <div className="side-card">
           <div className="side-card-header">
-            <p className="side-card-title">Aujourd'hui</p>
+            <p className="side-card-title">Today</p>
             <Link to="/my-day" className="app-link">
-              Voir ma journée <IconArrowRight />
+              View my day <IconArrowRight />
             </Link>
           </div>
           <div className="stat-tile-grid">
@@ -177,7 +177,7 @@ function Dashboard() {
               </span>
               <div>
                 <AnimatedNumber className="stat-tile-value" value={todoCount} />
-                <div className="stat-tile-label">Tâches à faire</div>
+                <div className="stat-tile-label">Tasks to do</div>
               </div>
             </div>
             <div className="stat-tile">
@@ -186,7 +186,7 @@ function Dashboard() {
               </span>
               <div>
                 <AnimatedNumber className="stat-tile-value" value={inProgressCount} />
-                <div className="stat-tile-label">En cours</div>
+                <div className="stat-tile-label">In progress</div>
               </div>
             </div>
             <div className="stat-tile">
@@ -195,7 +195,7 @@ function Dashboard() {
               </span>
               <div>
                 <AnimatedNumber className="stat-tile-value" value={unreadCount} />
-                <div className="stat-tile-label">Messages non lus</div>
+                <div className="stat-tile-label">Unread messages</div>
               </div>
             </div>
             <div className="stat-tile">
@@ -208,7 +208,7 @@ function Dashboard() {
                   value={secondsWorkedToday}
                   format={(value) => formatDurationShort(Math.round(value))}
                 />
-                <div className="stat-tile-label">Temps travaillé</div>
+                <div className="stat-tile-label">Time worked</div>
               </div>
             </div>
             <div className="stat-tile">
@@ -221,14 +221,14 @@ function Dashboard() {
                   value={secondsConnectedToday}
                   format={(value) => formatDurationShort(Math.round(value))}
                 />
-                <div className="stat-tile-label">Temps de connexion</div>
+                <div className="stat-tile-label">Connection time</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <p className="app-section-title">Accès rapides</p>
+      <p className="app-section-title">Quick access</p>
       <div className="quick-grid">
         {QUICK_LINKS.map(({ to, label, icon: Icon, badgeKey }) => (
           <Link key={to} to={to} className="quick-card">
@@ -245,22 +245,22 @@ function Dashboard() {
         <div className="workspace-main">
           <div className="side-card">
             <div className="side-card-header">
-              <p className="side-card-title">Tâches urgentes</p>
+              <p className="side-card-title">Urgent tasks</p>
               <Link to="/tasks" className="app-link">
-                Voir toutes les tâches <IconArrowRight />
+                View all tasks <IconArrowRight />
               </Link>
             </div>
-            {urgentTasks.length === 0 && <div className="empty-state">Aucune tâche urgente pour le moment.</div>}
+            {urgentTasks.length === 0 && <div className="empty-state">No urgent tasks at the moment.</div>}
             {urgentTasks.length > 0 && (
               <div className="task-table-wrap">
                 <table className="task-table">
                   <thead>
                     <tr>
-                      <th>Tâche</th>
-                      <th>Projet / Contexte</th>
-                      <th>Échéance</th>
-                      <th>Statut</th>
-                      <th>Priorité</th>
+                      <th>Task</th>
+                      <th>Project / Context</th>
+                      <th>Deadline</th>
+                      <th>Status</th>
+                      <th>Priority</th>
                       <th />
                     </tr>
                   </thead>
@@ -282,10 +282,10 @@ function Dashboard() {
                           </span>
                         </td>
                         <td>
-                          <span className={`pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
+                          <span className={`pill ${priorityPillClass(task.priority)}`}>{priorityLabel(task.priority)}</span>
                         </td>
                         <td>
-                          <Link to={`/tasks/${task.id}`} className="icon-link-btn" aria-label="Ouvrir la tâche">
+                          <Link to={`/tasks/${task.id}`} className="icon-link-btn" aria-label="Open task">
                             <IconExternalLink />
                           </Link>
                         </td>
@@ -301,9 +301,9 @@ function Dashboard() {
         <div className="workspace-side">
           <div className="side-card">
             <div className="side-card-header">
-              <p className="side-card-title">Activité récente</p>
+              <p className="side-card-title">Recent activity</p>
             </div>
-            {activity.length === 0 && <div className="empty-state">Aucune activité récente.</div>}
+            {activity.length === 0 && <div className="empty-state">No recent activity.</div>}
             {activity.map((entry, index) => {
               const meta = ACTIVITY_META[entry.action];
               if (!meta) return null;

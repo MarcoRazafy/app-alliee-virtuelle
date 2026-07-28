@@ -1,4 +1,6 @@
 const db = require('../config/database');
+const sessionModel = require('./session.model');
+const realtime = require('../realtime/io');
 const { computeCompletionRate } = require('../utils/kpi');
 
 const TASK_STATUS = {
@@ -217,6 +219,10 @@ async function recordAudit({ userId, action, entityType, entityId, details }, cl
      VALUES ($1, $2, $3, $4, $5)`,
     [userId, action, entityType, entityId, details ? JSON.stringify(details) : null]
   );
+  // Temps réel : signale une nouvelle activité pour rafraîchir les notifications. Chaque
+  // client re-fetch (la visibilité par utilisateur, dont l'exclusion de ses propres actions,
+  // reste appliquée côté serveur). actorId permet à l'auteur d'ignorer sa propre action.
+  realtime.broadcast('notification:new', { actorId: userId, action, entityType });
 }
 
 // --- Timelog ---
@@ -462,35 +468,42 @@ async function computeRealtimeDashboard() {
   // 3 requêtes groupées sur tous les employés plutôt que 3 requêtes par employé (N+1)
   const employeeIds = employeesResult.rows.map((employee) => employee.id);
 
-  const [todoResult, inProgressResult, doneResult, connectedResult] = await Promise.all([
+  const [todoResult, inProgressResult, doneResult, connectedUserIds] = await Promise.all([
     db.query(
+      // Uniquement les tâches que l'employé a sélectionnées dans « Ma journée » aujourd'hui.
       `SELECT id, assigned_to, title, priority FROM tasks
-       WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE' ORDER BY deadline ASC`,
+       WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE'
+         AND EXISTS (SELECT 1 FROM user_daily_selection uds
+                     WHERE uds.task_id = tasks.id AND uds.user_id = tasks.assigned_to AND uds.date = CURRENT_DATE)
+       ORDER BY deadline ASC`,
       [employeeIds]
     ),
     db.query(
+      // Toutes les tâches EN_COURS de la sélection du jour (LEFT JOIN : qu'un chrono soit
+      // actif ou non). session_start_time n'est renseigné que si un chrono tourne réellement.
       `SELECT t.id, t.assigned_to, t.title, t.priority, tl.start_time AS session_start_time
        FROM tasks t
-       JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
-       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status = 'EN_COURS'`,
+       LEFT JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
+       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status = 'EN_COURS'
+         AND EXISTS (SELECT 1 FROM user_daily_selection uds
+                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = CURRENT_DATE)`,
       [employeeIds]
     ),
     db.query(
       `SELECT t.id, t.assigned_to, t.title,
               COALESCE((SELECT SUM(duration_seconds) FROM timelog WHERE task_id = t.id), 0)::BIGINT AS total_duration_seconds
        FROM tasks t
-       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')`,
+       WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')
+         AND EXISTS (SELECT 1 FROM user_daily_selection uds
+                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = CURRENT_DATE)`,
       [employeeIds]
     ),
-    // "Actif" = connecté à son compte : au moins une session de présence ouverte (logout_at NULL).
-    db.query(
-      `SELECT DISTINCT user_id FROM user_sessions
-       WHERE logout_at IS NULL AND user_id = ANY($1::uuid[])`,
-      [employeeIds]
-    ),
+    // "Actif" = réellement en ligne (définition partagée : session ouverte, pas de
+    // déconnexion signalée, heartbeat récent) — pas juste logout_at NULL.
+    sessionModel.findLiveUserIds(employeeIds),
   ]);
 
-  const connectedIds = new Set(connectedResult.rows.map((row) => row.user_id));
+  const connectedIds = new Set(connectedUserIds);
 
   function groupByAssignee(rows) {
     const map = new Map();

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthBanner from '../components/auth/AuthBanner';
+import PasswordInput from '../components/auth/PasswordInput';
 
 function Register() {
   const [form, setForm] = useState({
@@ -37,15 +38,15 @@ function Register() {
     setSuccessMessage('');
 
     if (form.password !== form.confirmPassword) {
-      setLocalError('Les mots de passe ne correspondent pas');
+      setLocalError('Passwords do not match');
       return;
     }
     if (form.password.length < 8) {
-      setLocalError('Le mot de passe doit contenir au moins 8 caractères');
+      setLocalError('Password must be at least 8 characters long');
       return;
     }
     if (form.username.length < 3) {
-      setLocalError("Le nom d'utilisateur doit contenir au moins 3 caractères");
+      setLocalError('Username must be at least 3 characters long');
       return;
     }
 
@@ -64,20 +65,20 @@ function Register() {
 
   return (
     <AuthLayout
-      title="Créer un compte"
-      subtitle="Rejoignez L'Alliée Virtuelle en quelques instants"
+      title="Create an account"
+      subtitle="Join L'Alliée Virtuelle in just a moment"
       wide
       footer={
         <>
-          Déjà un compte ? <Link to="/login">Se connecter</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </>
       }
     >
       <form className="auth-form" onSubmit={handleSubmit}>
         <div className="auth-form-grid">
-          <span className="auth-section-label">Identité</span>
+          <span className="auth-section-label">Identity</span>
           <div className="auth-field">
-            <label htmlFor="first_name">Prénom</label>
+            <label htmlFor="first_name">First name</label>
             <input
               id="first_name"
               name="first_name"
@@ -88,55 +89,55 @@ function Register() {
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="last_name">Nom</label>
+            <label htmlFor="last_name">Last name</label>
             <input id="last_name" name="last_name" type="text" value={form.last_name} onChange={handleChange} required />
           </div>
           <div className="auth-field auth-field--full">
-            <label htmlFor="username">Nom d'utilisateur</label>
+            <label htmlFor="username">Username</label>
             <input id="username" name="username" type="text" value={form.username} onChange={handleChange} required />
-            <span className="auth-username-hint">3 à 50 caractères : lettres, chiffres et underscore uniquement</span>
+            <span className="auth-username-hint">3 to 50 characters: letters, digits and underscore only</span>
           </div>
 
-          <span className="auth-section-label">Compte</span>
+          <span className="auth-section-label">Account</span>
           <div className="auth-field auth-field--full">
             <label htmlFor="email">Email</label>
             <input id="email" name="email" type="email" value={form.email} onChange={handleChange} required />
           </div>
           <div className="auth-field">
-            <label htmlFor="password">Mot de passe</label>
-            <input
+            <label htmlFor="password">Password</label>
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               value={form.password}
               onChange={handleChange}
-              placeholder="8 caractères minimum"
+              placeholder="8 characters minimum"
+              autoComplete="new-password"
               required
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="confirmPassword">Confirmer le mot de passe</label>
-            <input
+            <label htmlFor="confirmPassword">Confirm password</label>
+            <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               value={form.confirmPassword}
               onChange={handleChange}
+              autoComplete="new-password"
               required
             />
           </div>
 
-          <span className="auth-section-label">Contact & poste</span>
+          <span className="auth-section-label">Contact & role</span>
           <div className="auth-field">
-            <label htmlFor="phone">Téléphone</label>
+            <label htmlFor="phone">Phone</label>
             <input id="phone" name="phone" type="tel" value={form.phone} onChange={handleChange} required />
           </div>
           <div className="auth-field">
-            <label htmlFor="position">Poste</label>
+            <label htmlFor="position">Position</label>
             <input id="position" name="position" type="text" value={form.position} onChange={handleChange} required />
           </div>
           <div className="auth-field">
-            <label htmlFor="postal_address">Adresse postale</label>
+            <label htmlFor="postal_address">Postal address</label>
             <input
               id="postal_address"
               name="postal_address"
@@ -146,7 +147,7 @@ function Register() {
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="birth_date">Date de naissance</label>
+            <label htmlFor="birth_date">Date of birth</label>
             <input id="birth_date" name="birth_date" type="date" value={form.birth_date} onChange={handleChange} />
           </div>
         </div>
@@ -156,7 +157,7 @@ function Register() {
 
         <button type="submit" className="auth-button" disabled={isSubmitting}>
           {isSubmitting && <span className="auth-spinner" />}
-          {isSubmitting ? 'Création...' : 'Créer mon compte'}
+          {isSubmitting ? 'Creating...' : 'Create my account'}
         </button>
       </form>
     </AuthLayout>

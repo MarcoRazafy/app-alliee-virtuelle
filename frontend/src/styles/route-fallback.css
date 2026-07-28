@@ -1,0 +1,27 @@
+/* Écran d'attente plein écran pendant le chargement à la demande d'une page. */
+.route-fallback {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-primary);
+  z-index: 10;
+}
+
+.route-fallback-spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: route-fallback-spin 0.7s linear infinite;
+}
+
+@keyframes route-fallback-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-fallback-spinner { animation-duration: 2s; }
+}
