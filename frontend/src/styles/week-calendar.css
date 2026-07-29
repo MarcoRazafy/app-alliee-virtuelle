@@ -716,6 +716,17 @@
   .cal-presence-detail-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* Sur mobile, l'édition passe par l'éditeur empilé (cal-mobile-editor) : la grille devient
+     un simple affichage. On masque donc les contrôles d'édition dans la grille et on retire
+     le curseur de dessin (le glisser-déposer est désactivé côté JS). */
+  .cal-day-status-toggle,
+  .cal-range-input {
+    display: none;
+  }
+  .cal-day-column--drawable {
+    cursor: default;
+  }
 }
 
 @media (max-width: 560px) {
@@ -750,4 +761,140 @@
   .cal-presence-detail-close {
     transition: none;
   }
+}
+
+/* --- Éditeur empilé (mobile) : une carte par jour, avec sélecteurs d'heure Début/Fin --- */
+.cal-mobile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cal-mobile-editor-hint {
+  margin: 0 0 2px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.cal-medit-day {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-secondary);
+}
+
+.cal-medit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cal-medit-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--color-text-primary);
+}
+
+.cal-medit-status {
+  display: flex;
+  gap: 8px;
+}
+/* Pastilles de statut un peu plus grandes ici (cible tactile confortable). */
+.cal-medit-status .cal-status-dot {
+  width: 22px;
+  height: 22px;
+}
+
+.cal-medit-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cal-medit-empty {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.cal-medit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.cal-medit-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.cal-medit-chip button:hover {
+  background: color-mix(in srgb, var(--color-error) 20%, transparent);
+  color: var(--color-error);
+}
+.cal-medit-chip svg {
+  width: 13px;
+  height: 13px;
+}
+
+.cal-medit-add {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.cal-medit-add label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.cal-medit-add input[type='time'] {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--input-bg, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+.cal-medit-add input[type='time']:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+.cal-medit-add-btn {
+  flex-shrink: 0;
+  padding: 9px 18px;
+  border: none;
+  border-radius: 9px;
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.cal-medit-add-btn:hover {
+  background: var(--color-accent-light, var(--color-accent));
 }
