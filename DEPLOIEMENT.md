@@ -23,6 +23,10 @@
    - `DATABASE_URL=<base de prod>`
    - `MISTRAL_API_KEY=<clé>` (assistant IA / chatbot)
    - `DATABASE_SSL` — **seulement si besoin de forcer** : `false` pour un Postgres auto-hébergé sans TLS, `true` pour tester une base managée depuis le dev. Sinon laisser vide (auto selon `NODE_ENV`).
+   - **Notifications push (Web Push)** — 3 variables, sinon la fonctionnalité reste inerte (aucune notif, l'app marche quand même) :
+     - `VAPID_PUBLIC_KEY=<clé publique>` et `VAPID_PRIVATE_KEY=<clé privée, SECRÈTE>` — générer une paire avec `cd backend && node -e "console.log(require('web-push').generateVAPIDKeys())"` (ou `npx web-push generate-vapid-keys`).
+     - `VAPID_SUBJECT=mailto:contact@ton-domaine.com` (facultatif, défaut : `mailto:ucan.mih@gmail.com`).
+     - ⚠️ Les clés doivent rester **stables** : les régénérer invalide tous les abonnements existants (les utilisateurs devront réactiver les notifications). Push disponible sur PC/Android ; iPhone **uniquement en PWA installée** (iOS 16.4+).
 2. **Base de données** : `cd backend && npm run migrate` sur la base de prod. Repartir d'une **base propre** (aucun seed de test n'est appliqué automatiquement).
    - **Créer le 1er administrateur** (indispensable pour se connecter) :
      `npm run create-admin -- --email admin@ton-domaine.com --password '<mot de passe fort>' --name "Prénom Nom"`

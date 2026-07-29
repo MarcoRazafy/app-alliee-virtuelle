@@ -1,0 +1,44 @@
+/* Panneau « Push notifications » (dans les pages Profil). Reprend le style profile-panel. */
+.notif-toggle-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.notif-toggle-hint {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #9fb3d1);
+  margin: 0;
+}
+
+.notif-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notif-toggle-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #9fb3d1);
+}
+.notif-toggle-status::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+.notif-toggle-status.is-on {
+  color: #22c55e;
+}
+.notif-toggle-status.is-on::before {
+  opacity: 1;
+}

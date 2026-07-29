@@ -4,6 +4,7 @@ const messageModel = require('../models/message.model');
 const userModel = require('../models/user.model');
 const sessionModel = require('../models/session.model');
 const realtime = require('../realtime/io');
+const pushService = require('../services/push.service');
 
 const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
@@ -16,6 +17,13 @@ function attachmentFrom(req) {
 function hasBody(req) {
   const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
   return content.length > 0 || Boolean(req.file);
+}
+
+// Aperçu court pour le corps de la notification push : le texte, ou une mention de la pièce jointe.
+function pushPreview(content, hasAttachment) {
+  const text = (content || '').trim();
+  if (text) return text.length > 120 ? `${text.slice(0, 117)}…` : text;
+  return hasAttachment ? '📎 Attachment' : 'New message';
 }
 
 async function getGlobalMessages(req, res, next) {
@@ -99,6 +107,17 @@ async function postPrivateMessage(req, res, next) {
       authorId: req.user.id,
       recipientId: userId,
     });
+    // Notification push au destinataire (fonctionne même app fermée). Best-effort : n'interrompt
+    // jamais la réponse. Le nom de l'expéditeur vient de son profil pour un libellé lisible.
+    const author = await userModel.findById(req.user.id).catch(() => null);
+    pushService
+      .notifyUsers([userId], {
+        title: author?.full_name || author?.username || 'New message',
+        body: pushPreview(content, Boolean(req.file)),
+        url: '/messaging',
+        tag: `private-${req.user.id}`,
+      })
+      .catch(() => {});
     res.status(201).json(message);
   } catch (err) {
     next(err);
@@ -198,6 +217,21 @@ async function postGroupMessage(req, res, next) {
     // Temps réel : prévenir tous les membres du groupe.
     const memberIds = await messageModel.findGroupMemberIds(groupId);
     realtime.emitToUsers(memberIds, 'message:new', { scope: 'group', groupId, authorId: req.user.id });
+    // Notification push aux membres (sauf l'auteur). Best-effort.
+    const author = await userModel.findById(req.user.id).catch(() => null);
+    const authorName = author?.full_name || author?.username || 'Someone';
+    pushService
+      .notifyUsers(
+        memberIds,
+        {
+          title: group.name ? `${group.name}` : 'New group message',
+          body: `${authorName}: ${pushPreview(content, Boolean(req.file))}`,
+          url: '/messaging',
+          tag: `group-${groupId}`,
+        },
+        req.user.id
+      )
+      .catch(() => {});
     res.status(201).json(message);
   } catch (err) {
     next(err);

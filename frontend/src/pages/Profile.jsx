@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
+import NotificationToggle from '../components/NotificationToggle';
 import useAuthStore from '../store/authStore';
 import api from '../services/api';
 import * as statsService from '../services/statsService';
@@ -577,6 +578,8 @@ function Profile() {
                 </form>
               )}
             </article>
+
+            <NotificationToggle />
 
             <article className="profile-panel">
               <header className="profile-panel-header">
