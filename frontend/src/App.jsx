@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { heartbeatSession, signalSessionDisconnect } from './services/sessionService';
-import { getToken } from './services/auth';
+import { getUser } from './services/auth';
+import InstallPrompt from './components/InstallPrompt';
 // Gardés en chargement immédiat : la 1re page (Login), le garde de route et le shell admin
 // (partagé par toutes les pages admin, donc mieux vaut le charger une seule fois).
 import Login from './pages/Login';
@@ -52,7 +53,9 @@ function App() {
   // abandonnée après l'arrêt des heartbeats.
   useEffect(() => {
     function heartbeat() {
-      if (!getToken()) return;
+      // Auth par cookie httpOnly : on se base sur la présence de l'utilisateur en session
+      // (le token n'est plus lisible en JS). Le heartbeat porte le cookie via withCredentials.
+      if (!getUser()) return;
       heartbeatSession().catch(() => {});
     }
     heartbeat();
@@ -67,6 +70,7 @@ function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
+      <InstallPrompt />
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
