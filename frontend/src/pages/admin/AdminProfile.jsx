@@ -4,6 +4,7 @@ import * as avatarService from '../../services/avatarService';
 import useAuthStore from '../../store/authStore';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { PageSkeleton } from '../../components/Skeleton';
+import NotificationToggle from '../../components/NotificationToggle';
 import '../../styles/profile-page.css';
 
 function Icon({ type }) {
@@ -464,6 +465,8 @@ function AdminProfile() {
               </form>
             )}
           </article>
+
+          <NotificationToggle />
 
           <article className="profile-help-card">
             <span><Icon type="shield" /></span>

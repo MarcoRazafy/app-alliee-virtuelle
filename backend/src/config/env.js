@@ -26,6 +26,11 @@ module.exports = {
   jwtExpiry: process.env.JWT_EXPIRY || '7d',
   mistralApiKey: process.env.MISTRAL_API_KEY,
   mistralModel: process.env.MISTRAL_MODEL || 'mistral-medium',
+  // Web Push (notifications). Sans ces clés, la fonctionnalité est simplement inerte
+  // (aucune notif envoyée) — l'app fonctionne normalement. La clé privée reste secrète.
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+  vapidSubject: process.env.VAPID_SUBJECT || 'mailto:ucan.mih@gmail.com',
   planningTimezone: process.env.PLANNING_TIMEZONE || 'Indian/Antananarivo',
   // Le frontend envoie un heartbeat toutes les 20 secondes. Après ce délai, une session
   // ouverte sans activité récente n'est plus considérée en ligne ni prolongée indéfiniment.

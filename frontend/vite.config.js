@@ -45,6 +45,8 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+          // Ajoute nos handlers de notifications push (push + notificationclick) au SW généré.
+          importScripts: ['push-sw.js'],
           // On ne pré-cache pas les gros visuels (images > 2 Mo du dossier employer, photo de
           // login) : ils restent servis normalement mais n'alourdissent pas le service worker.
           globIgnores: ['**/employer/**', '**/themeImagelogin.jpeg', '**/agentIAImage-*'],
