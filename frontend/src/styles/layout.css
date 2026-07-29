@@ -575,6 +575,12 @@
   .shell-header {
     padding: 14px 16px;
   }
+
+  /* Chatbot en plein écran sur mobile : la page pose la classe `chat-fullscreen` sur <body>,
+     on masque alors l'en-tête de l'app (le retour se fait via le bouton dans l'assistant). */
+  body.chat-fullscreen .shell-header {
+    display: none;
+  }
 }
 
 /* --- Menu utilisateur --- */

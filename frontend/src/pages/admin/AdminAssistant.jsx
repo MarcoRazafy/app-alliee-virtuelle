@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as aiService from '../../services/aiService';
 import * as statsService from '../../services/statsService';
 import * as taskService from '../../services/taskService';
@@ -22,6 +23,7 @@ const SUGGESTIONS = [
 ];
 
 function AdminAssistant() {
+  const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [kpis, setKpis] = useState(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
@@ -53,6 +55,13 @@ function AdminAssistant() {
 
   useEffect(() => {
     loadHistory();
+  }, []);
+
+  // Plein écran mobile : masque l'en-tête de l'app tant qu'on est sur le chatbot (le bouton
+  // retour de l'en-tête interne permet de revenir). Retiré à la sortie de la page.
+  useEffect(() => {
+    document.body.classList.add('chat-fullscreen');
+    return () => document.body.classList.remove('chat-fullscreen');
   }, []);
 
   // KPI de l'écran d'accueil : semaine courante vs semaine précédente.
@@ -431,6 +440,17 @@ function AdminAssistant() {
 
       <div className="ai-main">
         <header className="ai-header">
+          <button
+            type="button"
+            className="ai-back"
+            onClick={() => navigate('/admin')}
+            aria-label="Back"
+            title="Back"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
           <button
             type="button"
             className="ai-history-toggle"
