@@ -10,6 +10,8 @@ import {
   minutesToTime,
   toTimeInputValue,
   slotsOverlap,
+  parseTimeRanges,
+  formatSlotsAsRanges,
 } from '../../utils/planningFormat';
 import {
   computeWeekPresence,
@@ -218,6 +220,40 @@ function PresenceDetailPanel({ day, dayIndex, summary, onClose, panelRef }) {
   );
 }
 
+// Saisie rapide des plages d'une journée au format texte (ex. « 08h-12h | 13h-18h »),
+// en complément du glisser-déposer. Appliquée à la validation (Entrée / perte de focus).
+function DayRangeInput({ day, onApply }) {
+  const canonical = formatSlotsAsRanges(day.time_slots);
+  const [text, setText] = useState(canonical);
+  // Resynchronise le champ quand les plages changent ailleurs (drag, statut, copie).
+  useEffect(() => {
+    setText(canonical);
+  }, [canonical]);
+
+  function commit() {
+    if (text.trim() === canonical) return; // rien de neuf saisi
+    onApply(day, text);
+  }
+
+  return (
+    <input
+      type="text"
+      className="cal-range-input"
+      value={text}
+      placeholder="e.g. 08h-12h | 13h-18h"
+      aria-label={`Time ranges for ${formatDayLabel(day.date, 0)}`}
+      onChange={(event) => setText(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
+      }}
+      onBlur={commit}
+    />
+  );
+}
+
 function WeekCalendarGrid({
   days,
   canEdit,
@@ -342,6 +378,21 @@ function WeekCalendarGrid({
     onSlotsChange(day.date, day.time_slots.filter((_, index) => index !== slotIndex));
   }
 
+  // Applique une saisie texte de plages (« 08h-12h | 13h-18h ») à une journée. Bascule
+  // automatiquement le statut sur « Disponible » si des plages sont saisies sur un jour sans
+  // statut compatible, pour que les plages soient conservées (comme pour le glisser-déposer).
+  function applyRangeText(day, text) {
+    const result = parseTimeRanges(text);
+    if (!result.ok) {
+      notifyError(result.error);
+      return;
+    }
+    if (result.slots.length > 0 && !HAS_SLOTS_STATUSES.includes(day.availability_status)) {
+      onStatusChange(day.date, 'AVAILABLE');
+    }
+    onSlotsChange(day.date, result.slots);
+  }
+
   return (
     <div className="cal-calendar">
       <div className="cal-grid-wrap">
@@ -367,6 +418,7 @@ function WeekCalendarGrid({
               <div className="cal-day-header">
                 <span className="cal-day-title">{formatDayLabel(day.date, dayIndex)}</span>
                 {canEdit ? (
+                  <>
                   <div className="cal-day-status-toggle" role="group" aria-label="Availability status">
                     {statusOptions.map((option) => (
                       <button
@@ -401,6 +453,10 @@ function WeekCalendarGrid({
                       </select>
                     )}
                   </div>
+                  {(!day.availability_status || HAS_SLOTS_STATUSES.includes(day.availability_status)) && (
+                    <DayRangeInput day={day} onApply={applyRangeText} />
+                  )}
+                  </>
                 ) : (
                   day.availability_status && (
                     <span className={`pill ${STATUS_PILL_CLASS[day.availability_status]}`}>

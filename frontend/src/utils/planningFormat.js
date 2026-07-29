@@ -141,6 +141,50 @@ export function slotsOverlap(slots) {
   return false;
 }
 
+// Parse un horaire souple saisi à la main : "8", "8h", "8h30", "08:00", "8:30" → minutes.
+function parseTimeToken(raw) {
+  const token = raw.trim().toLowerCase().replace(/\s+/g, '');
+  let match = token.match(/^(\d{1,2})[:.](\d{2})$/); // 08:00 / 8.30
+  if (!match) match = token.match(/^(\d{1,2})h(\d{2})?$/); // 8h / 08h30
+  if (!match) match = token.match(/^(\d{1,2})$/); // 8
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = match[2] ? Number(match[2]) : 0;
+  if (hours > 24 || minutes > 59) return null;
+  const total = hours * 60 + minutes;
+  return total > 24 * 60 ? null : total;
+}
+
+// Convertit une saisie type "08h - 12h | 13h - 18h" en plages { start_time, end_time }.
+// Séparateurs de plages : | , ; retour à la ligne. Séparateur début/fin : - – — ou "à"/"to".
+// Renvoie { ok: true, slots } ou { ok: false, error } (message lisible pour l'utilisateur).
+export function parseTimeRanges(input) {
+  const text = (input || '').trim();
+  if (!text) return { ok: true, slots: [] };
+  const parts = text.split(/[|,;\n]+/).map((p) => p.trim()).filter(Boolean);
+  const slots = [];
+  for (const part of parts) {
+    const bounds = part.split(/\s*[-–—]\s*|\s+(?:à|to)\s+/i);
+    if (bounds.length !== 2) return { ok: false, error: `Invalid range: "${part}"` };
+    const start = parseTimeToken(bounds[0]);
+    const end = parseTimeToken(bounds[1]);
+    if (start == null || end == null) return { ok: false, error: `Invalid time in: "${part}"` };
+    if (end <= start) return { ok: false, error: `End must be after start: "${part}"` };
+    slots.push({ start_time: minutesToTime(start), end_time: minutesToTime(end) });
+  }
+  if (slotsOverlap(slots)) return { ok: false, error: 'Ranges overlap.' };
+  return { ok: true, slots };
+}
+
+// Reconstruit la chaîne "08:00 - 12:00 | 13:00 - 18:00" à partir des plages (pré-remplissage
+// du champ texte). Trie par heure de début pour un affichage stable.
+export function formatSlotsAsRanges(slots) {
+  return [...(slots || [])]
+    .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
+    .map((s) => `${toTimeInputValue(s.start_time)} - ${toTimeInputValue(s.end_time)}`)
+    .join(' | ');
+}
+
 export function computeTotalHours(days) {
   let minutes = 0;
   days.forEach((day) => {
