@@ -1617,6 +1617,17 @@
   .msgr-back { display: inline-flex; }
   .msgr--chat .msgr-sidebar { display: none; }
   .msgr--list .msgr-chat { display: none; }
+
+  /* Conversation ouverte = plein écran « façon Messenger » : la discussion recouvre l'en-tête
+     de l'app pour occuper tout l'écran. Le bouton retour (msgr-back) ramène à la liste, qui
+     réaffiche l'en-tête (et donc le menu). */
+  .msgr--chat {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    height: 100dvh;
+    margin: 0;
+  }
 }
 
 /* --- Enregistrement vocal --- */
