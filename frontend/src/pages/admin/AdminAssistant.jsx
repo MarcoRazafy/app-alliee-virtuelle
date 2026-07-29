@@ -577,8 +577,6 @@ function AdminAssistant() {
           )}
           <div className="ai-input-row">
             <input ref={fileRef} type="file" hidden onChange={(e) => setPendingFile(e.target.files?.[0] || null)} />
-            <button type="button" className="ai-input-icon" onClick={() => pickFile(false)} disabled={loading} title="Attachment" aria-label="Attachment"><PaperclipIcon /></button>
-            <button type="button" className="ai-input-icon" onClick={() => pickFile(true)} disabled={loading} title="Photo" aria-label="Photo"><ImageIcon /></button>
             <button type="button" className={`ai-input-icon${recognizing ? ' ai-input-icon--rec' : ''}`} onClick={toggleDictation} disabled={loading} title="Dictate" aria-label="Dictate"><MicIcon /></button>
             <div className="ai-input-field">
               <input
