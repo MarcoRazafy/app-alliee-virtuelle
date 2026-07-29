@@ -63,16 +63,17 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
   }
 
   async function startRecording() {
-    // Le micro web (getUserMedia) exige un contexte sécurisé (HTTPS ou localhost).
+    // Sur mobile, on passe toujours par l'enregistreur natif du téléphone
+    // (<input type="file" accept="audio/*" capture>) : il gère la permission micro de
+    // façon fiable, y compris en PWA/standalone où getUserMedia est souvent bloqué (iOS).
+    const isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (isMobile) {
+      if (audioRef.current) audioRef.current.click();
+      return;
+    }
+    // Desktop : le micro web (getUserMedia) exige un contexte sécurisé (HTTPS ou localhost).
     // En HTTP sur une IP réseau, il est indisponible.
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      // Sur mobile, l'enregistreur natif du téléphone fonctionne sans contexte sécurisé
-      // (via <input type="file" accept="audio/*" capture>) : on l'utilise pour enregistrer.
-      const isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-      if (isMobile && audioRef.current) {
-        audioRef.current.click();
-        return;
-      }
       // Sur ordinateur, l'enregistrement est impossible en HTTP : on l'explique clairement
       // au lieu d'ouvrir un simple import de fichier.
       notifyInfo(
@@ -141,11 +142,11 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
       ) : (
         <div className="msgr-composer-row">
           <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx" onChange={pickFile} />
-          <input ref={audioRef} type="file" hidden accept="audio/*" capture="user" onChange={pickAudio} />
+          <input ref={audioRef} type="file" hidden accept="audio/*" capture onChange={pickAudio} />
           <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx'); fileRef.current.click(); } }} disabled={disabled} aria-label="Add an attachment" title="File">
             <IconPaperclip />
           </button>
-          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/png,image/jpeg'); fileRef.current.click(); } }} disabled={disabled} aria-label="Add a photo" title="Photo">
+          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/*'); fileRef.current.click(); } }} disabled={disabled} aria-label="Add a photo" title="Photo">
             <ImageIcon />
           </button>
           <button type="button" className="msgr-composer-icon" onClick={startRecording} disabled={disabled} aria-label="Voice message" title="Voice message">

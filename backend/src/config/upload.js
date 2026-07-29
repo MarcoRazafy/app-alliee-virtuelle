@@ -16,6 +16,7 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'image/png',
   'image/jpeg',
+  'image/webp',
   // Messages vocaux (MediaRecorder) et audio
   'audio/webm',
   'audio/ogg',
