@@ -58,6 +58,27 @@
   .employee-ai-robot { animation: none; }
 }
 
+/* Bouton retour du chatbot (visible seulement en mobile plein écran, où l'en-tête de l'app
+   est masqué) : ramène au tableau de bord, d'où le menu de l'app est de nouveau accessible. */
+.employee-ai-back {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.employee-ai-back:hover { color: var(--color-text-primary); border-color: var(--color-accent-light); }
+
+@media (max-width: 900px) {
+  .employee-ai-back { display: inline-flex; }
+}
+
 /* Rendu markdown des réponses (gras, italique, code, listes). */
 .employee-ai-md .ai-md-p { margin: 0 0 6px; }
 .employee-ai-md .ai-md-p:last-child { margin-bottom: 5px; }

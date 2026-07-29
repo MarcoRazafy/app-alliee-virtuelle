@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import { IconChat, IconCheckCircle, IconClock, IconSend } from '../components/icons';
 import Markdown from '../components/Markdown';
@@ -22,6 +23,7 @@ function createSessionId() {
 }
 
 function EmployeeAssistant() {
+  const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,13 @@ function EmployeeAssistant() {
       .getAiHistory(40)
       .then(setHistory)
       .catch(() => setHistory([]));
+  }, []);
+
+  // Plein écran mobile : masque l'en-tête de l'app tant qu'on est sur le chatbot (bouton
+  // retour dans l'en-tête interne pour revenir). Retiré à la sortie de la page.
+  useEffect(() => {
+    document.body.classList.add('chat-fullscreen');
+    return () => document.body.classList.remove('chat-fullscreen');
   }, []);
 
   const sessionMessages = useMemo(
@@ -68,6 +77,17 @@ function EmployeeAssistant() {
     >
       <section className="employee-ai" aria-label="Personal chatbot">
         <header className="employee-ai-hero">
+          <button
+            type="button"
+            className="employee-ai-back"
+            onClick={() => navigate('/dashboard')}
+            aria-label="Back"
+            title="Back"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
           <span className="employee-ai-hero-icon employee-ai-hero-icon--robot">
             <img src="/agentIAImage-removebg-preview.png" alt="" className="employee-ai-robot" />
           </span>
