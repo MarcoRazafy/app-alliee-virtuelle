@@ -254,6 +254,135 @@ function DayRangeInput({ day, onApply }) {
   );
 }
 
+// Détecte le mode mobile (réévalué au redimensionnement) pour désactiver le glisser-déposer
+// et basculer sur l'éditeur empilé, plus adapté aux petits écrans / au tactile.
+function useIsMobile(breakpoint = 900) {
+  const query = `(max-width: ${breakpoint}px)`;
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const handler = (event) => setIsMobile(event.matches);
+    mq.addEventListener('change', handler);
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener('change', handler);
+  }, [query]);
+  return isMobile;
+}
+
+// Carte d'édition d'une journée sur mobile : statut + liste des plages (supprimables) + ajout
+// d'une plage via deux sélecteurs d'heure natifs (Début / Fin) et un bouton « Add ».
+function MobileDayCard({ day, index, statusOptions, onStatusChange, onSlotsChange }) {
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const canSlots = HAS_SLOTS_STATUSES.includes(day.availability_status);
+
+  function addSlot() {
+    if (!start || !end) {
+      notifyError('Enter a start and end time.');
+      return;
+    }
+    if (timeToMinutes(end) <= timeToMinutes(start)) {
+      notifyError('End time must be after start time.');
+      return;
+    }
+    const next = [...day.time_slots, { start_time: start, end_time: end }];
+    if (slotsOverlap(next)) {
+      notifyError('This range overlaps an existing one.');
+      return;
+    }
+    if (!canSlots) onStatusChange(day.date, 'AVAILABLE');
+    onSlotsChange(
+      day.date,
+      next.sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
+    );
+    setStart('');
+    setEnd('');
+  }
+
+  function removeSlot(slotIndex) {
+    onSlotsChange(day.date, day.time_slots.filter((_, i) => i !== slotIndex));
+  }
+
+  return (
+    <div className="cal-medit-day">
+      <div className="cal-medit-head">
+        <span className="cal-medit-title">{formatDayLabel(day.date, index)}</span>
+        <div className="cal-medit-status" role="group" aria-label="Availability status">
+          {statusOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              title={option.label}
+              aria-label={option.label}
+              className={`cal-status-dot ${STATUS_DOT_CLASS[option.value]}${
+                day.availability_status === option.value ? ' cal-status-dot--active' : ''
+              }`}
+              onClick={() => onStatusChange(day.date, option.value)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {canSlots ? (
+        <>
+          <div className="cal-medit-slots">
+            {day.time_slots.length === 0 && <span className="cal-medit-empty">No time slot yet</span>}
+            {day.time_slots.map((slot, slotIndex) => (
+              <span className="cal-medit-chip" key={slotIndex}>
+                {toTimeInputValue(slot.start_time)}–{toTimeInputValue(slot.end_time)}
+                <button type="button" onClick={() => removeSlot(slotIndex)} aria-label="Remove slot">
+                  <IconX />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="cal-medit-add">
+            <label>
+              <span>Start</span>
+              <input type="time" value={start} onChange={(event) => setStart(event.target.value)} />
+            </label>
+            <label>
+              <span>End</span>
+              <input type="time" value={end} onChange={(event) => setEnd(event.target.value)} />
+            </label>
+            <button type="button" className="cal-medit-add-btn" onClick={addSlot}>
+              Add
+            </button>
+          </div>
+        </>
+      ) : (
+        day.availability_status && (
+          <span className={`pill ${STATUS_PILL_CLASS[day.availability_status]}`}>
+            {STATUS_LABELS[day.availability_status]}
+          </span>
+        )
+      )}
+    </div>
+  );
+}
+
+// Éditeur empilé (mobile) : une carte par jour. Remplace le glisser-déposer, trop petit et
+// peu pratique au doigt sur la grille horizontale.
+function MobileDayEditor({ days, statusOptions, onStatusChange, onSlotsChange }) {
+  return (
+    <div className="cal-mobile-editor">
+      <p className="cal-mobile-editor-hint">Tap a status, then add time slots below.</p>
+      {days.map((day, index) => (
+        <MobileDayCard
+          key={day.date}
+          day={day}
+          index={index}
+          statusOptions={statusOptions}
+          onStatusChange={onStatusChange}
+          onSlotsChange={onSlotsChange}
+        />
+      ))}
+    </div>
+  );
+}
+
 function WeekCalendarGrid({
   days,
   canEdit,
@@ -264,6 +393,7 @@ function WeekCalendarGrid({
   sessionSegmentsByDate,
   statusOptions = EMPLOYEE_STATUS_OPTIONS,
 }) {
+  const isMobile = useIsMobile();
   const [drag, setDrag] = useState(null);
   const [selectedPresenceDate, setSelectedPresenceDate] = useState(null);
   const columnRefs = useRef({});
@@ -300,7 +430,7 @@ function WeekCalendarGrid({
   }
 
   function handleColumnPointerDown(event, day) {
-    if (!canEdit) return;
+    if (!canEdit || isMobile) return; // mobile : édition via l'éditeur empilé, pas le drag
     if (!HAS_SLOTS_STATUSES.includes(day.availability_status)) return;
     if (event.target.closest('.cal-slot')) return; // laisse le bloc gérer son propre drag (resize/move)
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -319,7 +449,7 @@ function WeekCalendarGrid({
   // tous les événements suivants vers l'élément capturant, quel que soit l'endroit du clic initial.
   function handleSlotHandlePointerDown(event, day, slotIndex, edge) {
     event.stopPropagation();
-    if (!canEdit) return;
+    if (!canEdit || isMobile) return;
     columnRefs.current[day.date]?.setPointerCapture(event.pointerId);
     const slot = day.time_slots[slotIndex];
     const otherEdge = edge === 'start' ? timeToMinutes(slot.end_time) : timeToMinutes(slot.start_time);
@@ -328,7 +458,7 @@ function WeekCalendarGrid({
   }
 
   function handleSlotBodyPointerDown(event, day, slotIndex) {
-    if (!canEdit) return;
+    if (!canEdit || isMobile) return;
     event.stopPropagation();
     columnRefs.current[day.date]?.setPointerCapture(event.pointerId);
     const slot = day.time_slots[slotIndex];
@@ -557,6 +687,15 @@ function WeekCalendarGrid({
           </div>
         )}
       </div>
+
+      {canEdit && isMobile && (
+        <MobileDayEditor
+          days={days}
+          statusOptions={statusOptions}
+          onStatusChange={onStatusChange}
+          onSlotsChange={onSlotsChange}
+        />
+      )}
 
       {selectedPresenceDay && selectedPresenceSummary && (
         <PresenceDetailPanel
