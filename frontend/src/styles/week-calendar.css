@@ -727,6 +727,12 @@
   .cal-day-column--drawable {
     cursor: default;
   }
+
+  /* Le glisser-déposer étant désactivé sur mobile, on rend les colonnes de nouveau défilables
+     au doigt : touch-action: none (nécessaire au drag sur desktop) bloquait le scroll tactile. */
+  .cal-day-column {
+    touch-action: auto;
+  }
 }
 
 @media (max-width: 560px) {
