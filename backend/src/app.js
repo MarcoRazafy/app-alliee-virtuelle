@@ -18,6 +18,7 @@ const sessionRoutes = require('./routes/sessions');
 const notificationRoutes = require('./routes/notifications');
 const pushRoutes = require('./routes/push');
 const db = require('./config/database');
+const env = require('./config/env');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 // Construit l'application Express (middlewares + routes), SANS écouter de port ni
@@ -63,7 +64,8 @@ app.use(express.json({ limit: '1mb' }));
 app.get('/health', async (req, res) => {
   try {
     await db.query('SELECT 1');
-    res.status(200).json({ status: 'ok', db: 'up', uptime: process.uptime() });
+    // `push` permet de vérifier à distance que les clés VAPID sont bien chargées côté serveur.
+    res.status(200).json({ status: 'ok', db: 'up', push: Boolean(env.vapidPublicKey), uptime: process.uptime() });
   } catch (err) {
     res.status(503).json({ status: 'error', db: 'down' });
   }
