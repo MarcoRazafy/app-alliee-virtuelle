@@ -152,6 +152,15 @@ async function findAllFiltered({ status, role, search } = {}) {
   return result.rows;
 }
 
+// Emails des administrateurs actifs — destinataires des notifications de nouvelle inscription.
+async function findAdminEmails() {
+  const result = await db.query(
+    'SELECT email FROM users WHERE role = $1 AND status = $2',
+    [USER_ROLE.ADMIN, USER_STATUS.ACTIVE]
+  );
+  return result.rows.map((row) => row.email);
+}
+
 async function findPending() {
   const result = await db.query(
     `SELECT id, email, full_name, position, phone_number, role, status, created_at
@@ -190,6 +199,7 @@ module.exports = {
   findActiveExcept,
   findAllFiltered,
   findPending,
+  findAdminEmails,
   updateStatus,
   promoteToAdmin,
   USER_STATUS,

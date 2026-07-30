@@ -2,6 +2,7 @@ const db = require('../config/database');
 const userModel = require('../models/user.model');
 const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
+const mailService = require('../services/mail.service');
 const { sendFileOr404 } = require('../utils/sendFile');
 
 // Annuaire minimal, ouvert à tout utilisateur connecté (nécessaire pour démarrer une conversation)
@@ -74,6 +75,9 @@ async function approveUser(req, res, next) {
       );
     });
 
+    // Email de validation à l'employé (best-effort : n'interrompt pas la réponse).
+    mailService.sendAccountApproved(user).catch(() => {});
+
     res.status(200).json({ status: userModel.USER_STATUS.ACTIVE });
   } catch (err) {
     next(err);
@@ -106,6 +110,9 @@ async function rejectUser(req, res, next) {
         client
       );
     });
+
+    // Email d'information à l'employé (best-effort).
+    mailService.sendAccountRejected(user, motif).catch(() => {});
 
     res.status(200).json({ status: userModel.USER_STATUS.REJECTED });
   } catch (err) {

@@ -31,6 +31,15 @@ module.exports = {
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
   vapidSubject: process.env.VAPID_SUBJECT || 'mailto:ucan.mih@gmail.com',
+  // Emails transactionnels (SMTP, ex. Brevo/SendGrid/Mailgun). Inerte sans SMTP_HOST/USER/PASS.
+  // Le mot de passe SMTP reste secret (variables de l'hébergeur uniquement).
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: Number(process.env.SMTP_PORT) || 587,
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+  mailFrom: process.env.MAIL_FROM || "L'Alliée Virtuelle <no-reply@lalliee-virtuelle.com>",
+  // URL publique de l'app, pour les liens dans les emails (connexion, page admin).
+  appUrl: (process.env.APP_URL || 'https://app.lalliee-virtuelle.com').replace(/\/+$/, ''),
   planningTimezone: process.env.PLANNING_TIMEZONE || 'Indian/Antananarivo',
   // Le frontend envoie un heartbeat toutes les 20 secondes. Après ce délai, une session
   // ouverte sans activité récente n'est plus considérée en ligne ni prolongée indéfiniment.

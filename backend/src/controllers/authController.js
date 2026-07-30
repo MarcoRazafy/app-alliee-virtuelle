@@ -4,6 +4,7 @@ const userModel = require('../models/user.model');
 const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
 const sessionModel = require('../models/session.model');
+const mailService = require('../services/mail.service');
 const realtime = require('../realtime/io');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
@@ -50,6 +51,13 @@ async function register(req, res, next) {
       postalAddress,
       birthDate,
     });
+
+    // Prévient les administrateurs qu'une inscription attend validation (best-effort : ne doit
+    // jamais faire échouer l'inscription si l'email ou la base admin pose problème).
+    userModel
+      .findAdminEmails()
+      .then((adminEmails) => mailService.sendNewRegistrationToAdmins(user, adminEmails))
+      .catch(() => {});
 
     res.status(201).json({
       message: 'Registration submitted, awaiting admin approval',
