@@ -27,6 +27,9 @@
      - `VAPID_PUBLIC_KEY=<clé publique>` et `VAPID_PRIVATE_KEY=<clé privée, SECRÈTE>` — générer une paire avec `cd backend && node -e "console.log(require('web-push').generateVAPIDKeys())"` (ou `npx web-push generate-vapid-keys`).
      - `VAPID_SUBJECT=mailto:contact@ton-domaine.com` (facultatif, défaut : `mailto:ucan.mih@gmail.com`).
      - ⚠️ Les clés doivent rester **stables** : les régénérer invalide tous les abonnements existants (les utilisateurs devront réactiver les notifications). Push disponible sur PC/Android ; iPhone **uniquement en PWA installée** (iOS 16.4+).
+   - **Emails transactionnels (SMTP)** — sinon inerte (aucun email, l'app marche quand même). Recommandé : **Brevo / SendGrid / Mailgun** (niveau gratuit suffisant, meilleure délivrabilité qu'un SMTP perso) :
+     - `SMTP_HOST`, `SMTP_PORT` (587 en général), `SMTP_USER`, `SMTP_PASS` (**SECRET**), `MAIL_FROM="L'Alliée Virtuelle <no-reply@ton-domaine.com>"`, `APP_URL=https://app.ton-domaine.com` (liens dans les emails).
+     - Emails envoyés : **compte approuvé** → employé, **compte refusé** → employé, **nouvelle inscription** → administrateurs. Diagnostic à distance : `GET /health` renvoie `"mail": true` quand le SMTP est configuré.
 2. **Base de données** : `cd backend && npm run migrate` sur la base de prod. Repartir d'une **base propre** (aucun seed de test n'est appliqué automatiquement).
    - **Créer le 1er administrateur** (indispensable pour se connecter) :
      `npm run create-admin -- --email admin@ton-domaine.com --password '<mot de passe fort>' --name "Prénom Nom"`
