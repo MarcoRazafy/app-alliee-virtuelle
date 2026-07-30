@@ -1,4 +1,5 @@
 import api from './api';
+import { PUSH_API_PATHS } from './pushPaths.js';
 
 // Notifications push (Web Push). S'appuie sur le service worker de la PWA. Fonctionne sur
 // Chrome/Edge/Firefox (PC + Android) et sur iPhone UNIQUEMENT en PWA installée (iOS 16.4+).
@@ -44,7 +45,7 @@ export async function enablePush() {
     throw new Error('Notification permission denied.');
   }
 
-  const { data } = await api.get('/push/public-key');
+  const { data } = await api.get(PUSH_API_PATHS.publicKey);
   const publicKey = data?.publicKey;
   if (!publicKey) {
     throw new Error('Push not configured on the server.');
@@ -59,7 +60,7 @@ export async function enablePush() {
     });
   }
 
-  await api.post('/push/subscribe', { subscription });
+  await api.post(PUSH_API_PATHS.subscribe, { subscription });
   return true;
 }
 
@@ -71,7 +72,7 @@ export async function disablePush() {
   if (!subscription) return;
   const { endpoint } = subscription;
   await subscription.unsubscribe().catch(() => {});
-  await api.post('/push/unsubscribe', { endpoint }).catch(() => {});
+  await api.post(PUSH_API_PATHS.unsubscribe, { endpoint }).catch(() => {});
 }
 
 // Cet appareil est-il déjà abonné (un abonnement push existe) ?

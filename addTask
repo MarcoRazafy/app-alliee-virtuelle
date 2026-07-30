@@ -43,3 +43,5 @@ En résumé : le projet devient de plus en plus fiable et carré. Le vrai palier
 (a) ajoute le support SSL conditionnel dans database.js (activé seulement en prod),
 (b) ajoute un endpoint /health,
 (c) mette à jour le DEPLOIEMENT.md avec ces points manquants ?
+
+---------------------------------------------------------------------
