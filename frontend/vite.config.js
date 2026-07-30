@@ -25,6 +25,9 @@ export default defineConfig(({ mode }) => {
       // PWA : rend l'app installable (mobile + desktop) via un service worker + un manifest.
       VitePWA({
         registerType: 'autoUpdate', // met à jour l'app automatiquement à chaque nouveau déploiement
+        // Active le service worker en `npm run dev` pour pouvoir tester les notifications push
+        // en local (sinon le SW n'existe qu'en build de production).
+        devOptions: { enabled: true, type: 'module' },
         includeAssets: ['favicon.ico', 'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
         manifest: {
           name: "L'Alliée Virtuelle",
