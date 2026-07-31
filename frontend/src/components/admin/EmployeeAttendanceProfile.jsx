@@ -24,7 +24,7 @@ function EmployeeAttendanceProfile({ employee, initialMonth, refreshKey, onClose
       })
       .catch((requestError) => {
         if (!active) return;
-        setError(requestError.response?.data?.error || 'Unable to load attendance statistics');
+        setError(requestError.response?.data?.error || 'Impossible de charger les statistiques de présence');
       })
       .finally(() => active && setLoading(false));
     return () => {
@@ -50,21 +50,21 @@ function EmployeeAttendanceProfile({ employee, initialMonth, refreshKey, onClose
             <PresAvatar user={employee} />
             <span className="pres-user-text">
               <span className="pres-user-name" id="attendance-profile-title">{employee.full_name}</span>
-              <span className="pres-user-pos">{employee.position || 'Employee'}</span>
+              <span className="pres-user-pos">{employee.position || 'Employé'}</span>
             </span>
           </span>
-          <button type="button" className="pres-dialog-close" onClick={onClose} aria-label="Close statistics">
+          <button type="button" className="pres-dialog-close" onClick={onClose} aria-label="Fermer les statistiques">
             <IconX />
           </button>
         </header>
 
         <div className="pres-profile-toolbar">
           <div>
-            <p className="pres-eyebrow">Attendance statistics</p>
+            <p className="pres-eyebrow">Statistiques de présence</p>
             <strong>{formatMonthLabel(month)}</strong>
           </div>
           <label htmlFor="attendance-stats-month">
-            <span>Month</span>
+            <span>Mois</span>
             <input
               id="attendance-stats-month"
               type="month"
@@ -79,39 +79,39 @@ function EmployeeAttendanceProfile({ employee, initialMonth, refreshKey, onClose
           <div className="info-banner info-banner--planning-error pres-error" role="alert">
             <IconAlert />
             <span>{error}</span>
-            <button type="button" className="btn-outline" onClick={loadStats}>Retry</button>
+            <button type="button" className="btn-outline" onClick={loadStats}>Réessayer</button>
           </div>
         )}
 
         {loading && !stats ? (
-          <div className="admin-loading"><span className="admin-loading-spinner" /><p>Loading statistics…</p></div>
+          <div className="admin-loading"><span className="admin-loading-spinner" /><p>Chargement des statistiques…</p></div>
         ) : stats ? (
           <>
             <div className="pres-profile-kpis">
               <article className="pres-profile-kpi pres-profile-kpi--present">
-                <span>Present</span><strong>{summary.present}</strong><small>day{summary.present > 1 ? 's' : ''}</small>
+                <span>Présent</span><strong>{summary.present}</strong><small>jour{summary.present > 1 ? 's' : ''}</small>
               </article>
               <article className="pres-profile-kpi pres-profile-kpi--late">
-                <span>Late</span><strong>{summary.late}</strong><small>day{summary.late > 1 ? 's' : ''}</small>
+                <span>En retard</span><strong>{summary.late}</strong><small>jour{summary.late > 1 ? 's' : ''}</small>
               </article>
               <article className="pres-profile-kpi pres-profile-kpi--absent">
-                <span>Absent</span><strong>{summary.absent}</strong><small>day{summary.absent > 1 ? 's' : ''}</small>
+                <span>Absents</span><strong>{summary.absent}</strong><small>jour{summary.absent > 1 ? 's' : ''}</small>
               </article>
               <article className="pres-profile-kpi pres-profile-kpi--minutes">
-                <span>Total lateness</span><strong>{formatMinutes(summary.total_late_minutes)}</strong>
-                <small>{summary.late ? `${summary.average_late_minutes} min on average` : 'No lateness'}</small>
+                <span>Retard cumulé</span><strong>{formatMinutes(summary.total_late_minutes)}</strong>
+                <small>{summary.late ? `${summary.average_late_minutes} min en moyenne` : 'Aucun retard'}</small>
               </article>
             </div>
 
             <section className="pres-profile-history" aria-labelledby="attendance-history-title">
               <header>
                 <div>
-                  <h3 id="attendance-history-title">Daily breakdown</h3>
-                  <p>{summary.assessed_days} day{summary.assessed_days > 1 ? 's' : ''} assessed</p>
+                  <h3 id="attendance-history-title">Détail par jour</h3>
+                  <p>{summary.assessed_days} jour{summary.assessed_days > 1 ? 's' : ''} évalué{summary.assessed_days > 1 ? 's' : ''}</p>
                 </div>
               </header>
               {stats.days.length === 0 ? (
-                <div className="empty-state">No planned or corrected day for this month.</div>
+                <div className="empty-state">Aucune journée planifiée ou corrigée pour ce mois.</div>
               ) : (
                 <div className="pres-history-list">
                   {stats.days.map((day) => {
@@ -121,8 +121,8 @@ function EmployeeAttendanceProfile({ employee, initialMonth, refreshKey, onClose
                         <div>
                           <strong>{formatDayLabel(day.date)}</strong>
                           <span>
-                            Arrival {day.first_login || 'not recorded'}
-                            {day.planned_start ? ` · planned ${day.planned_start}` : ''}
+                            Arrivée {day.first_login || 'non enregistrée'}
+                            {day.planned_start ? ` · prévue ${day.planned_start}` : ''}
                           </span>
                         </div>
                         <div className="pres-history-status">

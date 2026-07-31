@@ -4,7 +4,7 @@ const fs = require('fs');
 // perdu lors d'un redéploiement, référence orpheline en base…), renvoie un 404 PROPRE au lieu
 // de laisser fuiter une erreur ENOENT brute. Le front peut alors retomber proprement sur un
 // fallback (ex. initiales à la place d'un avatar) sans afficher d'erreur au visiteur.
-function sendFileOr404(res, filePath, notFoundMessage = 'File not found') {
+function sendFileOr404(res, filePath, notFoundMessage = 'Fichier introuvable') {
   if (!filePath || !fs.existsSync(filePath)) {
     return res.status(404).json({ error: notFoundMessage });
   }

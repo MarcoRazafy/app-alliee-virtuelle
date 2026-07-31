@@ -77,7 +77,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
       // Sur ordinateur, l'enregistrement est impossible en HTTP : on l'explique clairement
       // au lieu d'ouvrir un simple import de fichier.
       notifyInfo(
-        "To record a voice message over HTTP on desktop, allow the microphone for this address: " +
+        'Pour enregistrer un message vocal en HTTP sur ordinateur, autorise le micro pour cette adresse : ' +
           "chrome://flags/#unsafely-treat-insecure-origin-as-secure → ajoute l'URL du site → Relaunch. " +
           "(Sur mobile, l'enregistrement fonctionne directement.)"
       );
@@ -93,7 +93,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
         stream.getTracks().forEach((track) => track.stop());
         if (recordCancelledRef.current) return;
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        setFile(new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' }));
+        setFile(new File([blob], `vocal-${Date.now()}.webm`, { type: 'audio/webm' }));
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
@@ -101,7 +101,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
       setRecordSec(0);
       recordTimerRef.current = window.setInterval(() => setRecordSec((sec) => sec + 1), 1000);
     } catch {
-      notifyError('Microphone unavailable or permission denied');
+      notifyError('Micro non disponible ou permission refusée');
     }
   }
   function stopRecording(cancel = false) {
@@ -120,9 +120,9 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
       {file && (
         <div className="msgr-composer-file">
           {isVoiceFile ? <MicIcon /> : isImageType(file.type) ? <ImageIcon /> : <IconPaperclip />}
-          <span className="msgr-composer-file-name">{isVoiceFile ? 'Voice message' : file.name}</span>
+          <span className="msgr-composer-file-name">{isVoiceFile ? 'Message vocal' : file.name}</span>
           <span className="msgr-composer-file-size">{formatFileSize(file.size)}</span>
-          <button type="button" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ''; }} aria-label="Remove attachment">
+          <button type="button" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ''; }} aria-label='Retirer la pièce jointe'>
             <IconX />
           </button>
         </div>
@@ -130,12 +130,12 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
 
       {recording ? (
         <div className="msgr-recording">
-          <button type="button" className="msgr-rec-cancel" onClick={() => stopRecording(true)} aria-label="Cancel">
+          <button type="button" className="msgr-rec-cancel" onClick={() => stopRecording(true)} aria-label='Annuler'>
             <IconX />
           </button>
           <span className="msgr-rec-dot" />
-          <span className="msgr-rec-time">Recording… {formatDuration(recordSec)}</span>
-          <button type="button" className="msgr-rec-stop" onClick={() => stopRecording(false)} aria-label="Stop recording">
+          <span className="msgr-rec-time">Enregistrement… {formatDuration(recordSec)}</span>
+          <button type="button" className="msgr-rec-stop" onClick={() => stopRecording(false)} aria-label="Arrêter l'enregistrement">
             <SendIcon />
           </button>
         </div>
@@ -143,13 +143,13 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
         <div className="msgr-composer-row">
           <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx" onChange={pickFile} />
           <input ref={audioRef} type="file" hidden accept="audio/*" capture onChange={pickAudio} />
-          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx'); fileRef.current.click(); } }} disabled={disabled} aria-label="Add an attachment" title="File">
+          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx'); fileRef.current.click(); } }} disabled={disabled} aria-label='Ajouter une pièce jointe' title='Fichier'>
             <IconPaperclip />
           </button>
-          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/*'); fileRef.current.click(); } }} disabled={disabled} aria-label="Add a photo" title="Photo">
+          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/*'); fileRef.current.click(); } }} disabled={disabled} aria-label='Ajouter une photo' title="Photo">
             <ImageIcon />
           </button>
-          <button type="button" className="msgr-composer-icon" onClick={startRecording} disabled={disabled} aria-label="Voice message" title="Voice message">
+          <button type="button" className="msgr-composer-icon" onClick={startRecording} disabled={disabled} aria-label='Message vocal' title='Message vocal'>
             <MicIcon />
           </button>
           <div className="msgr-emoji-anchor" ref={emojiRef}>
@@ -179,8 +179,8 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
             type="submit"
             className="msgr-send-button"
             disabled={disabled || (!value.trim() && !file)}
-            aria-label="Send message"
-            title="Send"
+            aria-label='Envoyer le message'
+            title='Envoyer'
           >
             <SendIcon />
           </button>

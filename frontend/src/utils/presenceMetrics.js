@@ -4,10 +4,10 @@ export const PRESENCE_LATE_GRACE_MINUTES = 10;
 export const PLANNING_TIME_ZONE = 'Indian/Antananarivo';
 
 export const PRESENCE_VARIANT_LABELS = {
-  ontime: 'On-time presence',
-  late: 'Late arrival',
-  off: 'Connection off schedule',
-  missing: 'Planned period not covered',
+  ontime: 'Présence conforme',
+  late: 'Arrivée en retard',
+  off: 'Connexion hors planning',
+  missing: 'Période planifiée non couverte',
 };
 
 function intervalDuration(intervals) {
@@ -146,29 +146,29 @@ function buildDayStatus({ planned, sessions, coveredMinutes, missedMinutes, dela
   const hasLiveSession = sessions.some((session) => session.isLive);
 
   if (planned.length === 0) {
-    if (sessions.length === 0) return { variant: 'neutral', label: 'Not scheduled' };
-    return { variant: 'off', label: hasLiveSession ? 'In progress off schedule' : 'Off schedule' };
+    if (sessions.length === 0) return { variant: 'neutral', label: 'Non planifié' };
+    return { variant: 'off', label: hasLiveSession ? 'En cours hors planning' : 'Hors planning' };
   }
 
   const firstPlannedStart = planned[0].start;
   if (sessions.length === 0) {
     if (elapsedLimit <= firstPlannedStart + PRESENCE_LATE_GRACE_MINUTES) {
-      return { variant: 'neutral', label: elapsedLimit === 0 ? 'Upcoming' : 'Waiting' };
+      return { variant: 'neutral', label: elapsedLimit === 0 ? 'À venir' : 'En attente' };
     }
     return { variant: 'missing', label: 'Absent' };
   }
 
   if (delayMinutes > PRESENCE_LATE_GRACE_MINUTES) {
-    return { variant: 'late', label: `Late by ${formatPresenceMinutes(delayMinutes)}` };
+    return { variant: 'late', label: `Retard de ${formatPresenceMinutes(delayMinutes)}` };
   }
   if (coveredMinutes === 0) {
-    return { variant: 'off', label: hasLiveSession ? 'In progress off schedule' : 'Off schedule' };
+    return { variant: 'off', label: hasLiveSession ? 'En cours hors planning' : 'Hors planning' };
   }
   if (missedMinutes > PRESENCE_LATE_GRACE_MINUTES) {
-    return { variant: 'missing', label: 'Partial presence' };
+    return { variant: 'missing', label: 'Présence partielle' };
   }
-  if (hasLiveSession) return { variant: 'ontime', label: 'In progress' };
-  return { variant: 'ontime', label: 'On time' };
+  if (hasLiveSession) return { variant: 'ontime', label: 'En cours' };
+  return { variant: 'ontime', label: 'À l’heure' };
 }
 
 export function formatPresenceMinutes(minutes) {

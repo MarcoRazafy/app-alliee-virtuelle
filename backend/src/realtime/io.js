@@ -23,12 +23,12 @@ function initRealtime(httpServer) {
       socket.handshake.auth?.token ||
       (socket.handshake.headers.authorization || '').replace(/^Bearer\s+/i, '') ||
       parseCookieHeader(socket.handshake.headers.cookie)[AUTH_COOKIE];
-    if (!token) return next(new Error('Token missing'));
+    if (!token) return next(new Error('Jeton manquant'));
     try {
       socket.user = verifyToken(token);
       next();
     } catch {
-      next(new Error('Invalid or expired token'));
+      next(new Error('Token invalide ou expiré'));
     }
   });
 

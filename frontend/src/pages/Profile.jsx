@@ -119,8 +119,8 @@ function Profile() {
   });
 
   const fullName = useMemo(() => {
-    if (!profile) return authUser?.full_name || 'User';
-    return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User';
+    if (!profile) return authUser?.full_name || 'Utilisateur';
+    return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Utilisateur';
   }, [profile, authUser]);
 
   const profileInitials = useMemo(
@@ -190,7 +190,7 @@ function Profile() {
 
       await loadAvatar(currentProfile.has_avatar);
     } catch (error) {
-      notifyError(error.response?.data?.error || 'Unable to load the profile');
+      notifyError(error.response?.data?.error || 'Impossible de charger le profil');
     } finally {
       setLoading(false);
     }
@@ -224,9 +224,9 @@ function Profile() {
           : state.user,
       }));
 
-      notifySuccess('Profile updated');
+      notifySuccess('Profil mis à jour');
     } catch (error) {
-      notifyError(error.response?.data?.errors?.join(', ') || error.response?.data?.error || 'Unable to update the profile');
+      notifyError(error.response?.data?.errors?.join(', ') || error.response?.data?.error || 'Impossible de mettre à jour le profil');
     } finally {
       setSavingProfile(false);
     }
@@ -237,13 +237,13 @@ function Profile() {
     if (!file) return;
 
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      notifyError('The photo must be in PNG or JPEG format');
+      notifyError('La photo doit être au format PNG ou JPEG');
       event.target.value = '';
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      notifyError('The photo must not exceed 5 MB');
+      notifyError('La photo ne doit pas dépasser 5 Mo');
       event.target.value = '';
       return;
     }
@@ -258,9 +258,9 @@ function Profile() {
 
       await loadAvatar(true);
       setProfile((current) => ({ ...current, has_avatar: true }));
-      notifySuccess('Profile photo updated');
+      notifySuccess('Photo de profil mise à jour');
     } catch (error) {
-      notifyError(error.response?.data?.error || 'Unable to upload the photo');
+      notifyError(error.response?.data?.error || "Impossible d'envoyer la photo");
     } finally {
       setUploadingAvatar(false);
       event.target.value = '';
@@ -271,12 +271,12 @@ function Profile() {
     event.preventDefault();
 
     if (passwordForm.new_password.length < 8) {
-      notifyError('The new password must be at least 8 characters long');
+      notifyError('Le nouveau mot de passe doit contenir au moins 8 caractères');
       return;
     }
 
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      notifyError('The password confirmation does not match');
+      notifyError('La confirmation du mot de passe ne correspond pas');
       return;
     }
 
@@ -293,9 +293,9 @@ function Profile() {
         confirm_password: '',
       });
       setShowPasswordForm(false);
-      notifySuccess('Password updated');
+      notifySuccess('Mot de passe mis à jour');
     } catch (error) {
-      notifyError(error.response?.data?.error || 'Unable to change the password');
+      notifyError(error.response?.data?.error || 'Impossible de modifier le mot de passe');
     } finally {
       setChangingPassword(false);
     }
@@ -303,7 +303,7 @@ function Profile() {
 
   const summary = stats?.summary || {};
   const joinedAt = profile?.created_at
-    ? new Intl.DateTimeFormat('en-US', {
+    ? new Intl.DateTimeFormat('fr-FR', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -311,14 +311,14 @@ function Profile() {
     : '—';
 
   if (loading) {
-    return <EmployeeLayout title="Profile" subtitle="Manage your personal information and preferences" skeleton="form" />;
+    return <EmployeeLayout title='Profil' subtitle='Gérez vos informations personnelles et vos préférences' skeleton="form" />;
   }
 
   return (
     <EmployeeLayout
-      title="Profile"
-      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'Profile' }]}
-      subtitle="Manage your personal information and preferences"
+      title='Profil'
+      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Profil' }]}
+      subtitle='Gérez vos informations personnelles et vos préférences'
     >
       <section className="employee-profile-page">
         <div className="profile-top-grid">
@@ -326,9 +326,9 @@ function Profile() {
             <div className="profile-avatar-wrap">
               <div className="profile-large-avatar">
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt={`Photo of ${fullName}`} />
+                  <img src={avatarUrl} alt={`Photo de ${fullName}`} />
                 ) : (
-                  <span aria-label={`Initials of ${fullName}`}>{profileInitials || '?'}</span>
+                  <span aria-label={`Initiales de ${fullName}`}>{profileInitials || '?'}</span>
                 )}
               </div>
               <button
@@ -336,7 +336,7 @@ function Profile() {
                 className="profile-camera-button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingAvatar}
-                aria-label="Change profile photo"
+                aria-label='Modifier la photo de profil'
               >
                 <Icon type="camera" />
               </button>
@@ -352,11 +352,11 @@ function Profile() {
             <div className="profile-identity">
               <h1>{fullName}</h1>
               <div className="profile-badges">
-                <span className="profile-role-badge"><Icon type="check" /> {profile?.role === 'ADMIN' ? 'Administrator' : 'Employee'}</span>
+                <span className="profile-role-badge"><Icon type="check" /> {profile?.role === 'ADMIN' ? 'Administrateur' : 'Employé'}</span>
                 <span className="profile-status-badge"><Icon type="check" /> Active account</span>
               </div>
-              <p><Icon type="mail" /> {profile?.email || 'Email address not available'}</p>
-              <p><Icon type="user" /> {profile?.position || 'Position not set'}</p>
+              <p><Icon type="mail" /> {profile?.email || 'Adresse courriel non disponible'}</p>
+              <p><Icon type="user" /> {profile?.position || 'Poste non renseigné'}</p>
 
               <div className="profile-hero-actions">
                 <button
@@ -366,7 +366,7 @@ function Profile() {
                   disabled={uploadingAvatar}
                 >
                   <Icon type="camera" />
-                  {uploadingAvatar ? 'Uploading…' : 'Change photo'}
+                  {uploadingAvatar ? 'Envoi…' : 'Changer la photo'}
                 </button>
                 <button
                   type="submit"
@@ -375,7 +375,7 @@ function Profile() {
                   disabled={savingProfile}
                 >
                   <Icon type="save" />
-                  {savingProfile ? 'Saving…' : 'Save'}
+                  {savingProfile ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
               </div>
             </div>
@@ -384,23 +384,23 @@ function Profile() {
           <div className="profile-metrics-grid">
             <MetricCard
               icon="check"
-              label="Confirmed tasks"
+              label='Tâches confirmées'
               value={summary.tasks_confirmed ?? 0}
-              helper="Over the last 30 days"
+              helper='Sur les 30 derniers jours'
               variant="cyan"
             />
             <MetricCard
               icon="clock"
-              label="Time worked"
+              label='Temps travaillé'
               value={formatDurationShort(summary.total_hours_worked_seconds || 0)}
-              helper="Completed sessions"
+              helper='Sessions terminées'
               variant="blue"
             />
             <MetricCard
               icon="calendar"
-              label="Member since"
+              label='Membre depuis'
               value={joinedAt}
-              helper="Account creation date"
+              helper='Date de création du compte'
               variant="sky"
             />
           </div>
@@ -412,15 +412,15 @@ function Profile() {
               <header className="profile-panel-header">
                 <span><Icon type="user" /></span>
                 <div>
-                  <p>Information</p>
-                  <h2>Personal information</h2>
+                  <p>Informations</p>
+                  <h2>Informations personnelles</h2>
                 </div>
               </header>
 
               <form id="employee-profile-form" className="profile-form" onSubmit={handleProfileSubmit}>
                 <div className="profile-form-grid">
                   <label>
-                    <span>First name</span>
+                    <span>Prénom</span>
                     <input
                       type="text"
                       value={form.first_name}
@@ -430,7 +430,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Last name</span>
+                    <span>Nom</span>
                     <input
                       type="text"
                       value={form.last_name}
@@ -440,7 +440,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Email address</span>
+                    <span>Adresse courriel</span>
                     <input
                       type="email"
                       value={form.email}
@@ -450,7 +450,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Phone</span>
+                    <span>Téléphone</span>
                     <input
                       type="tel"
                       value={form.phone}
@@ -460,17 +460,17 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Position</span>
+                    <span>Poste</span>
                     <input
                       type="text"
                       value={form.position}
                       onChange={(event) => setForm((current) => ({ ...current, position: event.target.value }))}
-                      placeholder="Your position / role"
+                      placeholder='Votre poste / fonction'
                     />
                   </label>
 
                   <label>
-                    <span>Date of birth</span>
+                    <span>Date de naissance</span>
                     <input
                       type="date"
                       value={form.birth_date}
@@ -479,22 +479,22 @@ function Profile() {
                   </label>
 
                   <label className="profile-form-full">
-                    <span>Postal address</span>
+                    <span>Adresse postale</span>
                     <input
                       type="text"
                       value={form.postal_address}
                       onChange={(event) => setForm((current) => ({ ...current, postal_address: event.target.value }))}
-                      placeholder="Your address"
+                      placeholder='Votre adresse'
                     />
                   </label>
 
                   <label className="profile-form-full">
-                    <span>Description / bio</span>
+                    <span>Description / présentation</span>
                     <textarea
                       rows="3"
                       value={form.description}
                       onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                      placeholder="A few words about yourself: background, education, responsibilities…"
+                      placeholder='Quelques mots pour vous présenter : parcours, formation, missions…'
                     />
                   </label>
                 </div>
@@ -507,14 +507,14 @@ function Profile() {
               <header className="profile-panel-header">
                 <span><Icon type="shield" /></span>
                 <div>
-                  <p>Security</p>
-                  <h2>Account security</h2>
+                  <p>Sécurité</p>
+                  <h2>Sécurité du compte</h2>
                 </div>
               </header>
 
               <div className="profile-security-summary">
                 <label>
-                  <span>Username</span>
+                  <span>Nom d’utilisateur</span>
                   <input type="text" value={profile?.username || ''} disabled />
                 </label>
 
@@ -524,14 +524,14 @@ function Profile() {
                   onClick={() => setShowPasswordForm((current) => !current)}
                 >
                   <Icon type="lock" />
-                  {showPasswordForm ? 'Close form' : 'Change password'}
+                  {showPasswordForm ? 'Fermer le formulaire' : 'Changer le mot de passe'}
                 </button>
               </div>
 
               {showPasswordForm && (
                 <form className="profile-password-form" onSubmit={handlePasswordSubmit}>
                   <label>
-                    <span>Current password</span>
+                    <span>Mot de passe actuel</span>
                     <input
                       type={showPasswords ? 'text' : 'password'}
                       value={passwordForm.current_password}
@@ -541,7 +541,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>New password</span>
+                    <span>Nouveau mot de passe</span>
                     <input
                       type={showPasswords ? 'text' : 'password'}
                       value={passwordForm.new_password}
@@ -552,7 +552,7 @@ function Profile() {
                   </label>
 
                   <label>
-                    <span>Confirm password</span>
+                    <span>Confirmer le mot de passe</span>
                     <input
                       type={showPasswords ? 'text' : 'password'}
                       value={passwordForm.confirm_password}
@@ -573,7 +573,7 @@ function Profile() {
 
                   <button type="submit" className="profile-primary-button" disabled={changingPassword}>
                     <Icon type="shield" />
-                    {changingPassword ? 'Updating…' : 'Update password'}
+                    {changingPassword ? 'Mise à jour…' : 'Mettre à jour le mot de passe'}
                   </button>
                 </form>
               )}
@@ -585,26 +585,26 @@ function Profile() {
               <header className="profile-panel-header">
                 <span><Icon type="calendar" /></span>
                 <div>
-                  <p>Account</p>
-                  <h2>Professional information</h2>
+                  <p>Compte</p>
+                  <h2>Informations professionnelles</h2>
                 </div>
               </header>
 
               <dl className="profile-professional-list">
                 <div>
-                  <dt>Role</dt>
-                  <dd>{profile?.role === 'ADMIN' ? 'Administrator' : 'Employee'}</dd>
+                  <dt>Rôle</dt>
+                  <dd>{profile?.role === 'ADMIN' ? 'Administrateur' : 'Employé'}</dd>
                 </div>
                 <div>
-                  <dt>Position</dt>
-                  <dd>{profile?.position || 'Not set'}</dd>
+                  <dt>Poste</dt>
+                  <dd>{profile?.position || 'Non renseigné'}</dd>
                 </div>
                 <div>
-                  <dt>Account status</dt>
-                  <dd className="profile-active-value">Active</dd>
+                  <dt>Statut du compte</dt>
+                  <dd className="profile-active-value">Actif</dd>
                 </div>
                 <div>
-                  <dt>Email address</dt>
+                  <dt>Adresse courriel</dt>
                   <dd>{profile?.email || '—'}</dd>
                 </div>
               </dl>
@@ -613,8 +613,8 @@ function Profile() {
             <article className="profile-help-card">
               <span><Icon type="shield" /></span>
               <div>
-                <strong>Data protection</strong>
-                <p>Your personal information is only accessible from your authenticated account.</p>
+                <strong>Protection des données</strong>
+                <p>Vos informations personnelles sont accessibles uniquement depuis votre compte authentifié.</p>
               </div>
             </article>
           </div>

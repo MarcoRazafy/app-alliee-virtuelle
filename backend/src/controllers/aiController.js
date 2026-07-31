@@ -9,7 +9,7 @@ const planningDates = require('../utils/planningDates');
 const mistral = require('../config/mistral');
 
 const TASK_STATUSES = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
-const WEEKDAYS_FR = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const WEEKDAYS_FR = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
 // Nom du jour de la semaine (français) à partir d'une date 'YYYY-MM-DD', sans dépendre du fuseau serveur.
 function weekdayFr(dateString) {
@@ -30,7 +30,7 @@ function summarizeTasksByEmployee(tasks, nameById) {
   for (const task of tasks) {
     const key = task.assigned_to || 'non_assigne';
     if (!agg.has(key)) {
-      const row = { employe: nameById.get(task.assigned_to) || 'Unassigned', total: 0 };
+      const row = { employe: nameById.get(task.assigned_to) || 'Non assigné', total: 0 };
       TASK_STATUSES.forEach((s) => {
         row[s] = 0;
       });
@@ -162,7 +162,7 @@ const ADMIN_SYSTEM_PROMPT = `You are the AI assistant of L'Alliée Virtuelle, a 
 STRICT RULES (must be followed at all times):
 - You are READ-ONLY: you can never create, modify, confirm or delete a task or a user. You only answer questions.
 - NEVER invent data. If the provided data is not enough to answer, say explicitly:
-  "I don't have enough data to answer. Could you specify the period or the project?"
+  "Je n'ai pas assez de données pour répondre. Pouvez-vous préciser la période ou le projet ?"
 - A "completed" task always means the CONFIRMEE status (never TERMINEE - these are two different indicators).
 - Always state the analyzed period in your answer.
 - Answer in English, concisely and factually, based only on the data below.
@@ -199,7 +199,7 @@ async function generateAnswer(question, attachmentName, requester) {
   const isAdmin = requester.role === 'ADMIN';
   const context = isAdmin ? await buildAdminContext() : await buildEmployeeContext(requester.id);
   const userContent = attachmentName
-    ? `${question}\n\n[The user attached a file named "${attachmentName}". You cannot open its content; rely on the name and the question.]`
+    ? `${question}\n\n[L'utilisateur a joint un fichier nommé « ${attachmentName} ». Tu ne peux pas ouvrir son contenu ; base-toi sur le nom et la question.]`
     : question;
   const messages = [
     {
@@ -217,7 +217,7 @@ async function ask(req, res, next) {
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
     const sessionId = req.body.session_id;
     if (!question) {
-      return res.status(400).json({ error: 'The question is required' });
+      return res.status(400).json({ error: 'La question est requise' });
     }
     // Le front envoie l'id de la conversation en cours ; sinon le modèle en génère un.
     const validSessionId = sessionId && UUID_RE.test(sessionId) ? sessionId : null;
@@ -256,9 +256,9 @@ async function getHistory(req, res, next) {
 async function editConversation(req, res, next) {
   try {
     const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
-    if (!conversation) return res.status(404).json({ error: 'Conversation entry not found' });
+    if (!conversation) return res.status(404).json({ error: 'Échange introuvable' });
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
-    if (!question) return res.status(400).json({ error: 'The question is required' });
+    if (!question) return res.status(400).json({ error: 'La question est requise' });
     const { answer } = await generateAnswer(question, conversation.attachment_name, req.user);
     const updated = await aiModel.updateConversation(req.params.id, req.user.id, { question, answer });
     res.status(200).json(updated);
@@ -270,7 +270,7 @@ async function editConversation(req, res, next) {
 async function deleteConversation(req, res, next) {
   try {
     const count = await aiModel.deleteConversation(req.params.id, req.user.id);
-    if (count === 0) return res.status(404).json({ error: 'Conversation entry not found' });
+    if (count === 0) return res.status(404).json({ error: 'Échange introuvable' });
     res.status(200).json({ deleted: true });
   } catch (err) {
     next(err);
@@ -289,9 +289,9 @@ async function deleteSession(req, res, next) {
 async function renameSession(req, res, next) {
   try {
     const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
-    if (!title) return res.status(400).json({ error: 'The title is required' });
+    if (!title) return res.status(400).json({ error: 'Le titre est requis' });
     const count = await aiModel.renameSession(req.params.sessionId, req.user.id, title.slice(0, 120));
-    if (count === 0) return res.status(404).json({ error: 'Conversation not found' });
+    if (count === 0) return res.status(404).json({ error: 'Conversation introuvable' });
     res.status(200).json({ title: title.slice(0, 120) });
   } catch (err) {
     next(err);
@@ -302,9 +302,9 @@ async function getConversationAttachment(req, res, next) {
   try {
     const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
     if (!conversation || !conversation.attachment_path) {
-      return res.status(404).json({ error: 'Attachment not found' });
+      return res.status(404).json({ error: 'Pièce jointe introuvable' });
     }
-    return sendFileOr404(res, conversation.attachment_path, 'Attachment not found');
+    return sendFileOr404(res, conversation.attachment_path, 'Pièce jointe introuvable');
   } catch (err) {
     next(err);
   }

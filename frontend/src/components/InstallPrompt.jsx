@@ -72,19 +72,19 @@ export default function InstallPrompt() {
     <div className="pwa-install" role="dialog" aria-label="Installer l'application">
       <img src="/pwa-192.png" alt="" className="pwa-install-icon" />
       <div className="pwa-install-text">
-        <strong>Install the app</strong>
+        <strong>Installer l'application</strong>
         {iosHelp ? (
           <span>
-            On iPhone: tap <b>Share</b> ⬆️, then <b>“Add to Home Screen”</b>.
+            Sur iPhone : appuie sur <b>Partager</b> ⬆️, puis <b>« Sur l'écran d'accueil »</b>.
           </span>
         ) : (
-          <span>Open L'Alliée Virtuelle in one tap, full screen.</span>
+          <span>Ouvre L'Alliée Virtuelle en un clic, en plein écran.</span>
         )}
       </div>
       <button type="button" className="pwa-install-btn" onClick={handleInstall}>
-        {iosMode ? (iosHelp ? 'Got it' : 'How?') : 'Install'}
+        {iosMode ? (iosHelp ? 'Compris' : 'Comment ?') : 'Installer'}
       </button>
-      <button type="button" className="pwa-install-close" onClick={dismiss} aria-label="Close">
+      <button type="button" className="pwa-install-close" onClick={dismiss} aria-label='Fermer'>
         ×
       </button>
     </div>

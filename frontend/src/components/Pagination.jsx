@@ -30,7 +30,7 @@ function Pagination({ page, totalItems, itemsPerPage, onPageChange, onItemsPerPa
         </select>
 
         <button className="pagination-btn" onClick={() => goToPage(page - 1)} disabled={page === 1}>
-          Previous
+          Précédent
         </button>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
           <button

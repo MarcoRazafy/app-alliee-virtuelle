@@ -27,7 +27,7 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      return cb(new Error('File format not allowed (PNG or JPEG image only)'));
+      return cb(new Error('Format de fichier non autorisé (image PNG ou JPEG uniquement)'));
     }
     cb(null, true);
   },

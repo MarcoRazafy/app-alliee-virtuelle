@@ -3,11 +3,11 @@ import { formatDurationShort } from '../../utils/formatters';
 // Constantes et helpers purs de la page Statistiques (extraits pour l'alléger).
 
 export const PRESETS = [
-  { id: 'day', label: 'Today' },
-  { id: 'week', label: '7 days' },
-  { id: 'month', label: '30 days' },
-  { id: 'year', label: 'This year' },
-  { id: 'custom', label: 'Custom' },
+  { id: 'day', label: "Aujourd'hui" },
+  { id: 'week', label: '7 jours' },
+  { id: 'month', label: '30 jours' },
+  { id: 'year', label: 'Cette année' },
+  { id: 'custom', label: 'Personnalisé' },
 ];
 
 // Ordre du workflow. Couleurs = palette catégorielle validée (CVD ΔE 16.8, vision
@@ -15,17 +15,17 @@ export const PRESETS = [
 // toujours accompagné d'un label direct + légende (encodage secondaire).
 export const STATUS_ORDER = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
 export const STATUS_INFO = {
-  DECLAREE: { label: 'Declared', color: '#64748b' },
-  VALIDEE: { label: 'To do', color: '#3b82f6' },
-  EN_COURS: { label: 'In progress', color: '#f59e0b' },
-  TERMINEE: { label: 'Completed', color: '#8b5cf6' },
-  CONFIRMEE: { label: 'Confirmed', color: '#22c55e' },
+  DECLAREE: { label: 'Déclarée', color: '#64748b' },
+  VALIDEE: { label: 'À faire', color: '#3b82f6' },
+  EN_COURS: { label: 'En cours', color: '#f59e0b' },
+  TERMINEE: { label: 'Terminée', color: '#8b5cf6' },
+  CONFIRMEE: { label: 'Confirmée', color: '#22c55e' },
 };
 
 export const LEADERBOARD_METRICS = [
-  { id: 'hours_worked_seconds', label: 'Hours worked', format: (v) => formatDurationShort(v) },
-  { id: 'confirmed', label: 'Completed tasks', format: (v) => String(v) },
-  { id: 'completion_rate', label: '% completion', format: (v) => `${v}%` },
+  { id: 'hours_worked_seconds', label: 'Heures travaillées', format: (v) => formatDurationShort(v) },
+  { id: 'confirmed', label: 'Tâches complétées', format: (v) => String(v) },
+  { id: 'completion_rate', label: '% complétion', format: (v) => `${v}%` },
 ];
 
 export function toDateString(date) {
@@ -46,12 +46,12 @@ export function computeRange(preset) {
 
 export function formatShortDate(dateString) {
   if (!dateString) return '—';
-  return new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short' }).format(new Date(`${dateString}T12:00:00`));
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short' }).format(new Date(`${dateString}T12:00:00`));
 }
 
 export function formatLongDate(dateString) {
   if (!dateString) return '—';
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(
+  return new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(
     new Date(`${dateString}T12:00:00`)
   );
 }

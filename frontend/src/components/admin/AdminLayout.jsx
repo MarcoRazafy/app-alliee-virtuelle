@@ -28,27 +28,27 @@ import '../../styles/layout.css';
 // Navigation groupée par intention (cf. maquette) : Piloter / Collaborer / Administrer.
 const NAV_GROUPS = [
   {
-    label: 'Manage',
+    label: 'Piloter',
     items: [
-      { to: '/admin', label: 'Overview', subtitle: 'Live team activity', icon: IconWorkspace, end: true },
-      { to: '/admin/lists', label: 'Projects', subtitle: 'All tasks', icon: IconChecklist },
-      { to: '/admin/validate', label: 'Tasks', subtitle: 'Declarations and deliveries to review', icon: IconCheckCircle, badgeKey: 'toValidate' },
-      { to: '/admin/task-requests', label: 'Task requests', subtitle: 'Extra tasks to approve', icon: IconBell, badgeKey: 'taskRequests' },
-      { to: '/admin/users', label: 'Team', subtitle: 'Team members', icon: IconUsers },
-      { to: '/admin/planning', label: 'Attendance & schedule', subtitle: 'Employee availability and attendance', icon: IconCalendarWeek },
-      { to: '/admin/stats', label: 'Statistics', subtitle: 'Team performance', icon: IconBarChart },
+      { to: '/admin', label: "Vue d'ensemble", subtitle: "Activité de l'équipe en direct", icon: IconWorkspace, end: true },
+      { to: '/admin/lists', label: 'Projets', subtitle: 'Toutes les tâches', icon: IconChecklist },
+      { to: '/admin/validate', label: 'Tâches', subtitle: 'Déclarations et livraisons à contrôler', icon: IconCheckCircle, badgeKey: 'toValidate' },
+      { to: '/admin/task-requests', label: 'Demandes de tâche', subtitle: 'Tâches supplémentaires à approuver', icon: IconBell, badgeKey: 'taskRequests' },
+      { to: '/admin/users', label: 'Équipe', subtitle: "Membres de l'équipe", icon: IconUsers },
+      { to: '/admin/planning', label: 'Présence et planning', subtitle: 'Disponibilités et présence des employés', icon: IconCalendarWeek },
+      { to: '/admin/stats', label: 'Statistiques', subtitle: "Performance de l'équipe", icon: IconBarChart },
     ],
   },
   {
-    label: 'Collaborate',
+    label: 'Collaborer',
     items: [
-      { to: '/admin/resources', label: 'Resources', subtitle: 'Shared documents', icon: IconFolder },
+      { to: '/admin/resources', label: 'Ressources', subtitle: 'Documents partagés', icon: IconFolder },
     ],
   },
   {
-    label: 'Administer',
+    label: 'Administrer',
     items: [
-      { to: '/admin/profile', label: 'Profile', subtitle: 'Your information', icon: IconUser },
+      { to: '/admin/profile', label: 'Profil', subtitle: 'Vos informations', icon: IconUser },
     ],
   },
 ];
@@ -59,9 +59,9 @@ const NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
 // Pages accessibles sans entrée de menu dédiée : on leur donne quand même un
 // titre/sous-titre d'en-tête cohérent (sinon le header retomberait sur le 1er item).
 const EXTRA_TITLES = {
-  '/admin/create-task': { label: 'Create a task', subtitle: 'New task to assign' },
-  '/admin/messaging': { label: 'Messaging', subtitle: 'Chats with employees' },
-  '/admin/assistant': { label: 'AI Assistant', subtitle: 'Analysis and recommendations' },
+  '/admin/create-task': { label: 'Créer une tâche', subtitle: 'Nouvelle tâche à assigner' },
+  '/admin/messaging': { label: 'Messagerie', subtitle: 'Échanges avec les employés' },
+  '/admin/assistant': { label: 'Assistant IA', subtitle: 'Analyse et recommandations' },
 };
 
 function AdminLayout({ children }) {
@@ -179,7 +179,7 @@ function AdminLayout({ children }) {
           type="button"
           className="sidebar-close-btn"
           onClick={() => setMobileNavOpen(false)}
-          aria-label="Close menu"
+          aria-label="Fermer le menu"
         >
           <IconX />
         </button>
@@ -188,7 +188,7 @@ function AdminLayout({ children }) {
           <img src="/logo.png" alt="L'Alliée Virtuelle" className="sidebar-logo" />
         </div>
 
-        <span className="sidebar-role-tag">Administrator space</span>
+        <span className="sidebar-role-tag">Espace administrateur</span>
 
         <nav className="sidebar-nav">
           {NAV_GROUPS.map((group) => (
@@ -217,7 +217,7 @@ function AdminLayout({ children }) {
 
         <button type="button" className="sidebar-logout" onClick={handleLogout}>
           <IconLogout />
-          <span>Sign out</span>
+          <span>Déconnexion</span>
         </button>
       </aside>
 
@@ -228,7 +228,7 @@ function AdminLayout({ children }) {
               type="button"
               className="mobile-menu-btn"
               onClick={() => setMobileNavOpen(true)}
-              aria-label="Open menu"
+              aria-label="Ouvrir le menu"
             >
               <IconMenu />
             </button>
@@ -244,7 +244,7 @@ function AdminLayout({ children }) {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search (Ctrl + K)"
+                placeholder="Rechercher (Ctrl + K)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
@@ -281,17 +281,17 @@ function AdminLayout({ children }) {
                 )}
                 <span className="user-menu-info">
                   <span className="user-menu-name">{user?.full_name}</span>
-                  <span className="user-menu-role">Administrator</span>
+                  <span className="user-menu-role">Administrateur</span>
                 </span>
                 <IconChevronDown />
               </button>
               {menuOpen && (
                 <div className="user-menu-dropdown">
                   <Link to="/admin/profile" onClick={() => setMenuOpen(false)}>
-                    <IconUser /> My profile
+                    <IconUser /> Mon profil
                   </Link>
                   <button type="button" onClick={handleLogout}>
-                    <IconLogout /> Sign out
+                    <IconLogout /> Déconnexion
                   </button>
                 </div>
               )}

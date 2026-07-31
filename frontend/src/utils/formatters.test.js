@@ -16,8 +16,8 @@ test('formatDurationShort : format court lisible', () => {
   assert.equal(formatDurationShort(7320), '2h 02min');
 });
 
-test('formatBytes : bytes / KB / MB', () => {
-  assert.equal(formatBytes(512), '512 B');
-  assert.equal(formatBytes(2048), '2 KB');
-  assert.equal(formatBytes(1572864), '1.5 MB'); // 1.5 × 1024 × 1024
+test('formatBytes : octets / Ko / Mo', () => {
+  assert.equal(formatBytes(512), '512 o');
+  assert.equal(formatBytes(2048), '2 Ko');
+  assert.equal(formatBytes(1572864), '1.5 Mo'); // 1,5 × 1024 × 1024
 });

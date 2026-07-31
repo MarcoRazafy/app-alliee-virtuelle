@@ -6,7 +6,7 @@ import CommentSection from '../components/CommentSection';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import AdminLayout from '../components/admin/AdminLayout';
 import { formatClock, formatDurationShort, formatDateTime, formatDate } from '../utils/formatters';
-import { STATUS_PILL, priorityPillClass, priorityLabel } from '../utils/taskStatus';
+import { STATUS_PILL, priorityPillClass } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconPlay, IconStop, IconCheckCircle, IconArrowRight } from '../components/icons';
@@ -47,7 +47,7 @@ function TaskDetail() {
       if (err.response?.status === 404) {
         setNotFound(true);
       } else {
-        notifyError(err.response?.data?.error || 'Unable to load the task');
+        notifyError(err.response?.data?.error || 'Impossible de charger la tâche');
       }
     }
   }, [id]);
@@ -64,7 +64,7 @@ function TaskDetail() {
 
   useEffect(() => {
     if (notFound) {
-      notifyError('Task not found');
+      notifyError('Tâche introuvable');
       const timeout = setTimeout(() => navigate('/tasks'), 2000);
       return () => clearTimeout(timeout);
     }
@@ -84,16 +84,16 @@ function TaskDetail() {
     try {
       const result = await taskService.startTimelog(id);
       if (result.switchedFromTaskId) {
-        notifySuccess(`Previous timer stopped (${formatDurationShort(result.switchedFromDuration)}), new timer started`);
+        notifySuccess(`Chrono précédent arrêté (${formatDurationShort(result.switchedFromDuration)}), nouveau chrono démarré`);
       } else {
-        notifySuccess('Timer started');
+        notifySuccess('Chrono démarré');
       }
       await loadData();
     } catch (err) {
       if (err.response?.status === 409) {
-        notifyError('The timer is already running on this task');
+        notifyError('Le chrono est déjà actif sur cette tâche');
       } else {
-        notifyError(err.response?.data?.error || 'Unable to start the timer');
+        notifyError(err.response?.data?.error || 'Impossible de démarrer le chrono');
       }
     }
   }
@@ -101,27 +101,27 @@ function TaskDetail() {
   async function handleStop() {
     try {
       const result = await taskService.stopTimelog(id);
-      notifySuccess(`Timer stopped - ${formatDurationShort(result.duration)} recorded`);
+      notifySuccess(`Chrono arrêté - ${formatDurationShort(result.duration)} enregistrées`);
       await loadData();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to stop the timer');
+      notifyError(err.response?.data?.error || "Impossible d'arrêter le chrono");
     }
   }
 
   async function handleComplete() {
     try {
       await taskService.completeTask(id);
-      notifySuccess('Task completed!');
+      notifySuccess('Tâche terminée !');
       await loadData();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to mark the task as completed');
+      notifyError(err.response?.data?.error || 'Impossible de marquer la tâche comme terminée');
     }
   }
 
   async function handleAddSubtask(e) {
     e.preventDefault();
     if (!newSubtaskTitle.trim() || !newSubtaskDeadline) {
-      notifyError('Title and deadline are required for the subtask');
+      notifyError('Titre et deadline sont requis pour la sous-tâche');
       return;
     }
     try {
@@ -132,27 +132,27 @@ function TaskDetail() {
         deadline: newSubtaskDeadline,
         parent_task_id: id,
       });
-      notifySuccess('Subtask added');
+      notifySuccess('Sous-tâche ajoutée');
       setNewSubtaskTitle('');
       setNewSubtaskDeadline('');
       await loadData();
     } catch (err) {
       const data = err.response?.data;
-      notifyError(data?.errors?.join(', ') || data?.error || 'Unable to add the subtask');
+      notifyError(data?.errors?.join(', ') || data?.error || "Impossible d'ajouter la sous-tâche");
     }
   }
 
   const layoutProps = isAdmin
     ? {}
     : {
-        title: task?.title || 'Task details',
-        breadcrumb: [{ label: 'Home', to: '/dashboard' }, { label: 'My tasks', to: '/tasks' }, { label: task?.title || '' }],
+        title: task?.title || 'Détail de la tâche',
+        breadcrumb: [{ label: 'Accueil', to: '/dashboard' }, { label: 'Mes tâches', to: '/tasks' }, { label: task?.title || '' }],
       };
 
   if (notFound) {
     return (
       <Layout {...layoutProps}>
-        <div className="empty-state">Task not found. Returning to My tasks...</div>
+        <div className="empty-state">Tâche introuvable. Retour à Mes tâches...</div>
       </Layout>
     );
   }
@@ -160,7 +160,7 @@ function TaskDetail() {
   if (!task) {
     return (
       <Layout {...layoutProps}>
-        <p>Loading...</p>
+        <p>Chargement...</p>
       </Layout>
     );
   }
@@ -177,7 +177,7 @@ function TaskDetail() {
       {isAdmin && (
         <p style={{ marginBottom: '16px' }}>
           <Link to="/tasks" className="app-link">
-            ← Back to my tasks
+            ← Retour à mes tâches
           </Link>
         </p>
       )}
@@ -192,29 +192,29 @@ function TaskDetail() {
 
         <div className="detail-meta-row">
           <div className="detail-meta-item">
-            <span className="detail-meta-label">Status</span>
+            <span className="detail-meta-label">Statut</span>
             <span className={`pill ${STATUS_PILL[displayStatus]?.className || ''}`}>
               {STATUS_PILL[displayStatus]?.label || displayStatus}
             </span>
           </div>
           <div className="detail-meta-item">
-            <span className="detail-meta-label">Priority</span>
-            <span className={`pill ${priorityPillClass(task.priority)}`}>{priorityLabel(task.priority)}</span>
+            <span className="detail-meta-label">Priorité</span>
+            <span className={`pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
           </div>
           <div className="detail-meta-item">
-            <span className="detail-meta-label">Deadline</span>
+            <span className="detail-meta-label">Échéance</span>
             <span>{formatDate(task.deadline)}</span>
           </div>
           {isAdmin && task.assigned_to && (
             <div className="detail-meta-item">
-              <span className="detail-meta-label">Assigned to</span>
+              <span className="detail-meta-label">Assigné à</span>
               <button
                 type="button"
                 className="app-link detail-assignee-link"
                 onClick={() => navigate('/admin/messaging', { state: { employeeId: task.assigned_to } })}
-                title={`Chat with ${task.assignee_name || 'the employee'}`}
+                title={`Discuter avec ${task.assignee_name || "l'employé"}`}
               >
-                {task.assignee_name || 'Employee'}
+                {task.assignee_name || 'Employé'}
                 <IconArrowRight />
               </button>
             </div>
@@ -235,7 +235,7 @@ function TaskDetail() {
       {!isAdmin && (
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Time tracking
+          Suivi du temps
         </p>
         <div className="chrono-card-body">
           {activeSession && (
@@ -243,14 +243,14 @@ function TaskDetail() {
               <div className="chrono-ring" />
               <div className="chrono-ring-inner">
                 <span className="chrono-ring-value">{formatClock(elapsed)}</span>
-                <span className="chrono-ring-caption">Elapsed time</span>
+                <span className="chrono-ring-caption">Temps écoulé</span>
               </div>
             </div>
           )}
           <div className="chrono-card-actions">
             {activeSession ? (
               <button className="btn-danger" onClick={handleStop}>
-                <IconStop /> Stop the timer
+                <IconStop /> Arrêter le chrono
               </button>
             ) : (
               <button
@@ -258,11 +258,11 @@ function TaskDetail() {
                 onClick={handleStart}
                 disabled={!['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status)}
               >
-                <IconPlay /> Start the timer
+                <IconPlay /> Démarrer le chrono
               </button>
             )}
             <button className="btn-outline" onClick={handleComplete} disabled={task.status !== 'EN_COURS'}>
-              <IconCheckCircle /> Mark as completed
+              <IconCheckCircle /> Marquer comme terminée
             </button>
           </div>
         </div>
@@ -272,25 +272,25 @@ function TaskDetail() {
       {!isAdmin && (
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Timer history
+          Historique du chrono
         </p>
-        {sortedHistory.length === 0 && <div className="empty-state">No session.</div>}
+        {sortedHistory.length === 0 && <div className="empty-state">Aucune session.</div>}
         {sortedHistory.length > 0 && (
           <>
             <div className="task-table-wrap">
               <table className="task-table">
                 <thead>
                   <tr>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Duration</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>Durée</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedHistory.map((session, index) => (
                     <tr key={index}>
                       <td>{formatDateTime(session.start_time)}</td>
-                      <td>{session.end_time ? formatDateTime(session.end_time) : 'in progress'}</td>
+                      <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
                       <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
                     </tr>
                   ))}
@@ -298,7 +298,7 @@ function TaskDetail() {
               </table>
             </div>
             <p style={{ marginTop: '12px', fontSize: '13.5px' }}>
-              <strong>Total: {formatDurationShort(totalSeconds)}</strong>
+              <strong>Total : {formatDurationShort(totalSeconds)}</strong>
             </p>
           </>
         )}
@@ -307,9 +307,9 @@ function TaskDetail() {
 
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Subtasks
+          Sous-tâches
         </p>
-        {subtasks.length === 0 && <div className="empty-state">No subtask.</div>}
+        {subtasks.length === 0 && <div className="empty-state">Aucune sous-tâche.</div>}
         {subtasks.length > 0 && (
           <>
             <div className="progress-row">
@@ -317,12 +317,12 @@ function TaskDetail() {
                 <div className="progress-bar-fill" style={{ width: `${subtaskProgress}%` }} />
               </div>
               <span className="progress-label">
-                {confirmedSubtasks}/{subtasks.length} confirmed
+                {confirmedSubtasks}/{subtasks.length} confirmée(s)
               </span>
             </div>
             {subtasks.map((subtask) => (
               <Link key={subtask.id} to={`/tasks/${subtask.id}`} className="subtask-item">
-                <span className={`pill ${priorityPillClass(subtask.priority)}`}>{priorityLabel(subtask.priority)}</span>
+                <span className={`pill ${priorityPillClass(subtask.priority)}`}>{subtask.priority}</span>
                 <span className="subtask-title">{subtask.title}</span>
                 <span className={`pill ${STATUS_PILL[subtask.status]?.className || ''}`}>
                   {STATUS_PILL[subtask.status]?.label || subtask.status}
@@ -337,13 +337,13 @@ function TaskDetail() {
           <form className="add-subtask-form" onSubmit={handleAddSubtask}>
             <input
               type="text"
-              placeholder="Subtask title"
+              placeholder="Titre de la sous-tâche"
               value={newSubtaskTitle}
               onChange={(e) => setNewSubtaskTitle(e.target.value)}
             />
             <input type="date" value={newSubtaskDeadline} onChange={(e) => setNewSubtaskDeadline(e.target.value)} />
             <button type="submit" className="btn-primary">
-              Add
+              Ajouter
             </button>
           </form>
         )}
@@ -351,7 +351,7 @@ function TaskDetail() {
 
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Comments & Notes
+          Commentaires & Notes
         </p>
         <CommentSection taskId={id} />
       </div>
@@ -359,7 +359,7 @@ function TaskDetail() {
       {!isAdmin && (
         <div className="side-card">
           <p className="side-card-title" style={{ marginBottom: '16px' }}>
-            Attachments
+            Pièces jointes
           </p>
           <AttachmentUpload taskId={id} canUpload={!isCompleted} />
         </div>

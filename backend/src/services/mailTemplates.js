@@ -39,7 +39,7 @@ function layout({ title, intro, bodyHtml = '', buttonLabel, buttonUrl }) {
         </td></tr>
         <tr><td style="padding:18px 28px;border-top:1px solid #eef1f6;">
           <p style="margin:0;font-size:12px;color:#8a97ab;">
-            This is an automated message from ${BRAND}. Please do not reply to this email.
+            Ceci est un message automatique de ${BRAND}. Merci de ne pas répondre à cet email.
           </p>
         </td></tr>
       </table>
@@ -50,15 +50,15 @@ function layout({ title, intro, bodyHtml = '', buttonLabel, buttonUrl }) {
 
 // --- Compte approuvé (envoyé à l'employé) ---
 function accountApproved(user) {
-  const name = user.full_name || user.first_name || 'there';
+  const name = user.full_name || user.first_name || 'bonjour';
   const loginUrl = `${env.appUrl}/login`;
   return {
-    subject: `Your ${BRAND} account has been approved`,
-    text: `Hi ${name},\n\nGood news — your account has been approved by an administrator. You can now sign in: ${loginUrl}\n\n${BRAND}`,
+    subject: `Votre compte ${BRAND} a été approuvé`,
+    text: `Bonjour ${name},\n\nBonne nouvelle — votre compte a été approuvé par un administrateur. Vous pouvez maintenant vous connecter : ${loginUrl}\n\n${BRAND}`,
     html: layout({
-      title: 'Your account is ready 🎉',
-      intro: `Hi <strong>${esc(name)}</strong>, good news — your account has been <strong>approved</strong> by an administrator. You can now sign in and start using ${BRAND}.`,
-      buttonLabel: 'Sign in',
+      title: 'Votre compte est prêt 🎉',
+      intro: `Bonjour <strong>${esc(name)}</strong>, bonne nouvelle — votre compte a été <strong>approuvé</strong> par un administrateur. Vous pouvez maintenant vous connecter et commencer à utiliser ${BRAND}.`,
+      buttonLabel: 'Se connecter',
       buttonUrl: loginUrl,
     }),
   };
@@ -66,19 +66,19 @@ function accountApproved(user) {
 
 // --- Compte refusé (envoyé à l'employé) ---
 function accountRejected(user, motif) {
-  const name = user.full_name || user.first_name || 'there';
+  const name = user.full_name || user.first_name || 'bonjour';
   const reason = motif
     ? `<tr><td style="padding:0 0 16px;font-size:14px;color:#3a4a63;">
-         <strong>Reason:</strong> ${esc(motif)}</td></tr>`
+         <strong>Motif :</strong> ${esc(motif)}</td></tr>`
     : '';
   return {
-    subject: `Update on your ${BRAND} registration`,
-    text: `Hi ${name},\n\nAfter review, your registration was not approved.${motif ? `\nReason: ${motif}` : ''}\n\nIf you think this is a mistake, please contact your administrator.\n\n${BRAND}`,
+    subject: `Mise à jour concernant votre inscription ${BRAND}`,
+    text: `Bonjour ${name},\n\nAprès examen, votre inscription n'a pas été approuvée.${motif ? `\nMotif : ${motif}` : ''}\n\nSi vous pensez qu'il s'agit d'une erreur, veuillez contacter votre administrateur.\n\n${BRAND}`,
     html: layout({
-      title: 'Registration not approved',
-      intro: `Hi <strong>${esc(name)}</strong>, after review, your registration to ${BRAND} was <strong>not approved</strong>.`,
+      title: 'Inscription non approuvée',
+      intro: `Bonjour <strong>${esc(name)}</strong>, après examen, votre inscription à ${BRAND} n'a <strong>pas été approuvée</strong>.`,
       bodyHtml: `${reason}<tr><td style="padding:0 0 4px;font-size:14px;color:#3a4a63;">
-        If you think this is a mistake, please contact your administrator.</td></tr>`,
+        Si vous pensez qu'il s'agit d'une erreur, veuillez contacter votre administrateur.</td></tr>`,
     }),
   };
 }
@@ -87,17 +87,17 @@ function accountRejected(user, motif) {
 function newRegistration(user) {
   const adminUrl = `${env.appUrl}/admin/users`;
   return {
-    subject: `New registration awaiting approval — ${BRAND}`,
-    text: `A new employee has registered and is awaiting approval:\n\nName: ${user.full_name || '—'}\nEmail: ${user.email}\n\nReview pending accounts: ${adminUrl}`,
+    subject: `Nouvelle inscription en attente de validation — ${BRAND}`,
+    text: `Un nouvel employé s'est inscrit et attend une validation :\n\nNom : ${user.full_name || '—'}\nEmail : ${user.email}\n\nExaminer les comptes en attente : ${adminUrl}`,
     html: layout({
-      title: 'New registration awaiting approval',
-      intro: 'A new employee has registered and is waiting for validation.',
+      title: 'Nouvelle inscription en attente de validation',
+      intro: "Un nouvel employé s'est inscrit et attend une validation.",
       bodyHtml: `
         <tr><td style="padding:0 0 6px;font-size:14px;color:#3a4a63;">
-          <strong>Name:</strong> ${esc(user.full_name || '—')}</td></tr>
+          <strong>Nom :</strong> ${esc(user.full_name || '—')}</td></tr>
         <tr><td style="padding:0 0 16px;font-size:14px;color:#3a4a63;">
-          <strong>Email:</strong> ${esc(user.email)}</td></tr>`,
-      buttonLabel: 'Review pending accounts',
+          <strong>Email :</strong> ${esc(user.email)}</td></tr>`,
+      buttonLabel: 'Examiner les comptes en attente',
       buttonUrl: adminUrl,
     }),
   };

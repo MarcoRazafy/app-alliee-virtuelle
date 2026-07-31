@@ -37,43 +37,43 @@ function AttendanceCorrectionDialog({ employee, date, onClose, onSave }) {
       >
         <header className="pres-dialog-header">
           <div>
-            <p className="pres-eyebrow">Administrative correction</p>
-            <h2 id="attendance-correction-title">{employee.full_name}'s attendance</h2>
+            <p className="pres-eyebrow">Correction administrative</p>
+            <h2 id="attendance-correction-title">Présence de {employee.full_name}</h2>
             <p>{formatDayLabel(date)}</p>
           </div>
-          <button type="button" className="pres-dialog-close" onClick={onClose} aria-label="Close the correction">
+          <button type="button" className="pres-dialog-close" onClick={onClose} aria-label="Fermer la correction">
             <IconX />
           </button>
         </header>
 
         <div className="pres-computed-state">
-          <span>Automatic calculation</span>
+          <span>Calcul automatique</span>
           <strong className={`pres-badge pres-badge--${automaticMeta.cls}`}>
             <span className="pres-badge-dot" />
             {automaticMeta.label}
           </strong>
-          <small>Raw connections are kept after the correction.</small>
+          <small>Les connexions brutes restent conservées après la correction.</small>
         </div>
 
         <form className="pres-correction-form" onSubmit={handleSubmit}>
           <label htmlFor="attendance-status">
-            <span>Final status</span>
+            <span>Statut final</span>
             <select
               id="attendance-status"
               value={status}
               onChange={(event) => setStatus(event.target.value)}
               data-dialog-initial-focus
             >
-              <option value="automatic">Automatic calculation</option>
-              <option value="present">Present</option>
-              <option value="late">Late</option>
-              <option value="absent">Absent</option>
+              <option value="automatic">Calcul automatique</option>
+              <option value="present">Présent</option>
+              <option value="late">En retard</option>
+              <option value="absent">Absents</option>
             </select>
           </label>
 
           {status === 'late' && (
             <label htmlFor="attendance-late-minutes">
-              <span>Minutes late</span>
+              <span>Minutes de retard</span>
               <input
                 id="attendance-late-minutes"
                 type="number"
@@ -87,21 +87,21 @@ function AttendanceCorrectionDialog({ employee, date, onClose, onSave }) {
           )}
 
           <label htmlFor="attendance-reason" className="pres-correction-reason">
-            <span>Reason or detail <small>(optional)</small></span>
+            <span>Motif ou précision <small>(facultatif)</small></span>
             <textarea
               id="attendance-reason"
               maxLength="500"
               rows="3"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="e.g. forgot to log in, hardware issue…"
+              placeholder="Ex. oubli de connexion, problème de matériel…"
             />
           </label>
 
           <footer className="pres-dialog-actions">
-            <button type="button" className="btn-outline" onClick={onClose} disabled={saving}>Cancel</button>
+            <button type="button" className="btn-outline" onClick={onClose} disabled={saving}>Annuler</button>
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : status === 'automatic' ? 'Restore calculation' : 'Save'}
+              {saving ? 'Enregistrement…' : status === 'automatic' ? 'Rétablir le calcul' : 'Enregistrer'}
             </button>
           </footer>
         </form>

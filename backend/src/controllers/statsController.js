@@ -18,7 +18,7 @@ async function getTeamStats(req, res, next) {
       return res.status(400).json({ error: 'Dates invalides' });
     }
     if (from > to) {
-      return res.status(400).json({ error: 'The start date must come before the end date' });
+      return res.status(400).json({ error: 'La date de début doit précéder la date de fin' });
     }
 
     const stats = await statsModel.computeTeamStats(from, to);
@@ -38,7 +38,7 @@ async function getMyStats(req, res, next) {
       return res.status(400).json({ error: 'Dates invalides' });
     }
     if (from > to) {
-      return res.status(400).json({ error: 'The start date must come before the end date' });
+      return res.status(400).json({ error: 'La date de début doit précéder la date de fin' });
     }
 
     const stats = await statsModel.computeEmployeeStats(req.user.id, from, to);

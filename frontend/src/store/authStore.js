@@ -33,7 +33,7 @@ const useAuthStore = create((set, get) => ({
       set({ user, isAuthenticated: true, dayValidated: user.role === 'EMPLOYEE' ? null : true });
       return true;
     } catch (err) {
-      set({ error: extractErrorMessage(err, 'Unable to sign in. Check your credentials.') });
+      set({ error: extractErrorMessage(err, 'Impossible de se connecter. Vérifiez vos identifiants.') });
       return false;
     }
   },
@@ -44,7 +44,7 @@ const useAuthStore = create((set, get) => ({
       const response = await api.post('/api/auth/register', payload);
       return { success: true, message: response.data.message };
     } catch (err) {
-      const message = extractErrorMessage(err, 'Unable to create the account.');
+      const message = extractErrorMessage(err, 'Impossible de créer le compte.');
       set({ error: message });
       return { success: false, message };
     }
@@ -58,7 +58,7 @@ const useAuthStore = create((set, get) => ({
       });
       return { success: true };
     } catch (err) {
-      return { success: false, message: extractErrorMessage(err, 'Unable to change the password.') };
+      return { success: false, message: extractErrorMessage(err, 'Impossible de changer le mot de passe.') };
     }
   },
 
@@ -70,7 +70,7 @@ const useAuthStore = create((set, get) => ({
       set({ user: updatedUser });
       return { success: true, user: response.data };
     } catch (err) {
-      return { success: false, message: extractErrorMessage(err, 'Unable to update the profile.') };
+      return { success: false, message: extractErrorMessage(err, 'Impossible de mettre à jour le profil.') };
     }
   },
 

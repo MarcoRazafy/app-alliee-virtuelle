@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { priorityLabel } from '../utils/taskStatus';
 
 const ITEM_TYPE = 'TASK';
 
@@ -30,11 +29,11 @@ function deadlineInfo(raw) {
   const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diffDays = Math.round((target - startToday) / 86400000);
 
-  if (diffDays < 0) return { urgency: 'overdue', label: `${Math.abs(diffDays)}d late`, diffDays };
-  if (diffDays === 0) return { urgency: 'today', label: "Today", diffDays };
-  if (diffDays === 1) return { urgency: 'soon', label: 'Tomorrow', diffDays };
-  if (diffDays <= 3) return { urgency: 'soon', label: `In ${diffDays} days`, diffDays };
-  return { urgency: 'normal', label: target.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }), diffDays };
+  if (diffDays < 0) return { urgency: 'overdue', label: `Retard ${Math.abs(diffDays)} j`, diffDays };
+  if (diffDays === 0) return { urgency: 'today', label: "Aujourd'hui", diffDays };
+  if (diffDays === 1) return { urgency: 'soon', label: 'Demain', diffDays };
+  if (diffDays <= 3) return { urgency: 'soon', label: `Dans ${diffDays} j`, diffDays };
+  return { urgency: 'normal', label: target.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), diffDays };
 }
 
 function IconClock() {
@@ -48,26 +47,26 @@ function IconClock() {
 
 function RequestControl({ task, requestState, onRequest }) {
   if (requestState?.status === 'PENDING') {
-    return <span className="task-request-chip task-request-chip--pending">Pending</span>;
+    return <span className="task-request-chip task-request-chip--pending">En attente</span>;
   }
   if (requestState?.status === 'REJECTED') {
     return (
       <span className="task-request-actions">
         <span
           className="task-request-chip task-request-chip--rejected"
-          title={requestState.admin_note ? `Reason: ${requestState.admin_note}` : 'Request rejected'}
+          title={requestState.admin_note ? `Motif : ${requestState.admin_note}` : 'Demande refusée'}
         >
-          Rejected
+          Refusée
         </span>
         <button type="button" className="task-request-btn" onClick={() => onRequest(task)}>
-          Request again
+          Redemander
         </button>
       </span>
     );
   }
   return (
     <button type="button" className="task-request-btn" onClick={() => onRequest(task)}>
-      Request
+      Demander
     </button>
   );
 }
@@ -111,7 +110,7 @@ function DraggableTask({ task, index, column, order, moveTask, disabled, request
       {dl && (
         <span
           className={`task-card-deadline task-card-deadline--${dl.urgency}`}
-          title={`Deadline: ${task.deadline ? new Date(task.deadline).toLocaleDateString('en-US') : ''}`}
+          title={`Échéance : ${task.deadline ? new Date(task.deadline).toLocaleDateString('fr-FR') : ''}`}
         >
           <IconClock />
           {dl.label}
@@ -120,7 +119,7 @@ function DraggableTask({ task, index, column, order, moveTask, disabled, request
       {requestable ? (
         <RequestControl task={task} requestState={requestState} onRequest={onRequest} />
       ) : (
-        <span className="task-card-priority">{priorityLabel(task.priority)}</span>
+        <span className="task-card-priority">{task.priority}</span>
       )}
     </div>
   );
@@ -187,23 +186,23 @@ function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated, req
     <DndProvider backend={HTML5Backend}>
       <div className="dnd-columns">
         <Column
-          title="Available tasks"
+          title="Tâches disponibles"
           tasks={availableTasks}
           column="available"
           moveTask={moveTask}
-          emptyLabel="No available tasks."
+          emptyLabel="Aucune tâche disponible."
           disabled={validated}
           requestable={validated && !!onRequestTask}
           requestsByTaskId={requestsByTaskId}
           onRequestTask={onRequestTask}
         />
         <Column
-          title="My tasks today"
+          title="Mes tâches aujourd'hui"
           tasks={selectedTasks}
           column="selected"
           moveTask={moveTask}
           showOrder
-          emptyLabel="Drag tasks here."
+          emptyLabel="Glissez des tâches ici."
           disabled={validated}
         />
       </div>

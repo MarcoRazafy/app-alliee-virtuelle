@@ -11,7 +11,7 @@ async function subscribe(req, res, next) {
   try {
     const { subscription } = req.body;
     if (!subscription || !subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
-      return res.status(400).json({ error: 'Invalid subscription' });
+      return res.status(400).json({ error: 'Abonnement invalide' });
     }
     await pushModel.upsert(req.user.id, subscription, req.headers['user-agent']);
     res.status(201).json({ status: 'subscribed' });
@@ -24,7 +24,7 @@ async function unsubscribe(req, res, next) {
   try {
     const { endpoint } = req.body;
     if (!endpoint) {
-      return res.status(400).json({ error: 'Endpoint required' });
+      return res.status(400).json({ error: 'Endpoint requis' });
     }
     await pushModel.removeByEndpoint(endpoint);
     res.status(200).json({ status: 'unsubscribed' });

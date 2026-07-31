@@ -6,7 +6,7 @@ import { IconBell, IconCheckCircle, IconX, IconClock } from '../../components/ic
 import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/admin.css';
 
-const PRIORITY_LABEL = { URGENT: 'Urgent', HAUTE: 'High', NORMALE: 'Normal', FAIBLE: 'Low' };
+const PRIORITY_LABEL = { URGENT: 'Urgent', HAUTE: 'Haute', NORMALE: 'Normale', FAIBLE: 'Faible' };
 
 function initials(name = '') {
   return name
@@ -44,13 +44,13 @@ function formatDeadline(raw) {
   const m = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/);
   const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(raw);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function formatTime(raw) {
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 function AdminTaskRequests() {
@@ -65,7 +65,7 @@ function AdminTaskRequests() {
       taskService
         .getExtraTaskRequests()
         .then(setRequests)
-        .catch((err) => notifyError(err.response?.data?.error || 'Unable to load requests'))
+        .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les demandes'))
         .finally(() => setLoading(false)),
     []
   );
@@ -85,10 +85,10 @@ function AdminTaskRequests() {
     setBusyId(id);
     try {
       await taskService.approveExtraTaskRequest(id);
-      notifySuccess('Request approved — the task was added to the employee\'s day');
+      notifySuccess("Demande approuvée — la tâche a été ajoutée à la journée de l'employé");
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to approve the request');
+      notifyError(err.response?.data?.error || "Impossible d'approuver la demande");
     } finally {
       setBusyId(null);
     }
@@ -103,12 +103,12 @@ function AdminTaskRequests() {
     setBusyId(id);
     try {
       await taskService.rejectExtraTaskRequest(id, rejectNote.trim() || undefined);
-      notifySuccess('Request rejected');
+      notifySuccess('Demande refusée');
       setRejectingId(null);
       setRejectNote('');
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to reject the request');
+      notifyError(err.response?.data?.error || 'Impossible de refuser la demande');
     } finally {
       setBusyId(null);
     }
@@ -122,16 +122,16 @@ function AdminTaskRequests() {
         </span>
         <div className="atr-summary-copy">
           <strong>
-            {pending.length} pending request{pending.length > 1 ? 's' : ''}
+            {pending.length} demande{pending.length > 1 ? 's' : ''} en attente
           </strong>
-          <span>Extra tasks requested by employees after validating their day.</span>
+          <span>Tâches supplémentaires demandées par les employés après validation de leur journée.</span>
         </div>
       </div>
 
       {pending.length === 0 ? (
         <div className="atr-empty">
           <IconCheckCircle />
-          <p>No pending request.</p>
+          <p>Aucune demande en attente.</p>
         </div>
       ) : (
         <div className="atr-list">
@@ -159,7 +159,7 @@ function AdminTaskRequests() {
                       </span>
                     )}
                   </div>
-                  {r.message && <p className="atr-message">“{r.message}”</p>}
+                  {r.message && <p className="atr-message">« {r.message} »</p>}
 
                   {isRejecting ? (
                     <div className="atr-reject">
@@ -168,12 +168,12 @@ function AdminTaskRequests() {
                         rows={2}
                         value={rejectNote}
                         onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder="Rejection reason (optional)"
+                        placeholder="Motif du refus (facultatif)"
                         autoFocus
                       />
                       <div className="atr-actions">
                         <button type="button" className="btn-outline" onClick={() => setRejectingId(null)}>
-                          Cancel
+                          Annuler
                         </button>
                         <button
                           type="button"
@@ -181,7 +181,7 @@ function AdminTaskRequests() {
                           disabled={busyId === r.id}
                           onClick={() => confirmReject(r.id)}
                         >
-                          Confirm rejection
+                          Confirmer le refus
                         </button>
                       </div>
                     </div>
@@ -193,7 +193,7 @@ function AdminTaskRequests() {
                         disabled={busyId === r.id}
                         onClick={() => startReject(r.id)}
                       >
-                        <IconX /> Reject
+                        <IconX /> Refuser
                       </button>
                       <button
                         type="button"
@@ -201,7 +201,7 @@ function AdminTaskRequests() {
                         disabled={busyId === r.id}
                         onClick={() => approve(r.id)}
                       >
-                        <IconCheckCircle /> Approve
+                        <IconCheckCircle /> Approuver
                       </button>
                     </div>
                   )}
@@ -214,14 +214,14 @@ function AdminTaskRequests() {
 
       {treated.length > 0 && (
         <div className="atr-history">
-          <p className="atr-history-title">Recently handled</p>
+          <p className="atr-history-title">Traitées récemment</p>
           {treated.map((r) => (
             <div key={r.id} className="atr-history-row">
               <span className={`atr-status-dot atr-status-dot--${r.status.toLowerCase()}`} />
               <span className="atr-history-name">{r.full_name}</span>
               <span className="atr-history-task">{r.title}</span>
               <span className={`atr-history-status atr-history-status--${r.status.toLowerCase()}`}>
-                {r.status === 'APPROVED' ? 'Approved' : 'Rejected'}
+                {r.status === 'APPROVED' ? 'Approuvée' : 'Refusée'}
               </span>
               <span className="atr-time">{formatTime(r.reviewed_at || r.created_at)}</span>
             </div>

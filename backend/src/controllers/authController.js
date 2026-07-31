@@ -32,11 +32,11 @@ async function register(req, res, next) {
 
     const existingEmail = await userModel.findByEmail(email);
     if (existingEmail) {
-      return res.status(409).json({ error: 'An account already exists with this email' });
+      return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
     }
     const existingUsername = await userModel.findByUsername(normalizedUsername);
     if (existingUsername) {
-      return res.status(409).json({ error: 'This username is already taken' });
+      return res.status(409).json({ error: "Ce nom d'utilisateur est déjà pris" });
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -60,7 +60,7 @@ async function register(req, res, next) {
       .catch(() => {});
 
     res.status(201).json({
-      message: 'Registration submitted, awaiting admin approval',
+      message: 'Inscription envoyée, attente validation admin',
       user,
     });
   } catch (err) {
@@ -74,22 +74,22 @@ async function login(req, res, next) {
 
     const user = await userModel.findByEmailOrUsername(identifier);
     if (!user) {
-      return res.status(401).json({ error: 'Incorrect email or password' });
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatches) {
-      return res.status(401).json({ error: 'Incorrect email or password' });
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     if (user.status === userModel.USER_STATUS.PENDING) {
-      return res.status(403).json({ error: 'Account awaiting approval by an administrator' });
+      return res.status(403).json({ error: 'Compte en attente de validation par un administrateur' });
     }
     if (user.status === userModel.USER_STATUS.SUSPENDED) {
-      return res.status(403).json({ error: 'Account suspended' });
+      return res.status(403).json({ error: 'Compte suspendu' });
     }
     if (user.status === userModel.USER_STATUS.REJECTED) {
-      return res.status(403).json({ error: 'Account rejected' });
+      return res.status(403).json({ error: 'Compte refusé' });
     }
 
     // La sélection de la journée est faite UNE SEULE FOIS par jour : elle persiste toute la
@@ -128,7 +128,7 @@ async function me(req, res, next) {
   try {
     const user = await userModel.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     const avatar = await avatarModel.findByUserId(req.user.id);
 
@@ -169,7 +169,7 @@ async function updateProfile(req, res, next) {
 
     // Email modifiable : refuser s'il est déjà utilisé par un autre compte.
     if (email && (await userModel.emailTakenByOther(email, req.user.id))) {
-      return res.status(409).json({ error: 'An account already exists with this email' });
+      return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
     }
 
     // Champs non fournis : on conserve la valeur actuelle (pas d'écrasement involontaire).
@@ -208,7 +208,7 @@ async function updateProfile(req, res, next) {
 async function uploadAvatar(req, res, next) {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Image required' });
+      return res.status(400).json({ error: 'Image requise' });
     }
 
     const previous = await avatarModel.findByUserId(req.user.id);
@@ -236,10 +236,10 @@ async function getMyAvatar(req, res, next) {
   try {
     const avatar = await avatarModel.findByUserId(req.user.id);
     if (!avatar) {
-      return res.status(404).json({ error: 'No profile photo' });
+      return res.status(404).json({ error: 'Aucune photo de profil' });
     }
 
-    return sendFileOr404(res, avatar.file_path, 'No profile photo');
+    return sendFileOr404(res, avatar.file_path, 'Aucune photo de profil');
   } catch (err) {
     next(err);
   }
@@ -250,19 +250,19 @@ async function changePassword(req, res, next) {
     const { current_password: currentPassword, new_password: newPassword } = req.body;
 
     if (!isValidPassword(newPassword)) {
-      return res.status(400).json({ error: 'The new password must be at least 8 characters long' });
+      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
     }
 
     const user = await userModel.findById(req.user.id);
     const passwordMatches = await bcrypt.compare(currentPassword || '', user.password_hash);
     if (!passwordMatches) {
-      return res.status(400).json({ error: 'Current password is incorrect' });
+      return res.status(400).json({ error: 'Le mot de passe actuel est incorrect' });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await userModel.updatePasswordHash(user.id, passwordHash);
 
-    res.status(200).json({ message: 'Password updated' });
+    res.status(200).json({ message: 'Mot de passe mis à jour' });
   } catch (err) {
     next(err);
   }
@@ -289,7 +289,7 @@ async function logout(req, res, next) {
     // Supprime le cookie d'authentification côté navigateur.
     res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(env.nodeEnv), maxAge: undefined });
 
-    res.status(200).json({ message: 'Successfully logged out' });
+    res.status(200).json({ message: 'Déconnexion réussie' });
   } catch (err) {
     next(err);
   }

@@ -2,7 +2,7 @@
 
 export function formatMessageTime(isoString) {
   if (!isoString) return '';
-  return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(isoString));
+  return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(isoString));
 }
 
 export function formatConversationTime(isoString) {
@@ -11,7 +11,7 @@ export function formatConversationTime(isoString) {
   const today = new Date();
   const sameDay = date.toDateString() === today.toDateString();
   if (sameDay) return formatMessageTime(isoString);
-  return new Intl.DateTimeFormat('en-US', { day: '2-digit', month: '2-digit' }).format(date);
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(date);
 }
 
 export function formatDateSeparator(isoString) {
@@ -19,9 +19,9 @@ export function formatDateSeparator(isoString) {
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return 'Today';
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+  if (date.toDateString() === today.toDateString()) return "Aujourd'hui";
+  if (date.toDateString() === yesterday.toDateString()) return 'Hier';
+  return new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
 }
 
 export function sameCalendarDay(firstDate, secondDate) {
@@ -52,6 +52,6 @@ export function formatDuration(totalSeconds) {
 export function formatFileSize(bytes) {
   if (!bytes) return '';
   if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }

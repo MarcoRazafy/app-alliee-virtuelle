@@ -28,12 +28,12 @@ function AdminModifiedAlert({ planning }) {
     <div className="info-banner info-banner--planning-warning">
       <IconAlert />
       <div>
-        <strong>Your schedule was modified by an administrator.</strong>
+        <strong>Votre planning a été modifié par un administrateur.</strong>
         <p>
-          On {formatDateTime(planning.admin_modified_at)}
-          {planning.last_modified_by_name ? ` by ${planning.last_modified_by_name}` : ''}.
+          Le {formatDateTime(planning.admin_modified_at)}
+          {planning.last_modified_by_name ? ` par ${planning.last_modified_by_name}` : ''}.
         </p>
-        {planning.last_admin_change_reason && <p>Reason: {planning.last_admin_change_reason}</p>}
+        {planning.last_admin_change_reason && <p>Motif : {planning.last_admin_change_reason}</p>}
       </div>
     </div>
   );
@@ -41,42 +41,42 @@ function AdminModifiedAlert({ planning }) {
 
 function PresenceSummaryCards({ summary, loading }) {
   if (loading) {
-    return <div className="presence-kpi-loading" role="status">Calculating presence…</div>;
+    return <div className="presence-kpi-loading" role="status">Calcul de la présence en cours…</div>;
   }
   if (!summary) return null;
 
   const lateValue = summary.lateDays > 0
-    ? `${summary.lateDays} d · ${formatPresenceMinutes(summary.lateMinutes)}`
-    : 'None';
+    ? `${summary.lateDays} j · ${formatPresenceMinutes(summary.lateMinutes)}`
+    : 'Aucun';
   const cards = [
     {
       icon: <IconCalendarWeek />,
       value: formatPresenceMinutes(summary.plannedMinutes),
-      label: 'Planned time',
-      hint: 'Slots declared for the week',
+      label: 'Temps planifié',
+      hint: 'Créneaux déclarés pour la semaine',
     },
     {
       icon: <IconClock />,
       value: formatPresenceMinutes(summary.connectedMinutes),
-      label: 'Connected time',
-      hint: 'All connections, whether planned or not',
+      label: 'Temps connecté',
+      hint: 'Toutes les connexions, planning compris ou non',
     },
     {
       icon: <IconCheckCircle />,
       value: formatPresenceMinutes(summary.coveredMinutes),
-      label: 'Covered time',
-      hint: 'Connection actually within the slots',
+      label: 'Temps couvert',
+      hint: 'Connexion réellement comprise dans les créneaux',
     },
     {
       icon: <IconTrendingUp />,
       value: lateValue,
-      label: 'Lateness',
-      hint: '10-minute tolerance included',
+      label: 'Retards',
+      hint: 'Tolérance de 10 minutes incluse',
     },
   ];
 
   return (
-    <div className="presence-kpi-grid" aria-label="Weekly presence summary">
+    <div className="presence-kpi-grid" aria-label="Synthèse de présence de la semaine">
       {cards.map((card) => (
         <article className="presence-kpi-card" key={card.label}>
           <span className="presence-kpi-icon" aria-hidden="true">{card.icon}</span>
@@ -110,7 +110,7 @@ function QuickAddForm({ days, canEdit, onAdd }) {
 
   return (
     <form className="planning-quick-add" onSubmit={handleSubmit}>
-      <span className="planning-quick-add-label">Add availability</span>
+      <span className="planning-quick-add-label">Ajouter une disponibilité</span>
       <select className="filter-select" value={date} onChange={(event) => setDate(event.target.value)}>
         {days.map((day, index) => (
           <option key={day.date} value={day.date}>
@@ -119,10 +119,10 @@ function QuickAddForm({ days, canEdit, onAdd }) {
         ))}
       </select>
       <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
-      <span className="planning-quick-add-sep">to</span>
+      <span className="planning-quick-add-sep">à</span>
       <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
       <button type="submit" className="btn-primary">
-        Add
+        Ajouter
       </button>
     </form>
   );
@@ -176,10 +176,10 @@ function Planning() {
             setHasSessionSnapshot(true);
             setSessionsError('');
           })
-          .catch(() => setSessionsError('Unable to load presence. No absence status is inferred.'))
+          .catch(() => setSessionsError('Impossible de charger la présence. Aucun statut d’absence n’est déduit.'))
           .finally(() => setSessionsLoaded(true));
       } catch (err) {
-        notifyError(err.response?.data?.error || 'Unable to load the schedule');
+        notifyError(err.response?.data?.error || 'Impossible de charger le planning');
       } finally {
         setLoading(false);
       }
@@ -207,7 +207,7 @@ function Planning() {
           setHasSessionSnapshot(true);
           setSessionsError('');
         })
-        .catch(() => setSessionsError('Live presence cannot be refreshed. The last valid data remains displayed.'));
+        .catch(() => setSessionsError('La présence en direct ne peut pas être actualisée. Les dernières données valides restent affichées.'));
     }
     const interval = window.setInterval(refresh, 15000);
     return () => window.clearInterval(interval);
@@ -219,7 +219,7 @@ function Planning() {
       const items = await planningService.getMyPlannings(weekStartDate ? { week_start_date: weekStartDate } : {});
       setMyPlannings(items);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to load your schedules');
+      notifyError(err.response?.data?.error || 'Impossible de charger vos plannings');
     } finally {
       setLoadingList(false);
     }
@@ -275,19 +275,19 @@ function Planning() {
   function handleQuickAdd(date, startTime, endTime) {
     if (!date) return;
     if (!startTime || !endTime || endTime <= startTime) {
-      notifyError('The end time must be after the start time.');
+      notifyError("L'heure de fin doit être postérieure à l'heure de début.");
       return;
     }
     const day = draftDays.find((d) => d.date === date);
     if (!day) return;
     if (day.availability_status === 'UNAVAILABLE') {
-      notifyError('This day is marked unavailable: change its status first.');
+      notifyError("Ce jour est marqué indisponible : changez d'abord son statut.");
       return;
     }
 
     const nextSlots = [...day.time_slots, { start_time: startTime, end_time: endTime }];
     if (slotsOverlap(nextSlots)) {
-      notifyError('This slot overlaps an existing one.');
+      notifyError('Cette plage chevauche une plage existante.');
       return;
     }
 
@@ -296,7 +296,7 @@ function Planning() {
         d.date === date ? { ...d, availability_status: d.availability_status || 'AVAILABLE', time_slots: nextSlots } : d
       )
     );
-    notifySuccess('Slot added to the schedule');
+    notifySuccess('Plage ajoutée au planning');
   }
 
   async function handleConsultWeek(weekStartDate) {
@@ -305,7 +305,7 @@ function Planning() {
       const result = await planningService.getWeekPlanning(weekStartDate);
       setBrowsedWeek(result);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to load this week');
+      notifyError(err.response?.data?.error || 'Impossible de charger cette semaine');
     } finally {
       setBrowsing(false);
     }
@@ -347,7 +347,7 @@ function Planning() {
         };
       })
     );
-    notifySuccess('Current week availability copied');
+    notifySuccess('Disponibilités de la semaine actuelle copiées');
   }
 
   function buildPayloadDays() {
@@ -369,13 +369,13 @@ function Planning() {
       if (editingCurrentWeek) setCurrentWeek(result);
       else setNextWeek(result);
       setDraftDays(toDraftDays(result.days));
-      notifySuccess('Draft saved');
+      notifySuccess('Brouillon enregistré');
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors) {
         setErrors(data.errors);
       } else {
-        notifyError(data?.error || 'Unable to save the draft');
+        notifyError(data?.error || "Impossible d'enregistrer le brouillon");
       }
     } finally {
       setSaving(false);
@@ -384,8 +384,8 @@ function Planning() {
 
   async function handleSubmit() {
     const confirmMessage = editingCurrentWeek
-      ? 'Do you confirm the submission of your schedule for the current week?'
-      : 'Do you confirm the submission of your schedule for next week? You can still edit it until Sunday 11:59 PM.';
+      ? 'Confirmez-vous la soumission de votre planning pour la semaine en cours ?'
+      : "Confirmez-vous la soumission de votre planning pour la semaine prochaine ? Vous pourrez encore le modifier jusqu'à dimanche 23h59.";
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -404,13 +404,13 @@ function Planning() {
         setNextWeek(result);
         setDraftDays(toDraftDays(result.days));
       }
-      notifySuccess('Schedule submitted');
+      notifySuccess('Planning soumis');
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors) {
         setErrors(data.errors);
       } else {
-        notifyError(data?.error || 'Unable to submit the schedule');
+        notifyError(data?.error || 'Impossible de soumettre le planning');
       }
     } finally {
       setSubmitting(false);
@@ -419,20 +419,20 @@ function Planning() {
 
   return (
     <EmployeeLayout
-      title="Weekly schedule"
-      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'Planning' }]}
-      subtitle="Declare your availability for next week"
+      title="Planning hebdomadaire"
+      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Planning' }]}
+      subtitle="Déclarez vos disponibilités pour la semaine prochaine"
       skeleton={loading && !currentWeek ? 'cards' : null}
     >
       <section className="planning-page">
-        {loading && <div className="empty-state">Loading the schedule...</div>}
+        {loading && <div className="empty-state">Chargement du planning...</div>}
 
         {!loading && currentWeek && nextWeek && (
           <>
             {!editingCurrentWeek && (
             <div className="side-card planning-week-card">
               <div className="side-card-header">
-                <p className="side-card-title">Current week</p>
+                <p className="side-card-title">Semaine actuelle</p>
                 <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[currentWeek.effective_status] || ''}`}>
                   {EFFECTIVE_STATUS_LABELS[currentWeek.effective_status] || currentWeek.effective_status}
                 </span>
@@ -443,12 +443,12 @@ function Planning() {
 
               <AdminModifiedAlert planning={currentWeek.admin_modified ? currentWeek.planning : null} />
 
-              <p className="cal-session-legend" aria-label="Actual presence legend">
-                Actual presence:
-                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> on time</span>
-                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--late" /> late</span>
-                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--off" /> off schedule</span>
-                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--missing" /> not covered</span>
+              <p className="cal-session-legend" aria-label="Légende de présence réelle">
+                Présence réelle :
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> conforme</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--late" /> retard</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
+                <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--missing" /> non couvert</span>
               </p>
 
               <PresenceSummaryCards summary={presenceSummary} loading={!sessionsLoaded} />
@@ -467,14 +467,14 @@ function Planning() {
                 sessionSegmentsByDate={hasSessionSnapshot ? sessionSegmentsByDate : undefined}
               />
 
-              <p className="planning-total-hours">Total: {currentWeek.total_hours} h available</p>
+              <p className="planning-total-hours">Total : {currentWeek.total_hours} h disponibles</p>
             </div>
             )}
 
             <div className="side-card planning-week-card">
               <div className="side-card-header">
                 <p className="side-card-title">
-                  {editingCurrentWeek ? 'Current week (to complete)' : 'Next week'}
+                  {editingCurrentWeek ? 'Semaine en cours (à compléter)' : 'Semaine prochaine'}
                 </p>
                 <span className={`pill ${EFFECTIVE_STATUS_PILL_CLASS[editTarget.effective_status] || ''}`}>
                   {EFFECTIVE_STATUS_LABELS[editTarget.effective_status] || editTarget.effective_status}
@@ -491,20 +491,21 @@ function Planning() {
                   <>
                     <IconCheckCircle />
                     <span>
-                      Your schedule for the current week is empty: you can complete it now (catch-up). It will no
-                      longer be editable once submitted.
+                      Votre planning de la semaine en cours est vide : vous pouvez le compléter dès maintenant
+                      (rattrapage). Il ne sera plus modifiable une fois soumis.
                     </span>
                   </>
                 ) : canEdit ? (
                   <>
                     <IconCheckCircle />
-                    <span>Entry is open until {formatDateTime(nextWeek.editing_window_closes_at)}.</span>
+                    <span>La saisie est ouverte jusqu'au {formatDateTime(nextWeek.editing_window_closes_at)}.</span>
                   </>
                 ) : (
                   <>
                     <IconAlert />
                     <span>
-                      The schedule entry period is closed. Only an administrator can now modify this schedule.
+                      La période de saisie du planning est fermée. Seul un administrateur peut maintenant modifier ce
+                      planning.
                     </span>
                   </>
                 )}
@@ -523,18 +524,18 @@ function Planning() {
 
               {!editingCurrentWeek && canEdit && currentWeek.planning && (
                 <button type="button" className="btn-outline" onClick={handleCopyPreviousWeek}>
-                  Copy the current week
+                  Copier la semaine actuelle
                 </button>
               )}
 
               <label className="planning-general-note">
-                <span>General note (optional)</span>
+                <span>Note générale (facultatif)</span>
                 <textarea
                   rows="2"
                   value={draftNote}
                   onChange={(e) => setDraftNote(e.target.value)}
                   disabled={!canEdit}
-                  placeholder="Availability for the week, remarks..."
+                  placeholder="Disponibilités de la semaine, remarques..."
                 />
               </label>
 
@@ -549,33 +550,33 @@ function Planning() {
                 onNoteChange={handleNoteChange}
               />
 
-              <p className="planning-total-hours">Total: {computeTotalHours(draftDays)} h available</p>
+              <p className="planning-total-hours">Total : {computeTotalHours(draftDays)} h disponibles</p>
 
               <div className="planning-actions">
                 <button type="button" className="btn-outline" onClick={handleSaveDraft} disabled={!canEdit || saving}>
-                  {saving ? 'Saving...' : 'Save draft'}
+                  {saving ? 'Enregistrement...' : 'Enregistrer le brouillon'}
                 </button>
                 <button type="button" className="btn-primary" onClick={handleSubmit} disabled={!canEdit || submitting}>
-                  {submitting ? 'Submitting...' : 'Submit my schedule'}
+                  {submitting ? 'Envoi...' : 'Soumettre mon planning'}
                 </button>
               </div>
             </div>
 
             <div className="side-card planning-week-card">
               <div className="side-card-header">
-                <p className="side-card-title">My schedules</p>
+                <p className="side-card-title">Mes plannings</p>
               </div>
               <p className="planning-week-filter-hint">
-                Filter by availability week to find a past schedule (read-only).
+                Filtrez par semaine de disponibilité pour retrouver un planning passé (lecture seule).
               </p>
               <div className="planning-week-filter">
                 <select
                   className="filter-select"
                   value={listWeekFilter}
                   onChange={(e) => handleListWeekFilterChange(e.target.value)}
-                  aria-label="Filter by week"
+                  aria-label="Filtrer par semaine"
                 >
-                  <option value="">All weeks</option>
+                  <option value="">Toutes les semaines</option>
                   {weekOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -584,19 +585,19 @@ function Planning() {
                 </select>
               </div>
 
-              {loadingList && <div className="empty-state">Loading your schedules...</div>}
+              {loadingList && <div className="empty-state">Chargement de vos plannings...</div>}
               {!loadingList && myPlannings.length === 0 && (
-                <div className="empty-state">No schedule matches this filter.</div>
+                <div className="empty-state">Aucun planning ne correspond à ce filtre.</div>
               )}
               {!loadingList && myPlannings.length > 0 && (
                 <div className="task-table-wrap">
                   <table className="task-table">
                     <thead>
                       <tr>
-                        <th>Week</th>
-                        <th>Status</th>
-                        <th>Submitted on</th>
-                        <th>Avail. hours</th>
+                        <th>Semaine</th>
+                        <th>Statut</th>
+                        <th>Soumis le</th>
+                        <th>Heures dispo.</th>
                         <th />
                       </tr>
                     </thead>
@@ -613,7 +614,7 @@ function Planning() {
                           <td>{item.total_hours} h</td>
                           <td>
                             <button type="button" className="app-link" onClick={() => handleConsultWeek(item.week_start_date)}>
-                              View
+                              Consulter
                             </button>
                           </td>
                         </tr>
@@ -623,7 +624,7 @@ function Planning() {
                 </div>
               )}
 
-              {browsing && <div className="empty-state">Loading...</div>}
+              {browsing && <div className="empty-state">Chargement...</div>}
 
               {browsedWeek && (
                 <>
@@ -640,7 +641,7 @@ function Planning() {
 
                   <WeekCalendarGrid days={browsedWeek.days} canEdit={false} onNoteChange={() => {}} />
 
-                  <p className="planning-total-hours">Total: {browsedWeek.total_hours} h available</p>
+                  <p className="planning-total-hours">Total : {browsedWeek.total_hours} h disponibles</p>
                 </>
               )}
             </div>
