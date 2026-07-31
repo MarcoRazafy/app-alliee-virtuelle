@@ -171,7 +171,8 @@ async function createTask(req, res, next) {
       priority,
       deadline,
       startDate: isAdmin ? start_date : null,
-      listId: isAdmin ? listId : null,
+      // Le projet (liste) est optionnel et autorisé aussi pour une proposition d'employé (#4).
+      listId: listId || null,
       parentTaskId: isAdmin ? parentTaskId : null,
       clientName: isAdmin ? clientName : null,
       clientEmail: isAdmin ? clientEmail : null,
@@ -190,7 +191,7 @@ async function createTask(req, res, next) {
         deadline,
         status: initialStatus,
         created_as: isAdmin ? 'ADMIN' : 'EMPLOYEE_PROPOSAL',
-        list_id: isAdmin ? listId || null : null,
+        list_id: listId || null,
         parent_task_id: isAdmin ? parentTaskId || null : null,
         client_name: isAdmin ? clientName || null : null,
         client_email: isAdmin ? clientEmail || null : null,
