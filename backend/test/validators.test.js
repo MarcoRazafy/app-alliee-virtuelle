@@ -6,6 +6,7 @@ const {
   isValidPriority,
   isValidTitle,
   isFutureDate,
+  isTodayOrFuture,
 } = require('../src/utils/validators');
 
 test('isValidEmail : accepte un email correct, refuse le reste', () => {
@@ -44,4 +45,14 @@ test('isFutureDate : vrai seulement pour une date strictement future', () => {
   assert.equal(isFutureDate('pas-une-date'), false);
   assert.equal(isFutureDate('2000-01-01'), false); // passé
   assert.equal(isFutureDate('2999-01-01'), true); // futur lointain
+});
+
+test("isTodayOrFuture : accepte aujourd'hui et le futur, refuse le passé", () => {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  assert.equal(isTodayOrFuture(null), false);
+  assert.equal(isTodayOrFuture('pas-une-date'), false);
+  assert.equal(isTodayOrFuture('2000-01-01'), false); // passé
+  assert.equal(isTodayOrFuture(todayStr), true); // aujourd'hui accepté
+  assert.equal(isTodayOrFuture('2999-01-01'), true); // futur
 });

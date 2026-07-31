@@ -283,6 +283,7 @@ function AdminCreateTask() {
                 className="form-input"
                 value={form.deadline}
                 onChange={handleChange}
+                min={new Date().toISOString().slice(0, 10)}
                 required
               />
             </div>

@@ -3,7 +3,7 @@ const db = require('../config/database');
 const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
 const extraTaskRequestModel = require('../models/extraTaskRequest.model');
-const { isValidTitle, isValidPriority, isFutureDate, isValidEmail } = require('../utils/validators');
+const { isValidTitle, isValidPriority, isTodayOrFuture, isValidEmail } = require('../utils/validators');
 
 function canAccessTask(task, user) {
   if (user.role === 'ADMIN') return true;
@@ -138,7 +138,7 @@ async function createTask(req, res, next) {
 
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
-    if (!isFutureDate(deadline)) errors.push("La deadline doit être postérieure à aujourd'hui");
+    if (!isTodayOrFuture(deadline)) errors.push("La deadline ne peut pas être dans le passé (aujourd'hui accepté)");
     if (isAdmin && !assigned_to) errors.push('assigned_to est requis');
     if (isAdmin && clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
 
