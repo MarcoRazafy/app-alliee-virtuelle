@@ -52,6 +52,10 @@ export function addManualTimelog(taskId, payload) {
   return api.post(`/api/timelog/${taskId}/manual`, payload).then((res) => res.data);
 }
 
+export function getActiveTask() {
+  return api.get('/api/timelog/active').then((res) => res.data);
+}
+
 export function getTimelogHistory(taskId) {
   return api.get(`/api/timelog/${taskId}`).then((res) => res.data);
 }

@@ -25,6 +25,8 @@ router.post('/tasks/:id/complete', taskController.completeTask);
 
 router.post('/timelog/:taskId/start', taskController.startTimelog);
 router.post('/timelog/:taskId/stop', taskController.stopTimelog);
+// Tâche en cours de chronométrage (widget employé). Avant /timelog/:taskId sinon 'active' = :taskId.
+router.get('/timelog/active', taskController.getActiveTask);
 router.get('/timelog/:taskId', taskController.getTimelogHistory);
 // Ajout manuel d'un temps (admin) : chrono oublié, saisi a posteriori.
 router.post('/timelog/:taskId/manual', authMiddleware.requireRole('ADMIN'), taskController.addManualTimelog);

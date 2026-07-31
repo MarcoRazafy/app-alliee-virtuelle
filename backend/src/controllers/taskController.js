@@ -332,6 +332,16 @@ async function stopTimelog(req, res, next) {
   }
 }
 
+// Tâche en cours de chronométrage par l'employé connecté (pour le widget « tâche en cours »).
+async function getActiveTask(req, res, next) {
+  try {
+    const active = await taskModel.findActiveTaskForEmployee(req.user.id);
+    res.status(200).json(active); // objet { task_id, title, start_time } ou null
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getTimelogHistory(req, res, next) {
   try {
     const { taskId } = req.params;
@@ -1002,4 +1012,5 @@ module.exports = {
   deleteAttachment,
   deleteTask,
   addManualTimelog,
+  getActiveTask,
 };
