@@ -52,5 +52,7 @@ router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskContr
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);
 router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.getNotes);
 router.post('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.createNote);
+// Suppression d'une tâche (admin) : supprime aussi ses sous-tâches, commentaires, chronos… (CASCADE).
+router.delete('/tasks/:id', authMiddleware.requireRole('ADMIN'), taskController.deleteTask);
 
 module.exports = router;

@@ -9,7 +9,7 @@ import { formatClock, formatDurationShort, formatDateTime, formatDate } from '..
 import { STATUS_PILL, priorityPillClass } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
-import { IconPlay, IconStop, IconCheckCircle, IconArrowRight } from '../components/icons';
+import { IconPlay, IconStop, IconCheckCircle, IconArrowRight, IconTrash } from '../components/icons';
 
 function TaskDetail() {
   const { id } = useParams();
@@ -118,6 +118,19 @@ function TaskDetail() {
     }
   }
 
+  // Suppression d'une tâche (admin). Prévient que les sous-tâches et le suivi seront supprimés.
+  async function handleDeleteTask() {
+    const confirmMessage = `Supprimer la tâche « ${task?.title || ''} » ?\n\nCette action est définitive et supprime aussi ses sous-tâches, commentaires, chronos et pièces jointes.`;
+    if (!window.confirm(confirmMessage)) return;
+    try {
+      await taskService.deleteTask(id);
+      notifySuccess('Tâche supprimée');
+      navigate('/admin/lists');
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de supprimer la tâche');
+    }
+  }
+
   async function handleAddSubtask(e) {
     e.preventDefault();
     if (!newSubtaskTitle.trim() || !newSubtaskDeadline) {
@@ -175,11 +188,14 @@ function TaskDetail() {
   return (
     <Layout {...layoutProps}>
       {isAdmin && (
-        <p style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <Link to="/tasks" className="app-link">
             ← Retour à mes tâches
           </Link>
-        </p>
+          <button type="button" className="btn-danger" onClick={handleDeleteTask}>
+            <IconTrash /> Supprimer la tâche
+          </button>
+        </div>
       )}
 
       <div className="side-card" style={{ marginBottom: '20px' }}>
