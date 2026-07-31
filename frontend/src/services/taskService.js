@@ -48,6 +48,10 @@ export function stopTimelog(taskId) {
   return api.post(`/api/timelog/${taskId}/stop`).then((res) => res.data);
 }
 
+export function addManualTimelog(taskId, payload) {
+  return api.post(`/api/timelog/${taskId}/manual`, payload).then((res) => res.data);
+}
+
 export function getTimelogHistory(taskId) {
   return api.get(`/api/timelog/${taskId}`).then((res) => res.data);
 }

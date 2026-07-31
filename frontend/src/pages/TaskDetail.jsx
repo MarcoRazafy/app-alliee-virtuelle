@@ -27,6 +27,8 @@ function TaskDetail() {
   const [subtasks, setSubtasks] = useState([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newSubtaskDeadline, setNewSubtaskDeadline] = useState('');
+  // Saisie manuelle de temps (admin) : chrono oublié, ajouté a posteriori.
+  const [manualTime, setManualTime] = useState({ start: '', end: '' });
 
   const loadData = useCallback(async () => {
     try {
@@ -115,6 +117,20 @@ function TaskDetail() {
       await loadData();
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de marquer la tâche comme terminée');
+    }
+  }
+
+  // Ajout manuel de temps par l'admin (chrono oublié par l'employé).
+  async function handleAddManualTime(event) {
+    event.preventDefault();
+    if (!manualTime.start || !manualTime.end) return;
+    try {
+      await taskService.addManualTimelog(id, { start_time: manualTime.start, end_time: manualTime.end });
+      notifySuccess('Temps ajouté');
+      setManualTime({ start: '', end: '' });
+      await loadData();
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Impossible d'ajouter le temps");
     }
   }
 
@@ -353,6 +369,35 @@ function TaskDetail() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {task.assigned_to && (
+          <form className="manual-time-form" onSubmit={handleAddManualTime}>
+            <p className="manual-time-hint">Chrono oublié ? Ajoutez le temps manuellement :</p>
+            <div className="manual-time-fields">
+              <label>
+                <span>Début</span>
+                <input
+                  type="datetime-local"
+                  value={manualTime.start}
+                  onChange={(e) => setManualTime((m) => ({ ...m, start: e.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                <span>Fin</span>
+                <input
+                  type="datetime-local"
+                  value={manualTime.end}
+                  onChange={(e) => setManualTime((m) => ({ ...m, end: e.target.value }))}
+                  required
+                />
+              </label>
+              <button type="submit" className="btn-outline">
+                Ajouter le temps
+              </button>
+            </div>
+          </form>
         )}
       </div>
       )}

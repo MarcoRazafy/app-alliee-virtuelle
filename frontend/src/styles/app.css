@@ -997,6 +997,39 @@
   background: var(--color-bg-secondary);
 }
 
+/* Saisie manuelle de temps (admin, chrono oublié) sur la page détail d'une tâche. */
+.manual-time-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+.manual-time-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.manual-time-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.manual-time-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.manual-time-fields input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--input-bg, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+}
+
 .task-table td {
   padding: 13px 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);

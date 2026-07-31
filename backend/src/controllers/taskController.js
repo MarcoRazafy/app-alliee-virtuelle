@@ -819,6 +819,48 @@ async function deleteTask(req, res, next) {
   }
 }
 
+// Ajout manuel d'un temps de travail par l'admin (chrono oublié par l'employé). On enregistre
+// une plage début→fin déjà terminée, attribuée à l'employé assigné à la tâche.
+async function addManualTimelog(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { start_time: startTime, end_time: endTime } = req.body;
+
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+    if (!task.assigned_to) {
+      return res.status(400).json({ error: "La tâche n'est assignée à personne : impossible d'ajouter du temps" });
+    }
+    if (!startTime || !endTime) {
+      return res.status(400).json({ error: 'Le début et la fin sont requis' });
+    }
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Dates invalides' });
+    }
+    if (end <= start) {
+      return res.status(400).json({ error: "L'heure de fin doit être après l'heure de début" });
+    }
+
+    const entry = await taskModel.addManualTimelog(id, task.assigned_to, startTime, endTime);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'ADD_MANUAL_TIMELOG',
+      entityType: 'task',
+      entityId: id,
+      details: { title: task.title, duration_seconds: entry.duration_seconds },
+    });
+
+    res.status(201).json(entry);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // --- Demandes de tâche supplémentaire ---
 
 // L'employé (journée déjà validée) demande à travailler une tâche précise de plus.
@@ -959,4 +1001,5 @@ module.exports = {
   downloadAttachment,
   deleteAttachment,
   deleteTask,
+  addManualTimelog,
 };
