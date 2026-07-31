@@ -39,7 +39,8 @@ function TaskDetail() {
       ]);
       setTask(taskData);
       setHistory(historyData);
-      const running = historyData.find((session) => !session.end_time);
+      // Session active = celle de l'utilisateur COURANT (admin comme employé peut chronométrer).
+      const running = historyData.find((session) => !session.end_time && session.employee_id === user?.id);
       setActiveSession(running || null);
       if (detailData) {
         setBreadcrumbData(detailData.breadcrumb);
@@ -52,7 +53,7 @@ function TaskDetail() {
         notifyError(err.response?.data?.error || 'Impossible de charger la tâche');
       }
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   useEffect(() => {
     loadData();
@@ -313,6 +314,7 @@ function TaskDetail() {
               <table className="task-table">
                 <thead>
                   <tr>
+                    <th>Qui</th>
                     <th>Début</th>
                     <th>Fin</th>
                     <th>Durée</th>
@@ -321,6 +323,7 @@ function TaskDetail() {
                 <tbody>
                   {sortedHistory.map((session, index) => (
                     <tr key={index}>
+                      <td>{session.employee_name || '—'}</td>
                       <td>{formatDateTime(session.start_time)}</td>
                       <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
                       <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
@@ -343,16 +346,44 @@ function TaskDetail() {
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
           Temps passé
         </p>
-        <p style={{ fontSize: '15px', marginBottom: sortedHistory.length > 0 ? '16px' : '0' }}>
-          <strong>Total : {formatDurationShort(totalSeconds)}</strong>
-          {activeSession && <span style={{ color: 'var(--color-error)', marginLeft: '8px' }}>· chrono en cours</span>}
-        </p>
+        {/* L'admin peut lui aussi chronométrer la tâche (son temps s'ajoute au total). */}
+        <div className="chrono-card-body" style={{ marginBottom: '16px' }}>
+          {activeSession && (
+            <div className="chrono-ring-wrap">
+              <div className="chrono-ring" />
+              <div className="chrono-ring-inner">
+                <span className="chrono-ring-value">{formatClock(elapsed)}</span>
+                <span className="chrono-ring-caption">Mon chrono</span>
+              </div>
+            </div>
+          )}
+          <p style={{ fontSize: '15px' }}>
+            <strong>Total : {formatDurationShort(totalSeconds)}</strong>
+          </p>
+          <div className="chrono-card-actions">
+            {activeSession ? (
+              <button className="btn-danger" onClick={handleStop}>
+                <IconStop /> Arrêter mon chrono
+              </button>
+            ) : (
+              <button
+                className="btn-primary"
+                onClick={handleStart}
+                disabled={!['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status)}
+              >
+                <IconPlay /> Démarrer mon chrono
+              </button>
+            )}
+          </div>
+        </div>
+
         {sortedHistory.length === 0 && <div className="empty-state">Aucun temps enregistré.</div>}
         {sortedHistory.length > 0 && (
           <div className="task-table-wrap">
             <table className="task-table">
               <thead>
                 <tr>
+                  <th>Qui</th>
                   <th>Début</th>
                   <th>Fin</th>
                   <th>Durée</th>
@@ -361,6 +392,7 @@ function TaskDetail() {
               <tbody>
                 {sortedHistory.map((session, index) => (
                   <tr key={index}>
+                    <td>{session.employee_name || '—'}</td>
                     <td>{formatDateTime(session.start_time)}</td>
                     <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
                     <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
