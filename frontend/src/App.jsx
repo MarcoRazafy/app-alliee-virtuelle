@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { heartbeatSession, signalSessionDisconnect } from './services/sessionService';
 import { getUser } from './services/auth';
 import InstallPrompt from './components/InstallPrompt';
+import AnnouncementPopup from './components/AnnouncementPopup';
 // Gardés en chargement immédiat : la 1re page (Login), le garde de route et le shell admin
 // (partagé par toutes les pages admin, donc mieux vaut le charger une seule fois).
 import Login from './pages/Login';
@@ -25,6 +26,7 @@ const Messaging = lazy(() => import('./pages/Messaging'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Resources = lazy(() => import('./pages/Resources'));
 const EmployeeAssistant = lazy(() => import('./pages/EmployeeAssistant'));
+const Announcements = lazy(() => import('./pages/Announcements'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminCreateTask = lazy(() => import('./pages/admin/AdminCreateTask'));
 const AdminListView = lazy(() => import('./pages/admin/AdminListView'));
@@ -71,6 +73,7 @@ function App() {
     <BrowserRouter>
       <Toaster position="top-right" />
       <InstallPrompt />
+      <AnnouncementPopup />
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -160,6 +163,14 @@ function App() {
           element={
             <ProtectedRoute>
               <EmployeeAssistant />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/announcements"
+          element={
+            <ProtectedRoute>
+              <Announcements />
             </ProtectedRoute>
           }
         />

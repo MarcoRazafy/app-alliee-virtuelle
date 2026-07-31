@@ -23,8 +23,10 @@ import {
   IconSearch,
   IconLock,
   IconMenu,
+  IconBell,
   IconX,
 } from '../icons';
+import useAnnouncementUnread from '../../hooks/useAnnouncementUnread';
 import '../../styles/app.css';
 import '../../styles/layout.css';
 
@@ -36,11 +38,13 @@ const NAV_ITEMS = [
   { to: '/stats', label: 'Stats', icon: IconBarChart },
   { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
   { to: '/resources', label: 'Ressources', icon: IconFolder },
+  { to: '/announcements', label: 'Annonces', icon: IconBell },
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
 
 function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, children }) {
   const location = useLocation();
+  const { unread: announcementUnread } = useAnnouncementUnread();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
@@ -161,6 +165,9 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
               <Link key={to} to={to} className={`sidebar-link${isActive ? ' sidebar-link--active' : ''}`}>
                 <Icon />
                 <span>{label}</span>
+                {to === '/announcements' && announcementUnread > 0 && (
+                  <span className="sidebar-badge">{announcementUnread}</span>
+                )}
               </Link>
             );
           })}
