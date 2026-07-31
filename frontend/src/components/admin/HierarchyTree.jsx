@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import * as hierarchyService from '../../services/hierarchyService';
 import { notifySuccess, notifyError } from '../../utils/toast';
-import { IconLayers, IconFolder, IconChecklist, IconChevronDown, IconPlus, IconTrash } from '../icons';
+import { IconLayers, IconFolder, IconChecklist, IconChevronDown, IconPlus, IconPencil, IconTrash } from '../icons';
 
 // Arbre Space > Folder > List. onSelectList(listId, list) est appelé au clic sur
 // une liste, pour que la page parente puisse filtrer ses tâches sur cette liste.
@@ -16,6 +16,9 @@ function HierarchyTree({
   // Un seul formulaire de création ouvert à la fois : { type: 'space'|'folder'|'list', parentId }
   const [creating, setCreating] = useState(null);
   const [newName, setNewName] = useState('');
+  // Renommage inline : { type, id } du nœud en cours de renommage.
+  const [renaming, setRenaming] = useState(null);
+  const [renameName, setRenameName] = useState('');
   // Noeuds repliés (par id d'espace/dossier). Par défaut tout est déplié.
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [busyId, setBusyId] = useState(null);
@@ -41,6 +44,48 @@ function HierarchyTree({
   function startCreating(type, parentId) {
     setCreating({ type, parentId });
     setNewName('');
+    setRenaming(null);
+  }
+
+  function startRenaming(type, item) {
+    setRenaming({ type, id: item.id });
+    setRenameName(item.name);
+    setCreating(null);
+  }
+
+  async function handleRename(e, type, id) {
+    e.preventDefault();
+    if (!renameName.trim()) return;
+    try {
+      if (type === 'space') await hierarchyService.updateSpace(id, { name: renameName.trim() });
+      if (type === 'folder') await hierarchyService.updateFolder(id, renameName.trim());
+      if (type === 'list') await hierarchyService.updateList(id, renameName.trim());
+      notifySuccess(type === 'space' ? 'Espace renommé' : type === 'folder' ? 'Projet renommé' : 'Liste renommée');
+      setRenaming(null);
+      loadTree();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de renommer cet élément');
+    }
+  }
+
+  function renderRenameForm(type, id) {
+    if (!renaming || renaming.type !== type || renaming.id !== id) return null;
+    return (
+      <form className="tree-create-form" onSubmit={(e) => handleRename(e, type, id)}>
+        <input
+          className="form-input"
+          value={renameName}
+          onChange={(e) => setRenameName(e.target.value)}
+          autoFocus
+        />
+        <button type="submit" className="tree-create-save">
+          Renommer
+        </button>
+        <button type="button" className="tree-create-cancel" onClick={() => setRenaming(null)}>
+          Annuler
+        </button>
+      </form>
+    );
   }
 
   async function handleCreate(e) {
@@ -150,6 +195,16 @@ function HierarchyTree({
                 </button>
                 <button
                   type="button"
+                  className="tree-node-action"
+                  title="Renommer l’espace"
+                  aria-label={`Renommer l’espace ${space.name}`}
+                  onClick={() => startRenaming('space', space)}
+                  disabled={Boolean(busyId)}
+                >
+                  <IconPencil />
+                </button>
+                <button
+                  type="button"
                   className="tree-node-action tree-node-action--danger"
                   title="Supprimer l’espace"
                   aria-label={`Supprimer l’espace ${space.name}`}
@@ -160,6 +215,7 @@ function HierarchyTree({
                 </button>
               </span>
             </div>
+            {renderRenameForm('space', space.id)}
             {renderCreateForm('folder', space.id, 'Nom du projet')}
 
             {spaceOpen &&
@@ -193,6 +249,16 @@ function HierarchyTree({
                         </button>
                         <button
                           type="button"
+                          className="tree-node-action"
+                          title="Renommer le projet"
+                          aria-label={`Renommer le projet ${folder.name}`}
+                          onClick={() => startRenaming('folder', folder)}
+                          disabled={Boolean(busyId)}
+                        >
+                          <IconPencil />
+                        </button>
+                        <button
+                          type="button"
                           className="tree-node-action tree-node-action--danger"
                           title="Supprimer le projet"
                           aria-label={`Supprimer le projet ${folder.name}`}
@@ -203,6 +269,7 @@ function HierarchyTree({
                         </button>
                       </span>
                     </div>
+                    {renderRenameForm('folder', folder.id)}
                     {renderCreateForm('list', folder.id, 'Nom de la liste')}
 
                     {folderOpen && folder.lists.length === 0 && (
@@ -210,8 +277,8 @@ function HierarchyTree({
                     )}
                     {folderOpen &&
                       folder.lists.map((list) => (
+                        <Fragment key={list.id}>
                         <div
-                          key={list.id}
                           className={`tree-row tree-list-item${
                             selectedListId === list.id ? ' tree-list-item--active' : ''
                           }`}
@@ -241,6 +308,16 @@ function HierarchyTree({
                             </button>
                             <button
                               type="button"
+                              className="tree-node-action"
+                              title="Renommer la liste"
+                              aria-label={`Renommer la liste ${list.name}`}
+                              onClick={() => startRenaming('list', list)}
+                              disabled={Boolean(busyId)}
+                            >
+                              <IconPencil />
+                            </button>
+                            <button
+                              type="button"
                               className="tree-node-action tree-node-action--danger"
                               title="Supprimer la liste"
                               aria-label={`Supprimer la liste ${list.name}`}
@@ -251,6 +328,8 @@ function HierarchyTree({
                             </button>
                           </span>
                         </div>
+                        {renderRenameForm('list', list.id)}
+                        </Fragment>
                       ))}
                   </div>
                 );
