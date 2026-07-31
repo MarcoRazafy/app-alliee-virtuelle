@@ -265,6 +265,18 @@ async function stopSession(sessionId, client = db) {
   return result.rows[0];
 }
 
+// Saisie manuelle d'un temps de travail (admin) : chrono oublié, on enregistre a posteriori
+// une plage début→fin déjà terminée. La durée est calculée par la BD.
+async function addManualTimelog(taskId, employeeId, startTime, endTime, client = db) {
+  const result = await client.query(
+    `INSERT INTO timelog (task_id, employee_id, start_time, end_time, duration_seconds)
+     VALUES ($1, $2, $3, $4, EXTRACT(EPOCH FROM ($4::timestamp - $3::timestamp))::INTEGER)
+     RETURNING id, task_id, start_time, end_time, duration_seconds`,
+    [taskId, employeeId, startTime, endTime]
+  );
+  return result.rows[0];
+}
+
 async function findTimelogHistory(taskId) {
   const result = await db.query(
     `SELECT start_time, end_time, duration_seconds
@@ -613,6 +625,7 @@ module.exports = {
   createAttachment,
   deleteAttachment,
   deleteTask,
+  addManualTimelog,
   findLateTasks,
   findTasksForEmployee,
   computeEmployeeStats,

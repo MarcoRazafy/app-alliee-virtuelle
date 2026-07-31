@@ -21,6 +21,7 @@ const ACTION_LABELS = {
   CREATE_TASK: 'a créé une tâche',
   DELETE_TASK: 'a supprimé une tâche',
   START_TIMELOG: 'a démarré un chrono',
+  ADD_MANUAL_TIMELOG: 'a ajouté du temps manuellement',
   STOP_TIMELOG: 'a arrêté un chrono',
   AUTO_STOP_TIMELOG: 'a arrêté automatiquement un chrono',
   AUTO_STOP_TIMELOG_LOGOUT: 'a arrêté un chrono en se déconnectant',
