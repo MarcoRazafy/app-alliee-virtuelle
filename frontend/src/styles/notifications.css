@@ -81,6 +81,18 @@
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
 }
 
+/* Notification cliquable (#8) : redirige vers la page de l'action au clic. */
+.notification-item--clickable {
+  cursor: pointer;
+}
+.notification-item--clickable:hover {
+  background: color-mix(in srgb, var(--color-accent) 13%, transparent);
+}
+.notification-item--clickable:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
 .notification-item-icon {
   display: inline-flex;
   align-items: center;
