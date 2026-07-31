@@ -52,6 +52,12 @@ async function register(req, res, next) {
       birthDate,
     });
 
+    // Notification in-app aux administrateurs (via l'audit_log → centre de notifications +
+    // temps réel). L'auteur = le nouvel utilisateur, donc les admins la voient. Best-effort.
+    taskModel
+      .recordAudit({ userId: user.id, action: 'REGISTER_USER', entityType: 'user', entityId: user.id })
+      .catch(() => {});
+
     // Prévient les administrateurs qu'une inscription attend validation (best-effort : ne doit
     // jamais faire échouer l'inscription si l'email ou la base admin pose problème).
     userModel

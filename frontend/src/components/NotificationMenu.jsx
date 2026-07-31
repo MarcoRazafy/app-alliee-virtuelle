@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as notificationService from '../services/notificationService';
 import { getSocket } from '../services/socket';
 import { getUser } from '../services/auth';
@@ -31,6 +32,7 @@ const ACTION_LABELS = {
   APPROVE_EXTRA_TASK: 'a approuvé une demande de tâche',
   REJECT_EXTRA_TASK: 'a refusé une demande de tâche',
   DELETE_TASK_ATTACHMENT: 'a supprimé une pièce jointe',
+  REGISTER_USER: "s'est inscrit et attend une validation",
   APPROVE_USER: 'a approuvé un compte',
   REJECT_USER: 'a refusé un compte',
   SUSPEND_USER: 'a suspendu un compte',
@@ -86,13 +88,41 @@ function eventText(item) {
   };
 }
 
+// Cible de redirection quand on clique sur une notification (#8) : selon le type d'entité et le
+// rôle, on ouvre la page où l'action se réalise (valider un accès, une tâche, un planning…).
+// Renvoie null si aucune page pertinente (la notif n'est alors pas cliquable).
+function resolveLink(item, isAdmin) {
+  const { entity_type: type, entity_id: id, action, details } = item;
+  if (type === 'task') return `/tasks/${id}`;
+  if (type === 'task_attachment' && details?.task_id) return `/tasks/${details.task_id}`;
+  if (type === 'extra_task_requests') return isAdmin ? '/admin/task-requests' : '/tasks';
+  if (type === 'weekly_planning' || type === 'attendance_override') {
+    return isAdmin ? '/admin/planning' : '/planning';
+  }
+  if (type === 'user') return isAdmin ? '/admin/users' : null; // inscription / validation d'accès
+  if (type && type.startsWith('resources_')) return isAdmin ? '/admin/resources' : '/resources';
+  if (type && type.startsWith('task_')) return isAdmin ? '/admin/lists' : '/tasks'; // espace/projet/liste
+  if (action === 'VALIDATE_MY_DAY') return isAdmin ? '/admin/validate' : null;
+  return null;
+}
+
 function NotificationMenu() {
+  const navigate = useNavigate();
+  const isAdmin = getUser()?.role === 'ADMIN';
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const rootRef = useRef(null);
+
+  // Clic sur une notification : redirige vers la page de l'action (si pertinente) et ferme le menu.
+  function handleItemClick(item) {
+    const link = resolveLink(item, isAdmin);
+    if (!link) return;
+    setOpen(false);
+    navigate(link);
+  }
 
   async function load() {
     try {
@@ -214,10 +244,24 @@ function NotificationMenu() {
               items.map((item) => {
                 const EventIcon = getEventIcon(item);
                 const text = eventText(item);
+                const clickable = Boolean(resolveLink(item, isAdmin));
                 return (
                   <article
                     key={item.id}
-                    className={`notification-item${item.is_unread ? ' notification-item--unread' : ''}`}
+                    className={`notification-item${item.is_unread ? ' notification-item--unread' : ''}${clickable ? ' notification-item--clickable' : ''}`}
+                    onClick={clickable ? () => handleItemClick(item) : undefined}
+                    role={clickable ? 'button' : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    onKeyDown={
+                      clickable
+                        ? (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleItemClick(item);
+                            }
+                          }
+                        : undefined
+                    }
                   >
                     <span className="notification-item-icon">
                       <EventIcon />
