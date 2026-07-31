@@ -33,14 +33,14 @@ async function getTask(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
 
     const isOwner = task.assigned_to === req.user.id;
     const isAdmin = req.user.role === 'ADMIN';
-    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) return res.status(404).json({ error: 'Task not found' });
+    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) return res.status(404).json({ error: 'Tâche introuvable' });
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     res.status(200).json({
@@ -63,8 +63,8 @@ async function getTask(req, res, next) {
 async function validateTask(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
-    if (!task) return res.status(404).json({ error: 'Task not found' });
-    if (task.status !== taskModel.TASK_STATUS.DECLARED) return res.status(409).json({ error: 'Only declared tasks can be validated' });
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+    if (task.status !== taskModel.TASK_STATUS.DECLARED) return res.status(409).json({ error: 'Seules les tâches déclarées peuvent être validées' });
     return res.json(await taskModel.updateStatus(task.id, taskModel.TASK_STATUS.VALIDATED));
   } catch (err) { return next(err); }
 }
@@ -74,12 +74,12 @@ async function getTaskDetail(req, res, next) {
     const { id } = req.params;
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
 
     const isAdmin = req.user.role === 'ADMIN';
     if (!canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     const detail = await taskModel.getTaskDetail(id);
@@ -98,10 +98,10 @@ async function getSubtasks(req, res, next) {
     const { id } = req.params;
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (!canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     const isAdmin = req.user.role === 'ADMIN';
@@ -136,8 +136,8 @@ async function createTask(req, res, next) {
 
     const errors = [];
 
-    if (!isValidTitle(title)) errors.push('Title is required (fewer than 255 characters)');
-    if (!isValidPriority(priority)) errors.push('Invalid priority');
+    if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
+    if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!isFutureDate(deadline)) errors.push("La deadline doit être postérieure à aujourd'hui");
     if (isAdmin && !assigned_to) errors.push('assigned_to est requis');
     if (isAdmin && clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
@@ -148,14 +148,14 @@ async function createTask(req, res, next) {
 
     const assignee = await userModel.findById(targetAssignee);
     if (!assignee) {
-      return res.status(400).json({ error: 'Assigned user not found' });
+      return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
     }
 
     // list_id et parent_task_id sont optionnels (tâche "libre" hors hiérarchie)
     if (isAdmin && parentTaskId) {
       const parentTask = await taskModel.findById(parentTaskId);
       if (!parentTask) {
-        return res.status(400).json({ error: 'Parent task not found' });
+        return res.status(400).json({ error: 'Tâche parente introuvable' });
       }
     }
 
@@ -209,10 +209,10 @@ async function startTimelog(req, res, next) {
     const task = await taskModel.findById(taskId);
 
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (task.assigned_to !== req.user.id) {
-      return res.status(403).json({ error: 'This task is not assigned to you' });
+      return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
     // VALIDEE/TERMINEE : premier démarrage ou redémarrage après complétion.
     // EN_COURS : reprise d'une tâche mise en pause (chrono arrêté mais tâche pas terminée).
@@ -222,7 +222,7 @@ async function startTimelog(req, res, next) {
       taskModel.TASK_STATUS.DONE,
     ];
     if (!startableStatuses.includes(task.status)) {
-      return res.status(400).json({ error: 'The timer cannot be started from this status' });
+      return res.status(400).json({ error: 'Le chrono ne peut pas être démarré depuis ce statut' });
     }
 
     const isResuming = task.status === taskModel.TASK_STATUS.IN_PROGRESS;
@@ -233,7 +233,7 @@ async function startTimelog(req, res, next) {
 
       if (activeSession) {
         if (activeSession.task_id === taskId) {
-          const alreadyRunning = new Error('The timer is already running on this task');
+          const alreadyRunning = new Error('Le chrono est déjà actif sur cette tâche');
           alreadyRunning.status = 409;
           throw alreadyRunning;
         }
@@ -301,15 +301,15 @@ async function stopTimelog(req, res, next) {
     const task = await taskModel.findById(taskId);
 
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (task.assigned_to !== req.user.id) {
-      return res.status(403).json({ error: 'This task is not assigned to you' });
+      return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
 
     const activeSession = await taskModel.findActiveSessionForTask(taskId, req.user.id);
     if (!activeSession) {
-      return res.status(404).json({ error: 'No active timer session on this task' });
+      return res.status(404).json({ error: 'Aucune session de chrono active sur cette tâche' });
     }
 
     const stopped = await taskModel.stopSession(activeSession.id);
@@ -338,10 +338,10 @@ async function getTimelogHistory(req, res, next) {
     const task = await taskModel.findById(taskId);
 
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (task.assigned_to !== req.user.id && req.user.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     const history = await taskModel.findTimelogHistory(taskId);
@@ -380,14 +380,14 @@ async function setMyDay(req, res, next) {
     const { task_ids: taskIds } = req.body;
 
     if (!Array.isArray(taskIds)) {
-      return res.status(400).json({ error: 'task_ids must be an array' });
+      return res.status(400).json({ error: 'task_ids doit être un tableau' });
     }
 
     // Vérifie que chaque tâche est bien assignée à l'employé avant de l'ajouter à sa sélection
     for (const taskId of taskIds) {
       const task = await taskModel.findById(taskId);
       if (!task || task.assigned_to !== req.user.id) {
-        return res.status(400).json({ error: `Task ${taskId} invalid or not assigned` });
+        return res.status(400).json({ error: `Tâche ${taskId} invalide ou non assignée` });
       }
     }
 
@@ -421,7 +421,7 @@ async function validateMyDay(req, res, next) {
     const date = todayDateString();
     const updatedCount = await taskModel.validateDailySelection(req.user.id, date);
     if (updatedCount === 0) {
-      return res.status(400).json({ error: 'Select at least one task before validating your day' });
+      return res.status(400).json({ error: 'Sélectionnez au moins une tâche avant de valider votre journée' });
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -451,13 +451,13 @@ async function completeTask(req, res, next) {
     const task = await taskModel.findById(id);
 
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (task.assigned_to !== req.user.id) {
-      return res.status(403).json({ error: 'This task is not assigned to you' });
+      return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
     if (task.status !== taskModel.TASK_STATUS.IN_PROGRESS) {
-      return res.status(400).json({ error: 'Only an In progress task can be marked Completed' });
+      return res.status(400).json({ error: 'Seule une tâche En cours peut être marquée Terminée' });
     }
 
     await db.withTransaction(async (client) => {
@@ -500,10 +500,10 @@ async function confirmTask(req, res, next) {
     const task = await taskModel.findById(id);
 
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (task.status !== taskModel.TASK_STATUS.DONE) {
-      return res.status(400).json({ error: 'Only a Completed task can be confirmed' });
+      return res.status(400).json({ error: 'Seule une tâche Terminée peut être confirmée' });
     }
 
     await db.withTransaction(async (client) => {
@@ -517,7 +517,7 @@ async function confirmTask(req, res, next) {
         [taskModel.TASK_STATUS.CONFIRMED, id, taskModel.TASK_STATUS.DONE]
       );
       if (updated.rowCount === 0) {
-        const conflict = new Error('The task is no longer in the Completed status');
+        const conflict = new Error('La tâche n’est plus au statut Terminée');
         conflict.status = 409;
         throw conflict;
       }
@@ -554,15 +554,15 @@ async function rejectTask(req, res, next) {
     const { motif } = req.body;
 
     if (!motif || !motif.trim()) {
-      return res.status(400).json({ error: 'The reason is required' });
+      return res.status(400).json({ error: 'Le motif est requis' });
     }
 
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (task.status !== taskModel.TASK_STATUS.DONE) {
-      return res.status(400).json({ error: 'Only a Completed task can be sent back' });
+      return res.status(400).json({ error: 'Seule une tâche Terminée peut être renvoyée' });
     }
 
     await db.withTransaction(async (client) => {
@@ -600,10 +600,10 @@ async function getComments(req, res, next) {
     const { id } = req.params;
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (!canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     const comments = await taskModel.findComments(id, { onlyType: 'COMMENT' });
@@ -619,15 +619,15 @@ async function createComment(req, res, next) {
     const { content } = req.body;
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ error: 'The content is required' });
+      return res.status(400).json({ error: 'Le contenu est requis' });
     }
 
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (!canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     const comment = await taskModel.createComment({
@@ -650,7 +650,7 @@ async function getNotes(req, res, next) {
     const { id } = req.params;
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
 
     const notes = await taskModel.findComments(id, { onlyType: 'NOTE' });
@@ -666,12 +666,12 @@ async function createNote(req, res, next) {
     const { content } = req.body;
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ error: 'The content is required' });
+      return res.status(400).json({ error: 'Le contenu est requis' });
     }
 
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
 
     const note = await taskModel.createComment({
@@ -702,10 +702,10 @@ async function getAttachments(req, res, next) {
     const { id } = req.params;
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (!canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     const attachments = await taskModel.findAttachments(id);
@@ -720,13 +720,13 @@ async function uploadAttachment(req, res, next) {
     const { id } = req.params;
     const task = await taskModel.findById(id);
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: 'Tâche introuvable' });
     }
     if (!canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
     if (!req.file) {
-      return res.status(400).json({ error: 'File required' });
+      return res.status(400).json({ error: 'Fichier requis' });
     }
 
     const attachment = await taskModel.createAttachment({
@@ -749,12 +749,12 @@ async function downloadAttachment(req, res, next) {
     const { fileId } = req.params;
     const attachment = await taskModel.findAttachmentById(fileId);
     if (!attachment) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ error: 'Fichier introuvable' });
     }
 
     const task = await taskModel.findById(attachment.task_id);
     if (!task || !canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this file' });
+      return res.status(403).json({ error: 'Accès refusé à ce fichier' });
     }
 
     res.download(attachment.file_path, attachment.file_name);
@@ -768,12 +768,12 @@ async function deleteAttachment(req, res, next) {
     const { id, fileId } = req.params;
     const attachment = await taskModel.findAttachmentById(fileId);
     if (!attachment || attachment.task_id !== id) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ error: 'Fichier introuvable' });
     }
 
     const task = await taskModel.findById(id);
     if (!task || !canAccessTask(task, req.user)) {
-      return res.status(403).json({ error: 'Access denied to this task' });
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
     await taskModel.deleteAttachment(fileId);
@@ -800,7 +800,7 @@ async function createExtraTaskRequest(req, res, next) {
   try {
     const { task_id: taskId, message } = req.body;
     if (!taskId) {
-      return res.status(400).json({ error: 'task_id is required' });
+      return res.status(400).json({ error: 'task_id est requis' });
     }
 
     const date = todayDateString();
@@ -809,23 +809,23 @@ async function createExtraTaskRequest(req, res, next) {
     const selection = await taskModel.findDailySelection(req.user.id, date);
     const dayValidated = selection.length > 0 && selection.every((row) => row.validated_at);
     if (!dayValidated) {
-      return res.status(400).json({ error: 'Validate your day first before requesting an extra task' });
+      return res.status(400).json({ error: "Validez d'abord votre journée avant de demander une tâche supplémentaire" });
     }
 
     const task = await taskModel.findById(taskId);
     if (!task || task.assigned_to !== req.user.id) {
-      return res.status(400).json({ error: 'Invalid or unassigned task' });
+      return res.status(400).json({ error: 'Tâche invalide ou non assignée' });
     }
     // On ne demande que des tâches encore actionnables (pas déjà terminées/confirmées).
     if (![taskModel.TASK_STATUS.VALIDATED, taskModel.TASK_STATUS.IN_PROGRESS].includes(task.status)) {
-      return res.status(400).json({ error: 'This task is not available' });
+      return res.status(400).json({ error: "Cette tâche n'est pas disponible" });
     }
     if (selection.some((row) => row.task_id === taskId)) {
-      return res.status(400).json({ error: 'This task is already in your day' });
+      return res.status(400).json({ error: 'Cette tâche est déjà dans votre journée' });
     }
     const existing = await extraTaskRequestModel.findPending(req.user.id, taskId, date);
     if (existing) {
-      return res.status(409).json({ error: 'A request is already pending for this task' });
+      return res.status(409).json({ error: 'Une demande est déjà en attente pour cette tâche' });
     }
 
     const request = await extraTaskRequestModel.create({ userId: req.user.id, taskId, date, message });
@@ -867,7 +867,7 @@ async function approveExtraTaskRequest(req, res, next) {
   try {
     const request = await extraTaskRequestModel.approve(req.params.id, req.user.id);
     if (!request) {
-      return res.status(404).json({ error: 'Request not found or already handled' });
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée' });
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -886,7 +886,7 @@ async function rejectExtraTaskRequest(req, res, next) {
   try {
     const request = await extraTaskRequestModel.reject(req.params.id, req.user.id, req.body?.note);
     if (!request) {
-      return res.status(404).json({ error: 'Request not found or already handled' });
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée' });
     }
     await taskModel.recordAudit({
       userId: req.user.id,

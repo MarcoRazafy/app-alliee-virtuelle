@@ -2,7 +2,6 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as statsService from '../../services/statsService';
 import * as taskService from '../../services/taskService';
 import { formatDurationShort } from '../../utils/formatters';
-import { priorityLabel, STATUS_PILL } from '../../utils/taskStatus';
 import { notifyError, notifyInfo } from '../../utils/toast';
 import '../../styles/admin-stats.css';
 import { PageSkeleton } from '../../components/Skeleton';
@@ -45,7 +44,7 @@ function AdminStatistics() {
       })
       .catch((err) => {
         if (cancelled) return;
-        notifyError(err.response?.data?.error || 'Unable to load statistics');
+        notifyError(err.response?.data?.error || 'Impossible de charger les statistiques');
         setStats(null);
       })
       .finally(() => {
@@ -108,14 +107,14 @@ function AdminStatistics() {
         allTasks.filter((t) => t.assigned_to === employeeId && t.deadline >= from && t.deadline <= to)
       );
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to load task details');
+      notifyError(err.response?.data?.error || 'Impossible de charger le détail des tâches');
     }
   }
 
   function handleExportCsv() {
     if (!stats) return;
     const rows = [
-      ['Employee', 'Total tasks', 'Completed', 'In progress', 'Overdue', '% completion', 'Hours worked'],
+      ['Employé', 'Total tâches', 'Complétées', 'En cours', 'En retard', '% complétion', 'Heures travaillées'],
       ...sortedByEmployee.map((e) => [
         e.full_name,
         e.total_tasks,
@@ -126,7 +125,7 @@ function AdminStatistics() {
         formatDurationShort(e.hours_worked_seconds),
       ]),
     ];
-    downloadCsv(`team_statistics_${from}_${to}.csv`, rows);
+    downloadCsv(`statistiques_equipe_${from}_${to}.csv`, rows);
   }
 
   const summary = stats?.summary || {};
@@ -135,13 +134,13 @@ function AdminStatistics() {
   const periodLabel = `${formatShortDate(from)} – ${formatShortDate(to)}`;
 
   const SORT_COLS = [
-    { key: 'full_name', label: 'Employee', align: 'left' },
+    { key: 'full_name', label: 'Employé', align: 'left' },
     { key: 'total_tasks', label: 'Total' },
-    { key: 'confirmed', label: 'Completed' },
-    { key: 'in_progress', label: 'In progress' },
-    { key: 'late', label: 'Overdue' },
-    { key: 'completion_rate', label: '% completion' },
-    { key: 'hours_worked_seconds', label: 'Hours' },
+    { key: 'confirmed', label: 'Complétées' },
+    { key: 'in_progress', label: 'En cours' },
+    { key: 'late', label: 'En retard' },
+    { key: 'completion_rate', label: '% complétion' },
+    { key: 'hours_worked_seconds', label: 'Heures' },
   ];
 
   if (loading && !stats) return <PageSkeleton variant="stats" />;
@@ -150,10 +149,10 @@ function AdminStatistics() {
     <div className="astat-page">
       <div className="astat-toolbar">
         <div>
-          <p className="astat-eyebrow">Team performance dashboard</p>
+          <p className="astat-eyebrow">Tableau de performance de l'équipe</p>
           <p className="astat-period">
             <Icon type="calendar" />
-            Period: <strong>{periodLabel}</strong>
+            Période : <strong>{periodLabel}</strong>
           </p>
         </div>
         <div className="astat-toolbar-actions">
@@ -161,13 +160,13 @@ function AdminStatistics() {
             <Icon type="download" />
             CSV
           </button>
-          <button type="button" className="btn-outline" onClick={() => notifyInfo('PDF export coming soon')}>
+          <button type="button" className="btn-outline" onClick={() => notifyInfo('Export PDF bientôt disponible')}>
             <Icon type="download" />
             PDF
           </button>
           <button type="button" className="astat-refresh" onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}>
             <Icon type="refresh" />
-            Refresh
+            Actualiser
           </button>
         </div>
       </div>
@@ -195,7 +194,7 @@ function AdminStatistics() {
       {loading && (
         <div className="astat-loading">
           <span className="admin-loading-spinner" />
-          <p>Loading statistics…</p>
+          <p>Chargement des statistiques…</p>
         </div>
       )}
 
@@ -205,60 +204,60 @@ function AdminStatistics() {
             <article className="astat-kpi">
               <span className="astat-kpi-icon"><Icon type="check" /></span>
               <div>
-                <p>Completed tasks</p>
+                <p>Tâches complétées</p>
                 <AnimatedNumber as="strong" value={summary.tasks_confirmed ?? 0} />
-                <span>Validated by an admin</span>
+                <span>Validées par un admin</span>
               </div>
             </article>
 
             <article className="astat-kpi astat-kpi--ring">
               <CompletionRing value={summary.completion_rate} />
               <div>
-                <p>Completion rate</p>
+                <p>Taux de complétion</p>
                 <AnimatedNumber
                   as="strong"
                   value={summary.completion_rate ?? 0}
                   format={(value) => `${Math.round(value)}%`}
                 />
-                <span>Over the period</span>
+                <span>Sur la période</span>
               </div>
             </article>
 
             <article className="astat-kpi">
               <span className="astat-kpi-icon"><Icon type="timer" /></span>
               <div>
-                <p>Average time / task</p>
+                <p>Temps moyen / tâche</p>
                 <AnimatedNumber
                   as="strong"
                   value={summary.average_time_per_task_seconds || 0}
                   format={(value) => formatDurationShort(Math.round(value))}
                 />
-                <span>Timed tasks</span>
+                <span>Tâches chronométrées</span>
               </div>
             </article>
 
             <article className="astat-kpi">
               <span className="astat-kpi-icon"><Icon type="clock" /></span>
               <div>
-                <p>Hours worked</p>
+                <p>Heures travaillées</p>
                 <AnimatedNumber
                   as="strong"
                   value={derived.totalHours}
                   format={(value) => formatDurationShort(Math.round(value))}
                 />
-                <span>Team total</span>
+                <span>Total équipe</span>
               </div>
             </article>
 
             <article className="astat-kpi">
               <span className="astat-kpi-icon"><Icon type="users" /></span>
               <div>
-                <p>Active employees</p>
+                <p>Employés actifs</p>
                 <strong>
                   <AnimatedNumber value={derived.activeEmployees} />
                   <small>/{derived.employeeCount}</small>
                 </strong>
-                <span>With activity</span>
+                <span>Avec activité</span>
               </div>
             </article>
           </div>
@@ -267,8 +266,8 @@ function AdminStatistics() {
             <section className="astat-panel astat-chart-panel">
               <header className="astat-panel-head">
                 <div>
-                  <p className="astat-panel-eyebrow">Trend</p>
-                  <h2>Activity over the period</h2>
+                  <p className="astat-panel-eyebrow">Évolution</p>
+                  <h2>Activité sur la période</h2>
                 </div>
                 <div className="astat-segmented astat-segmented--mini">
                   <button
@@ -276,14 +275,14 @@ function AdminStatistics() {
                     className={chartMetric === 'hours_worked_seconds' ? 'is-active' : ''}
                     onClick={() => setChartMetric('hours_worked_seconds')}
                   >
-                    Hours
+                    Heures
                   </button>
                   <button
                     type="button"
                     className={chartMetric === 'tasks_confirmed' ? 'is-active' : ''}
                     onClick={() => setChartMetric('tasks_confirmed')}
                   >
-                    Tasks
+                    Tâches
                   </button>
                 </div>
               </header>
@@ -293,8 +292,8 @@ function AdminStatistics() {
             <section className="astat-panel astat-donut-panel">
               <header className="astat-panel-head">
                 <div>
-                  <p className="astat-panel-eyebrow">Distribution</p>
-                  <h2>Tasks by status</h2>
+                  <p className="astat-panel-eyebrow">Répartition</p>
+                  <h2>Tâches par statut</h2>
                 </div>
               </header>
               <StatusDonut byStatus={stats.by_status} />
@@ -304,8 +303,8 @@ function AdminStatistics() {
           <section className="astat-panel astat-board-panel">
             <header className="astat-panel-head">
               <div>
-                <p className="astat-panel-eyebrow">Ranking</p>
-                <h2>Team top</h2>
+                <p className="astat-panel-eyebrow">Classement</p>
+                <h2>Top de l'équipe</h2>
               </div>
               <div className="astat-segmented astat-segmented--mini">
                 {LEADERBOARD_METRICS.map((m) => (
@@ -322,7 +321,7 @@ function AdminStatistics() {
             </header>
 
             {leaderboard.length === 0 ? (
-              <p className="astat-board-empty">No data to rank in this period.</p>
+              <p className="astat-board-empty">Aucune donnée à classer sur cette période.</p>
             ) : (
               <ol className="astat-board">
                 {leaderboard.map((e, i) => (
@@ -348,10 +347,10 @@ function AdminStatistics() {
           <section className="astat-panel astat-table-panel">
             <header className="astat-panel-head">
               <div>
-                <p className="astat-panel-eyebrow">Details</p>
-                <h2>By employee</h2>
+                <p className="astat-panel-eyebrow">Détail</p>
+                <h2>Par employé</h2>
               </div>
-              <span className="astat-table-hint">Click a row to see its tasks</span>
+              <span className="astat-table-hint">Cliquez une ligne pour voir ses tâches</span>
             </header>
 
             <div className="task-table-wrap">
@@ -400,14 +399,14 @@ function AdminStatistics() {
                         <tr className="astat-expand-row">
                           <td colSpan={7}>
                             {employeeTasks.length === 0 ? (
-                              <p className="astat-expand-empty">No task in this period.</p>
+                              <p className="astat-expand-empty">Aucune tâche sur cette période.</p>
                             ) : (
                               <ul className="astat-expand-list">
                                 {employeeTasks.map((t) => (
                                   <li key={t.id}>
                                     <span className="astat-expand-title">{t.title}</span>
                                     <span className="astat-expand-meta">
-                                      {priorityLabel(t.priority)} · {STATUS_PILL[t.status]?.label || t.status} · {t.deadline ? formatShortDate(t.deadline.slice(0, 10)) : '—'}
+                                      {t.priority} · {t.status} · {t.deadline ? formatShortDate(t.deadline.slice(0, 10)) : '—'}
                                     </span>
                                   </li>
                                 ))}

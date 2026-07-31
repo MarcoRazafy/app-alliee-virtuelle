@@ -69,7 +69,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
           setSessionSegmentsByDate(byDate);
           setSessionError('');
         })
-        .catch(() => setSessionError('Unable to load attendance. No absence status is inferred.'));
+        .catch(() => setSessionError('Impossible de charger la présence. Aucun statut d’absence n’est déduit.'));
     }
     refresh();
     const interval = window.setInterval(refresh, 15000);
@@ -142,7 +142,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
         generalNote: draftNote,
         days: payloadDays,
       });
-      notifySuccess('Schedule updated');
+      notifySuccess('Planning mis à jour');
       onSaved(result);
     } catch (err) {
       const data = err.response?.data;
@@ -175,7 +175,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
             <span className="aplan-modal-avatar">{initials(detail?.user?.full_name)}</span>
           )}
           <div className="aplan-modal-identity">
-            <h2 id="aplan-detail-title">{detail?.user ? detail.user.full_name : 'Schedule details'}</h2>
+            <h2 id="aplan-detail-title">{detail?.user ? detail.user.full_name : 'Détail du planning'}</h2>
             <p>
               <IconCalendarWeek />
               {detail ? formatWeekRange(detail.week_start_date, detail.week_end_date) : ''}
@@ -186,7 +186,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
               {EFFECTIVE_STATUS_LABELS[detail.effective_status] || detail.effective_status}
             </span>
           )}
-          <button type="button" className="aplan-modal-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="aplan-modal-close" onClick={onClose} aria-label="Fermer">
             <IconX />
           </button>
         </header>
@@ -195,7 +195,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
           {loading && (
             <div className="admin-loading">
               <span className="admin-loading-spinner" />
-              <p>Loading the schedule…</p>
+              <p>Chargement du planning…</p>
             </div>
           )}
 
@@ -205,7 +205,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
                 <div className="info-banner info-banner--planning-warning">
                   <IconAlert />
                   <span>
-                    Modified by {detail.planning.last_modified_by_name || 'an administrator'} on{' '}
+                    Modifié par {detail.planning.last_modified_by_name || 'un administrateur'} le{' '}
                     {formatDateTime(detail.planning.admin_modified_at)}
                     {detail.planning.last_admin_change_reason
                       ? `. Motif : ${detail.planning.last_admin_change_reason}`
@@ -217,17 +217,17 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
               <div className="aplan-modal-toolbar">
                 <span className="aplan-modal-total">
                   <IconClock />
-                  Total declared: <strong>{totalHours} h</strong>
+                  Total déclaré : <strong>{totalHours} h</strong>
                 </span>
                 <button type="button" className="app-link" onClick={handleToggleHistory}>
-                  {showHistory ? 'Hide history' : 'View history'}
+                  {showHistory ? "Masquer l'historique" : "Voir l'historique"}
                 </button>
               </div>
 
               {showHistory && (
                 <div className="aplan-history">
-                  {!history && <p className="planning-day-empty">Loading history…</p>}
-                  {history && history.length === 0 && <p className="planning-day-empty">No history.</p>}
+                  {!history && <p className="planning-day-empty">Chargement de l'historique…</p>}
+                  {history && history.length === 0 && <p className="planning-day-empty">Aucun historique.</p>}
                   {history && history.length > 0 && (
                     <ul>
                       {history.map((entry) => (
@@ -258,8 +258,8 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
               )}
 
               <p className="aplan-modal-hint">
-                Drag in a column to create a slot, drag its edges to adjust it. The colored dots
-                set the day's status.
+                Glissez dans une colonne pour créer une plage, faites glisser ses bords pour l'ajuster. Les points de
+                couleur définissent le statut du jour.
               </p>
 
               {sessionError && (
@@ -280,8 +280,8 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
                 sessionSegmentsByDate={sessionSegmentsByDate}
               />
 
-              <p className="cal-session-legend" aria-label="Actual presence legend">
-                Actual presence:
+              <p className="cal-session-legend" aria-label="Légende de présence réelle">
+                Présence réelle :
                 <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--ontime" /> conforme</span>
                 <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--late" /> retard</span>
                 <span><span aria-hidden="true" className="cal-session-legend-swatch cal-session-legend-swatch--off" /> hors planning</span>
@@ -289,7 +289,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
               </p>
 
               <label className="planning-general-note aplan-note">
-                <span>General note (optional)</span>
+                <span>Note générale (facultatif)</span>
                 <textarea rows="2" value={draftNote} onChange={(e) => setDraftNote(e.target.value)} />
               </label>
 
@@ -299,7 +299,7 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
                   rows="2"
                   value={changeReason}
                   onChange={(e) => setChangeReason(e.target.value)}
-                  placeholder="e.g. Unexpected absence, replacement… (optional)"
+                  placeholder="Ex : Absence imprévue, remplacement… (optionnel)"
                 />
               </label>
             </>
@@ -308,11 +308,11 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
 
         <footer className="aplan-modal-foot">
           <button type="button" className="btn-outline" onClick={onClose}>
-            Cancel
+            Annuler
           </button>
           <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || loading}>
             {saving && <span className="btn-spinner" />}
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </button>
         </footer>
       </section>

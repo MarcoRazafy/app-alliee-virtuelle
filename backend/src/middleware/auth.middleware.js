@@ -9,21 +9,21 @@ function authMiddleware(req, res, next) {
   const token = parseCookieHeader(req.headers.cookie)[AUTH_COOKIE] || bearer;
 
   if (!token) {
-    return res.status(401).json({ error: 'Authentication token missing' });
+    return res.status(401).json({ error: "Jeton d'authentification manquant" });
   }
 
   try {
     req.user = verifyToken(token);
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Token invalide ou expiré' });
   }
 }
 
 function requireRole(...roles) {
   return function (req, res, next) {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: 'Accès refusé' });
     }
     next();
   };

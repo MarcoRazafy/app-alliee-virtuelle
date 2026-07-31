@@ -17,9 +17,9 @@ import '../../styles/admin.css';
 
 const PRIORITIES = [
   { value: 'URGENT', label: 'Urgent', cls: 'urgent' },
-  { value: 'HAUTE', label: 'High', cls: 'haute' },
-  { value: 'NORMALE', label: 'Normal', cls: 'normale' },
-  { value: 'FAIBLE', label: 'Low', cls: 'faible' },
+  { value: 'HAUTE', label: 'Haute', cls: 'haute' },
+  { value: 'NORMALE', label: 'Normale', cls: 'normale' },
+  { value: 'FAIBLE', label: 'Faible', cls: 'faible' },
 ];
 
 const EMPTY_FORM = {
@@ -102,9 +102,9 @@ function AdminCreateTask() {
       setSelectedSpaceId(space.id);
       setNewSpaceName('');
       setShowNewSpace(false);
-      notifySuccess('Space created');
+      notifySuccess('Espace créé');
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to create the space');
+      notifyError(err.response?.data?.error || "Impossible de créer l'espace");
     }
   }
 
@@ -117,9 +117,9 @@ function AdminCreateTask() {
       setSelectedFolderId(folder.id);
       setNewFolderName('');
       setShowNewFolder(false);
-      notifySuccess('Folder created');
+      notifySuccess('Dossier créé');
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to create the folder');
+      notifyError(err.response?.data?.error || 'Impossible de créer le dossier');
     }
   }
 
@@ -132,9 +132,9 @@ function AdminCreateTask() {
       setForm((prev) => ({ ...prev, list_id: list.id }));
       setNewListName('');
       setShowNewList(false);
-      notifySuccess('List created');
+      notifySuccess('Liste créée');
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to create the list');
+      notifyError(err.response?.data?.error || 'Impossible de créer la liste');
     }
   }
 
@@ -153,11 +153,11 @@ function AdminCreateTask() {
       if (!payload.client_name) delete payload.client_name;
       if (!payload.client_email) delete payload.client_email;
       await taskService.createTask(payload);
-      notifySuccess('Task sent to the employee: it can be started immediately');
+      notifySuccess("Tâche envoyée à l'employé : elle peut être démarrée immédiatement");
       resetAll();
     } catch (err) {
       const data = err.response?.data;
-      notifyError(data?.errors?.join(', ') || data?.error || 'Unable to create the task');
+      notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
     } finally {
       setSubmitting(false);
     }
@@ -180,12 +180,12 @@ function AdminCreateTask() {
         <section className="admin-form-card">
           <h2 className="admin-form-card-title">
             <IconChecklist />
-            Task details
+            Détails de la tâche
           </h2>
 
           <div className="form-field">
             <label className="form-label" htmlFor="title">
-              Title <span className="form-required">*</span>
+              Titre <span className="form-required">*</span>
             </label>
             <input
               id="title"
@@ -193,7 +193,7 @@ function AdminCreateTask() {
               className="form-input"
               value={form.title}
               onChange={handleChange}
-              placeholder="e.g. Write the monthly report"
+              placeholder="Ex. Rédiger le rapport mensuel"
               required
             />
           </div>
@@ -209,12 +209,12 @@ function AdminCreateTask() {
               value={form.description}
               onChange={handleChange}
               rows={4}
-              placeholder="Specify the context, expectations, deliverables…"
+              placeholder="Précisez le contexte, les attentes, les livrables…"
             />
           </div>
 
           <div className="form-field">
-            <span className="form-label">Priority</span>
+            <span className="form-label">Priorité</span>
             <div className="priority-chip-row">
               {PRIORITIES.map((p) => (
                 <button
@@ -232,7 +232,7 @@ function AdminCreateTask() {
 
           <div className="form-field">
             <label className="form-label" htmlFor="assigned_to">
-              Assigned employee <span className="form-required">*</span>
+              Employé assigné <span className="form-required">*</span>
             </label>
             <select
               id="assigned_to"
@@ -242,7 +242,7 @@ function AdminCreateTask() {
               onChange={handleChange}
               required
             >
-              <option value="">Choose an employee…</option>
+              <option value="">Choisir un employé…</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.full_name} ({emp.position})
@@ -256,12 +256,12 @@ function AdminCreateTask() {
         <section className="admin-form-card">
           <h2 className="admin-form-card-title">
             <IconCalendarWeek />
-            Scheduling
+            Planification
           </h2>
           <div className="form-row">
             <div className="form-field">
               <label className="form-label" htmlFor="start_date">
-                Start date
+                Date de début
               </label>
               <input
                 id="start_date"
@@ -274,7 +274,7 @@ function AdminCreateTask() {
             </div>
             <div className="form-field">
               <label className="form-label" htmlFor="deadline">
-                Deadline <span className="form-required">*</span>
+                Échéance <span className="form-required">*</span>
               </label>
               <input
                 id="deadline"
@@ -293,16 +293,16 @@ function AdminCreateTask() {
         <section className="admin-form-card">
           <h2 className="admin-form-card-title">
             <IconFolder />
-            Location <span className="admin-form-card-optional">optional</span>
+            Emplacement <span className="admin-form-card-optional">optionnel</span>
           </h2>
 
           <div className="form-field">
             <label className="form-label" htmlFor="space">
-              Space
+              Espace
             </label>
             <div className="form-inline">
               <select id="space" className="form-select" value={selectedSpaceId} onChange={(e) => setSelectedSpaceId(e.target.value)}>
-                <option value="">No space (free task)</option>
+                <option value="">Aucun espace (tâche libre)</option>
                 {spaces.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -310,20 +310,20 @@ function AdminCreateTask() {
                 ))}
               </select>
               <button type="button" className="form-add-btn" onClick={() => setShowNewSpace((v) => !v)}>
-                + Space
+                + Espace
               </button>
             </div>
             {showNewSpace && (
               <div className="form-quick-add">
                 <input
                   className="form-input"
-                  placeholder="Space name"
+                  placeholder="Nom de l'espace"
                   value={newSpaceName}
                   onChange={(e) => setNewSpaceName(e.target.value)}
                   autoFocus
                 />
                 <button type="button" className="btn-outline form-quick-add-btn" onClick={handleCreateSpace}>
-                  Create
+                  Créer
                 </button>
               </div>
             )}
@@ -331,7 +331,7 @@ function AdminCreateTask() {
 
           <div className="form-field">
             <label className="form-label" htmlFor="folder">
-              Folder
+              Dossier
             </label>
             <div className="form-inline">
               <select
@@ -341,7 +341,7 @@ function AdminCreateTask() {
                 disabled={!selectedSpaceId}
                 onChange={(e) => setSelectedFolderId(e.target.value)}
               >
-                <option value="">No folder</option>
+                <option value="">Aucun dossier</option>
                 {folders.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
@@ -354,20 +354,20 @@ function AdminCreateTask() {
                 disabled={!selectedSpaceId}
                 onClick={() => setShowNewFolder((v) => !v)}
               >
-                + Folder
+                + Dossier
               </button>
             </div>
             {showNewFolder && (
               <div className="form-quick-add">
                 <input
                   className="form-input"
-                  placeholder="Folder name"
+                  placeholder="Nom du dossier"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
                   autoFocus
                 />
                 <button type="button" className="btn-outline form-quick-add-btn" onClick={handleCreateFolder}>
-                  Create
+                  Créer
                 </button>
               </div>
             )}
@@ -375,7 +375,7 @@ function AdminCreateTask() {
 
           <div className="form-field">
             <label className="form-label" htmlFor="list_id">
-              List
+              Liste
             </label>
             <div className="form-inline">
               <select
@@ -386,7 +386,7 @@ function AdminCreateTask() {
                 disabled={!selectedFolderId}
                 onChange={handleChange}
               >
-                <option value="">No list</option>
+                <option value="">Aucune liste</option>
                 {lists.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
@@ -399,20 +399,20 @@ function AdminCreateTask() {
                 disabled={!selectedFolderId}
                 onClick={() => setShowNewList((v) => !v)}
               >
-                + List
+                + Liste
               </button>
             </div>
             {showNewList && (
               <div className="form-quick-add">
                 <input
                   className="form-input"
-                  placeholder="List name"
+                  placeholder="Nom de la liste"
                   value={newListName}
                   onChange={(e) => setNewListName(e.target.value)}
                   autoFocus
                 />
                 <button type="button" className="btn-outline form-quick-add-btn" onClick={handleCreateList}>
-                  Create
+                  Créer
                 </button>
               </div>
             )}
@@ -423,12 +423,12 @@ function AdminCreateTask() {
         <section className="admin-form-card">
           <h2 className="admin-form-card-title">
             <IconChat />
-            Client <span className="admin-form-card-optional">optional</span>
+            Client <span className="admin-form-card-optional">optionnel</span>
           </h2>
           <div className="form-row">
             <div className="form-field">
               <label className="form-label" htmlFor="client_name">
-                Client name
+                Nom du client
               </label>
               <input
                 id="client_name"
@@ -436,12 +436,12 @@ function AdminCreateTask() {
                 className="form-input"
                 value={form.client_name}
                 onChange={handleChange}
-                placeholder="e.g. Dupont Ltd"
+                placeholder="Ex. Société Dupont"
               />
             </div>
             <div className="form-field">
               <label className="form-label" htmlFor="client_email">
-                Client email
+                Email du client
               </label>
               <input
                 id="client_email"
@@ -460,8 +460,8 @@ function AdminCreateTask() {
       {/* Aperçu + actions (sticky) */}
       <aside className="admin-form-side">
         <div className="task-preview">
-          <span className="task-preview-label">Preview</span>
-          <h3 className="task-preview-title">{form.title.trim() || 'Untitled'}</h3>
+          <span className="task-preview-label">Aperçu</span>
+          <h3 className="task-preview-title">{form.title.trim() || 'Sans titre'}</h3>
 
           {priorityMeta && (
             <span className={`pill priority-pill priority-pill--${priorityMeta.cls}`}>
@@ -473,31 +473,31 @@ function AdminCreateTask() {
           <div className="task-preview-rows">
             <div className="task-preview-row">
               <span className="task-preview-row-icon"><IconUser /></span>
-              <span>{assignedEmployee ? assignedEmployee.full_name : 'Unassigned'}</span>
+              <span>{assignedEmployee ? assignedEmployee.full_name : 'Non assignée'}</span>
             </div>
             <div className="task-preview-row">
               <span className="task-preview-row-icon"><IconCalendarWeek /></span>
-              <span>{form.deadline ? `Deadline: ${formatDate(form.deadline)}` : 'No deadline'}</span>
+              <span>{form.deadline ? `Échéance : ${formatDate(form.deadline)}` : 'Sans échéance'}</span>
             </div>
             <div className="task-preview-row">
               <span className="task-preview-row-icon"><IconFolder /></span>
-              <span>{locationPath.length ? locationPath.join(' › ') : 'Free task'}</span>
+              <span>{locationPath.length ? locationPath.join(' › ') : 'Tâche libre'}</span>
             </div>
           </div>
 
           <div className="task-preview-actions">
             <button type="submit" className="btn-primary" disabled={submitting}>
               {submitting ? <span className="btn-spinner" /> : <IconCheckCircle />}
-              {submitting ? 'Creating…' : 'Create the task'}
+              {submitting ? 'Création…' : 'Créer la tâche'}
             </button>
             <button type="button" className="btn-outline" onClick={resetAll} disabled={submitting}>
-              Reset
+              Réinitialiser
             </button>
           </div>
 
           <p className="task-preview-hint">
             <IconArrowRight />
-            The assigned employee will see the task in their space after creation.
+            L'employé assigné verra la tâche dans son espace après création.
           </p>
         </div>
       </aside>

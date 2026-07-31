@@ -35,8 +35,8 @@ function PasswordInput({ id, name, value, onChange, placeholder = '••••�
         type="button"
         className="auth-password-toggle"
         onClick={() => setShow((current) => !current)}
-        aria-label={show ? 'Hide password' : 'Show password'}
-        title={show ? 'Hide password' : 'Show password'}
+        aria-label={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        title={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
         tabIndex={-1}
       >
         <EyeIcon off={show} />

@@ -51,7 +51,7 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      return cb(new Error('File format not allowed (PDF, Word, Excel or image only)'));
+      return cb(new Error('Format de fichier non autorisé (PDF, Word, Excel ou image uniquement)'));
     }
     cb(null, true);
   },

@@ -36,10 +36,10 @@ function CommentSection({ taskId }) {
     try {
       if (isAdmin && asNote) {
         await taskService.createNote(taskId, content);
-        notifySuccess('Note added');
+        notifySuccess('Note ajoutée');
       } else {
         await taskService.createComment(taskId, content);
-        notifySuccess('Comment sent');
+        notifySuccess('Commentaire envoyé');
       }
       setContent('');
       setAsNote(false);
@@ -53,8 +53,8 @@ function CommentSection({ taskId }) {
     <div>
       {isAdmin && (
         <>
-          <p className="app-section-title">Internal notes (admins only)</p>
-          {notes.length === 0 && <div className="empty-state">No note.</div>}
+          <p className="app-section-title">Notes internes (admin uniquement)</p>
+          {notes.length === 0 && <div className="empty-state">Aucune note.</div>}
           {notes.length > 0 && (
             <div className="comment-list">
               {notes.map((note) => (
@@ -71,7 +71,7 @@ function CommentSection({ taskId }) {
         </>
       )}
 
-      {comments.length === 0 && <div className="empty-state">No comment yet.</div>}
+      {comments.length === 0 && <div className="empty-state">Aucun commentaire pour le moment.</div>}
       {comments.length > 0 && (
         <div className="comment-list">
           {comments.map((comment) => (
@@ -92,16 +92,16 @@ function CommentSection({ taskId }) {
             type="text"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Add a comment"
+            placeholder="Ajouter un commentaire"
           />
           <button type="submit" className="btn-primary">
-            Send
+            Envoyer
           </button>
         </div>
         {isAdmin && (
           <label className="comment-form-note-toggle">
             <input type="checkbox" checked={asNote} onChange={(e) => setAsNote(e.target.checked)} />
-            Internal note (visible to admins only)
+            Note interne (visible uniquement par les admins)
           </label>
         )}
       </form>

@@ -7,25 +7,24 @@ import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconCheckCircle, IconX, IconSearch, IconArrowRight } from '../../components/icons';
-import { priorityLabel } from '../../utils/taskStatus';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
 
 const STATUS_META = {
-  DECLAREE: { label: 'Declared', pill: 'declared' },
-  VALIDEE: { label: 'To do', pill: 'todo' },
-  EN_COURS: { label: 'In progress', pill: 'progress' },
-  TERMINEE: { label: 'Completed', pill: 'done' },
-  CONFIRMEE: { label: 'Confirmed', pill: 'confirmed' },
+  DECLAREE: { label: 'Déclarée', pill: 'declared' },
+  VALIDEE: { label: 'À faire', pill: 'todo' },
+  EN_COURS: { label: 'En cours', pill: 'progress' },
+  TERMINEE: { label: 'Terminée', pill: 'done' },
+  CONFIRMEE: { label: 'Confirmée', pill: 'confirmed' },
 };
 
 const STATUS_FILTERS = [
-  { value: '', label: 'All' },
-  { value: 'DECLAREE', label: 'Declared' },
-  { value: 'TERMINEE', label: 'Completed' },
-  { value: 'EN_COURS', label: 'In progress' },
-  { value: 'VALIDEE', label: 'To do' },
-  { value: 'CONFIRMEE', label: 'Confirmed' },
+  { value: '', label: 'Tous' },
+  { value: 'DECLAREE', label: 'Déclarée' },
+  { value: 'TERMINEE', label: 'Terminée' },
+  { value: 'EN_COURS', label: 'En cours' },
+  { value: 'VALIDEE', label: 'À faire' },
+  { value: 'CONFIRMEE', label: 'Confirmée' },
 ];
 
 const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAIBLE: 'faible' };
@@ -40,13 +39,13 @@ function bulkResultMessage(results, actionLabel) {
   const successCount = results.length - failures.length;
 
   if (failures.length === 0) {
-    return { success: true, message: `${successCount} task(s) ${actionLabel}` };
+    return { success: true, message: `${successCount} tâche(s) ${actionLabel}(s)` };
   }
 
   const firstReason = failures[0].reason?.response?.data?.error;
   return {
     success: false,
-    message: `${successCount} succeeded, ${failures.length} failed.${firstReason ? ` ${firstReason}` : ''}`,
+    message: `${successCount} réussie(s), ${failures.length} échec(s).${firstReason ? ` ${firstReason}` : ''}`,
   };
 }
 
@@ -95,7 +94,7 @@ function AdminTasksToValidate() {
       setSelectedIds((current) => current.filter((id) => actionableIds.has(id)));
       return data;
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to load tasks');
+      notifyError(err.response?.data?.error || 'Impossible de charger les tâches');
       return null;
     } finally {
       setLoading(false);
@@ -183,15 +182,15 @@ function AdminTasksToValidate() {
       // validation automatique ou changement depuis un autre onglet).
       const current = await taskService.getTask(id);
       if (current.status !== 'TERMINEE') {
-        throw Object.assign(new Error('Status changed'), {
-          response: { data: { error: `The task is no longer completed (current status: ${current.status})` } },
+        throw Object.assign(new Error('Statut changé'), {
+          response: { data: { error: `La tâche n'est plus terminée (statut actuel : ${current.status})` } },
         });
       }
       await taskService.confirmTask(id);
-      notifySuccess('Task confirmed');
+      notifySuccess('Tâche confirmée');
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to confirm the task');
+      notifyError(err.response?.data?.error || 'Impossible de confirmer la tâche');
     } finally {
       setPendingAction(null);
     }
@@ -200,16 +199,16 @@ function AdminTasksToValidate() {
   async function handleRejectOne(id) {
     const motif = motifs[id];
     if (!motif || !motif.trim()) {
-      notifyError('A reason is required to send a task back');
+      notifyError('Le motif est requis pour renvoyer une tâche');
       return;
     }
     setPendingAction(`reject:${id}`);
     try {
       await taskService.rejectTask(id, motif);
-      notifySuccess('Task sent back to the employee');
+      notifySuccess("Tâche renvoyée à l'employé");
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to send the task back');
+      notifyError(err.response?.data?.error || 'Impossible de renvoyer la tâche');
     } finally {
       setPendingAction(null);
     }
@@ -217,14 +216,14 @@ function AdminTasksToValidate() {
 
   async function handleValidateOne(id) {
     setPendingAction(`validate:${id}`);
-    try { await taskService.validateTask(id); notifySuccess('Task validated'); await load(); }
-    catch (err) { notifyError(err.response?.data?.error || 'Unable to validate the task'); }
+    try { await taskService.validateTask(id); notifySuccess('Tâche validée'); await load(); }
+    catch (err) { notifyError(err.response?.data?.error || 'Impossible de valider la tâche'); }
     finally { setPendingAction(null); }
   }
 
   async function handleBulkConfirm() {
     if (selectedDoneIds.length === 0 || isProcessing) return;
-    if (!window.confirm(`Confirm ${selectedDoneIds.length} completed task(s)?`)) return;
+    if (!window.confirm(`Confirmer ${selectedDoneIds.length} tâche(s) terminée(s) ?`)) return;
 
     setPendingAction('bulk-confirm');
     try {
@@ -239,16 +238,16 @@ function AdminTasksToValidate() {
       const staleIds = selectedDoneIds.filter((id) => !confirmableIds.includes(id));
 
       const results = await Promise.allSettled(confirmableIds.map((id) => taskService.confirmTask(id)));
-      const outcome = bulkResultMessage(results, 'confirmed');
+      const outcome = bulkResultMessage(results, 'confirmée');
       const staleMessage = staleIds.length
-        ? ` ${staleIds.length} task(s) skipped: their status changed between loading and confirmation.`
+        ? ` ${staleIds.length} tâche(s) ignorée(s) : leur statut a changé entre le chargement et la confirmation.`
         : '';
       if (outcome.success && staleIds.length === 0) notifySuccess(outcome.message);
       else if (outcome.success) notifyError(`${outcome.message}.${staleMessage}`);
       else notifyError(`${outcome.message}${staleMessage}`);
       await load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to reload tasks before confirmation');
+      notifyError(err.response?.data?.error || 'Impossible de recharger les tâches avant confirmation');
     } finally {
       setPendingAction(null);
     }
@@ -257,17 +256,17 @@ function AdminTasksToValidate() {
   async function handleBulkReject() {
     if (selectedDoneIds.length === 0 || isProcessing) return;
     if (!bulkMotif.trim()) {
-      notifyError('A reason is required for the bulk rejection');
+      notifyError('Le motif est requis pour le renvoi groupé');
       return;
     }
-    if (!window.confirm(`The reason "${bulkMotif}" will be applied to the ${selectedDoneIds.length} completed tasks. Continue?`)) {
+    if (!window.confirm(`Le motif "${bulkMotif}" sera appliqué aux ${selectedDoneIds.length} tâches terminées. Continuer ?`)) {
       return;
     }
 
     setPendingAction('bulk-reject');
     try {
       const results = await Promise.allSettled(selectedDoneIds.map((id) => taskService.rejectTask(id, bulkMotif)));
-      const outcome = bulkResultMessage(results, 'sent back');
+      const outcome = bulkResultMessage(results, 'renvoyée');
       if (outcome.success) {
         notifySuccess(outcome.message);
         setBulkMotif('');
@@ -290,14 +289,14 @@ function AdminTasksToValidate() {
           className={`atv-tab${activeTab === 'validate' ? ' atv-tab--active' : ''}`}
           onClick={() => setActiveTab('validate')}
         >
-          To review
+          À valider
         </button>
         <button
           type="button"
           className={`atv-tab${activeTab === 'late' ? ' atv-tab--active' : ''}`}
           onClick={() => setActiveTab('late')}
         >
-          Overdue
+          En retard
           {lateCount > 0 && <span className="atv-tab-badge">{lateCount}</span>}
         </button>
       </div>
@@ -308,7 +307,7 @@ function AdminTasksToValidate() {
         <>
       <div className="admin-filter-bar">
         <div className="filter-group">
-          <span className="filter-group-label">Status</span>
+          <span className="filter-group-label">Statut</span>
           {STATUS_FILTERS.map((option) => (
             <button
               key={option.value || 'all'}
@@ -322,14 +321,14 @@ function AdminTasksToValidate() {
         </div>
         <div className="filter-group">
           <select className="filter-select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-            <option value="">All priorities</option>
+            <option value="">Toutes priorités</option>
             <option value="URGENT">Urgent</option>
-            <option value="HAUTE">High</option>
-            <option value="NORMALE">Normal</option>
-            <option value="FAIBLE">Low</option>
+            <option value="HAUTE">Haute</option>
+            <option value="NORMALE">Normale</option>
+            <option value="FAIBLE">Faible</option>
           </select>
           <select className="filter-select" value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}>
-            <option value="">All employees</option>
+            <option value="">Tous les employés</option>
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.full_name}
@@ -337,15 +336,15 @@ function AdminTasksToValidate() {
             ))}
           </select>
           <select className="filter-select" value={deadlineFilter} onChange={(e) => setDeadlineFilter(e.target.value)}>
-            <option value="">All deadlines</option>
-            <option value="today">Today</option>
-            <option value="week">This week</option>
-            <option value="month">This month</option>
-            <option value="past">Past</option>
+            <option value="">Toutes échéances</option>
+            <option value="today">Aujourd'hui</option>
+            <option value="week">Cette semaine</option>
+            <option value="month">Ce mois</option>
+            <option value="past">Passée</option>
           </select>
           {hasFilters && (
             <button type="button" className="admin-filter-reset" onClick={resetFilters}>
-              Reset
+              Réinitialiser
             </button>
           )}
         </div>
@@ -359,16 +358,16 @@ function AdminTasksToValidate() {
             onChange={toggleSelectAll}
             disabled={actionableFilteredTasks.length === 0 || isProcessing}
           />
-          Select actionable tasks
+          Sélectionner les tâches actionnables
         </label>
         <span className="validate-count">
-          {filteredTasks.length} task{filteredTasks.length > 1 ? 's' : ''}
+          {filteredTasks.length} tâche{filteredTasks.length > 1 ? 's' : ''}
         </span>
       </div>
 
       {selectedIds.length > 0 && (
         <div className="validate-bulk">
-          <span className="validate-bulk-count">{selectedIds.length} selected</span>
+          <span className="validate-bulk-count">{selectedIds.length} sélectionnée(s)</span>
           {selectedDoneIds.length > 0 && (
             <>
               <button
@@ -378,32 +377,32 @@ function AdminTasksToValidate() {
                 disabled={isProcessing}
               >
                 <IconCheckCircle />
-                {pendingAction === 'bulk-confirm' ? 'Confirming…' : `Confirm (${selectedDoneIds.length})`}
+                {pendingAction === 'bulk-confirm' ? 'Confirmation…' : `Confirmer (${selectedDoneIds.length})`}
               </button>
               <div className="validate-bulk-reject">
                 <input
                   className="form-input"
-                  placeholder="Reason for the completed tasks"
+                  placeholder="Motif pour les tâches terminées"
                   value={bulkMotif}
                   onChange={(e) => setBulkMotif(e.target.value)}
                   disabled={isProcessing}
                 />
                 <button type="button" className="btn-danger" onClick={handleBulkReject} disabled={isProcessing}>
-                  {pendingAction === 'bulk-reject' ? 'Sending back…' : `Send back (${selectedDoneIds.length})`}
+                  {pendingAction === 'bulk-reject' ? 'Renvoi…' : `Renvoyer (${selectedDoneIds.length})`}
                 </button>
               </div>
             </>
           )}
           {selectedDeclaredIds.length > 0 && (
             <button type="button" className="btn-primary" onClick={async () => { await Promise.all(selectedDeclaredIds.map((id) => taskService.validateTask(id))); await load(); }} disabled={isProcessing}>
-              <IconArrowRight /> Validate ({selectedDeclaredIds.length})
+              <IconArrowRight /> Valider ({selectedDeclaredIds.length})
             </button>
           )}
         </div>
       )}
 
       {filteredTasks.length === 0 ? (
-        <div className="empty-state">No task matches these filters.</div>
+        <div className="empty-state">Aucune tâche ne correspond à ces filtres.</div>
       ) : (
         <div className="validate-list">
           {filteredTasks.map((task) => {
@@ -414,7 +413,7 @@ function AdminTasksToValidate() {
             return (
               <div key={task.id} className={`validate-card${selected ? ' validate-card--selected' : ''}`}>
                 {isActionableTask(task) ? (
-                  <label className="validate-card-check" aria-label={`Select task ${task.title}`}>
+                  <label className="validate-card-check" aria-label={`Sélectionner la tâche ${task.title}`}>
                     <input
                       type="checkbox"
                       checked={selected}
@@ -439,16 +438,16 @@ function AdminTasksToValidate() {
                       <span
                         className={`priority-dot priority-dot--${PRIORITY_CLS[task.priority] || 'normale'}`}
                       />
-                      {priorityLabel(task.priority)}
+                      {task.priority}
                     </span>
                     <span className="validate-meta-sep" />
                     <span>{employeeName(task.assigned_to)}</span>
                     <span className="validate-meta-sep" />
-                    <span>Deadline: {task.deadline ? formatDate(task.deadline) : '—'}</span>
+                    <span>Échéance : {task.deadline ? formatDate(task.deadline) : '—'}</span>
                   </div>
 
                   {canValidate && (
-                    <div className="validate-card-actions"><button type="button" className="validate-action-confirm" onClick={() => handleValidateOne(task.id)} disabled={isProcessing}><IconArrowRight /> Validate</button></div>
+                    <div className="validate-card-actions"><button type="button" className="validate-action-confirm" onClick={() => handleValidateOne(task.id)} disabled={isProcessing}><IconArrowRight /> Valider</button></div>
                   )}
                   {canReview && (
                     <div className="validate-card-actions">
@@ -459,12 +458,12 @@ function AdminTasksToValidate() {
                         disabled={isProcessing}
                       >
                         <IconCheckCircle />
-                        {pendingAction === `confirm:${task.id}` ? 'Confirming…' : 'Confirm'}
+                        {pendingAction === `confirm:${task.id}` ? 'Confirmation…' : 'Confirmer'}
                       </button>
                       <div className="validate-reject-row">
                         <input
                           className="form-input"
-                          placeholder="Reason for sending back"
+                          placeholder="Motif de renvoi"
                           value={motifs[task.id] || ''}
                           onChange={(e) => setMotifs({ ...motifs, [task.id]: e.target.value })}
                           disabled={isProcessing}
@@ -475,7 +474,7 @@ function AdminTasksToValidate() {
                           onClick={() => handleRejectOne(task.id)}
                           disabled={isProcessing}
                         >
-                          {pendingAction === `reject:${task.id}` ? 'Sending back…' : 'Send back'}
+                          {pendingAction === `reject:${task.id}` ? 'Renvoi…' : 'Renvoyer'}
                         </button>
                       </div>
                     </div>
@@ -493,13 +492,13 @@ function AdminTasksToValidate() {
       {detailTask && (
         <>
           <div className="emp-drawer-overlay" onClick={() => setDetailTaskId(null)} />
-          <aside className="emp-drawer" role="dialog" aria-label="Task details">
-            <button type="button" className="emp-drawer-close" onClick={() => setDetailTaskId(null)} aria-label="Close">
+          <aside className="emp-drawer" role="dialog" aria-label="Détail de la tâche">
+            <button type="button" className="emp-drawer-close" onClick={() => setDetailTaskId(null)} aria-label="Fermer">
               <IconX />
             </button>
 
             <header className="validate-detail-head">
-              <span className="lists-content-eyebrow">Task</span>
+              <span className="lists-content-eyebrow">Tâche</span>
               <h2>{detailTask.title}</h2>
               <div className="validate-detail-pills">
                 <span className={`pill pill--${(STATUS_META[detailTask.status] || {}).pill || 'declared'}`}>
@@ -507,7 +506,7 @@ function AdminTasksToValidate() {
                 </span>
                 <span className="validate-meta-item">
                   <span className={`priority-dot priority-dot--${PRIORITY_CLS[detailTask.priority] || 'normale'}`} />
-                  {priorityLabel(detailTask.priority)}
+                  {detailTask.priority}
                 </span>
               </div>
             </header>
@@ -515,16 +514,16 @@ function AdminTasksToValidate() {
             {detailTask.description && <p className="validate-detail-desc">{detailTask.description}</p>}
 
             <div className="validate-detail-meta">
-              <span>Deadline: {detailTask.deadline ? formatDate(detailTask.deadline) : '—'}</span>
+              <span>Échéance : {detailTask.deadline ? formatDate(detailTask.deadline) : '—'}</span>
             </div>
 
             <section className="emp-drawer-section">
-              <h3 className="app-section-title">Attachments</h3>
+              <h3 className="app-section-title">Pièces jointes</h3>
               <AttachmentUpload taskId={detailTask.id} canUpload={false} />
             </section>
 
             <section className="emp-drawer-section">
-              <h3 className="app-section-title">Comments & notes</h3>
+              <h3 className="app-section-title">Commentaires & notes</h3>
               <CommentSection taskId={detailTask.id} />
             </section>
           </aside>

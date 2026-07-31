@@ -39,28 +39,28 @@ function Login() {
 
   return (
     <AuthLayout
-      title="Sign in"
-      subtitle="Access your L'Alliée Virtuelle space"
+      title="Connexion"
+      subtitle="Accédez à votre espace L'Alliée Virtuelle"
       footer={
         <>
-          Don't have an account yet? <Link to="/register">Sign up</Link>
+          Pas encore de compte ? <Link to="/register">S'inscrire</Link>
         </>
       }
     >
       <form className="auth-form" onSubmit={handleSubmit}>
         <div className="auth-field">
-          <label htmlFor="identifier">Email or username</label>
+          <label htmlFor="identifier">Email ou nom d'utilisateur</label>
           <input
             id="identifier"
             type="text"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="you@example.com"
+            placeholder="vous@exemple.com"
             required
           />
         </div>
         <div className="auth-field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">Mot de passe</label>
           <PasswordInput
             id="password"
             value={password}
@@ -74,7 +74,7 @@ function Login() {
 
         <button type="submit" className="auth-button" disabled={isSubmitting}>
           {isSubmitting && <span className="auth-spinner" />}
-          {isSubmitting ? 'Signing in...' : 'Sign in'}
+          {isSubmitting ? 'Connexion...' : 'Se connecter'}
         </button>
       </form>
     </AuthLayout>

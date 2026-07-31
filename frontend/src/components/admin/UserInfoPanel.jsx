@@ -4,10 +4,10 @@ import { formatDate } from '../../utils/formatters';
 import { IconX } from '../icons';
 
 const STATUS_META = {
-  ACTIF: { label: 'Active', cls: 'user-active' },
-  SUSPENDU: { label: 'Suspended', cls: 'user-suspended' },
-  REFUSÉ: { label: 'Rejected', cls: 'user-refused' },
-  EN_ATTENTE: { label: 'Pending', cls: 'user-pending' },
+  ACTIF: { label: 'Actif', cls: 'user-active' },
+  SUSPENDU: { label: 'Suspendu', cls: 'user-suspended' },
+  REFUSÉ: { label: 'Refusé', cls: 'user-refused' },
+  EN_ATTENTE: { label: 'En attente', cls: 'user-pending' },
 };
 
 function initialsOf(name) {
@@ -84,7 +84,7 @@ function InfoRow({ icon, label, value }) {
       <span className="uinfo-row-body">
         <span className="uinfo-row-label">{label}</span>
         <span className={`uinfo-row-value${empty ? ' uinfo-row-value--empty' : ''}`}>
-          {empty ? 'Not set' : value}
+          {empty ? 'Non renseigné' : value}
         </span>
       </span>
     </div>
@@ -121,13 +121,13 @@ function UserInfoPanel({ user, onClose }) {
   }, [user]);
 
   const status = STATUS_META[user.status] || { label: user.status, cls: 'user-refused' };
-  const roleLabel = user.role === 'ADMIN' ? 'Administrator' : 'Employee';
+  const roleLabel = user.role === 'ADMIN' ? 'Administrateur' : 'Employé';
 
   return (
     <>
       <div className="emp-drawer-overlay" onClick={onClose} />
-      <aside className="emp-drawer" role="dialog" aria-label="Personal information">
-        <button type="button" className="emp-drawer-close" onClick={onClose} aria-label="Close">
+      <aside className="emp-drawer" role="dialog" aria-label="Informations personnelles">
+        <button type="button" className="emp-drawer-close" onClick={onClose} aria-label="Fermer">
           <IconX />
         </button>
 
@@ -145,15 +145,15 @@ function UserInfoPanel({ user, onClose }) {
         </header>
 
         <section className="emp-drawer-section">
-          <h3 className="app-section-title">Personal information</h3>
+          <h3 className="app-section-title">Informations personnelles</h3>
           <div className="uinfo-list">
             <InfoRow icon="mail" label="Email" value={user.email} />
-            <InfoRow icon="phone" label="Phone" value={user.phone_number} />
-            <InfoRow icon="briefcase" label="Position" value={user.position} />
-            <InfoRow icon="at" label="Username" value={user.username} />
-            <InfoRow icon="calendar" label="Date of birth" value={user.birth_date ? formatDate(user.birth_date) : null} />
-            <InfoRow icon="pin" label="Postal address" value={user.postal_address} />
-            <InfoRow icon="clock" label="Member since" value={user.created_at ? formatDate(user.created_at) : null} />
+            <InfoRow icon="phone" label="Téléphone" value={user.phone_number} />
+            <InfoRow icon="briefcase" label="Poste" value={user.position} />
+            <InfoRow icon="at" label="Nom d'utilisateur" value={user.username} />
+            <InfoRow icon="calendar" label="Date de naissance" value={user.birth_date ? formatDate(user.birth_date) : null} />
+            <InfoRow icon="pin" label="Adresse postale" value={user.postal_address} />
+            <InfoRow icon="clock" label="Membre depuis" value={user.created_at ? formatDate(user.created_at) : null} />
           </div>
         </section>
       </aside>

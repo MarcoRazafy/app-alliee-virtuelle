@@ -9,17 +9,17 @@ import '../../styles/admin.css';
 import '../../styles/admin-users.css';
 
 const STATUS_FILTERS = [
-  { value: '', label: 'All' },
-  { value: 'ACTIF', label: 'Active' },
-  { value: 'SUSPENDU', label: 'Suspended' },
-  { value: 'REFUSÉ', label: 'Rejected' },
+  { value: '', label: 'Tous' },
+  { value: 'ACTIF', label: 'Actifs' },
+  { value: 'SUSPENDU', label: 'Suspendus' },
+  { value: 'REFUSÉ', label: 'Refusés' },
 ];
 
 const USER_STATUS_META = {
-  ACTIF: { label: 'Active', cls: 'user-active' },
-  SUSPENDU: { label: 'Suspended', cls: 'user-suspended' },
-  REFUSÉ: { label: 'Rejected', cls: 'user-refused' },
-  EN_ATTENTE: { label: 'Pending', cls: 'user-pending' },
+  ACTIF: { label: 'Actif', cls: 'user-active' },
+  SUSPENDU: { label: 'Suspendu', cls: 'user-suspended' },
+  REFUSÉ: { label: 'Refusé', cls: 'user-refused' },
+  EN_ATTENTE: { label: 'En attente', cls: 'user-pending' },
 };
 
 function initialsOf(name) {
@@ -71,7 +71,7 @@ function EmployeesTab({ onSelect }) {
     userService
       .getAllUsers({ role: 'EMPLOYEE', search, status: statusFilter || undefined })
       .then(setUsers)
-      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load users'))
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les utilisateurs'))
       .finally(() => setLoading(false));
   }
 
@@ -85,36 +85,36 @@ function EmployeesTab({ onSelect }) {
   );
 
   async function handleSuspend(user) {
-    if (!window.confirm(`Suspend ${user.full_name}'s account?`)) return;
+    if (!window.confirm(`Suspendre le compte de ${user.full_name} ?`)) return;
     try {
       await userService.suspendUser(user.id);
-      notifySuccess('Account suspended');
+      notifySuccess('Compte suspendu');
       load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to suspend this account');
+      notifyError(err.response?.data?.error || 'Impossible de suspendre ce compte');
     }
   }
 
   async function handleActivate(user) {
     try {
       await userService.activateUser(user.id);
-      notifySuccess('Account reactivated');
+      notifySuccess('Compte réactivé');
       load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to reactivate this account');
+      notifyError(err.response?.data?.error || 'Impossible de réactiver ce compte');
     }
   }
 
   async function handlePromote(user) {
-    if (!window.confirm(`Promote ${user.full_name} to administrator? This action is irreversible from this interface.`)) {
+    if (!window.confirm(`Promouvoir ${user.full_name} administrateur ? Cette action est irréversible depuis cette interface.`)) {
       return;
     }
     try {
       await userService.promoteUser(user.id);
-      notifySuccess(`${user.full_name} is now an administrator`);
+      notifySuccess(`${user.full_name} est maintenant administrateur`);
       load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to promote this user');
+      notifyError(err.response?.data?.error || 'Impossible de promouvoir cet utilisateur');
     }
   }
 
@@ -127,10 +127,10 @@ function EmployeesTab({ onSelect }) {
       <div className="admin-filter-bar ausers-filters">
         <div className="filter-search ausers-search">
           <IconSearch />
-          <input placeholder="Search a name or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input placeholder="Rechercher un nom ou un email…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="filter-group">
-          <span className="filter-group-label">Status</span>
+          <span className="filter-group-label">Statut</span>
           {STATUS_FILTERS.map((o) => (
             <button
               key={o.value || 'all'}
@@ -145,7 +145,7 @@ function EmployeesTab({ onSelect }) {
         <div className="filter-group">
           <input
             className="filter-select"
-            placeholder="Filter by position"
+            placeholder="Filtrer par poste"
             value={positionFilter}
             onChange={(e) => setPositionFilter(e.target.value)}
           />
@@ -153,15 +153,15 @@ function EmployeesTab({ onSelect }) {
       </div>
 
       {filteredUsers.length === 0 ? (
-        <div className="empty-state">No user matches these filters.</div>
+        <div className="empty-state">Aucun utilisateur ne correspond à ces filtres.</div>
       ) : (
         <div className="task-table-wrap ausers-table-wrap">
           <table className="task-table">
             <thead>
               <tr>
-                <th>Employee</th>
-                <th>Position</th>
-                <th>Status</th>
+                <th>Employé</th>
+                <th>Poste</th>
+                <th>Statut</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
@@ -188,23 +188,23 @@ function EmployeesTab({ onSelect }) {
                         <button
                           type="button"
                           className="ausers-action-btn"
-                          onClick={() => notifyInfo('Profile editing coming soon')}
+                          onClick={() => notifyInfo('Modification du profil bientôt disponible')}
                         >
-                          Edit
+                          Modifier
                         </button>
                         {user.status === 'ACTIF' && (
                           <button type="button" className="ausers-action-btn ausers-action-btn--warn" onClick={() => handleSuspend(user)}>
-                            Suspend
+                            Suspendre
                           </button>
                         )}
                         {user.status === 'SUSPENDU' && (
                           <button type="button" className="ausers-action-btn ausers-action-btn--ok" onClick={() => handleActivate(user)}>
-                            Activate
+                            Activer
                           </button>
                         )}
                         {user.role === 'EMPLOYEE' && (
                           <button type="button" className="ausers-action-btn" onClick={() => handlePromote(user)}>
-                            Promote
+                            Promouvoir
                           </button>
                         )}
                       </div>
@@ -233,7 +233,7 @@ function PendingTab({ onCountChange }) {
         setPending(data);
         onCountChange(data.length);
       })
-      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load requests'));
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les demandes'));
   }
 
   useEffect(() => {
@@ -248,11 +248,11 @@ function PendingTab({ onCountChange }) {
   async function handleApprove(id) {
     try {
       await userService.approveUser(id);
-      notifySuccess('Account approved');
+      notifySuccess('Compte approuvé');
       setSelectedIds((prev) => prev.filter((x) => x !== id));
       load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to approve this account');
+      notifyError(err.response?.data?.error || "Impossible d'approuver ce compte");
     }
   }
 
@@ -260,48 +260,48 @@ function PendingTab({ onCountChange }) {
     const motif = motifs[id];
     try {
       await userService.rejectUser(id, motif);
-      notifySuccess('Account rejected');
+      notifySuccess('Compte refusé');
       setSelectedIds((prev) => prev.filter((x) => x !== id));
       load();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to reject this account');
+      notifyError(err.response?.data?.error || 'Impossible de refuser ce compte');
     }
   }
 
   async function handleBulkApprove() {
-    if (!window.confirm(`Approve ${selectedIds.length} request(s)?`)) return;
+    if (!window.confirm(`Approuver ${selectedIds.length} demande(s) ?`)) return;
     await Promise.all(selectedIds.map((id) => userService.approveUser(id)));
-    notifySuccess(`${selectedIds.length} account(s) approved`);
+    notifySuccess(`${selectedIds.length} compte(s) approuvé(s)`);
     setSelectedIds([]);
     load();
   }
 
   async function handleBulkReject() {
-    if (!window.confirm(`Reject ${selectedIds.length} request(s)? The reason "${bulkMotif}" will be applied to all.`)) return;
+    if (!window.confirm(`Refuser ${selectedIds.length} demande(s) ? Le motif "${bulkMotif}" sera appliqué à toutes.`)) return;
     await Promise.all(selectedIds.map((id) => userService.rejectUser(id, bulkMotif)));
-    notifySuccess(`${selectedIds.length} account(s) rejected`);
+    notifySuccess(`${selectedIds.length} compte(s) refusé(s)`);
     setSelectedIds([]);
     setBulkMotif('');
     load();
   }
 
   if (pending.length === 0) {
-    return <div className="empty-state">No pending access requests. 🎉</div>;
+    return <div className="empty-state">Aucune demande d'accès en attente. 🎉</div>;
   }
 
   return (
     <div>
       {selectedIds.length > 0 && (
         <div className="validate-bulk ausers-bulk">
-          <span className="validate-bulk-count">{selectedIds.length} selected</span>
+          <span className="validate-bulk-count">{selectedIds.length} sélectionnée(s)</span>
           <button type="button" className="btn-primary validate-bulk-confirm" onClick={handleBulkApprove}>
             <IconCheckCircle />
-            Approve ({selectedIds.length})
+            Approuver ({selectedIds.length})
           </button>
           <div className="validate-bulk-reject">
-            <input className="form-input" placeholder="Rejection reason (bulk)" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} />
+            <input className="form-input" placeholder="Motif de refus (lot)" value={bulkMotif} onChange={(e) => setBulkMotif(e.target.value)} />
             <button type="button" className="btn-danger" onClick={handleBulkReject}>
-              Reject ({selectedIds.length})
+              Refuser ({selectedIds.length})
             </button>
           </div>
         </div>
@@ -318,22 +318,22 @@ function PendingTab({ onCountChange }) {
               <span className="ausers-user-name">{user.full_name}</span>
               <span className="ausers-user-email">{user.email}</span>
               <span className="ausers-pending-meta">
-                {user.position || '—'} · requested on {new Date(user.created_at).toLocaleDateString('en-US')}
+                {user.position || '—'} · demandé le {new Date(user.created_at).toLocaleDateString('fr-FR')}
               </span>
             </div>
             <div className="ausers-pending-actions">
               <button type="button" className="ausers-action-btn ausers-action-btn--ok" onClick={() => handleApprove(user.id)}>
-                Approve
+                Approuver
               </button>
               <div className="ausers-reject-row">
                 <input
                   className="form-input"
-                  placeholder="Rejection reason"
+                  placeholder="Motif de refus"
                   value={motifs[user.id] || ''}
                   onChange={(e) => setMotifs({ ...motifs, [user.id]: e.target.value })}
                 />
                 <button type="button" className="ausers-action-btn ausers-action-btn--warn" onClick={() => handleReject(user.id)}>
-                  Reject
+                  Refuser
                 </button>
               </div>
             </div>
@@ -365,14 +365,14 @@ function AdminUsers() {
           className={`ausers-tab${tab === 'employees' ? ' ausers-tab--active' : ''}`}
           onClick={() => setTab('employees')}
         >
-          Employees
+          Employés
         </button>
         <button
           type="button"
           className={`ausers-tab${tab === 'pending' ? ' ausers-tab--active' : ''}`}
           onClick={() => setTab('pending')}
         >
-          Access requests
+          Demandes d'accès
           {pendingCount > 0 && <span className="ausers-tab-badge">{pendingCount}</span>}
         </button>
       </div>

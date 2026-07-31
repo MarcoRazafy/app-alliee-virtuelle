@@ -32,7 +32,7 @@ async function getFolders(req, res, next) {
   try {
     const { type } = req.query;
     if (!FOLDER_TYPES.includes(type)) {
-      return res.status(400).json({ error: 'The type parameter must be INTERNE or CLIENT' });
+      return res.status(400).json({ error: 'Le paramètre type doit être INTERNE ou CLIENT' });
     }
 
     const folders = await resourceModel.findFolders(type);
@@ -48,7 +48,7 @@ async function getFolderFiles(req, res, next) {
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found' });
+      return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
     const files = await resourceModel.findFilesByFolder(id);
@@ -63,7 +63,7 @@ async function createFolder(req, res, next) {
     const { name, type, parent_folder_id: parentFolderId } = req.body;
 
     if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'The folder name is required' });
+      return res.status(400).json({ error: 'Le nom du dossier est requis' });
     }
     if (!FOLDER_TYPES.includes(type)) {
       return res.status(400).json({ error: 'Type de dossier invalide' });
@@ -96,17 +96,17 @@ async function renameFolder(req, res, next) {
     const { name } = req.body;
 
     if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'The folder name is required' });
+      return res.status(400).json({ error: 'Le nom du dossier est requis' });
     }
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found' });
+      return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
     const updated = await resourceModel.renameFolder(id, name);
     if (!updated) {
-      return res.status(409).json({ error: 'This folder has already been deleted' });
+      return res.status(409).json({ error: 'Ce dossier a déjà été supprimé' });
     }
 
     await taskModel.recordAudit({
@@ -129,12 +129,12 @@ async function deleteFolder(req, res, next) {
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found' });
+      return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
     const deleted = await resourceModel.deleteFolder(id, req.user.id);
     if (!deleted) {
-      return res.status(409).json({ error: 'This folder is already in the trash' });
+      return res.status(409).json({ error: 'Ce dossier se trouve déjà dans la corbeille' });
     }
 
     await taskModel.recordAudit({
@@ -159,10 +159,10 @@ async function uploadFile(req, res, next) {
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found' });
+      return res.status(404).json({ error: 'Dossier introuvable' });
     }
     if (!req.file) {
-      return res.status(400).json({ error: 'File required' });
+      return res.status(400).json({ error: 'Fichier requis' });
     }
 
     const file = await resourceModel.createFile({
@@ -196,12 +196,12 @@ async function createDocument(req, res, next) {
     const { file_name: fileName, content } = req.body;
 
     if (!fileName || !fileName.trim()) {
-      return res.status(400).json({ error: 'The document title is required' });
+      return res.status(400).json({ error: 'Le titre du document est requis' });
     }
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found' });
+      return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
     const document = await resourceModel.createDocument({
@@ -233,7 +233,7 @@ async function updateDocument(req, res, next) {
 
     const existing = await resourceModel.findFileById(id);
     if (!existing || existing.deleted_at || existing.folder_deleted_at || existing.kind !== 'DOCUMENT') {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: 'Document introuvable' });
     }
 
     const document = await resourceModel.updateDocument(id, {
@@ -253,7 +253,7 @@ async function getFile(req, res, next) {
     const { id } = req.params;
     const file = await resourceModel.findFileById(id);
     if (!file || file.deleted_at || file.folder_deleted_at) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ error: 'Fichier introuvable' });
     }
     // On n'expose jamais le chemin disque au client.
     const { file_path: _filePath, ...safe } = file;
@@ -275,16 +275,16 @@ async function serveFile(req, res, next, { disposition }) {
       file.kind !== 'FILE' ||
       !file.file_path
     ) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ error: 'Fichier introuvable' });
     }
     if (!fs.existsSync(file.file_path)) {
-      return res.status(404).json({ error: 'File missing from storage' });
+      return res.status(404).json({ error: 'Fichier absent du stockage' });
     }
 
     if (file.mime_type) res.type(file.mime_type);
     const encoded = encodeURIComponent(file.file_name);
     res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encoded}`);
-    return sendFileOr404(res, path.resolve(file.file_path), 'File not found');
+    return sendFileOr404(res, path.resolve(file.file_path), 'Fichier introuvable');
   } catch (err) {
     next(err);
   }
@@ -304,12 +304,12 @@ async function deleteFile(req, res, next) {
 
     const file = await resourceModel.findFileById(id);
     if (!file || file.deleted_at || file.folder_deleted_at) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ error: 'Fichier introuvable' });
     }
 
     const deleted = await resourceModel.deleteFile(id, req.user.id);
     if (!deleted) {
-      return res.status(409).json({ error: 'This file is already in the trash' });
+      return res.status(409).json({ error: 'Ce fichier se trouve déjà dans la corbeille' });
     }
 
     await taskModel.recordAudit({
@@ -340,7 +340,7 @@ async function restoreFolder(req, res, next) {
     const { id } = req.params;
     const folder = await resourceModel.findFolderById(id);
     if (!folder || !folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found in the trash' });
+      return res.status(404).json({ error: 'Dossier introuvable dans la corbeille' });
     }
     if (folder.parent_folder_id) {
       const parent = await resourceModel.findFolderById(folder.parent_folder_id);
@@ -351,7 +351,7 @@ async function restoreFolder(req, res, next) {
 
     const restored = await resourceModel.restoreFolder(id);
     if (!restored) {
-      return res.status(409).json({ error: 'This folder has already been restored' });
+      return res.status(409).json({ error: 'Ce dossier a déjà été restauré' });
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -371,7 +371,7 @@ async function restoreFile(req, res, next) {
     const { id } = req.params;
     const file = await resourceModel.findFileById(id);
     if (!file || !file.deleted_at) {
-      return res.status(404).json({ error: 'File not found in the trash' });
+      return res.status(404).json({ error: 'Fichier introuvable dans la corbeille' });
     }
     if (file.folder_deleted_at) {
       return res.status(409).json({ error: 'Restaurez d’abord le dossier contenant ce fichier' });
@@ -382,7 +382,7 @@ async function restoreFile(req, res, next) {
 
     const restored = await resourceModel.restoreFile(id);
     if (!restored) {
-      return res.status(409).json({ error: 'This file has already been restored' });
+      return res.status(409).json({ error: 'Ce fichier a déjà été restauré' });
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -402,13 +402,13 @@ async function permanentlyDeleteFolder(req, res, next) {
     const { id } = req.params;
     const folder = await resourceModel.findFolderById(id);
     if (!folder || !folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found in the trash' });
+      return res.status(404).json({ error: 'Dossier introuvable dans la corbeille' });
     }
 
     const filePaths = await resourceModel.findFilePathsInFolderTree(id);
     const deleted = await resourceModel.permanentlyDeleteFolder(id);
     if (!deleted) {
-      return res.status(409).json({ error: 'This folder can no longer be deleted' });
+      return res.status(409).json({ error: 'Ce dossier ne peut plus être supprimé' });
     }
     for (const filePath of filePaths) {
       fs.unlink(filePath, () => {});
@@ -431,12 +431,12 @@ async function permanentlyDeleteFile(req, res, next) {
     const { id } = req.params;
     const file = await resourceModel.findFileById(id);
     if (!file || !file.deleted_at) {
-      return res.status(404).json({ error: 'File not found in the trash' });
+      return res.status(404).json({ error: 'Fichier introuvable dans la corbeille' });
     }
 
     const deleted = await resourceModel.permanentlyDeleteFile(id);
     if (!deleted) {
-      return res.status(409).json({ error: 'This file can no longer be deleted' });
+      return res.status(409).json({ error: 'Ce fichier ne peut plus être supprimé' });
     }
     if (file.kind === 'FILE' && file.file_path) {
       fs.unlink(file.file_path, () => {});
@@ -460,7 +460,7 @@ async function shareFolder(req, res, next) {
     const { user_ids: userIds, permission_type: permissionType, expires_at: expiresAt } = req.body;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(400).json({ error: 'Select at least one employee' });
+      return res.status(400).json({ error: 'Sélectionnez au moins un employé' });
     }
     if (!PERMISSION_TYPES.includes(permissionType)) {
       return res.status(400).json({ error: 'Permission invalide' });
@@ -468,7 +468,7 @@ async function shareFolder(req, res, next) {
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found' });
+      return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
     const existingIds = await userModel.findExistingIds(userIds);
@@ -507,7 +507,7 @@ async function getFolderShares(req, res, next) {
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
-      return res.status(404).json({ error: 'Folder not found' });
+      return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
     const shares = await resourceModel.findSharesForFolder(id);
@@ -523,7 +523,7 @@ async function revokeShare(req, res, next) {
 
     const share = await resourceModel.findShareById(id);
     if (!share) {
-      return res.status(404).json({ error: 'Share not found' });
+      return res.status(404).json({ error: 'Partage introuvable' });
     }
 
     await db.withTransaction(async (client) => {

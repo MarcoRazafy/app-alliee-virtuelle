@@ -20,16 +20,16 @@ import AnimatedNumber from '../../components/AnimatedNumber';
 
 const PRIORITY_META = {
   URGENT: { label: 'Urgent', cls: 'urgent' },
-  HAUTE: { label: 'High', cls: 'haute' },
-  NORMALE: { label: 'Normal', cls: 'normale' },
-  FAIBLE: { label: 'Low', cls: 'faible' },
+  HAUTE: { label: 'Haute', cls: 'haute' },
+  NORMALE: { label: 'Normale', cls: 'normale' },
+  FAIBLE: { label: 'Faible', cls: 'faible' },
 };
 
 const STATUS_FILTERS = [
-  { value: '', label: 'All' },
-  { value: 'VALIDEE', label: 'To do' },
-  { value: 'EN_COURS', label: 'In progress' },
-  { value: 'TERMINEE', label: 'Done' },
+  { value: '', label: 'Tout' },
+  { value: 'VALIDEE', label: 'À faire' },
+  { value: 'EN_COURS', label: 'En cours' },
+  { value: 'TERMINEE', label: 'Effectuées' },
 ];
 
 // Chrono qui s'incrémente en direct pour une session de tâche encore ouverte
@@ -77,7 +77,7 @@ function AdminDashboard() {
         setData(payload);
         setLastUpdate(new Date());
       })
-      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load the dashboard'))
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger le tableau de bord'))
       .finally(() => setRefreshing(false));
   }
 
@@ -144,22 +144,22 @@ function AdminDashboard() {
       <div className="admin-toolbar">
         <div className="admin-live-badge">
           <span className="admin-live-dot" />
-          Live
+          En direct
           {lastUpdate && (
             <span className="admin-live-time">
-              · updated at{' '}
-              {lastUpdate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              · mis à jour à{' '}
+              {lastUpdate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
         </div>
         <div className="admin-toolbar-actions">
           <button type="button" className="btn-outline" onClick={load} disabled={refreshing}>
             {refreshing ? <span className="btn-spinner btn-spinner--dark" /> : <IconArrowRight />}
-            Refresh
+            Actualiser
           </button>
           <Link to="/admin/create-task" className="btn-primary">
             <IconArrowRight />
-            Create a task
+            Créer une tâche
           </Link>
         </div>
       </div>
@@ -170,9 +170,9 @@ function AdminDashboard() {
             <IconWorkspace />
           </span>
           <div className="admin-kpi-copy">
-            <p>Active employees</p>
+            <p>Employés actifs</p>
             <AnimatedNumber as="strong" value={activeCount} />
-            <span className="admin-kpi-hint">connected right now</span>
+            <span className="admin-kpi-hint">connectés en ce moment</span>
           </div>
         </div>
         <div className="admin-kpi-card admin-kpi-card--blue">
@@ -180,9 +180,9 @@ function AdminDashboard() {
             <IconPlay />
           </span>
           <div className="admin-kpi-copy">
-            <p>Tasks in progress</p>
+            <p>Tâches en cours</p>
             <AnimatedNumber as="strong" value={data.stats.tasks_in_progress} />
-            <span className="admin-kpi-hint">timers running</span>
+            <span className="admin-kpi-hint">chronos démarrés</span>
           </div>
         </div>
         <div className="admin-kpi-card admin-kpi-card--red">
@@ -190,9 +190,9 @@ function AdminDashboard() {
             <IconAlert />
           </span>
           <div className="admin-kpi-copy">
-            <p>Overdue tasks</p>
+            <p>Tâches en retard</p>
             <AnimatedNumber as="strong" value={data.stats.tasks_late} />
-            <span className="admin-kpi-hint">deadlines passed</span>
+            <span className="admin-kpi-hint">échéances dépassées</span>
           </div>
         </div>
       </div>
@@ -202,14 +202,14 @@ function AdminDashboard() {
           <IconSearch />
           <input
             type="text"
-            placeholder="Search an employee…"
+            placeholder="Rechercher un employé…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
         <div className="filter-groups">
           <div className="filter-group">
-            <span className="filter-group-label">Status</span>
+            <span className="filter-group-label">Statut</span>
             {STATUS_FILTERS.map((option) => (
               <button
                 key={option.value || 'all'}
@@ -222,25 +222,25 @@ function AdminDashboard() {
             ))}
           </div>
           <div className="filter-group">
-            <span className="filter-group-label">Priority</span>
+            <span className="filter-group-label">Priorité</span>
             <select className="filter-select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-              <option value="">All</option>
+              <option value="">Toutes</option>
               <option value="URGENT">Urgent</option>
-              <option value="HAUTE">High</option>
-              <option value="NORMALE">Normal</option>
-              <option value="FAIBLE">Low</option>
+              <option value="HAUTE">Haute</option>
+              <option value="NORMALE">Normale</option>
+              <option value="FAIBLE">Faible</option>
             </select>
           </div>
           {hasFilters && (
             <button type="button" className="admin-filter-reset" onClick={resetFilters}>
-              Reset
+              Réinitialiser
             </button>
           )}
         </div>
       </div>
 
       {visibleEmployees.length === 0 ? (
-        <div className="empty-state">No employee matches your search.</div>
+        <div className="empty-state">Aucun employé ne correspond à votre recherche.</div>
       ) : (
         <div className="monitor-grid">
           {visibleEmployees.map((employee) => {
@@ -260,18 +260,18 @@ function AdminDashboard() {
                   <Initials name={employee.full_name} avatarUrl={avatarUrls[employee.id]} />
                   <div className="monitor-card-identity">
                     <span className="monitor-card-name">{employee.full_name}</span>
-                    <span className="monitor-card-position">{employee.position || 'Employee'}</span>
+                    <span className="monitor-card-position">{employee.position || 'Employé'}</span>
       </div>
                   <span className={`monitor-status${isActive ? ' monitor-status--active' : ''}`}>
                     <span className="monitor-status-dot" />
-                    {isActive ? 'Active' : 'Idle'}
+                    {isActive ? 'En activité' : 'Au repos'}
                   </span>
                 </div>
 
                 <div className="monitor-cols">
                   {showTodo && (
                     <div className="monitor-col">
-                      <span className="monitor-col-label">To do · {todo.length}</span>
+                      <span className="monitor-col-label">À faire · {todo.length}</span>
                       {todo.length === 0 ? (
                         <span className="monitor-col-empty">—</span>
                       ) : (
@@ -288,7 +288,7 @@ function AdminDashboard() {
 
                   {showInProgress && (
                     <div className="monitor-col">
-                      <span className="monitor-col-label">In progress · {inProgress.length}</span>
+                      <span className="monitor-col-label">En cours · {inProgress.length}</span>
                       {inProgress.length === 0 ? (
                         <span className="monitor-col-empty">—</span>
                       ) : (
@@ -304,7 +304,7 @@ function AdminDashboard() {
 
                   {showDone && (
                     <div className="monitor-col">
-                      <span className="monitor-col-label">Done · {employee.done.length}</span>
+                      <span className="monitor-col-label">Effectuées · {employee.done.length}</span>
                       {employee.done.length === 0 ? (
                         <span className="monitor-col-empty">—</span>
                       ) : (
@@ -321,7 +321,7 @@ function AdminDashboard() {
                 </div>
 
                 <span className="monitor-card-cta">
-                  View details <IconArrowRight />
+                  Voir le détail <IconArrowRight />
                 </span>
               </button>
             );

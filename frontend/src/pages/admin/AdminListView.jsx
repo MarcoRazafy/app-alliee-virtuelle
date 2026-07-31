@@ -7,16 +7,15 @@ import * as userService from '../../services/userService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconChecklist, IconExternalLink, IconArrowRight, IconTrash } from '../../components/icons';
-import { priorityLabel } from '../../utils/taskStatus';
 import '../../styles/admin.css';
 
 // Ordre = celui du workflow (DECISIONS.md) : une tâche neuve tombe toujours dans "Déclarée"
 const STATUS_GROUPS = [
-  { key: 'DECLAREE', label: 'Declared (to review)', pill: 'declared' },
-  { key: 'VALIDEE', label: 'To do', pill: 'todo' },
-  { key: 'EN_COURS', label: 'In progress', pill: 'progress' },
-  { key: 'TERMINEE', label: 'Completed', pill: 'done' },
-  { key: 'CONFIRMEE', label: 'Confirmed', pill: 'confirmed' },
+  { key: 'DECLAREE', label: 'Déclarée (à valider)', pill: 'declared' },
+  { key: 'VALIDEE', label: 'À faire', pill: 'todo' },
+  { key: 'EN_COURS', label: 'En cours', pill: 'progress' },
+  { key: 'TERMINEE', label: 'Terminée', pill: 'done' },
+  { key: 'CONFIRMEE', label: 'Confirmée', pill: 'confirmed' },
 ];
 
 const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAIBLE: 'faible' };
@@ -43,7 +42,7 @@ function AdminListView() {
     taskService
       .getTasks({ list_id: listId, active_only: true })
       .then(setTasks)
-      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load tasks'));
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches'));
   }
 
   function handleSelectList(listId, list) {
@@ -70,7 +69,7 @@ function AdminListView() {
   async function handleQuickAdd(e) {
     e.preventDefault();
     if (!quickAdd.title.trim() || !quickAdd.assigned_to || !quickAdd.deadline) {
-      notifyError('Name, assigned employee and deadline are required to create a task');
+      notifyError('Nom, employé assigné et échéance sont requis pour créer une tâche');
       return;
     }
     try {
@@ -81,33 +80,33 @@ function AdminListView() {
         deadline: quickAdd.deadline,
         list_id: selectedListId,
       });
-      notifySuccess('Task created');
+      notifySuccess('Tâche créée');
       setQuickAdd({ title: '', assigned_to: '', deadline: '', priority: 'NORMALE' });
       setShowQuickAdd(false);
       loadTasks(selectedListId);
     } catch (err) {
       const data = err.response?.data;
-      notifyError(data?.errors?.join(', ') || data?.error || 'Unable to create the task');
+      notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
     }
   }
 
   async function handleDeleteProject() {
     if (!selectedList || deletingProject) return;
     const confirmed = window.confirm(
-      `Delete the project “${selectedList.name}”?\n\nIt will disappear from the tree, but its tasks and files will be kept in the history.`
+      `Supprimer le projet « ${selectedList.name} » ?\n\nIl disparaîtra de l’arborescence, mais ses tâches et ses fichiers resteront conservés dans l’historique.`
     );
     if (!confirmed) return;
 
     setDeletingProject(true);
     try {
       await hierarchyService.deleteList(selectedList.id);
-      notifySuccess('Project deleted');
+      notifySuccess('Projet supprimé');
       setSelectedListId(null);
       setSelectedList(null);
       setTasks([]);
       setTreeRefreshKey((value) => value + 1);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to delete the project');
+      notifyError(err.response?.data?.error || 'Impossible de supprimer le projet');
     } finally {
       setDeletingProject(false);
     }
@@ -117,7 +116,7 @@ function AdminListView() {
     <div className="lists-shell">
       <aside className="lists-panel lists-panel--tree">
         <div className="lists-panel-header">
-          <h2 className="lists-panel-title">Tree</h2>
+          <h2 className="lists-panel-title">Arborescence</h2>
         </div>
         <HierarchyTree
           onSelectList={handleSelectList}
@@ -134,19 +133,19 @@ function AdminListView() {
             <span className="lists-empty-icon">
               <IconChecklist />
             </span>
-            <h3>No list selected</h3>
-            <p>Choose a list in the tree to see its tasks, grouped by status.</p>
+            <h3>Aucune liste sélectionnée</h3>
+            <p>Choisissez une liste dans l'arborescence pour voir ses tâches, regroupées par statut.</p>
           </div>
         ) : (
           <>
             <div className="lists-content-header">
               <div>
-                <span className="lists-content-eyebrow">Project</span>
+                <span className="lists-content-eyebrow">Projet</span>
                 <h2 className="lists-content-title">{selectedList.name}</h2>
               </div>
               <div className="lists-content-actions">
                 <span className="lists-content-total">
-                  {tasks.length} task{tasks.length > 1 ? 's' : ''}
+                  {tasks.length} tâche{tasks.length > 1 ? 's' : ''}
                 </span>
                 <button
                   type="button"
@@ -155,7 +154,7 @@ function AdminListView() {
                   disabled={deletingProject}
                 >
                   <IconTrash />
-                  {deletingProject ? 'Deleting…' : 'Delete the project'}
+                  {deletingProject ? 'Suppression…' : 'Supprimer le projet'}
                 </button>
               </div>
             </div>
@@ -169,11 +168,11 @@ function AdminListView() {
                     <span className={`pill pill--${group.pill}`}>{group.label}</span>
                     <span className="lists-group-count">{groupTasks.length}</span>
                     {group.key === 'CONFIRMEE' && (
-                      <span className="lists-auto-hide-hint">Automatically hidden after 5 days</span>
+                      <span className="lists-auto-hide-hint">Masquées automatiquement après 5 jours</span>
                     )}
                     {isDeclared && !showQuickAdd && (
                       <button type="button" className="lists-add-btn" onClick={() => setShowQuickAdd(true)}>
-                        + Add a task
+                        + Ajouter une tâche
                       </button>
                     )}
                   </div>
@@ -182,7 +181,7 @@ function AdminListView() {
                     <form className="lists-quick-add" onSubmit={handleQuickAdd}>
                       <input
                         className="form-input"
-                        placeholder="Task name"
+                        placeholder="Nom de la tâche"
                         value={quickAdd.title}
                         onChange={(e) => setQuickAdd({ ...quickAdd, title: e.target.value })}
                         autoFocus
@@ -192,7 +191,7 @@ function AdminListView() {
                         value={quickAdd.assigned_to}
                         onChange={(e) => setQuickAdd({ ...quickAdd, assigned_to: e.target.value })}
                       >
-                        <option value="">Employee…</option>
+                        <option value="">Employé…</option>
                         {employees.map((emp) => (
                           <option key={emp.id} value={emp.id}>
                             {emp.full_name}
@@ -211,34 +210,34 @@ function AdminListView() {
                         onChange={(e) => setQuickAdd({ ...quickAdd, priority: e.target.value })}
                       >
                         <option value="URGENT">Urgent</option>
-                        <option value="HAUTE">High</option>
-                        <option value="NORMALE">Normal</option>
-                        <option value="FAIBLE">Low</option>
+                        <option value="HAUTE">Haute</option>
+                        <option value="NORMALE">Normale</option>
+                        <option value="FAIBLE">Faible</option>
                       </select>
                       <div className="lists-quick-add-actions">
                         <button type="submit" className="btn-primary">
                           <IconArrowRight />
-                          Save
+                          Enregistrer
                         </button>
                         <button type="button" className="btn-outline" onClick={() => setShowQuickAdd(false)}>
-                          Cancel
+                          Annuler
                         </button>
                       </div>
                     </form>
                   )}
 
                   {groupTasks.length === 0 ? (
-                    <p className="lists-group-empty">No task.</p>
+                    <p className="lists-group-empty">Aucune tâche.</p>
                   ) : (
                     <div className="task-table-wrap">
                       <table className="task-table">
                         <thead>
                           <tr>
-                            <th>Task</th>
-                            <th>Assigned to</th>
-                            <th>Deadline</th>
-                            <th>Priority</th>
-                            <th aria-label="Open" />
+                            <th>Tâche</th>
+                            <th>Assigné à</th>
+                            <th>Échéance</th>
+                            <th>Priorité</th>
+                            <th aria-label="Ouvrir" />
                           </tr>
                         </thead>
                         <tbody>
@@ -256,11 +255,11 @@ function AdminListView() {
                                   <span
                                     className={`priority-dot priority-dot--${PRIORITY_CLS[task.priority] || 'normale'}`}
                                   />
-                                  {priorityLabel(task.priority)}
+                                  {task.priority}
                                 </span>
                               </td>
                               <td>
-                                <Link to={`/tasks/${task.id}`} className="icon-link-btn" title="Open task">
+                                <Link to={`/tasks/${task.id}`} className="icon-link-btn" title="Ouvrir la tâche">
                                   <IconExternalLink />
                                 </Link>
                               </td>

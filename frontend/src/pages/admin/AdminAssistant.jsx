@@ -16,10 +16,10 @@ import '../../styles/admin-assistant.css';
 
 // Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
 const SUGGESTIONS = [
-  { icon: IconUsers, text: 'Who has the most confirmed tasks this month?' },
-  { icon: IconClock, text: 'How many tasks are currently overdue?' },
-  { icon: IconUser, text: 'Which employee worked the most hours this week?' },
-  { icon: IconBarChart, text: 'Summarize the team activity over the last 7 days' },
+  { icon: IconUsers, text: 'Qui a le plus de tâches confirmées ce mois-ci ?' },
+  { icon: IconClock, text: 'Combien de tâches sont en retard actuellement ?' },
+  { icon: IconUser, text: "Quel employé a travaillé le plus d'heures cette semaine ?" },
+  { icon: IconBarChart, text: "Résume l'activité de l'équipe sur les 7 derniers jours" },
 ];
 
 function AdminAssistant() {
@@ -50,7 +50,7 @@ function AdminAssistant() {
     return aiService
       .getAiHistory()
       .then(setHistory)
-      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load the history'));
+      .catch((err) => notifyError(err.response?.data?.error || "Impossible de charger l'historique"));
   }
 
   useEffect(() => {
@@ -163,10 +163,10 @@ function AdminAssistant() {
     setPendingFile(null);
     if (fileRef.current) fileRef.current.value = '';
     try {
-      await aiService.askAssistant(q || 'Analyze this file.', activeSessionId, fileToSend);
+      await aiService.askAssistant(q || 'Analyse ce fichier.', activeSessionId, fileToSend);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to query the assistant');
+      notifyError(err.response?.data?.error || "Impossible d'interroger l'assistant");
       setQuestion(q);
     } finally {
       setLoading(false);
@@ -203,19 +203,19 @@ function AdminAssistant() {
       await aiService.editConversation(id, q);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to edit the message');
+      notifyError(err.response?.data?.error || 'Impossible de modifier le message');
     } finally {
       setLoading(false);
       setPending(null);
     }
   }
   async function handleDeleteExchange(id) {
-    if (!window.confirm('Delete this exchange?')) return;
+    if (!window.confirm('Supprimer cet échange ?')) return;
     try {
       await aiService.deleteConversation(id);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to delete');
+      notifyError(err.response?.data?.error || 'Impossible de supprimer');
     }
   }
 
@@ -232,19 +232,19 @@ function AdminAssistant() {
       await aiService.renameSession(id, title);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to rename');
+      notifyError(err.response?.data?.error || 'Impossible de renommer');
     }
   }
   async function handleDeleteSession(id, e) {
     e.stopPropagation();
-    if (!window.confirm('Delete this entire conversation?')) return;
+    if (!window.confirm('Supprimer toute cette discussion ?')) return;
     try {
       await aiService.deleteSession(id);
       if (id === activeSessionId) setActiveSessionId(newId());
       await loadHistory();
-      notifySuccess('Conversation deleted');
+      notifySuccess('Discussion supprimée');
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to delete the conversation');
+      notifyError(err.response?.data?.error || 'Impossible de supprimer la discussion');
     }
   }
 
@@ -258,7 +258,7 @@ function AdminAssistant() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      notifyError('Unable to download the attachment');
+      notifyError('Impossible de télécharger la pièce jointe');
     }
   }
 
@@ -277,11 +277,11 @@ function AdminAssistant() {
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      notifyError('Voice dictation is not supported by this browser');
+      notifyError("La dictée vocale n'est pas supportée par ce navigateur");
       return;
     }
     const rec = new SR();
-    rec.lang = 'en-US';
+    rec.lang = 'fr-FR';
     rec.interimResults = true;
     rec.continuous = false;
     const base = question ? question + ' ' : '';
@@ -305,7 +305,7 @@ function AdminAssistant() {
           <img src={attachmentUrls[entry.id]} alt={entry.attachment_name || ''} />
         </a>
       ) : (
-        <div className="ai-attach-loading"><ImageIcon /> Loading…</div>
+        <div className="ai-attach-loading"><ImageIcon /> Chargement…</div>
       );
     }
     return (
@@ -327,7 +327,7 @@ function AdminAssistant() {
               <div className="ai-edit">
                 <textarea value={editText} onChange={(ev) => setEditText(ev.target.value)} rows={2} autoFocus />
                 <div className="ai-edit-actions">
-                  <button type="button" className="ai-edit-cancel" onClick={() => setEditingId(null)}>Cancel</button>
+                  <button type="button" className="ai-edit-cancel" onClick={() => setEditingId(null)}>Annuler</button>
                   <button type="button" className="ai-edit-save" onClick={() => saveEdit(entry.id)} disabled={!editText.trim()}>
                     Regenerate
                   </button>
@@ -341,8 +341,8 @@ function AdminAssistant() {
             )}
             {!isEditing && (
               <div className="ai-msg-actions">
-                <button type="button" onClick={() => startEdit(entry)} title="Edit" aria-label="Edit"><PencilIcon /></button>
-                <button type="button" onClick={() => handleDeleteExchange(entry.id)} title="Delete" aria-label="Delete"><TrashIcon /></button>
+                <button type="button" onClick={() => startEdit(entry)} title='Modifier' aria-label='Modifier'><PencilIcon /></button>
+                <button type="button" onClick={() => handleDeleteExchange(entry.id)} title='Supprimer' aria-label='Supprimer'><TrashIcon /></button>
               </div>
             )}
           </div>
@@ -368,13 +368,13 @@ function AdminAssistant() {
           type="button"
           className="ai-sidebar-close"
           onClick={() => setSidebarOpen(false)}
-          aria-label="Close history"
+          aria-label="Fermer l'historique"
         >
           <IconX />
         </button>
         <button type="button" className="ai-new-btn ai-new-btn--block" onClick={handleNewConversation}>
           <PlusIcon />
-          New conversation
+          Nouvelle conversation
         </button>
         <label className="ai-search">
           <IconSearch />
@@ -382,13 +382,13 @@ function AdminAssistant() {
             type="search"
             value={sidebarSearch}
             onChange={(e) => setSidebarSearch(e.target.value)}
-            placeholder="Search a conversation"
-            aria-label="Search a conversation"
+            placeholder='Rechercher une conversation'
+            aria-label='Rechercher une conversation'
           />
         </label>
-        <div className="ai-sidebar-label">History</div>
+        <div className="ai-sidebar-label">Historique</div>
         <div className="ai-session-list">
-          {sessions.length === 0 && <p className="ai-session-empty">No conversation yet.</p>}
+          {sessions.length === 0 && <p className="ai-session-empty">Aucune conversation pour le moment.</p>}
           {sessions.length > 0 && filteredSessions.length === 0 && (
             <p className="ai-session-empty">No results for “{sidebarSearch}”.</p>
           )}
@@ -425,15 +425,15 @@ function AdminAssistant() {
                 )}
               </span>
               <span className="ai-session-tools">
-                <button type="button" onClick={(e) => startRename(s, e)} title="Rename" aria-label="Rename"><PencilIcon /></button>
-                <button type="button" onClick={(e) => handleDeleteSession(s.id, e)} title="Delete" aria-label="Delete"><TrashIcon /></button>
+                <button type="button" onClick={(e) => startRename(s, e)} title='Renommer' aria-label='Renommer'><PencilIcon /></button>
+                <button type="button" onClick={(e) => handleDeleteSession(s.id, e)} title='Supprimer' aria-label='Supprimer'><TrashIcon /></button>
               </span>
             </div>
           ))}
         </div>
         {filteredSessions.length > 8 && (
           <button type="button" className="ai-see-all" onClick={() => setShowAllSessions((v) => !v)}>
-            {showAllSessions ? 'Collapse' : 'View all conversations'}
+            {showAllSessions ? 'Replier' : 'Voir toutes les conversations'}
           </button>
         )}
       </aside>
@@ -444,8 +444,8 @@ function AdminAssistant() {
             type="button"
             className="ai-back"
             onClick={() => navigate('/admin')}
-            aria-label="Back"
-            title="Back"
+            aria-label="Retour"
+            title="Retour"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M15 18l-6-6 6-6" />
@@ -455,8 +455,8 @@ function AdminAssistant() {
             type="button"
             className="ai-history-toggle"
             onClick={() => setSidebarOpen(true)}
-            aria-label="Open conversation history"
-            title="Conversation history"
+            aria-label="Ouvrir l'historique des conversations"
+            title='Historique des conversations'
           >
             <IconMenu />
           </button>
@@ -465,20 +465,20 @@ function AdminAssistant() {
               <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
             </span>
             <div className="ai-header-copy">
-              <h1>AI Assistant</h1>
-              <p className="ai-subtitle">Operational analysis and recommendations</p>
+              <h1>Assistant IA</h1>
+              <p className="ai-subtitle">Analyse opérationnelle et recommandations</p>
             </div>
           </div>
           <div className="ai-header-pills">
             <span className="ai-pill ai-pill--online">
-              <span className="ai-status-dot" /> Online
+              <span className="ai-status-dot" /> En ligne
             </span>
             <span className="ai-pill ai-pill--model">
               <RobotIcon /> MISTRAL AI
             </span>
             <button type="button" className="ai-new-btn ai-main-new" onClick={handleNewConversation}>
               <PlusIcon />
-              New
+              Nouveau
             </button>
           </div>
         </header>
@@ -486,8 +486,8 @@ function AdminAssistant() {
         <div className="ai-notice">
           <ShieldIcon />
           <span>
-            <strong>Read-only mode</strong> — the assistant analyzes existing data without modifying any
-            information.
+            <strong>Mode lecture seule</strong> — l'assistant analyse les données existantes sans modifier
+            aucune information.
           </span>
         </div>
 
@@ -499,8 +499,8 @@ function AdminAssistant() {
                 <span className="ai-agent ai-agent--hero" aria-hidden="true">
                   <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-agent-robot" />
                 </span>
-                <h2>How can I help you?</h2>
-                <p>Ask the assistant about your team's activity, tasks, delays and performance.</p>
+                <h2>Comment puis-je vous aider ?</h2>
+                <p>Interrogez l'assistant sur l'activité de votre équipe, les tâches, les retards et la performance.</p>
                 <div className="ai-suggestions">
                   {SUGGESTIONS.map((s) => {
                     const Icon = s.icon;
@@ -520,10 +520,10 @@ function AdminAssistant() {
                   <div className="ai-kpi">
                     <span className="ai-kpi-icon ai-kpi-icon--ok"><IconCheckCircle /></span>
                     <div className="ai-kpi-body">
-                      <span className="ai-kpi-label">Confirmed tasks</span>
+                      <span className="ai-kpi-label">Tâches confirmées</span>
                       <span className="ai-kpi-value">{kpis.confirmed.value}</span>
                       <span className={`ai-kpi-delta${kpis.confirmed.delta >= 0 ? ' up' : ' down'}`}>
-                        {kpis.confirmed.delta >= 0 ? '+' : ''}{kpis.confirmed.delta}% vs last week
+                        {kpis.confirmed.delta >= 0 ? '+' : ''}{kpis.confirmed.delta}% vs semaine dernière
                       </span>
                     </div>
                     <Sparkline points={kpis.confirmed.spark} color="var(--color-success)" />
@@ -532,10 +532,10 @@ function AdminAssistant() {
                   <div className="ai-kpi">
                     <span className="ai-kpi-icon ai-kpi-icon--warn"><IconAlert /></span>
                     <div className="ai-kpi-body">
-                      <span className="ai-kpi-label">Delays</span>
+                      <span className="ai-kpi-label">Retards</span>
                       <span className="ai-kpi-value">{kpis.late.value}</span>
                       <span className={`ai-kpi-delta${kpis.late.delta <= 0 ? ' up' : ' down'}`}>
-                        {kpis.late.delta >= 0 ? '+' : ''}{kpis.late.delta}% vs last week
+                        {kpis.late.delta >= 0 ? '+' : ''}{kpis.late.delta}% vs semaine dernière
                       </span>
                     </div>
                     <Sparkline points={kpis.confirmed.spark?.map(() => kpis.late.value)} color="var(--color-warning)" />
@@ -544,10 +544,10 @@ function AdminAssistant() {
                   <div className="ai-kpi">
                     <span className="ai-kpi-icon ai-kpi-icon--time"><IconClock /></span>
                     <div className="ai-kpi-body">
-                      <span className="ai-kpi-label">Hours this week</span>
+                      <span className="ai-kpi-label">Heures cette semaine</span>
                       <span className="ai-kpi-value">{kpis.hours.value} h</span>
                       <span className={`ai-kpi-delta${kpis.hours.delta >= 0 ? ' up' : ' down'}`}>
-                        {kpis.hours.delta >= 0 ? '+' : ''}{kpis.hours.delta}% vs last week
+                        {kpis.hours.delta >= 0 ? '+' : ''}{kpis.hours.delta}% vs semaine dernière
                       </span>
                     </div>
                     <Sparkline points={kpis.hours.spark} color="var(--color-accent)" />
@@ -573,7 +573,7 @@ function AdminAssistant() {
                   <RobotIcon />
                 </span>
                 <div className="ai-bubble ai-bubble--bot ai-typing">
-                  <span className="ai-typing-label">Analyzing data</span>
+                  <span className="ai-typing-label">Analyse des données</span>
                   <span className="ai-typing-dots">
                     <i />
                     <i />
@@ -590,23 +590,23 @@ function AdminAssistant() {
             <div className="ai-input-file">
               {isImageType(pendingFile.type) ? <ImageIcon /> : <PaperclipIcon />}
               <span className="ai-input-file-name">{pendingFile.name}</span>
-              <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ''; }} aria-label="Remove">
+              <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ''; }} aria-label='Retirer'>
                 <XIcon />
               </button>
             </div>
           )}
           <div className="ai-input-row">
             <input ref={fileRef} type="file" hidden onChange={(e) => setPendingFile(e.target.files?.[0] || null)} />
-            <button type="button" className={`ai-input-icon${recognizing ? ' ai-input-icon--rec' : ''}`} onClick={toggleDictation} disabled={loading} title="Dictate" aria-label="Dictate"><MicIcon /></button>
+            <button type="button" className={`ai-input-icon${recognizing ? ' ai-input-icon--rec' : ''}`} onClick={toggleDictation} disabled={loading} title='Dicter' aria-label='Dicter'><MicIcon /></button>
             <div className="ai-input-field">
               <input
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                placeholder={recognizing ? 'Speak…' : 'Ask the assistant your question…'}
+                placeholder={recognizing ? 'Parlez…' : "Posez votre question à l'assistant…"}
                 disabled={loading}
               />
             </div>
-            <button type="submit" className="ai-send" disabled={loading || (!question.trim() && !pendingFile)} aria-label="Send">
+            <button type="submit" className="ai-send" disabled={loading || (!question.trim() && !pendingFile)} aria-label='Envoyer'>
               {loading ? <span className="ai-send-spinner" /> : <SendIcon />}
             </button>
           </div>

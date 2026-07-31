@@ -23,7 +23,7 @@ function hasBody(req) {
 function pushPreview(content, hasAttachment) {
   const text = (content || '').trim();
   if (text) return text.length > 120 ? `${text.slice(0, 117)}…` : text;
-  return hasAttachment ? '📎 Attachment' : 'New message';
+  return hasAttachment ? '📎 Pièce jointe' : 'Nouveau message';
 }
 
 async function getGlobalMessages(req, res, next) {
@@ -38,7 +38,7 @@ async function getGlobalMessages(req, res, next) {
 async function postGlobalMessage(req, res, next) {
   try {
     if (!hasBody(req)) {
-      return res.status(400).json({ error: 'The message cannot be empty' });
+      return res.status(400).json({ error: 'Le message ne peut pas être vide' });
     }
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await messageModel.createGlobalMessage(req.user.id, content, attachmentFrom(req));
@@ -65,7 +65,7 @@ async function getPrivateMessages(req, res, next) {
 
     const otherUser = await userModel.findById(userId);
     if (!otherUser) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
     const messages = await messageModel.findPrivateMessages(req.user.id, userId);
@@ -81,15 +81,15 @@ async function postPrivateMessage(req, res, next) {
   try {
     const { userId } = req.params;
     if (!hasBody(req)) {
-      return res.status(400).json({ error: 'The message cannot be empty' });
+      return res.status(400).json({ error: 'Le message ne peut pas être vide' });
     }
     if (userId === req.user.id) {
-      return res.status(400).json({ error: 'You cannot send a message to yourself' });
+      return res.status(400).json({ error: 'Impossible de vous envoyer un message à vous-même' });
     }
 
     const recipient = await userModel.findById(userId);
     if (!recipient) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
     let conversation = await messageModel.findConversationBetween(req.user.id, userId);
@@ -112,7 +112,7 @@ async function postPrivateMessage(req, res, next) {
     const author = await userModel.findById(req.user.id).catch(() => null);
     pushService
       .notifyUsers([userId], {
-        title: author?.full_name || author?.username || 'New message',
+        title: author?.full_name || author?.username || 'Nouveau message',
         body: pushPreview(content, Boolean(req.file)),
         url: '/messaging',
         tag: `private-${req.user.id}`,
@@ -144,12 +144,12 @@ async function createGroup(req, res, next) {
     if (!Array.isArray(requestedMemberIds)) requestedMemberIds = [];
 
     if (normalizedName.length < 2 || normalizedName.length > 100) {
-      return res.status(400).json({ error: 'The group name must be between 2 and 100 characters' });
+      return res.status(400).json({ error: 'Le nom du groupe doit contenir entre 2 et 100 caractères' });
     }
 
     const memberIds = [...new Set(requestedMemberIds.filter((id) => typeof id === 'string' && id !== req.user.id))];
     if (memberIds.length === 0) {
-      return res.status(400).json({ error: 'Select at least one person to create the group' });
+      return res.status(400).json({ error: 'Sélectionnez au moins une personne pour créer le groupe' });
     }
     if (memberIds.length > 50) {
       return res.status(400).json({ error: 'Un groupe ne peut pas contenir plus de 50 personnes' });
@@ -159,7 +159,7 @@ async function createGroup(req, res, next) {
     const activeUserIds = new Set(activeUsers.map((user) => user.id));
     const invalidMemberIds = memberIds.filter((id) => !activeUserIds.has(id));
     if (invalidMemberIds.length > 0) {
-      return res.status(400).json({ error: 'One or more selected people are no longer available' });
+      return res.status(400).json({ error: 'Une ou plusieurs personnes sélectionnées ne sont plus disponibles' });
     }
 
     const avatarPath = req.file ? req.file.path : null;
@@ -187,7 +187,7 @@ async function getGroupMessages(req, res, next) {
     const { groupId } = req.params;
     const group = await messageModel.findGroupForUser(groupId, req.user.id);
     if (!group) {
-      return res.status(404).json({ error: 'Group not found or access denied' });
+      return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
     }
 
     const messages = await messageModel.findGroupMessages(groupId, req.user.id);
@@ -202,12 +202,12 @@ async function postGroupMessage(req, res, next) {
   try {
     const { groupId } = req.params;
     if (!hasBody(req)) {
-      return res.status(400).json({ error: 'The message cannot be empty' });
+      return res.status(400).json({ error: 'Le message ne peut pas être vide' });
     }
 
     const group = await messageModel.findGroupForUser(groupId, req.user.id);
     if (!group) {
-      return res.status(404).json({ error: 'Group not found or access denied' });
+      return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
     }
 
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
@@ -219,12 +219,12 @@ async function postGroupMessage(req, res, next) {
     realtime.emitToUsers(memberIds, 'message:new', { scope: 'group', groupId, authorId: req.user.id });
     // Notification push aux membres (sauf l'auteur). Best-effort.
     const author = await userModel.findById(req.user.id).catch(() => null);
-    const authorName = author?.full_name || author?.username || 'Someone';
+    const authorName = author?.full_name || author?.username || "Quelqu'un";
     pushService
       .notifyUsers(
         memberIds,
         {
-          title: group.name ? `${group.name}` : 'New group message',
+          title: group.name ? `${group.name}` : 'Nouveau message de groupe',
           body: `${authorName}: ${pushPreview(content, Boolean(req.file))}`,
           url: '/messaging',
           tag: `group-${groupId}`,
@@ -252,13 +252,13 @@ async function canAccessMessage(raw, user) {
 async function editMessage(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
-    if (!raw) return res.status(404).json({ error: 'Message not found' });
-    if (raw.deleted_at) return res.status(400).json({ error: 'Message deleted' });
+    if (!raw) return res.status(404).json({ error: 'Message introuvable' });
+    if (raw.deleted_at) return res.status(400).json({ error: 'Message supprimé' });
     if (raw.author_id !== req.user.id) {
       return res.status(403).json({ error: 'Vous ne pouvez modifier que vos propres messages' });
     }
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
-    if (!content) return res.status(400).json({ error: 'The message cannot be empty' });
+    if (!content) return res.status(400).json({ error: 'Le message ne peut pas être vide' });
     const message = await messageModel.updateMessageContent(req.params.id, content, req.user.id);
     res.status(200).json(message);
   } catch (err) {
@@ -269,10 +269,10 @@ async function editMessage(req, res, next) {
 async function deleteMessage(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
-    if (!raw) return res.status(404).json({ error: 'Message not found' });
+    if (!raw) return res.status(404).json({ error: 'Message introuvable' });
     // L'auteur ou un administrateur peut supprimer.
     if (raw.author_id !== req.user.id && req.user.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Deletion not allowed' });
+      return res.status(403).json({ error: 'Suppression non autorisée' });
     }
     await messageModel.softDeleteMessage(req.params.id);
     res.status(200).json({ deleted: true, id: req.params.id });
@@ -285,12 +285,12 @@ async function reactMessage(req, res, next) {
   try {
     const emoji = typeof req.body.emoji === 'string' ? req.body.emoji : '';
     if (!ALLOWED_REACTIONS.includes(emoji)) {
-      return res.status(400).json({ error: 'Reaction not allowed' });
+      return res.status(400).json({ error: 'Réaction non autorisée' });
     }
     const raw = await messageModel.findRawMessageById(req.params.id);
-    if (!raw || raw.deleted_at) return res.status(404).json({ error: 'Message not found' });
+    if (!raw || raw.deleted_at) return res.status(404).json({ error: 'Message introuvable' });
     if (!(await canAccessMessage(raw, req.user))) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: 'Accès refusé' });
     }
     const message = await messageModel.toggleReaction(req.params.id, req.user.id, emoji);
     res.status(200).json(message);
@@ -303,10 +303,10 @@ async function getMessageAttachment(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
     if (!raw || raw.deleted_at || !raw.attachment_path) {
-      return res.status(404).json({ error: 'Attachment not found' });
+      return res.status(404).json({ error: 'Pièce jointe introuvable' });
     }
     if (!(await canAccessMessage(raw, req.user))) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: 'Accès refusé' });
     }
     res.download(raw.attachment_path, raw.attachment_name || 'piece-jointe');
   } catch (err) {
@@ -317,8 +317,8 @@ async function getMessageAttachment(req, res, next) {
 async function getGroupAvatar(req, res, next) {
   try {
     const avatarPath = await messageModel.findGroupAvatarForMember(req.params.groupId, req.user.id);
-    if (!avatarPath) return res.status(404).json({ error: 'Avatar not found' });
-    return sendFileOr404(res, avatarPath, 'Avatar not found');
+    if (!avatarPath) return res.status(404).json({ error: 'Avatar introuvable' });
+    return sendFileOr404(res, avatarPath, 'Avatar introuvable');
   } catch (err) {
     next(err);
   }

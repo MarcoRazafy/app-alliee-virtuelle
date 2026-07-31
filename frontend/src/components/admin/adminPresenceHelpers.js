@@ -3,14 +3,14 @@ import { useEffect, useRef } from 'react';
 // Constantes et helpers de la page Présence admin (extraits pour alléger AdminPresence).
 
 export const PRESENCE_META = {
-  present: { label: 'Present', cls: 'present' },
-  late: { label: 'Late', cls: 'late' },
-  partial: { label: 'Partial presence', cls: 'partial' },
-  outside: { label: 'Off schedule', cls: 'outside' },
+  present: { label: 'Présent', cls: 'present' },
+  late: { label: 'En retard', cls: 'late' },
+  partial: { label: 'Présence partielle', cls: 'partial' },
+  outside: { label: 'Hors planning', cls: 'outside' },
   absent: { label: 'Absent', cls: 'absent' },
-  waiting: { label: 'Waiting', cls: 'pending' },
-  upcoming: { label: 'Upcoming', cls: 'pending' },
-  off: { label: 'Off', cls: 'off' },
+  waiting: { label: 'En attente', cls: 'pending' },
+  upcoming: { label: 'À venir', cls: 'pending' },
+  off: { label: 'Repos', cls: 'off' },
 };
 
 export function initials(name) {
@@ -38,7 +38,7 @@ export function accomplishmentClass(value) {
 }
 
 export function formatDayLabel(date) {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('fr-FR', {
     weekday: 'short',
     day: '2-digit',
     month: 'short',
@@ -47,7 +47,7 @@ export function formatDayLabel(date) {
 }
 
 export function formatMonthLabel(month) {
-  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
+  return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(
     new Date(`${month}-01T12:00:00`)
   );
 }

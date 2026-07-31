@@ -37,9 +37,9 @@ export default function NotificationToggle() {
       await enablePush();
       setSubscribed(true);
       setPermission(getPermission());
-      notifySuccess('Notifications enabled on this device');
+      notifySuccess('Notifications activées sur cet appareil');
     } catch (err) {
-      notifyError(err.message || 'Could not enable notifications');
+      notifyError(err.message || "Impossible d'activer les notifications");
       setPermission(getPermission());
     } finally {
       setBusy(false);
@@ -51,9 +51,9 @@ export default function NotificationToggle() {
     try {
       await disablePush();
       setSubscribed(false);
-      notifySuccess('Notifications disabled on this device');
+      notifySuccess('Notifications désactivées sur cet appareil');
     } catch (err) {
-      notifyError(err.message || 'Could not disable notifications');
+      notifyError(err.message || "Impossible de désactiver les notifications");
     } finally {
       setBusy(false);
     }
@@ -65,7 +65,7 @@ export default function NotificationToggle() {
         <span><BellIcon /></span>
         <div>
           <p>Notifications</p>
-          <h2>Push notifications</h2>
+          <h2>Notifications push</h2>
         </div>
       </header>
 
@@ -73,33 +73,34 @@ export default function NotificationToggle() {
         {!supported ? (
           isIosSafariNotStandalone() ? (
             <p className="notif-toggle-hint">
-              On iPhone, install the app first (Share ⬆️ → “Add to Home Screen”), then open it to
-              enable notifications.
+              Sur iPhone, installe d'abord l'application (Partager ⬆️ → « Sur l'écran d'accueil »),
+              puis ouvre-la pour activer les notifications.
             </p>
           ) : (
-            <p className="notif-toggle-hint">Notifications are not supported on this browser.</p>
+            <p className="notif-toggle-hint">Les notifications ne sont pas supportées par ce navigateur.</p>
           )
         ) : permission === 'denied' ? (
           <p className="notif-toggle-hint">
-            Notifications are blocked in your browser settings. Allow them for this site, then reload.
+            Les notifications sont bloquées dans les réglages de ton navigateur. Autorise-les pour ce
+            site, puis recharge la page.
           </p>
         ) : (
           <>
             <p className="notif-toggle-hint">
-              Get notified of new messages, even when the app is closed. Applies to this device.
+              Sois notifié des nouveaux messages, même quand l'application est fermée. S'applique à cet appareil.
             </p>
             <div className="notif-toggle-row">
               <span className={`notif-toggle-status ${subscribed ? 'is-on' : ''}`}>
-                {subscribed ? 'Enabled on this device' : 'Disabled'}
+                {subscribed ? 'Activées sur cet appareil' : 'Désactivées'}
               </span>
               {subscribed ? (
                 <button type="button" className="profile-outline-button" onClick={handleDisable} disabled={busy}>
-                  {busy ? 'Working…' : 'Disable'}
+                  {busy ? 'Traitement…' : 'Désactiver'}
                 </button>
               ) : (
                 <button type="button" className="profile-primary-button" onClick={handleEnable} disabled={busy}>
                   <BellIcon />
-                  {busy ? 'Enabling…' : 'Enable notifications'}
+                  {busy ? 'Activation…' : 'Activer les notifications'}
                 </button>
               )}
             </div>

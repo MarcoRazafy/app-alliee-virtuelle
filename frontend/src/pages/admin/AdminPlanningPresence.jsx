@@ -8,7 +8,7 @@ function AdminPlanningPresence() {
 
   return (
     <div className="pp-page">
-      <div className="pp-tabs" role="tablist" aria-label="Attendance and schedule">
+      <div className="pp-tabs" role="tablist" aria-label="Présence et planning">
         <button
           id="planning-tab"
           type="button"
@@ -29,7 +29,7 @@ function AdminPlanningPresence() {
           className={`pp-tab${tab === 'presence' ? ' pp-tab--active' : ''}`}
           onClick={() => setTab('presence')}
         >
-          Attendance
+          Présence
         </button>
       </div>
 

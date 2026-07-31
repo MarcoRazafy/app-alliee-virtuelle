@@ -9,9 +9,9 @@ import { notifyError } from '../utils/toast';
 import '../styles/employee-assistant.css';
 
 const SUGGESTIONS = [
-  'What are my most urgent tasks?',
-  'Summarize my progress this week.',
-  'Which tasks are awaiting confirmation?',
+  'Quelles sont mes tâches les plus urgentes ?',
+  'Résume ma progression de cette semaine.',
+  'Quelles tâches attendent une confirmation ?',
 ];
 
 function createSessionId() {
@@ -63,7 +63,7 @@ function EmployeeAssistant() {
       const response = await aiService.askAssistant(text, sessionId);
       setHistory((current) => [response, ...current]);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'The chatbot cannot answer at the moment');
+      notifyError(err.response?.data?.error || 'Le chatbot ne peut pas répondre pour le moment');
     } finally {
       setLoading(false);
     }
@@ -72,17 +72,17 @@ function EmployeeAssistant() {
   return (
     <EmployeeLayout
       title="Chatbot"
-      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'Chatbot' }]}
-      subtitle="Read-only personal assistant"
+      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Chatbot' }]}
+      subtitle='Assistant personnel en lecture seule'
     >
-      <section className="employee-ai" aria-label="Personal chatbot">
+      <section className="employee-ai" aria-label='Chatbot personnel'>
         <header className="employee-ai-hero">
           <button
             type="button"
             className="employee-ai-back"
             onClick={() => navigate('/dashboard')}
-            aria-label="Back"
-            title="Back"
+            aria-label="Retour"
+            title="Retour"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M15 18l-6-6 6-6" />
@@ -92,8 +92,8 @@ function EmployeeAssistant() {
             <img src="/agentIAImage-removebg-preview.png" alt="" className="employee-ai-robot" />
           </span>
           <div>
-            <h2>How can I help you?</h2>
-            <p>I can analyze your tasks and statistics, without accessing your colleagues' private data.</p>
+            <h2>Comment puis-je vous aider ?</h2>
+            <p>Je peux analyser vos tâches et vos statistiques, sans accéder aux données privées de vos collègues.</p>
           </div>
         </header>
 
@@ -136,12 +136,12 @@ function EmployeeAssistant() {
             <span />
             <span />
             <span />
-            Analyzing your data…
+            Analyse de vos données…
           </div>
         )}
 
         <form className="employee-ai-composer" onSubmit={submit}>
-          <label htmlFor="employee-ai-question">Your question</label>
+          <label htmlFor="employee-ai-question">Votre question</label>
           <div>
             <textarea
               id="employee-ai-question"
@@ -149,14 +149,14 @@ function EmployeeAssistant() {
               maxLength="1200"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="e.g. Which task should I handle first?"
+              placeholder='Ex. Quelle tâche dois-je traiter en premier ?'
               disabled={loading}
             />
-            <button type="submit" disabled={loading || !question.trim()} aria-label="Send question">
+            <button type="submit" disabled={loading || !question.trim()} aria-label='Envoyer la question'>
               <IconSend />
             </button>
           </div>
-          <p>The chatbot only reads your data and makes no changes.</p>
+          <p>Le chatbot lit uniquement vos données et n'effectue aucune modification.</p>
         </form>
       </section>
     </EmployeeLayout>

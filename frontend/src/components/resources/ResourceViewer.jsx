@@ -47,7 +47,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
           if (!cancelled) setBlobUrl(objectUrl);
         }
       } catch (err) {
-        if (!cancelled) setError(err.response?.data?.error || 'Unable to load the preview');
+        if (!cancelled) setError(err.response?.data?.error || "Impossible de charger l'aperçu");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -65,7 +65,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
       const blob = await resourceService.downloadFileBlob(file.id);
       saveBlob(blob, file.file_name);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Download failed');
+      notifyError(err.response?.data?.error || 'Téléchargement impossible');
     }
   }
 
@@ -87,7 +87,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
         .from(docRef.current)
         .save();
     } catch {
-      notifyError('Unable to generate the PDF');
+      notifyError("Impossible de générer le PDF");
     } finally {
       setExporting(false);
     }
@@ -107,13 +107,13 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
             <p className="resources-modal-eyebrow">{isDocument ? 'Document' : file.file_type || 'Fichier'}</p>
             <h2>{file.file_name}</h2>
           </div>
-          <button type="button" className="resources-modal-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="resources-modal-close" onClick={onClose} aria-label="Fermer">
             <IconX />
           </button>
         </div>
 
         <div className="resources-viewer-body">
-          {loading && <div className="empty-state">Loading the preview…</div>}
+          {loading && <div className="empty-state">Chargement de l'aperçu…</div>}
           {!loading && error && <div className="empty-state">{error}</div>}
 
           {!loading && !error && isDocument && (
@@ -122,7 +122,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
                 ref={docRef}
                 className="resource-doc-render"
                 // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: docContent || '<p><em>Empty document.</em></p>' }}
+                dangerouslySetInnerHTML={{ __html: docContent || '<p><em>Document vide.</em></p>' }}
               />
             </div>
           )}
@@ -139,7 +139,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
 
           {!loading && !error && !isDocument && !isPdf && !isImage && (
             <div className="empty-state">
-              Preview unavailable for this format. Download the file to open it.
+              Aperçu indisponible pour ce format. Téléchargez le fichier pour l'ouvrir.
             </div>
           )}
         </div>
@@ -147,16 +147,16 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
         <div className="resources-modal-foot">
           {canManage && isDocument && (
             <button type="button" className="btn-outline" onClick={() => onEdit?.(file)}>
-              <IconPencil /> Edit
+              <IconPencil /> Éditer
             </button>
           )}
           {isDocument ? (
             <button type="button" className="btn-primary" onClick={handleDownloadPdf} disabled={exporting}>
-              <IconDownload /> {exporting ? 'Generating…' : 'Download as PDF'}
+              <IconDownload /> {exporting ? 'Génération…' : 'Télécharger en PDF'}
             </button>
           ) : (
             <button type="button" className="btn-primary" onClick={handleDownloadFile}>
-              <IconDownload /> Download
+              <IconDownload /> Télécharger
             </button>
           )}
         </div>

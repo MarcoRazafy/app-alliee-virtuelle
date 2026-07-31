@@ -23,15 +23,15 @@ async function getUserAvatar(req, res, next) {
 
     // L'annuaire de messagerie n'expose que les membres actifs de l'équipe.
     if (!user || user.status !== userModel.USER_STATUS.ACTIVE) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
     const avatar = await avatarModel.findByUserId(id);
     if (!avatar) {
-      return res.status(404).json({ error: 'No profile photo' });
+      return res.status(404).json({ error: 'Aucune photo de profil' });
     }
 
-    return sendFileOr404(res, avatar.file_path, 'No profile photo');
+    return sendFileOr404(res, avatar.file_path, 'Aucune photo de profil');
   } catch (err) {
     next(err);
   }
@@ -61,10 +61,10 @@ async function approveUser(req, res, next) {
     const { id } = req.params;
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.PENDING) {
-      return res.status(400).json({ error: 'Only a pending account can be approved' });
+      return res.status(400).json({ error: 'Seul un compte en attente peut être approuvé' });
     }
 
     await db.withTransaction(async (client) => {
@@ -91,10 +91,10 @@ async function rejectUser(req, res, next) {
 
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.PENDING) {
-      return res.status(400).json({ error: 'Only a pending account can be rejected' });
+      return res.status(400).json({ error: 'Seul un compte en attente peut être refusé' });
     }
 
     await db.withTransaction(async (client) => {
@@ -130,10 +130,10 @@ async function suspendUser(req, res, next) {
 
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.ACTIVE) {
-      return res.status(400).json({ error: 'Only an active account can be suspended' });
+      return res.status(400).json({ error: 'Seul un compte actif peut être suspendu' });
     }
 
     await db.withTransaction(async (client) => {
@@ -155,10 +155,10 @@ async function activateUser(req, res, next) {
     const { id } = req.params;
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.status !== userModel.USER_STATUS.SUSPENDED) {
-      return res.status(400).json({ error: 'Only a suspended account can be reactivated' });
+      return res.status(400).json({ error: 'Seul un compte suspendu peut être réactivé' });
     }
 
     await db.withTransaction(async (client) => {
@@ -180,15 +180,15 @@ async function promoteUser(req, res, next) {
     const { id } = req.params;
 
     if (id === req.user.id) {
-      return res.status(400).json({ error: 'You cannot change your own role' });
+      return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre rôle' });
     }
 
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     if (user.role !== userModel.USER_ROLE.EMPLOYEE) {
-      return res.status(400).json({ error: 'Only an employee can be promoted to administrator' });
+      return res.status(400).json({ error: 'Seul un employé peut être promu administrateur' });
     }
 
     await db.withTransaction(async (client) => {
@@ -210,7 +210,7 @@ async function getUserDetail(req, res, next) {
     const { id } = req.params;
     const user = await userModel.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
     const today = new Date().toISOString().slice(0, 10);

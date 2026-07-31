@@ -108,8 +108,8 @@ function AdminProfile() {
   });
 
   const fullName = useMemo(() => {
-    if (!profile) return 'Administrator';
-    return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Administrator';
+    if (!profile) return 'Administrateur';
+    return profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Administrateur';
   }, [profile]);
 
   useEffect(() => {
@@ -138,7 +138,7 @@ function AdminProfile() {
         objectUrl = URL.createObjectURL(blob);
         setAvatarUrl(objectUrl);
       })
-      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load the profile'))
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger le profil'))
       .finally(() => setLoading(false));
 
     return () => {
@@ -151,12 +151,12 @@ function AdminProfile() {
     if (!file) return;
 
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      notifyError('The photo must be in PNG or JPEG format');
+      notifyError('La photo doit être au format PNG ou JPEG');
       event.target.value = '';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      notifyError('The photo must not exceed 5 MB');
+      notifyError('La photo ne doit pas dépasser 5 Mo');
       event.target.value = '';
       return;
     }
@@ -170,9 +170,9 @@ function AdminProfile() {
         return URL.createObjectURL(blob);
       });
       setProfile((current) => ({ ...current, has_avatar: true }));
-      notifySuccess('Profile photo updated');
+      notifySuccess('Photo de profil mise à jour');
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to upload the photo');
+      notifyError(err.response?.data?.error || "Impossible d'envoyer la photo");
     } finally {
       setUploadingAvatar(false);
       event.target.value = '';
@@ -186,7 +186,7 @@ function AdminProfile() {
       const result = await updateProfile(form);
       if (result.success) {
         setProfile((prev) => ({ ...prev, ...result.user }));
-        notifySuccess('Profile updated');
+        notifySuccess('Profil mis à jour');
       } else {
         notifyError(result.message);
       }
@@ -199,11 +199,11 @@ function AdminProfile() {
     event.preventDefault();
 
     if (passwordForm.new_password.length < 8) {
-      notifyError('The new password must be at least 8 characters long');
+      notifyError('Le nouveau mot de passe doit contenir au moins 8 caractères');
       return;
     }
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      notifyError('The password confirmation does not match');
+      notifyError('La confirmation du mot de passe ne correspond pas');
       return;
     }
 
@@ -213,7 +213,7 @@ function AdminProfile() {
       if (result.success) {
         setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
         setShowPasswordForm(false);
-        notifySuccess('Password updated');
+        notifySuccess('Mot de passe mis à jour');
       } else {
         notifyError(result.message);
       }
@@ -223,7 +223,7 @@ function AdminProfile() {
   }
 
   const joinedAt = profile?.created_at
-    ? new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(
+    ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(
         new Date(profile.created_at)
       )
     : '—';
@@ -238,14 +238,14 @@ function AdminProfile() {
         <article className="profile-hero-card">
           <div className="profile-avatar-wrap">
             <div className="profile-large-avatar">
-              {avatarUrl ? <img src={avatarUrl} alt={`Photo of ${fullName}`} /> : <Icon type="user" />}
+              {avatarUrl ? <img src={avatarUrl} alt={`Photo de ${fullName}`} /> : <Icon type="user" />}
             </div>
             <button
               type="button"
               className="profile-camera-button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar}
-              aria-label="Change profile photo"
+              aria-label='Modifier la photo de profil'
             >
               <Icon type="camera" />
             </button>
@@ -258,8 +258,8 @@ function AdminProfile() {
               <span className="profile-role-badge"><Icon type="check" /> Administrator</span>
               <span className="profile-status-badge"><Icon type="check" /> Active account</span>
             </div>
-            <p><Icon type="mail" /> {profile?.email || 'Email address not available'}</p>
-            <p><Icon type="user" /> {profile?.position || 'Position not set'}</p>
+            <p><Icon type="mail" /> {profile?.email || 'Adresse courriel non disponible'}</p>
+            <p><Icon type="user" /> {profile?.position || 'Poste non renseigné'}</p>
 
             <div className="profile-hero-actions">
               <button
@@ -269,11 +269,11 @@ function AdminProfile() {
                 disabled={uploadingAvatar}
               >
                 <Icon type="camera" />
-                {uploadingAvatar ? 'Uploading…' : 'Change photo'}
+                {uploadingAvatar ? 'Envoi…' : 'Changer la photo'}
               </button>
               <button type="submit" form="admin-profile-form" className="profile-primary-button" disabled={savingProfile}>
                 <Icon type="save" />
-                {savingProfile ? 'Saving…' : 'Save'}
+                {savingProfile ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </div>
           </div>
@@ -282,13 +282,13 @@ function AdminProfile() {
         <div className="profile-metrics-grid">
           <MetricCard
             icon="calendar"
-            label="Member since"
+            label='Membre depuis'
             value={joinedAt}
-            helper="Account creation date"
+            helper='Date de création du compte'
             variant="sky"
           />
-          <MetricCard icon="shield" label="Role" value="Administrator" helper="Full access" variant="blue" />
-          <MetricCard icon="check" label="Status" value="Active" helper="Verified account" variant="cyan" />
+          <MetricCard icon="shield" label='Rôle' value='Administrateur' helper='Accès complet' variant="blue" />
+          <MetricCard icon="check" label='Statut' value='Actif' helper='Compte vérifié' variant="cyan" />
         </div>
       </div>
 
@@ -298,15 +298,15 @@ function AdminProfile() {
             <header className="profile-panel-header">
               <span><Icon type="user" /></span>
               <div>
-                <p>Information</p>
-                <h2>Personal information</h2>
+                <p>Informations</p>
+                <h2>Informations personnelles</h2>
               </div>
             </header>
 
             <form id="admin-profile-form" className="profile-form" onSubmit={handleProfileSubmit}>
               <div className="profile-form-grid">
                 <label>
-                  <span>First name</span>
+                  <span>Prénom</span>
                   <input
                     type="text"
                     value={form.first_name}
@@ -316,7 +316,7 @@ function AdminProfile() {
                 </label>
 
                 <label>
-                  <span>Last name</span>
+                  <span>Nom</span>
                   <input
                     type="text"
                     value={form.last_name}
@@ -326,7 +326,7 @@ function AdminProfile() {
                 </label>
 
                 <label>
-                  <span>Email address</span>
+                  <span>Adresse courriel</span>
                   <input
                     type="email"
                     value={form.email}
@@ -336,7 +336,7 @@ function AdminProfile() {
                 </label>
 
                 <label>
-                  <span>Phone</span>
+                  <span>Téléphone</span>
                   <input
                     type="tel"
                     value={form.phone}
@@ -346,22 +346,22 @@ function AdminProfile() {
                 </label>
 
                 <label>
-                  <span>Position</span>
+                  <span>Poste</span>
                   <input
                     type="text"
                     value={form.position}
                     onChange={(e) => setForm((c) => ({ ...c, position: e.target.value }))}
-                    placeholder="Your position / role"
+                    placeholder='Votre poste / fonction'
                   />
                 </label>
 
                 <label>
-                  <span>Username</span>
+                  <span>Nom d’utilisateur</span>
                   <input type="text" value={profile?.username || ''} disabled />
                 </label>
 
                 <label>
-                  <span>Date of birth</span>
+                  <span>Date de naissance</span>
                   <input
                     type="date"
                     value={form.birth_date}
@@ -370,22 +370,22 @@ function AdminProfile() {
                 </label>
 
                 <label className="profile-form-full">
-                  <span>Postal address</span>
+                  <span>Adresse postale</span>
                   <input
                     type="text"
                     value={form.postal_address}
                     onChange={(e) => setForm((c) => ({ ...c, postal_address: e.target.value }))}
-                    placeholder="Your address"
+                    placeholder='Votre adresse'
                   />
                 </label>
 
                 <label className="profile-form-full">
-                  <span>Description / bio</span>
+                  <span>Description / présentation</span>
                   <textarea
                     rows="3"
                     value={form.description}
                     onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
-                    placeholder="A few words about yourself: background, education, responsibilities…"
+                    placeholder='Quelques mots pour vous présenter : parcours, formation, missions…'
                   />
                 </label>
               </div>
@@ -398,15 +398,15 @@ function AdminProfile() {
             <header className="profile-panel-header">
               <span><Icon type="shield" /></span>
               <div>
-                <p>Security</p>
-                <h2>Account security</h2>
+                <p>Sécurité</p>
+                <h2>Sécurité du compte</h2>
               </div>
             </header>
 
             <div className="profile-security-summary">
               <label>
-                <span>Position</span>
-                <input type="text" value={profile?.position || 'Not set'} disabled />
+                <span>Poste</span>
+                <input type="text" value={profile?.position || 'Non renseigné'} disabled />
               </label>
 
               <button
@@ -415,14 +415,14 @@ function AdminProfile() {
                 onClick={() => setShowPasswordForm((current) => !current)}
               >
                 <Icon type="lock" />
-                {showPasswordForm ? 'Close form' : 'Change password'}
+                {showPasswordForm ? 'Fermer le formulaire' : 'Changer le mot de passe'}
               </button>
             </div>
 
             {showPasswordForm && (
               <form className="profile-password-form" onSubmit={handlePasswordSubmit}>
                 <label>
-                  <span>Current password</span>
+                  <span>Mot de passe actuel</span>
                   <input
                     type={showPasswords ? 'text' : 'password'}
                     value={passwordForm.current_password}
@@ -432,7 +432,7 @@ function AdminProfile() {
                 </label>
 
                 <label>
-                  <span>New password</span>
+                  <span>Nouveau mot de passe</span>
                   <input
                     type={showPasswords ? 'text' : 'password'}
                     value={passwordForm.new_password}
@@ -443,7 +443,7 @@ function AdminProfile() {
                 </label>
 
                 <label>
-                  <span>Confirm password</span>
+                  <span>Confirmer le mot de passe</span>
                   <input
                     type={showPasswords ? 'text' : 'password'}
                     value={passwordForm.confirm_password}
@@ -460,7 +460,7 @@ function AdminProfile() {
 
                 <button type="submit" className="profile-primary-button" disabled={changingPassword}>
                   <Icon type="shield" />
-                  {changingPassword ? 'Updating…' : 'Update password'}
+                  {changingPassword ? 'Mise à jour…' : 'Mettre à jour le mot de passe'}
                 </button>
               </form>
             )}
@@ -471,8 +471,8 @@ function AdminProfile() {
           <article className="profile-help-card">
             <span><Icon type="shield" /></span>
             <div>
-              <strong>Data protection</strong>
-              <p>Your personal information is only accessible from your authenticated account.</p>
+              <strong>Protection des données</strong>
+              <p>Vos informations personnelles sont accessibles uniquement depuis votre compte authentifié.</p>
             </div>
           </article>
         </div>

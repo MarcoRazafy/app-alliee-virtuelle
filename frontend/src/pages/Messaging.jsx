@@ -4,9 +4,9 @@ import MessagingView from '../components/messaging/MessagingView';
 function Messaging() {
   return (
     <EmployeeLayout
-      title="Messaging"
-      breadcrumb={[{ label: 'Home', to: '/dashboard' }, { label: 'Messaging' }]}
-      subtitle="Chat with your team in real time"
+      title="Messagerie"
+      breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Messagerie' }]}
+      subtitle="Échangez avec votre équipe en temps réel"
     >
       <MessagingView />
     </EmployeeLayout>

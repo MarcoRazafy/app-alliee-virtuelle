@@ -24,7 +24,7 @@ function ProtectedRoute({ children, role }) {
   }
 
   if (user?.role === 'EMPLOYEE' && dayValidated === null) {
-    return <p className="route-access-loading" role="status">Checking your space…</p>;
+    return <p className="route-access-loading" role="status">Vérification de votre espace…</p>;
   }
 
   // L'employé doit valider sa journée (au moins une tâche) avant d'accéder à toute autre page

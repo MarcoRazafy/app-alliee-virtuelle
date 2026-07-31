@@ -21,7 +21,7 @@ import { PageSkeleton } from '../../components/Skeleton';
 import '../../styles/resources.css';
 
 const TABS = [
-  { value: 'INTERNE', label: 'Internal' },
+  { value: 'INTERNE', label: 'Interne' },
   { value: 'CLIENT', label: 'Client' },
 ];
 
@@ -60,7 +60,7 @@ function AdminResources() {
     return resourceService
       .getFolders(tab)
       .then(setFolders)
-      .catch((err) => notifyError(err.response?.data?.error || 'Unable to load folders'))
+      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
       .finally(() => setLoadingFolders(false));
   }
 
@@ -71,7 +71,7 @@ function AdminResources() {
       setTrash({ folders: data.folders || [], files: data.files || [] });
       return data;
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to load the trash');
+      notifyError(err.response?.data?.error || 'Impossible de charger la corbeille');
       return { folders: [], files: [] };
     } finally {
       setTrashLoading(false);
@@ -108,7 +108,7 @@ function AdminResources() {
       setFiles(data);
     } catch (err) {
       setFiles([]);
-      notifyError(err.response?.data?.error || 'Unable to load files');
+      notifyError(err.response?.data?.error || 'Impossible de charger les fichiers');
     } finally {
       setLoadingFiles(false);
     }
@@ -119,11 +119,11 @@ function AdminResources() {
     if (!newFolderName.trim()) return;
     try {
       await resourceService.createFolder({ name: newFolderName, type: tab });
-      notifySuccess('Folder created');
+      notifySuccess('Dossier créé');
       setNewFolderName('');
       loadFolders();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to create the folder');
+      notifyError(err.response?.data?.error || 'Impossible de créer le dossier');
     }
   }
 
@@ -136,25 +136,25 @@ function AdminResources() {
     if (!renameValue.trim()) return;
     try {
       await resourceService.renameFolder(folderId, renameValue);
-      notifySuccess('Folder renamed');
+      notifySuccess('Dossier renommé');
       setRenamingFolderId(null);
       loadFolders();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to rename the folder');
+      notifyError(err.response?.data?.error || 'Impossible de renommer le dossier');
     }
   }
 
   async function handleDeleteFolder(folder) {
     if (
       !window.confirm(
-        `Move the folder “${folder.name}” to the trash?\n\nIts content can be restored from the Resources page.`
+        `Placer le dossier « ${folder.name} » dans la corbeille ?\n\nSon contenu pourra être restauré depuis la page Ressources.`
       )
     ) {
       return;
     }
     try {
       await resourceService.deleteFolder(folder.id);
-      notifySuccess('Folder moved to the trash');
+      notifySuccess('Dossier placé dans la corbeille');
       if (selectedFolder?.id === folder.id) {
         setSelectedFolder(null);
         setFiles([]);
@@ -163,7 +163,7 @@ function AdminResources() {
       loadFolders();
       loadTrash();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to delete the folder');
+      notifyError(err.response?.data?.error || 'Impossible de supprimer le dossier');
     }
   }
 
@@ -174,7 +174,7 @@ function AdminResources() {
       setFiles(data);
       loadFolders();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to reload files');
+      notifyError(err.response?.data?.error || 'Impossible de recharger les fichiers');
     }
   }
 
@@ -185,10 +185,10 @@ function AdminResources() {
     setUploading(true);
     try {
       await resourceService.uploadFile(selectedFolder.id, file);
-      notifySuccess('File uploaded');
+      notifySuccess('Fichier importé');
       await refreshFiles();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to upload the file');
+      notifyError(err.response?.data?.error || "Impossible d'importer le fichier");
     } finally {
       setUploading(false);
     }
@@ -217,17 +217,17 @@ function AdminResources() {
   }
 
   async function handleDeleteSelection() {
-    if (!window.confirm(`Move ${selectedFileIds.length} file(s) to the trash?`)) return;
+    if (!window.confirm(`Placer ${selectedFileIds.length} fichier(s) dans la corbeille ?`)) return;
     try {
       await Promise.all(selectedFileIds.map((id) => resourceService.deleteFile(id)));
-      notifySuccess(`${selectedFileIds.length} file(s) moved to the trash`);
+      notifySuccess(`${selectedFileIds.length} fichier(s) placé(s) dans la corbeille`);
       setSelectedFileIds([]);
       const data = await resourceService.getFolderFiles(selectedFolder.id);
       setFiles(data);
       loadFolders();
       loadTrash();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to delete the selection');
+      notifyError(err.response?.data?.error || 'Impossible de supprimer la sélection');
     }
   }
 
@@ -240,7 +240,7 @@ function AdminResources() {
       const data = await resourceService.getFolderShares(folder.id);
       setShares(data);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to load shares');
+      notifyError(err.response?.data?.error || 'Impossible de charger les partages');
     }
   }
 
@@ -257,24 +257,24 @@ function AdminResources() {
         permission_type: sharePermission,
         expires_at: shareExpiresAt || undefined,
       });
-      notifySuccess('Folder shared');
+      notifySuccess('Dossier partagé');
       const data = await resourceService.getFolderShares(shareFolderId);
       setShares(data);
       setShareUserIds([]);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to share the folder');
+      notifyError(err.response?.data?.error || 'Impossible de partager le dossier');
     }
   }
 
   async function handleRevoke(shareId) {
-    if (!window.confirm('Revoke this share?')) return;
+    if (!window.confirm('Révoquer ce partage ?')) return;
     try {
       await resourceService.revokeShare(shareId);
-      notifySuccess('Share revoked');
+      notifySuccess('Partage révoqué');
       const data = await resourceService.getFolderShares(shareFolderId);
       setShares(data);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to revoke the share');
+      notifyError(err.response?.data?.error || 'Impossible de révoquer le partage');
     }
   }
 
@@ -285,11 +285,11 @@ function AdminResources() {
     try {
       if (type === 'folder') await resourceService.restoreFolder(item.id);
       else await resourceService.restoreFile(item.id);
-      notifySuccess(type === 'folder' ? 'Folder restored' : 'File restored');
+      notifySuccess(type === 'folder' ? 'Dossier restauré' : 'Fichier restauré');
       await Promise.all([loadTrash(), loadFolders()]);
       if (type === 'file' && selectedFolder?.id === item.folder_id) await refreshFiles();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to restore this item');
+      notifyError(err.response?.data?.error || 'Impossible de restaurer cet élément');
     } finally {
       setTrashBusyKey(null);
     }
@@ -298,17 +298,17 @@ function AdminResources() {
   async function handlePermanentDelete(type, item) {
     const key = `${type}:${item.id}`;
     if (trashBusyKey) return;
-    const label = type === 'folder' ? `the folder “${item.name}” and all its content` : `“${item.file_name}”`;
-    if (!window.confirm(`Permanently delete ${label}?\n\nThis action is irreversible.`)) return;
+    const label = type === 'folder' ? `le dossier « ${item.name} » et tout son contenu` : `« ${item.file_name} »`;
+    if (!window.confirm(`Supprimer définitivement ${label} ?\n\nCette action est irréversible.`)) return;
 
     setTrashBusyKey(key);
     try {
       if (type === 'folder') await resourceService.permanentlyDeleteFolder(item.id);
       else await resourceService.permanentlyDeleteFile(item.id);
-      notifySuccess(type === 'folder' ? 'Folder permanently deleted' : 'File permanently deleted');
+      notifySuccess(type === 'folder' ? 'Dossier supprimé définitivement' : 'Fichier supprimé définitivement');
       await loadTrash();
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Unable to permanently delete this item');
+      notifyError(err.response?.data?.error || 'Impossible de supprimer définitivement cet élément');
     } finally {
       setTrashBusyKey(null);
     }
@@ -325,7 +325,7 @@ function AdminResources() {
   return (
     <section className="resources-page">
       <div className="resources-toolbar">
-        <div className="resources-tabs" role="tablist" aria-label="Resource type">
+        <div className="resources-tabs" role="tablist" aria-label="Type de ressources">
           {TABS.map((item) => (
             <button
               key={item.value}
@@ -348,7 +348,7 @@ function AdminResources() {
           }}
         >
           <IconTrash />
-          Trash
+          Corbeille
           {trashCount > 0 && <span>{trashCount}</span>}
         </button>
       </div>
@@ -356,25 +356,25 @@ function AdminResources() {
       <div className="resources-shell">
         <aside className="side-card resources-folder-panel">
           <div className="side-card-header">
-            <p className="side-card-title">Folders</p>
+            <p className="side-card-title">Dossiers</p>
             <span className="resources-count-pill">{folders.length}</span>
           </div>
 
           <form className="resources-create-form" onSubmit={handleCreateFolder}>
             <input
               className="form-input"
-              placeholder="New folder..."
+              placeholder="Nouveau dossier..."
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
             />
             <button type="submit" className="btn-primary" disabled={!newFolderName.trim()}>
-              Add
+              Ajouter
             </button>
           </form>
 
-          {loadingFolders && <div className="empty-state">Loading...</div>}
+          {loadingFolders && <div className="empty-state">Chargement...</div>}
           {!loadingFolders && folders.length === 0 && (
-            <div className="empty-state">No folder in this space.</div>
+            <div className="empty-state">Aucun dossier dans cet espace.</div>
           )}
 
           {!loadingFolders && folders.length > 0 && (
@@ -403,7 +403,7 @@ function AdminResources() {
                         className="btn-outline btn-sm"
                         onClick={() => setRenamingFolderId(null)}
                       >
-                        Cancel
+                        Annuler
                       </button>
                     </form>
                   ) : (
@@ -419,7 +419,7 @@ function AdminResources() {
                         <span className="resources-folder-info">
                           <strong>{folder.name}</strong>
                           <span>
-                            {folder.file_count} file{Number(folder.file_count) > 1 ? 's' : ''}
+                            {folder.file_count} fichier{Number(folder.file_count) > 1 ? 's' : ''}
                           </span>
                         </span>
                       </button>
@@ -428,8 +428,8 @@ function AdminResources() {
                           type="button"
                           className="icon-link-btn"
                           onClick={() => startRename(folder)}
-                          aria-label="Rename folder"
-                          title="Rename"
+                          aria-label="Renommer le dossier"
+                          title="Renommer"
                         >
                           <IconPencil />
                         </button>
@@ -437,8 +437,8 @@ function AdminResources() {
                           type="button"
                           className="icon-link-btn"
                           onClick={() => openShareModal(folder)}
-                          aria-label="Share folder"
-                          title="Share"
+                          aria-label="Partager le dossier"
+                          title="Partager"
                         >
                           <IconUsers />
                         </button>
@@ -446,8 +446,8 @@ function AdminResources() {
                           type="button"
                           className="icon-link-btn icon-link-btn--danger"
                           onClick={() => handleDeleteFolder(folder)}
-                          aria-label="Delete folder"
-                          title="Delete"
+                          aria-label="Supprimer le dossier"
+                          title="Supprimer"
                         >
                           <IconTrash />
                         </button>
@@ -462,16 +462,16 @@ function AdminResources() {
 
         <div className="side-card resources-files-panel">
           <div className="side-card-header">
-            <p className="side-card-title">{selectedFolder ? selectedFolder.name : 'Files'}</p>
+            <p className="side-card-title">{selectedFolder ? selectedFolder.name : 'Fichiers'}</p>
             {selectedFolder && selectedFileIds.length > 0 && (
               <button type="button" className="btn-danger btn-sm" onClick={handleDeleteSelection}>
-                <IconTrash /> Delete ({selectedFileIds.length})
+                <IconTrash /> Supprimer ({selectedFileIds.length})
               </button>
             )}
           </div>
 
           {!selectedFolder && (
-            <div className="empty-state">Select a folder to manage its files.</div>
+            <div className="empty-state">Sélectionnez un dossier pour gérer ses fichiers.</div>
           )}
 
           {selectedFolder && (
@@ -490,10 +490,10 @@ function AdminResources() {
                   onClick={() => uploadInputRef.current?.click()}
                   disabled={uploading}
                 >
-                  <IconDownload /> {uploading ? 'Uploading…' : 'Upload a file'}
+                  <IconDownload /> {uploading ? 'Import…' : 'Importer un fichier'}
                 </button>
                 <button type="button" className="btn-outline" onClick={openNewDocument}>
-                  <IconPencil /> New document
+                  <IconPencil /> Nouveau document
                 </button>
               </div>
 
@@ -501,19 +501,19 @@ function AdminResources() {
                 <IconSearch />
                 <input
                   type="search"
-                  placeholder="Search a file..."
+                  placeholder="Rechercher un fichier..."
                   value={fileSearch}
                   onChange={(e) => setFileSearch(e.target.value)}
-                  aria-label="Search a file"
+                  aria-label="Rechercher un fichier"
                 />
               </label>
 
-              {loadingFiles && <div className="empty-state">Loading...</div>}
+              {loadingFiles && <div className="empty-state">Chargement...</div>}
               {!loadingFiles && filteredFiles.length === 0 && (
                 <div className="empty-state">
                   {fileSearch.trim()
-                    ? 'No file matches this search.'
-                    : 'This folder is empty. Upload a file or create a document.'}
+                    ? 'Aucun fichier ne correspond à cette recherche.'
+                    : 'Ce dossier est vide. Importez un fichier ou créez un document.'}
                 </div>
               )}
 
@@ -523,10 +523,10 @@ function AdminResources() {
                     <thead>
                       <tr>
                         <th className="resources-check-col" />
-                        <th>Name</th>
+                        <th>Nom</th>
                         <th>Type</th>
-                        <th>Size</th>
-                        <th>Added by</th>
+                        <th>Taille</th>
+                        <th>Ajouté par</th>
                         <th className="resources-actions-col" />
                       </tr>
                     </thead>
@@ -538,7 +538,7 @@ function AdminResources() {
                               type="checkbox"
                               checked={selectedFileIds.includes(file.id)}
                               onChange={() => toggleFileSelect(file.id)}
-                              aria-label={`Select ${file.file_name}`}
+                              aria-label={`Sélectionner ${file.file_name}`}
                             />
                           </td>
                           <td>
@@ -563,8 +563,8 @@ function AdminResources() {
                                   type="button"
                                   className="icon-link-btn"
                                   onClick={() => openEditDocument(file)}
-                                  aria-label="Edit document"
-                                  title="Edit"
+                                  aria-label="Éditer le document"
+                                  title="Éditer"
                                 >
                                   <IconPencil />
                                 </button>
@@ -573,8 +573,8 @@ function AdminResources() {
                                 type="button"
                                 className="icon-link-btn"
                                 onClick={() => openViewer(file)}
-                                aria-label="Open"
-                                title="Open"
+                                aria-label="Ouvrir"
+                                title="Ouvrir"
                               >
                                 <IconArrowRight />
                               </button>

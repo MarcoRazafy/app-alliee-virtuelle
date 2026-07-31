@@ -37,18 +37,18 @@ async function getRegistration() {
 // Renvoie true si l'utilisateur est bien abonné. Jette une Error lisible en cas d'échec.
 export async function enablePush() {
   if (!isPushSupported()) {
-    throw new Error('Notifications not supported on this device/browser.');
+    throw new Error('Notifications non supportées sur cet appareil / ce navigateur.');
   }
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    throw new Error('Notification permission denied.');
+    throw new Error('Permission de notification refusée.');
   }
 
   const { data } = await api.get(PUSH_API_PATHS.publicKey);
   const publicKey = data?.publicKey;
   if (!publicKey) {
-    throw new Error('Push not configured on the server.');
+    throw new Error('Notifications push non configurées sur le serveur.');
   }
 
   const registration = await getRegistration();

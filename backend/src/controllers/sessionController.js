@@ -33,7 +33,7 @@ async function getMySessionsForWeek(req, res, next) {
   try {
     const { week_start_date: requestedDate } = req.query;
     if (!requestedDate) {
-      return res.status(400).json({ error: 'The week_start_date parameter is required.' });
+      return res.status(400).json({ error: 'Le paramètre week_start_date est requis.' });
     }
     const segments = await buildWeekSegments(req.user.id, requestedDate);
     res.status(200).json(segments);
@@ -48,7 +48,7 @@ async function getUserSessionsForWeekAdmin(req, res, next) {
   try {
     const { user_id: userId, week_start_date: requestedDate } = req.query;
     if (!userId || !requestedDate) {
-      return res.status(400).json({ error: 'The user_id and week_start_date parameters are required.' });
+      return res.status(400).json({ error: 'Les paramètres user_id et week_start_date sont requis.' });
     }
     const segments = await buildWeekSegments(userId, requestedDate);
     res.status(200).json(segments);
