@@ -23,6 +23,7 @@ import {
   IconX,
 } from '../icons';
 import useAnnouncementUnread from '../../hooks/useAnnouncementUnread';
+import ConnectionChrono from '../employee/ConnectionChrono';
 import '../../styles/app.css';
 import '../../styles/layout.css';
 
@@ -308,6 +309,7 @@ function AdminLayout({ children }) {
           {children}
         </main>
       </div>
+      <ConnectionChrono />
     </div>
   );
 }

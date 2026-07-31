@@ -293,8 +293,12 @@ async function addManualTimelog(taskId, employeeId, startTime, endTime, client =
 
 async function findTimelogHistory(taskId) {
   const result = await db.query(
-    `SELECT start_time, end_time, duration_seconds
-     FROM timelog WHERE task_id = $1 ORDER BY start_time DESC`,
+    `SELECT tl.start_time, tl.end_time, tl.duration_seconds, tl.employee_id,
+            u.full_name AS employee_name
+       FROM timelog tl
+       JOIN users u ON u.id = tl.employee_id
+      WHERE tl.task_id = $1
+      ORDER BY tl.start_time DESC`,
     [taskId]
   );
   return result.rows;

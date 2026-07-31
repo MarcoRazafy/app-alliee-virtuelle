@@ -211,7 +211,8 @@ async function startTimelog(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (task.assigned_to !== req.user.id) {
+    // L'employé assigné OU un admin peut chronométrer la tâche (le total additionne les deux).
+    if (task.assigned_to !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
     // VALIDEE/TERMINEE : premier démarrage ou redémarrage après complétion.
@@ -255,7 +256,9 @@ async function startTimelog(req, res, next) {
 
       const newSession = await taskModel.startSession(taskId, req.user.id, client);
 
-      if (!isResuming) {
+      // L'admin peut chronométrer sans faire avancer le workflow de l'employé : on ne change
+      // le statut (→ EN_COURS) que lorsque c'est l'employé assigné qui démarre.
+      if (!isResuming && req.user.id === task.assigned_to) {
         await taskModel.updateStatus(taskId, taskModel.TASK_STATUS.IN_PROGRESS, client);
         await taskModel.recordHistory(
           {
@@ -303,7 +306,7 @@ async function stopTimelog(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (task.assigned_to !== req.user.id) {
+    if (task.assigned_to !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
 
