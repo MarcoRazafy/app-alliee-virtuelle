@@ -235,6 +235,20 @@ async function findActiveSessionForEmployee(employeeId) {
   return result.rows[0] || null;
 }
 
+// Tâche actuellement chronométrée par l'employé (chrono en cours), avec son titre — pour le
+// widget « tâche en cours » affiché en haut de l'espace employé. null si aucun chrono actif.
+async function findActiveTaskForEmployee(employeeId) {
+  const result = await db.query(
+    `SELECT tl.task_id, tl.start_time, t.title
+       FROM timelog tl
+       JOIN tasks t ON t.id = tl.task_id
+      WHERE tl.employee_id = $1 AND tl.end_time IS NULL
+      LIMIT 1`,
+    [employeeId]
+  );
+  return result.rows[0] || null;
+}
+
 async function findActiveSessionForTask(taskId, employeeId) {
   const result = await db.query(
     `SELECT id, start_time FROM timelog WHERE task_id = $1 AND employee_id = $2 AND end_time IS NULL`,
@@ -611,6 +625,7 @@ module.exports = {
   recordHistory,
   recordAudit,
   findActiveSessionForEmployee,
+  findActiveTaskForEmployee,
   findActiveSessionForTask,
   startSession,
   stopSession,

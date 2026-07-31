@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import ThemeToggle from '../ThemeToggle';
 import ConnectionChrono from './ConnectionChrono';
+import ActiveTaskWidget from './ActiveTaskWidget';
 import api from '../../services/api';
 import * as avatarService from '../../services/avatarService';
 import { PageSkeleton } from '../Skeleton';
@@ -214,6 +215,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
           </div>
 
           <div className="shell-header-actions">
+            <ActiveTaskWidget />
             <form className="search-input" ref={searchRef} onSubmit={handleSearchSubmit}>
               <IconSearch />
               <input
