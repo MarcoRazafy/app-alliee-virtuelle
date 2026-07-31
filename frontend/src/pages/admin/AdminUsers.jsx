@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import useAuthStore from '../../store/authStore';
 import * as userService from '../../services/userService';
 import * as avatarService from '../../services/avatarService';
 import UserInfoPanel from '../../components/admin/UserInfoPanel';
@@ -61,6 +62,7 @@ function UserAvatar({ user, size }) {
 }
 
 function EmployeesTab({ onSelect }) {
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -68,8 +70,9 @@ function EmployeesTab({ onSelect }) {
   const [positionFilter, setPositionFilter] = useState('');
 
   function load() {
+    // Toute l'équipe, admins inclus (pas de filtre de rôle).
     userService
-      .getAllUsers({ role: 'EMPLOYEE', search, status: statusFilter || undefined })
+      .getAllUsers({ search, status: statusFilter || undefined })
       .then(setUsers)
       .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les utilisateurs'))
       .finally(() => setLoading(false));
@@ -174,7 +177,10 @@ function EmployeesTab({ onSelect }) {
                       <span className="ausers-user-cell">
                         <UserAvatar user={user} />
                         <span className="ausers-user-text">
-                          <span className="ausers-user-name">{user.full_name}</span>
+                          <span className="ausers-user-name">
+                            {user.full_name}
+                            {user.role === 'ADMIN' && <span className="ausers-role-tag">Admin</span>}
+                          </span>
                           <span className="ausers-user-email">{user.email}</span>
                         </span>
                       </span>
@@ -192,12 +198,12 @@ function EmployeesTab({ onSelect }) {
                         >
                           Modifier
                         </button>
-                        {user.status === 'ACTIF' && (
+                        {user.status === 'ACTIF' && user.id !== currentUserId && (
                           <button type="button" className="ausers-action-btn ausers-action-btn--warn" onClick={() => handleSuspend(user)}>
                             Suspendre
                           </button>
                         )}
-                        {user.status === 'SUSPENDU' && (
+                        {user.status === 'SUSPENDU' && user.id !== currentUserId && (
                           <button type="button" className="ausers-action-btn ausers-action-btn--ok" onClick={() => handleActivate(user)}>
                             Activer
                           </button>
