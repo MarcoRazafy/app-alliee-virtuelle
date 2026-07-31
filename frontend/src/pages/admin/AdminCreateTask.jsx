@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import * as hierarchyService from '../../services/hierarchyService';
@@ -35,8 +36,10 @@ const EMPTY_FORM = {
 };
 
 function AdminCreateTask() {
+  const location = useLocation();
   const [employees, setEmployees] = useState([]);
-  const [form, setForm] = useState(EMPTY_FORM);
+  // Pré-remplissage via l'action « Refaire » (recréer une tâche confirmée) : location.state.prefill.
+  const [form, setForm] = useState(() => ({ ...EMPTY_FORM, ...(location.state?.prefill || {}) }));
   const [submitting, setSubmitting] = useState(false);
 
   // Sélection hiérarchique Space > Folder > List, entièrement optionnelle

@@ -135,6 +135,25 @@ function TaskDetail() {
     }
   }
 
+  // « Refaire » (admin) : recrée la tâche en pré-remplissant le formulaire de création, pour
+  // pouvoir la réassigner (même employé par défaut) et repartir sur un chrono neuf.
+  function handleRedoTask() {
+    const today = new Date().toISOString().slice(0, 10);
+    const deadline = task.deadline && String(task.deadline).slice(0, 10) >= today ? String(task.deadline).slice(0, 10) : '';
+    navigate('/admin/create-task', {
+      state: {
+        prefill: {
+          title: task.title || '',
+          description: task.description || '',
+          priority: task.priority || 'NORMALE',
+          assigned_to: task.assigned_to || '',
+          deadline,
+          list_id: breadcrumbData?.list?.id || '',
+        },
+      },
+    });
+  }
+
   // Suppression d'une tâche (admin). Prévient que les sous-tâches et le suivi seront supprimés.
   async function handleDeleteTask() {
     const confirmMessage = `Supprimer la tâche « ${task?.title || ''} » ?\n\nCette action est définitive et supprime aussi ses sous-tâches, commentaires, chronos et pièces jointes.`;
@@ -209,9 +228,16 @@ function TaskDetail() {
           <Link to="/tasks" className="app-link">
             ← Retour à mes tâches
           </Link>
-          <button type="button" className="btn-danger" onClick={handleDeleteTask}>
-            <IconTrash /> Supprimer la tâche
-          </button>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
+              <button type="button" className="btn-outline" onClick={handleRedoTask} title="Recréer et réassigner cette tâche">
+                ↻ Refaire
+              </button>
+            )}
+            <button type="button" className="btn-danger" onClick={handleDeleteTask}>
+              <IconTrash /> Supprimer la tâche
+            </button>
+          </div>
         </div>
       )}
 

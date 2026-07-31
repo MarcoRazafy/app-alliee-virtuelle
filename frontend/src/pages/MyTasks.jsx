@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
+import * as hierarchyService from '../services/hierarchyService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
@@ -9,7 +10,20 @@ import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils
 import { IconExternalLink, IconChecklist, IconX } from '../components/icons';
 import { notifySuccess, notifyError } from '../utils/toast';
 
-const EMPTY_NEW_TASK = { title: '', description: '', priority: 'NORMALE', deadline: '' };
+const EMPTY_NEW_TASK = { title: '', description: '', priority: 'NORMALE', deadline: '', list_id: '' };
+
+// Aplatit l'arborescence Espace > Projet > Liste en une liste d'options « Espace › Projet › Liste ».
+function flattenLists(tree) {
+  const out = [];
+  (tree || []).forEach((space) => {
+    (space.folders || []).forEach((folder) => {
+      (folder.lists || []).forEach((list) => {
+        out.push({ id: list.id, path: `${space.name} › ${folder.name} › ${list.name}` });
+      });
+    });
+  });
+  return out;
+}
 
 function matchesDeadlineRange(deadline, range) {
   if (!range) return true;
@@ -42,6 +56,15 @@ function MyTasks() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTask, setNewTask] = useState(EMPTY_NEW_TASK);
+  // Projets (listes) proposés au choix — optionnel — à la création d'une tâche (#4).
+  const [projectLists, setProjectLists] = useState([]);
+
+  useEffect(() => {
+    hierarchyService
+      .getSpacesTree()
+      .then((tree) => setProjectLists(flattenLists(tree)))
+      .catch(() => setProjectLists([]));
+  }, []);
 
   // La deadline doit être strictement postérieure à aujourd'hui (validation backend).
   const minDeadline = useMemo(() => {
@@ -90,6 +113,7 @@ function MyTasks() {
         description: newTask.description.trim(),
         priority: newTask.priority,
         deadline: newTask.deadline,
+        list_id: newTask.list_id || null,
       });
       notifySuccess('Tâche proposée : en attente de validation par un administrateur');
       setNewTask(EMPTY_NEW_TASK);
@@ -272,6 +296,22 @@ function MyTasks() {
                   />
                 </label>
               </div>
+
+              <label className="modal-field">
+                <span className="modal-label">Projet (optionnel)</span>
+                <select
+                  className="modal-input"
+                  value={newTask.list_id}
+                  onChange={(e) => setNewTask((c) => ({ ...c, list_id: e.target.value }))}
+                >
+                  <option value="">Aucun projet</option>
+                  {projectLists.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.path}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <div className="modal-card-foot">
                 <button type="button" className="btn-outline" onClick={() => setCreateOpen(false)}>
