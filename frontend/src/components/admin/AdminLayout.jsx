@@ -51,6 +51,7 @@ const NAV_GROUPS = [
   {
     label: 'Administrer',
     items: [
+      { to: '/planning', label: 'Mon planning', subtitle: 'Vos disponibilités de la semaine', icon: IconCalendarWeek },
       { to: '/admin/profile', label: 'Profil', subtitle: 'Vos informations', icon: IconUser },
     ],
   },

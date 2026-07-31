@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
+import AdminLayout from '../components/admin/AdminLayout';
+import useAuthStore from '../store/authStore';
 import WeekCalendarGrid from '../components/employee/WeekCalendarGrid';
 import * as planningService from '../services/planningService';
 import * as sessionService from '../services/sessionService';
@@ -129,6 +131,10 @@ function QuickAddForm({ days, canEdit, onAdd }) {
 }
 
 function Planning() {
+  // Le planning est accessible à l'employé ET à l'admin (pour son propre planning) : on choisit
+  // le layout selon le rôle. AdminLayout ignore les props title/subtitle (il n'utilise que children).
+  const isAdmin = useAuthStore((state) => state.user?.role === 'ADMIN');
+  const Layout = isAdmin ? AdminLayout : EmployeeLayout;
   const [currentWeek, setCurrentWeek] = useState(null);
   const [nextWeek, setNextWeek] = useState(null);
   const [draftDays, setDraftDays] = useState([]);
@@ -418,7 +424,7 @@ function Planning() {
   }
 
   return (
-    <EmployeeLayout
+    <Layout
       title="Planning hebdomadaire"
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Planning' }]}
       subtitle="Déclarez vos disponibilités pour la semaine prochaine"
@@ -648,7 +654,7 @@ function Planning() {
           </>
         )}
       </section>
-    </EmployeeLayout>
+    </Layout>
   );
 }
 

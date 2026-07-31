@@ -158,7 +158,7 @@ async function getCurrentWeek(req, res, next) {
     const days = planning ? await planningModel.findDaysWithSlots(planning.id) : planningModel.buildEmptyWeekDays(weekStart);
     const editContext = await employeeEditContext(req.user.id, now);
 
-    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext }));
+    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: req.user.role !== 'ADMIN', editContext }));
   } catch (err) {
     next(err);
   }
@@ -175,7 +175,7 @@ async function getNextWeek(req, res, next) {
     const days = planning ? await planningModel.findDaysWithSlots(planning.id) : planningModel.buildEmptyWeekDays(weekStart);
     const editContext = await employeeEditContext(req.user.id, now);
 
-    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext }));
+    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: req.user.role !== 'ADMIN', editContext }));
   } catch (err) {
     next(err);
   }
@@ -200,7 +200,7 @@ async function getWeekByDate(req, res, next) {
     const days = planning ? await planningModel.findDaysWithSlots(planning.id) : planningModel.buildEmptyWeekDays(weekStart);
     const editContext = await employeeEditContext(req.user.id, now);
 
-    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext }));
+    res.status(200).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: req.user.role !== 'ADMIN', editContext }));
   } catch (err) {
     next(err);
   }
@@ -222,7 +222,8 @@ function makeCreatePlanning(weekMode) {
       const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
       const editContext = await employeeEditContext(req.user.id, now);
-      if (!planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
+      // L'admin gère son propre planning sans la contrainte de fenêtre week-end des employés.
+      if (req.user.role !== 'ADMIN' && !planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
         return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
       }
 
@@ -250,7 +251,7 @@ function makeCreatePlanning(weekMode) {
 
       const days = planningModel.buildEmptyWeekDays(weekStart);
       const responseContext = await employeeEditContext(req.user.id, now);
-      res.status(201).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: true, editContext: responseContext }));
+      res.status(201).json(buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmployee: req.user.role !== 'ADMIN', editContext: responseContext }));
     } catch (err) {
       next(err);
     }
@@ -264,7 +265,8 @@ function makeUpdatePlanning(weekMode) {
       const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
       const editContext = await employeeEditContext(req.user.id, now);
-      if (!planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
+      // L'admin gère son propre planning sans la contrainte de fenêtre week-end des employés.
+      if (req.user.role !== 'ADMIN' && !planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
         return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
       }
 
@@ -318,7 +320,7 @@ function makeUpdatePlanning(weekMode) {
       const responseContext = await employeeEditContext(req.user.id, now);
       res
         .status(200)
-        .json(buildPlanningResponse({ planning: updatedPlanning, days: daysWithSlots, weekStart, weekEnd, now, forEmployee: true, editContext: responseContext }));
+        .json(buildPlanningResponse({ planning: updatedPlanning, days: daysWithSlots, weekStart, weekEnd, now, forEmployee: req.user.role !== 'ADMIN', editContext: responseContext }));
     } catch (err) {
       next(err);
     }
@@ -332,7 +334,8 @@ function makeSubmitPlanning(weekMode) {
       const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
       const editContext = await employeeEditContext(req.user.id, now);
-      if (!planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
+      // L'admin gère son propre planning sans la contrainte de fenêtre week-end des employés.
+      if (req.user.role !== 'ADMIN' && !planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
         return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
       }
 
@@ -376,7 +379,7 @@ function makeSubmitPlanning(weekMode) {
       const responseContext = await employeeEditContext(req.user.id, now);
       res
         .status(200)
-        .json(buildPlanningResponse({ planning: updatedPlanning, days, weekStart, weekEnd, now, forEmployee: true, editContext: responseContext }));
+        .json(buildPlanningResponse({ planning: updatedPlanning, days, weekStart, weekEnd, now, forEmployee: req.user.role !== 'ADMIN', editContext: responseContext }));
     } catch (err) {
       next(err);
     }
