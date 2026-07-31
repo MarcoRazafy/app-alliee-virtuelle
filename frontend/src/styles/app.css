@@ -966,7 +966,10 @@
 .task-table-wrap {
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
+  /* Défilement horizontal ET vertical dans le tableau lui-même : permet de figer la ligne
+     d'en-tête (thead sticky) tout en gardant le scroll horizontal sur mobile. */
+  overflow: auto;
+  max-height: calc(100dvh - 240px);
 }
 
 .task-table {
@@ -981,9 +984,17 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  padding: 0 12px 12px;
+  padding: 12px 12px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
+}
+
+/* Titres de colonnes figés en haut pendant le défilement vertical du tableau. */
+.task-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-bg-secondary);
 }
 
 .task-table td {

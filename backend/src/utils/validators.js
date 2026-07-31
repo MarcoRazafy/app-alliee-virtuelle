@@ -29,11 +29,25 @@ function isFutureDate(dateString) {
   return date.getTime() > today.getTime();
 }
 
+// Vrai si la date est aujourd'hui OU dans le futur (utilisé pour la deadline : une échéance
+// « aujourd'hui » est autorisée). On compare au jour calendaire, à minuit.
+function isTodayOrFuture(dateString) {
+  if (!dateString) return false;
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return date.getTime() >= today.getTime();
+}
+
 module.exports = {
   isValidEmail,
   isValidPassword,
   isValidPriority,
   isValidTitle,
   isFutureDate,
+  isTodayOrFuture,
   TASK_PRIORITIES,
 };
