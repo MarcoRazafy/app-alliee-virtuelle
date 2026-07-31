@@ -17,6 +17,7 @@ const planningRoutes = require('./routes/planning');
 const sessionRoutes = require('./routes/sessions');
 const notificationRoutes = require('./routes/notifications');
 const pushRoutes = require('./routes/push');
+const announcementRoutes = require('./routes/announcements');
 const db = require('./config/database');
 const env = require('./config/env');
 const mailService = require('./services/mail.service');
@@ -103,6 +104,7 @@ app.use('/api', planningRoutes);
 app.use('/api', sessionRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', pushRoutes);
+app.use('/api', announcementRoutes);
 
 // Fallback SPA : toute route non-API/non-socket renvoie index.html pour que les deep-links du
 // routeur React (ex. /admin/stats rafraîchi) fonctionnent au lieu de renvoyer 404.

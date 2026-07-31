@@ -22,6 +22,7 @@ import {
   IconMenu,
   IconX,
 } from '../icons';
+import useAnnouncementUnread from '../../hooks/useAnnouncementUnread';
 import '../../styles/app.css';
 import '../../styles/layout.css';
 
@@ -43,6 +44,7 @@ const NAV_GROUPS = [
     label: 'Collaborer',
     items: [
       { to: '/admin/resources', label: 'Ressources', subtitle: 'Documents partagés', icon: IconFolder },
+      { to: '/announcements', label: 'Annonces', subtitle: "Communications à l'équipe", icon: IconBell, badgeKey: 'announcements' },
     ],
   },
   {
@@ -66,6 +68,7 @@ const EXTRA_TITLES = {
 
 function AdminLayout({ children }) {
   const [badges, setBadges] = useState({ toValidate: 0, taskRequests: 0 });
+  const { unread: announcementUnread } = useAnnouncementUnread();
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -196,8 +199,10 @@ function AdminLayout({ children }) {
               <p className="sidebar-group-label">{group.label}</p>
               {group.items.map((item) => {
                 const { to, label, icon: Icon, badgeKey } = item;
+                // Le badge des annonces vient du hook temps réel ; les autres de l'API.
                 const isActive = item === activeItem;
-                const badgeValue = badgeKey ? badges[badgeKey] : 0;
+                const badgeValue =
+                  badgeKey === 'announcements' ? announcementUnread : badgeKey ? badges[badgeKey] : 0;
 
                 return (
                   <Link
