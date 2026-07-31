@@ -385,6 +385,12 @@ async function deleteAttachment(attachmentId) {
   await db.query('DELETE FROM task_attachments WHERE id = $1', [attachmentId]);
 }
 
+// Suppression d'une tâche (admin). Les tables liées (historique, commentaires, pièces jointes,
+// chronos, demandes, sous-tâches via parent_task_id) sont supprimées en cascade par la BD.
+async function deleteTask(taskId, client = db) {
+  await client.query('DELETE FROM tasks WHERE id = $1', [taskId]);
+}
+
 // --- Admin : supervision ---
 
 // Tâches en retard : deadline dépassée ET pas confirmée (une CONFIRMEE n'est jamais en retard - DECISIONS.md)
@@ -606,6 +612,7 @@ module.exports = {
   findAttachmentById,
   createAttachment,
   deleteAttachment,
+  deleteTask,
   findLateTasks,
   findTasksForEmployee,
   computeEmployeeStats,

@@ -19,6 +19,7 @@ import '../styles/notifications.css';
 
 const ACTION_LABELS = {
   CREATE_TASK: 'a créé une tâche',
+  DELETE_TASK: 'a supprimé une tâche',
   START_TIMELOG: 'a démarré un chrono',
   STOP_TIMELOG: 'a arrêté un chrono',
   AUTO_STOP_TIMELOG: 'a arrêté automatiquement un chrono',
@@ -93,6 +94,7 @@ function eventText(item) {
 // Renvoie null si aucune page pertinente (la notif n'est alors pas cliquable).
 function resolveLink(item, isAdmin) {
   const { entity_type: type, entity_id: id, action, details } = item;
+  if (action === 'DELETE_TASK') return null; // la tâche n'existe plus
   if (type === 'task') return `/tasks/${id}`;
   if (type === 'task_attachment' && details?.task_id) return `/tasks/${details.task_id}`;
   if (type === 'extra_task_requests') return isAdmin ? '/admin/task-requests' : '/tasks';

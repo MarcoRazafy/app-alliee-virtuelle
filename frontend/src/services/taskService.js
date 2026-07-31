@@ -24,6 +24,10 @@ export function createTask(payload) {
   return api.post('/api/tasks', payload).then((res) => res.data);
 }
 
+export function deleteTask(id) {
+  return api.delete(`/api/tasks/${id}`).then((res) => res.data);
+}
+
 export function confirmTask(id) {
   return api.post(`/api/tasks/${id}/confirm`).then((res) => res.data);
 }

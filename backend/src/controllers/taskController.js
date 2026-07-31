@@ -793,6 +793,32 @@ async function deleteAttachment(req, res, next) {
   }
 }
 
+// Suppression définitive d'une tâche (admin uniquement). Supprime aussi ses sous-tâches,
+// commentaires, chronos et pièces jointes (cascade BD). Le titre est conservé dans l'audit.
+async function deleteTask(req, res, next) {
+  try {
+    const { id } = req.params;
+    const task = await taskModel.findById(id);
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+
+    await taskModel.deleteTask(id);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'DELETE_TASK',
+      entityType: 'task',
+      entityId: id,
+      details: { title: task.title },
+    });
+
+    res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // --- Demandes de tâche supplémentaire ---
 
 // L'employé (journée déjà validée) demande à travailler une tâche précise de plus.
@@ -932,4 +958,5 @@ module.exports = {
   uploadAttachment,
   downloadAttachment,
   deleteAttachment,
+  deleteTask,
 };
