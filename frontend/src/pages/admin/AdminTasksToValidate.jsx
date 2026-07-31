@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import AttachmentUpload from '../../components/AttachmentUpload';
@@ -6,7 +7,7 @@ import CommentSection from '../../components/CommentSection';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconCheckCircle, IconX, IconSearch, IconArrowRight } from '../../components/icons';
+import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
 
@@ -431,6 +432,14 @@ function AdminTasksToValidate() {
                       {task.title}
                     </button>
                     <span className={`pill pill--${meta.pill}`}>{meta.label}</span>
+                    <Link
+                      to={`/tasks/${task.id}`}
+                      className="validate-card-open"
+                      title="Ouvrir le détail de la tâche"
+                      aria-label={`Ouvrir le détail de la tâche ${task.title}`}
+                    >
+                      <IconExternalLink />
+                    </Link>
                   </div>
 
                   <div className="validate-card-meta">

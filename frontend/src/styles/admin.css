@@ -1859,6 +1859,33 @@
   gap: 12px;
 }
 
+/* Le titre occupe l'espace : le pill + l'icône « ouvrir » restent alignés à droite. */
+.validate-card-top .validate-card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Icône ↗ pour ouvrir la page détail de la tâche. */
+.validate-card-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  transition: color 150ms ease, background 150ms ease;
+}
+.validate-card-open:hover {
+  color: var(--color-accent-lighter);
+  background: var(--glass-overlay);
+}
+.validate-card-open svg {
+  width: 16px;
+  height: 16px;
+}
+
 .validate-card-title {
   font-family: var(--font-family);
   font-size: 14.5px;
