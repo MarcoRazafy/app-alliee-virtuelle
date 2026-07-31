@@ -7,7 +7,7 @@ import CommentSection from '../../components/CommentSection';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink } from '../../components/icons';
+import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
 
@@ -284,22 +284,27 @@ function AdminTasksToValidate() {
 
   return (
     <div className="validate-page">
-      <div className="atv-tabs">
-        <button
-          type="button"
-          className={`atv-tab${activeTab === 'validate' ? ' atv-tab--active' : ''}`}
-          onClick={() => setActiveTab('validate')}
-        >
-          À valider
-        </button>
-        <button
-          type="button"
-          className={`atv-tab${activeTab === 'late' ? ' atv-tab--active' : ''}`}
-          onClick={() => setActiveTab('late')}
-        >
-          En retard
-          {lateCount > 0 && <span className="atv-tab-badge">{lateCount}</span>}
-        </button>
+      <div className="atv-toolbar">
+        <div className="atv-tabs">
+          <button
+            type="button"
+            className={`atv-tab${activeTab === 'validate' ? ' atv-tab--active' : ''}`}
+            onClick={() => setActiveTab('validate')}
+          >
+            À valider
+          </button>
+          <button
+            type="button"
+            className={`atv-tab${activeTab === 'late' ? ' atv-tab--active' : ''}`}
+            onClick={() => setActiveTab('late')}
+          >
+            En retard
+            {lateCount > 0 && <span className="atv-tab-badge">{lateCount}</span>}
+          </button>
+        </div>
+        <Link to="/admin/create-task" className="btn-primary atv-create-btn">
+          <IconPlus /> Créer une tâche
+        </Link>
       </div>
 
       {activeTab === 'late' ? (

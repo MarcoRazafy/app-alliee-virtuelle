@@ -40,6 +40,11 @@ function AdminCreateTask() {
   const [employees, setEmployees] = useState([]);
   // Pré-remplissage via l'action « Refaire » (recréer une tâche confirmée) : location.state.prefill.
   const [form, setForm] = useState(() => ({ ...EMPTY_FORM, ...(location.state?.prefill || {}) }));
+  // Multi-assignation : 1 ou plusieurs employés (une tâche est créée par employé sélectionné).
+  const [assignedIds, setAssignedIds] = useState(() => {
+    const pre = location.state?.prefill?.assigned_to;
+    return pre ? [pre] : [];
+  });
   const [submitting, setSubmitting] = useState(false);
 
   // Sélection hiérarchique Space > Folder > List, entièrement optionnelle
@@ -143,21 +148,42 @@ function AdminCreateTask() {
 
   function resetAll() {
     setForm(EMPTY_FORM);
+    setAssignedIds([]);
     setSelectedSpaceId('');
     setSelectedFolderId('');
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (assignedIds.length === 0) {
+      notifyError('Sélectionnez au moins un employé');
+      return;
+    }
     setSubmitting(true);
     try {
-      const payload = { ...form };
-      if (!payload.list_id) delete payload.list_id;
-      if (!payload.client_name) delete payload.client_name;
-      if (!payload.client_email) delete payload.client_email;
-      await taskService.createTask(payload);
-      notifySuccess("Tâche envoyée à l'employé : elle peut être démarrée immédiatement");
-      resetAll();
+      const base = { ...form };
+      delete base.assigned_to;
+      if (!base.list_id) delete base.list_id;
+      if (!base.client_name) delete base.client_name;
+      if (!base.client_email) delete base.client_email;
+
+      // Une tâche créée par employé sélectionné.
+      const results = await Promise.allSettled(
+        assignedIds.map((empId) => taskService.createTask({ ...base, assigned_to: empId }))
+      );
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.length - ok;
+
+      if (ok > 0) {
+        notifySuccess(ok === 1 ? 'Tâche créée' : `${ok} tâches créées`);
+        resetAll();
+      }
+      if (failed > 0) {
+        const firstError = results.find((r) => r.status === 'rejected')?.reason?.response?.data;
+        notifyError(
+          `${failed} tâche(s) non créée(s)` + (firstError?.error ? ` : ${firstError.error}` : '')
+        );
+      }
     } catch (err) {
       const data = err.response?.data;
       notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
@@ -166,9 +192,9 @@ function AdminCreateTask() {
     }
   }
 
-  const assignedEmployee = useMemo(
-    () => employees.find((emp) => emp.id === form.assigned_to),
-    [employees, form.assigned_to]
+  const assignedNames = useMemo(
+    () => employees.filter((emp) => assignedIds.includes(emp.id)).map((emp) => emp.full_name),
+    [employees, assignedIds]
   );
   const priorityMeta = PRIORITIES.find((p) => p.value === form.priority);
   const spaceName = spaces.find((s) => s.id === selectedSpaceId)?.name;
@@ -234,24 +260,35 @@ function AdminCreateTask() {
           </div>
 
           <div className="form-field">
-            <label className="form-label" htmlFor="assigned_to">
-              Employé assigné <span className="form-required">*</span>
+            <label className="form-label">
+              Employés assignés <span className="form-required">*</span>
+              <span className="assignee-hint"> — 1 ou plusieurs (une tâche par employé)</span>
             </label>
-            <select
-              id="assigned_to"
-              name="assigned_to"
-              className="form-select"
-              value={form.assigned_to}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Choisir un employé…</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.full_name} ({emp.position})
-                </option>
-              ))}
-            </select>
+            <div className="assignee-checklist">
+              {employees.length === 0 && <p className="assignee-empty">Aucun employé disponible.</p>}
+              {employees.map((emp) => {
+                const checked = assignedIds.includes(emp.id);
+                return (
+                  <label key={emp.id} className={`assignee-check${checked ? ' assignee-check--on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setAssignedIds((cur) =>
+                          cur.includes(emp.id) ? cur.filter((x) => x !== emp.id) : [...cur, emp.id]
+                        )
+                      }
+                    />
+                    <span>
+                      {emp.full_name} <em>({emp.position})</em>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {assignedIds.length > 1 && (
+              <p className="assignee-note">{assignedIds.length} tâches seront créées (une par employé).</p>
+            )}
           </div>
         </section>
 
@@ -477,7 +514,7 @@ function AdminCreateTask() {
           <div className="task-preview-rows">
             <div className="task-preview-row">
               <span className="task-preview-row-icon"><IconUser /></span>
-              <span>{assignedEmployee ? assignedEmployee.full_name : 'Non assignée'}</span>
+              <span>{assignedNames.length > 0 ? assignedNames.join(', ') : 'Non assignée'}</span>
             </div>
             <div className="task-preview-row">
               <span className="task-preview-row-icon"><IconCalendarWeek /></span>
