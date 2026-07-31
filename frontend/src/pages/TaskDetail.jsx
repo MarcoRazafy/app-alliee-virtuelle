@@ -305,6 +305,42 @@ function TaskDetail() {
       </div>
       )}
 
+      {/* Côté admin : temps passé en LECTURE SEULE (le chrono est piloté par l'employé). */}
+      {isAdmin && (
+      <div className="side-card" style={{ marginBottom: '20px' }}>
+        <p className="side-card-title" style={{ marginBottom: '16px' }}>
+          Temps passé
+        </p>
+        <p style={{ fontSize: '15px', marginBottom: sortedHistory.length > 0 ? '16px' : '0' }}>
+          <strong>Total : {formatDurationShort(totalSeconds)}</strong>
+          {activeSession && <span style={{ color: 'var(--color-error)', marginLeft: '8px' }}>· chrono en cours</span>}
+        </p>
+        {sortedHistory.length === 0 && <div className="empty-state">Aucun temps enregistré.</div>}
+        {sortedHistory.length > 0 && (
+          <div className="task-table-wrap">
+            <table className="task-table">
+              <thead>
+                <tr>
+                  <th>Début</th>
+                  <th>Fin</th>
+                  <th>Durée</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedHistory.map((session, index) => (
+                  <tr key={index}>
+                    <td>{formatDateTime(session.start_time)}</td>
+                    <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
+                    <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      )}
+
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
           Sous-tâches
