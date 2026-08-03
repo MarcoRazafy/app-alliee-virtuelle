@@ -45,3 +45,79 @@ En résumé : le projet devient de plus en plus fiable et carré. Le vrai palier
 (c) mette à jour le DEPLOIEMENT.md avec ces points manquants ?
 
 ---------------------------------------------------------------------
+Ando : 
+- réçevoir un notification quand il y a des nouvelles inscriptions 
+- Mettre en français 
+- Modif nom espace / Dossier / liste.
+- deadline doit être aujourd'hui
+- Côté Admin : l'heure n'est pas visible, il faut avoir une option supprimer la tâche dans l'option admin 
+- Mettre option rajout cracking aussi dans admin car l’admin note aussi les heures de vérification pour les tâches pour les clients
+- Mettre figé aussi temps pour tâche à côté du temps de connexion mais en rouge Ou en haut genre petit truc en haut pour recap de la tâche qui est encours avec le timer (mettre dans truc rouge)
+- Option de cliquer sur les motifs pour rediriger vers l’action (exemple validation acces ou validation tâche)
+- Mettre titre de chaque colonne figé en haut
+- ajouter une page annonce et aussi une fonction popup quand il y a des nouvelles annonces et redirection directe vers l'annonce. Et aussi ajouter un petit bouton ou réaction dans le popup ou dans l'annonce pour marquer comme lu, puis on peut voir qui a lu l'annonce
+
+- ajouter un chrono dans l'admin, l'admin peut tourner une tâche d'un d'un employer, totalHeureTache = totalHeureTacheAdmin + totalHeureTacheemployer. NB : une tâche peut être fait par une ou plusieurs employers 
+- ajouter une option de réouvrir une tâche et réexecuter une tâche qui est déjà confirmer car normalement les tâche 
+- côtés admin : ajouter un temps de chrono aussi comme dans l'employer (tâche et temps de connexion)
+- Quand un employer ajoute une tâche il doit avoir une option mettre cette tâche dans un projet(espace - client - fichier) mais optionnel
+
+
+PS, le timer s’arrête des fois
+
+-------------------------------------------------------------------------
+Kathy : 
+Amélioration UX/UI design Application Centralisé ALLIEE VIRTUELLE:
+
+Menu vertical Admin: 
+	Vue d'ensemble
+	|
+	|
+	Gestionnaire de tâche
+	|_ _ Projets
+	|_ _ Liste des tâches
+	|_ _ Demande des tâches
+	|
+	|
+	Gestionnaire des employés
+	|_ _ Planning & Présence
+	|_ _ Equipe
+	|
+	|
+	Statistique
+	|
+	|
+	Annonce
+	|
+	|
+    Mon planning
+	|
+	|
+	Ressources
+	|
+	|
+	Admin Profil
+
+Menu vertical User: 
+	Dashboard
+	|
+	|
+	Gestionnaire de tâche
+	|_ _ Mon Espace
+	|_ _ Ma journée
+	|_ _ Mes tâches 
+	|
+	|
+	Planning
+	|
+	|
+	Statistique
+	|
+	|
+	Ressources
+	|
+	|
+	Profil
+
+- (à voir) Demande de tâche (Partie User): Tâches reliés à un projet ?
+- Mon Planning (Partie User) : Bouton "View" changer de couleu

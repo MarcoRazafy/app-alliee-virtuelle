@@ -104,16 +104,19 @@ export function ActivityChart({ rows, metric }) {
     );
   }
 
-  const isHours = metric === 'hours_worked_seconds';
+  // Deux familles de mesures : les durées (heures travaillées / temps de connexion),
+  // affichées en heures ; et les compteurs (tâches confirmées).
+  const isConnected = metric === 'connected_seconds';
+  const isDuration = metric === 'hours_worked_seconds' || isConnected;
   const getVal = (row) =>
-    isHours ? Number(row.hours_worked_seconds || 0) / 3600 : Number(row.tasks_confirmed || 0);
+    isDuration ? Number(row[metric] || 0) / 3600 : Number(row.tasks_confirmed || 0);
 
   const W = 860;
   const H = 300;
   const pad = { t: 22, r: 22, b: 42, l: 46 };
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
-  const rawMax = Math.max(...displayed.map(getVal), isHours ? 0.5 : 1);
+  const rawMax = Math.max(...displayed.map(getVal), isDuration ? 0.5 : 1);
   const maxV = niceCeil(rawMax);
   const stepX = displayed.length > 1 ? iw / (displayed.length - 1) : 0;
   const xAt = (i) => (displayed.length > 1 ? pad.l + stepX * i : pad.l + iw / 2);
@@ -127,7 +130,7 @@ export function ActivityChart({ rows, metric }) {
   const labelEvery = Math.ceil(displayed.length / 8);
   const gridSteps = [0, 0.25, 0.5, 0.75, 1];
 
-  const fmtVal = (v) => (isHours ? `${v.toFixed(v < 10 ? 1 : 0)}h` : String(Math.round(v)));
+  const fmtVal = (v) => (isDuration ? `${v.toFixed(v < 10 ? 1 : 0)}h` : String(Math.round(v)));
 
   function onMove(e) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -142,7 +145,7 @@ export function ActivityChart({ rows, metric }) {
   return (
     <div className="astat-chart-wrap">
       <svg className="astat-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img"
-        aria-label={`Évolution : ${isHours ? 'heures travaillées' : 'tâches confirmées'}`}>
+        aria-label={`Évolution : ${isConnected ? 'temps de connexion' : isDuration ? 'heures travaillées' : 'tâches confirmées'}`}>
         <defs>
           <linearGradient id="astat-area-grad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-accent-lighter)" stopOpacity="0.32" />
@@ -199,7 +202,7 @@ export function ActivityChart({ rows, metric }) {
         >
           <span className="astat-tooltip-date">{formatLongDate(hp.row.date)}</span>
           <span className="astat-tooltip-value">
-            {isHours ? formatDurationShort(hp.row.hours_worked_seconds) : `${hp.row.tasks_confirmed} tâche(s)`}
+            {isDuration ? formatDurationShort(hp.row[metric]) : `${hp.row.tasks_confirmed} tâche(s)`}
           </span>
         </div>
       )}

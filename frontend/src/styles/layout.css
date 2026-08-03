@@ -107,8 +107,15 @@
 .sidebar-parent {
   display: flex;
   align-items: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
   border-radius: 10px;
+  background: none;
   color: var(--sidebar-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -173,6 +180,8 @@
 }
 
 .sidebar-sublink {
+  display: flex;
+  align-items: center;
   padding: 7px 10px;
   border-radius: 8px;
   color: var(--sidebar-text);

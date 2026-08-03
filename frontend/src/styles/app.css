@@ -34,6 +34,19 @@
   gap: 10px;
 }
 
+/* Wrapper des animations Lottie : porte la taille (via className/style de l'appelant) ;
+   le SVG rendu par lottie-web le remplit. Utilitaire partagé par toutes les LottieIcon. */
+.lottie-icon {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.lottie-icon svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
 .icon-btn {
   position: relative;
   display: inline-flex;
@@ -844,6 +857,13 @@
 }
 .btn-outline:active { transform: scale(0.99); }
 
+/* Modificateur de taille : bouton compact (tableaux, actions de ligne). */
+.btn-sm {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 0.76rem;
+}
+
 .chrono-ring-wrap {
   position: relative;
   width: 168px;
@@ -1293,6 +1313,31 @@
   margin: 0 0 8px;
 }
 
+/* Emoji « coucou » : la main salue en boucle, avec une pause entre chaque salut.
+   Pivot au poignet (transform-origin bas-droite) pour un mouvement naturel. */
+.wave-emoji {
+  display: inline-block;
+  transform-origin: 70% 70%;
+  animation: hand-wave 2.4s ease-in-out infinite;
+}
+
+@keyframes hand-wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-emoji {
+    animation: none;
+  }
+}
+
 .dash-hero-text {
   font-size: 13.5px;
   color: var(--color-text-secondary);
@@ -1332,6 +1377,19 @@
 .dash-hero-check--pending {
   background: rgba(245, 158, 11, 0.16);
   color: var(--color-warning);
+}
+
+/* Animation Lottie de succès (remplace le badge vert « Journée validée »).
+   Elle embarque son propre cercle vert : pas de fond CSS, juste le gabarit. */
+.dash-hero-lottie {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 8px;
+}
+
+.dash-hero-lottie svg {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .dash-hero-status-title {

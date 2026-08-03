@@ -269,7 +269,7 @@ async function findActiveEmployees() {
   const result = await db.query(
     `SELECT id, full_name, position,
             EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = users.id) AS has_avatar
-     FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF' ORDER BY full_name ASC`
+     FROM users WHERE role IN ('EMPLOYEE', 'ADMIN') AND status = 'ACTIF' ORDER BY full_name ASC`
   );
   return result.rows;
 }
@@ -406,7 +406,7 @@ async function deleteAttendanceOverride(userId, date, client = db) {
 }
 
 async function countActiveEmployees() {
-  const result = await db.query(`SELECT COUNT(*)::INTEGER AS total FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF'`);
+  const result = await db.query(`SELECT COUNT(*)::INTEGER AS total FROM users WHERE role IN ('EMPLOYEE', 'ADMIN') AND status = 'ACTIF'`);
   return result.rows[0].total;
 }
 
@@ -426,7 +426,7 @@ async function countAvailableToday(dateString) {
      JOIN users u ON u.id = wp.user_id
      WHERE pd.planning_date = $1
        AND pd.availability_status IN ('AVAILABLE', 'PARTIALLY_AVAILABLE')
-       AND u.role = 'EMPLOYEE' AND u.status = 'ACTIF'`,
+       AND u.role IN ('EMPLOYEE', 'ADMIN') AND u.status = 'ACTIF'`,
     [dateString]
   );
   return result.rows[0].total;
@@ -438,7 +438,7 @@ async function findNonSubmittedEmployees(weekStartDate) {
     `SELECT u.id AS user_id, u.full_name, u.position, wp.id AS planning_id, wp.status, wp.submitted_at
      FROM users u
      LEFT JOIN weekly_plannings wp ON wp.user_id = u.id AND wp.week_start_date = $1
-     WHERE u.role = 'EMPLOYEE' AND u.status = 'ACTIF'
+     WHERE u.role IN ('EMPLOYEE', 'ADMIN') AND u.status = 'ACTIF'
        AND (wp.id IS NULL OR (wp.submitted_at IS NULL AND wp.status != 'ADMIN_MODIFIED'))
      ORDER BY u.full_name ASC`,
     [weekStartDate]
@@ -454,7 +454,7 @@ async function findAvailableEmployees({ date, startTime, endTime }) {
      JOIN weekly_plannings wp ON wp.user_id = u.id
      JOIN planning_days pd ON pd.planning_id = wp.id AND pd.planning_date = $1
      JOIN planning_time_slots pts ON pts.planning_day_id = pd.id
-     WHERE u.role = 'EMPLOYEE' AND u.status = 'ACTIF'
+     WHERE u.role IN ('EMPLOYEE', 'ADMIN') AND u.status = 'ACTIF'
        AND pd.availability_status IN ('AVAILABLE', 'PARTIALLY_AVAILABLE')
        AND pts.start_time <= $2 AND pts.end_time >= $3
      ORDER BY u.full_name ASC`,

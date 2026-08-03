@@ -16,6 +16,7 @@ import {
   IconBarChart,
   IconCalendarWeek,
   IconFolder,
+  IconMegaphone,
   IconUser,
   IconLogout,
   IconChevronDown,
@@ -23,37 +24,57 @@ import {
   IconSearch,
   IconLock,
   IconMenu,
-  IconBell,
   IconX,
 } from '../icons';
 import useAnnouncementUnread from '../../hooks/useAnnouncementUnread';
 import '../../styles/app.css';
 import '../../styles/layout.css';
 
+// Navigation : liens simples + un lien "parent" repliable (accordéon).
+// Le parent (children) ne mène à aucune page : cliquer déplie/replie ses sous-éléments.
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: IconDashboard, end: true },
-  { to: '/workspace', label: 'Mon espace', icon: IconWorkspace },
-  { to: '/my-day', label: 'Ma journée', icon: IconCalendarCheck },
-  { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
-  { to: '/stats', label: 'Stats', icon: IconBarChart },
+  {
+    label: 'Gestionnaire de tâche',
+    icon: IconChecklist,
+    children: [
+      { to: '/workspace', label: 'Mon Espace', icon: IconWorkspace },
+      { to: '/my-day', label: 'Ma journée', icon: IconCalendarCheck },
+      { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
+    ],
+  },
   { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
+  { to: '/stats', label: 'Statistique', icon: IconBarChart },
   { to: '/resources', label: 'Ressources', icon: IconFolder },
-  { to: '/announcements', label: 'Annonces', icon: IconBell },
+  { to: '/announcements', label: 'Annonces', icon: IconMegaphone },
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
 
+// Feuilles navigables aplaties : sert à la recherche de page.
+const FLAT_ITEMS = NAV_ITEMS.flatMap((item) => (item.children ? item.children : [item]));
+
+// Groupes à déplier automatiquement selon la page active.
+function activeGroups(pathname) {
+  const open = {};
+  NAV_ITEMS.forEach((item) => {
+    if (item.children && item.children.some((c) => pathname.startsWith(c.to))) open[item.label] = true;
+  });
+  return open;
+}
+
 function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, children }) {
   const location = useLocation();
-  const { unread: announcementUnread } = useAnnouncementUnread();
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const navigate = useNavigate();
+  const { unread: announcementUnread } = useAnnouncementUnread();
 
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+  const [openMenus, setOpenMenus] = useState(() => activeGroups(location.pathname));
   const menuRef = useRef(null);
   const searchRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -61,6 +82,12 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
   // La navigation mobile se referme automatiquement dès qu'on change de page
   useEffect(() => {
     setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // Déplie automatiquement le groupe dont une page enfant devient active,
+  // sans refermer ceux que l'utilisateur a déjà ouverts manuellement.
+  useEffect(() => {
+    setOpenMenus((prev) => ({ ...prev, ...activeGroups(location.pathname) }));
   }, [location.pathname]);
 
   useEffect(() => {
@@ -109,15 +136,49 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
     return () => document.removeEventListener('keydown', handleKeydown);
   }, []);
 
+  function toggleMenu(label) {
+    setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
   async function handleLogout() {
     await logout();
     navigate('/login');
   }
 
+  // Rendu d'une feuille de navigation (lien simple ou sous-élément).
+  // Tant que la journée n'est pas validée, seule la page en cours reste accessible
+  // (règle métier : au moins une tâche sélectionnée + validation avant le reste de l'app).
+  function renderLeaf(item, isSub = false) {
+    const { to, label, icon: Icon, end } = item;
+    const isActive = end ? location.pathname === to : location.pathname.startsWith(to);
+    const base = isSub ? 'sidebar-sublink' : 'sidebar-link';
+    const activeCls = isSub ? 'sidebar-sublink--active' : 'sidebar-link--active';
+
+    if (locked && !isActive) {
+      return (
+        <span key={to} className={`${base} sidebar-link--locked`} title="Validez votre journée pour continuer">
+          {!isSub && <Icon />}
+          <span>{label}</span>
+          <IconLock className="sidebar-lock-icon" />
+        </span>
+      );
+    }
+
+    return (
+      <Link key={to} to={to} className={`${base}${isActive ? ` ${activeCls}` : ''}`}>
+        {!isSub && <Icon />}
+        <span>{label}</span>
+        {to === '/announcements' && announcementUnread > 0 && (
+          <span className="sidebar-badge">{announcementUnread}</span>
+        )}
+      </Link>
+    );
+  }
+
   const firstName = user?.full_name?.split(' ')[0] || '';
 
   const searchMatches = searchQuery.trim()
-    ? NAV_ITEMS.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    ? FLAT_ITEMS.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : [];
 
   function handleSearchSubmit(e) {
@@ -148,27 +209,31 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => {
-            const isActive = end ? location.pathname === to : location.pathname.startsWith(to);
-            // Tant que la journée n'est pas validée, seule la page en cours reste accessible
-            // (cf. règle métier : au moins une tâche sélectionnée + validation avant le reste de l'app)
-            if (locked && !isActive) {
-              return (
-                <span key={to} className="sidebar-link sidebar-link--locked" title="Validez votre journée pour continuer">
-                  <Icon />
-                  <span>{label}</span>
-                  <IconLock className="sidebar-lock-icon" />
-                </span>
-              );
-            }
+          {NAV_ITEMS.map((item) => {
+            // Lien simple
+            if (!item.children) return renderLeaf(item);
+
+            // Lien parent repliable (accordéon)
+            const { label, icon: Icon, children } = item;
+            const isOpen = !!openMenus[label];
             return (
-              <Link key={to} to={to} className={`sidebar-link${isActive ? ' sidebar-link--active' : ''}`}>
-                <Icon />
-                <span>{label}</span>
-                {to === '/announcements' && announcementUnread > 0 && (
-                  <span className="sidebar-badge">{announcementUnread}</span>
-                )}
-              </Link>
+              <div key={label} className="sidebar-subnav">
+                <button
+                  type="button"
+                  className="sidebar-parent"
+                  onClick={() => toggleMenu(label)}
+                  aria-expanded={isOpen}
+                >
+                  <span className="sidebar-link-main">
+                    <Icon />
+                    <span>{label}</span>
+                  </span>
+                  <span className={`sidebar-expand-btn${isOpen ? ' sidebar-expand-btn--open' : ''}`}>
+                    <IconChevronDown />
+                  </span>
+                </button>
+                {isOpen && <div className="sidebar-sublinks">{children.map((c) => renderLeaf(c, true))}</div>}
+              </div>
             );
           })}
         </nav>

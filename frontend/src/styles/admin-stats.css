@@ -7,6 +7,52 @@
   flex-direction: column;
 }
 
+/* --- Onglets Tâches / Présence --- */
+
+.astat-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.astat-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 18px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  opacity: 0.75;
+}
+
+.astat-tab:hover {
+  opacity: 1;
+}
+
+.astat-tab--active {
+  color: var(--color-text-primary);
+  opacity: 1;
+}
+
+.astat-tab--active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+}
+
 /* --- Barre d'outils --- */
 
 .astat-toolbar {
@@ -723,6 +769,11 @@
 .astat-row {
   cursor: pointer;
   transition: background 0.15s ease;
+}
+
+/* Lignes non interactives (tableau de présence) : pas de curseur "main". */
+.astat-row--static {
+  cursor: default;
 }
 
 .astat-row:hover {

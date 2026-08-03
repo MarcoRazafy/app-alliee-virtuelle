@@ -8,9 +8,11 @@ import ThemeToggle from '../ThemeToggle';
 import TopbarTools from '../TopbarTools';
 import {
   IconWorkspace,
+  IconLayers,
   IconChecklist,
   IconCheckCircle,
   IconBell,
+  IconMegaphone,
   IconBarChart,
   IconCalendarWeek,
   IconUser,
@@ -27,60 +29,69 @@ import ConnectionChrono from '../employee/ConnectionChrono';
 import '../../styles/app.css';
 import '../../styles/layout.css';
 
-// Navigation groupée par intention (cf. maquette) : Piloter / Collaborer / Administrer.
-const NAV_GROUPS = [
+// Navigation : liens simples + deux liens "parents" repliables (accordéon).
+// Un parent (children) ne mène à aucune page : cliquer déplie/replie ses sous-éléments.
+const NAV_ITEMS = [
+  { to: '/admin', label: "Vue d'ensemble", subtitle: "Activité de l'équipe en direct", icon: IconWorkspace, end: true },
   {
-    label: 'Piloter',
-    items: [
-      { to: '/admin', label: "Vue d'ensemble", subtitle: "Activité de l'équipe en direct", icon: IconWorkspace, end: true },
-      { to: '/admin/lists', label: 'Projets', subtitle: 'Toutes les tâches', icon: IconChecklist },
-      { to: '/admin/validate', label: 'Tâches', subtitle: 'Déclarations et livraisons à contrôler', icon: IconCheckCircle, badgeKey: 'toValidate' },
-      { to: '/admin/task-requests', label: 'Demandes de tâche', subtitle: 'Tâches supplémentaires à approuver', icon: IconBell, badgeKey: 'taskRequests' },
-      { to: '/admin/users', label: 'Équipe', subtitle: "Membres de l'équipe", icon: IconUsers },
-      { to: '/admin/planning', label: 'Présence et planning', subtitle: 'Disponibilités et présence des employés', icon: IconCalendarWeek },
-      { to: '/admin/stats', label: 'Statistiques', subtitle: "Performance de l'équipe", icon: IconBarChart },
+    label: 'Gestionnaire de tâche',
+    icon: IconChecklist,
+    children: [
+      { to: '/admin/lists', label: 'Projets', subtitle: 'Toutes les tâches par projet', icon: IconLayers },
+      { to: '/admin/validate', label: 'Liste des tâches', subtitle: 'Déclarations et livraisons à contrôler', icon: IconCheckCircle, badgeKey: 'toValidate' },
+      { to: '/admin/task-requests', label: 'Demande des tâches', subtitle: 'Tâches supplémentaires à approuver', icon: IconBell, badgeKey: 'taskRequests' },
     ],
   },
   {
-    label: 'Collaborer',
-    items: [
-      { to: '/admin/resources', label: 'Ressources', subtitle: 'Documents partagés', icon: IconFolder },
-      { to: '/announcements', label: 'Annonces', subtitle: "Communications à l'équipe", icon: IconBell, badgeKey: 'announcements' },
+    label: 'Gestionnaire des employés',
+    icon: IconUsers,
+    children: [
+      { to: '/admin/planning', label: 'Planning & Présence', subtitle: 'Disponibilités et présence des employés', icon: IconCalendarWeek },
+      { to: '/admin/users', label: 'Équipe', subtitle: "Membres de l'équipe", icon: IconUser },
     ],
   },
-  {
-    label: 'Administrer',
-    items: [
-      { to: '/planning', label: 'Mon planning', subtitle: 'Vos disponibilités de la semaine', icon: IconCalendarWeek },
-      { to: '/admin/profile', label: 'Profil', subtitle: 'Vos informations', icon: IconUser },
-    ],
-  },
+  { to: '/admin/stats', label: 'Statistique', subtitle: "Performance de l'équipe", icon: IconBarChart },
+  { to: '/announcements', label: 'Annonce', subtitle: "Communications à l'équipe", icon: IconMegaphone, badgeKey: 'announcements' },
+  { to: '/planning', label: 'Mon planning', subtitle: 'Vos disponibilités de la semaine', icon: IconCalendarWeek },
+  { to: '/admin/resources', label: 'Ressources', subtitle: 'Documents partagés', icon: IconFolder },
+  { to: '/admin/profile', label: 'Admin Profil', subtitle: 'Vos informations', icon: IconUser },
 ];
 
-// Liste aplatie pour la résolution du titre d'en-tête et la recherche.
-const NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
+// Feuilles navigables aplaties : sert à résoudre le titre d'en-tête et la recherche.
+const FLAT_ITEMS = NAV_ITEMS.flatMap((item) => (item.children ? item.children : [item]));
 
 // Pages accessibles sans entrée de menu dédiée : on leur donne quand même un
 // titre/sous-titre d'en-tête cohérent (sinon le header retomberait sur le 1er item).
 const EXTRA_TITLES = {
   '/admin/create-task': { label: 'Créer une tâche', subtitle: 'Nouvelle tâche à assigner' },
+  '/admin/late': { label: 'Tâches en retard', subtitle: 'Tâches dont l’échéance est dépassée' },
   '/admin/messaging': { label: 'Messagerie', subtitle: 'Échanges avec les employés' },
   '/admin/assistant': { label: 'Assistant IA', subtitle: 'Analyse et recommandations' },
 };
 
+// Groupes à déplier automatiquement selon la page active.
+function activeGroups(pathname) {
+  const open = {};
+  NAV_ITEMS.forEach((item) => {
+    if (item.children && item.children.some((c) => pathname.startsWith(c.to))) open[item.label] = true;
+  });
+  return open;
+}
+
 function AdminLayout({ children }) {
-  const [badges, setBadges] = useState({ toValidate: 0, taskRequests: 0 });
+  const location = useLocation();
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const { unread: announcementUnread } = useAnnouncementUnread();
+
+  const [badges, setBadges] = useState({ toValidate: 0, taskRequests: 0 });
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-
-  const location = useLocation();
-  const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const [openMenus, setOpenMenus] = useState(() => activeGroups(location.pathname));
 
   const menuRef = useRef(null);
   const searchRef = useRef(null);
@@ -88,6 +99,12 @@ function AdminLayout({ children }) {
 
   useEffect(() => {
     setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // Déplie automatiquement le groupe dont une page enfant devient active,
+  // sans refermer ceux que l'utilisateur a déjà ouverts manuellement.
+  useEffect(() => {
+    setOpenMenus((prev) => ({ ...prev, ...activeGroups(location.pathname) }));
   }, [location.pathname]);
 
   useEffect(() => {
@@ -150,20 +167,32 @@ function AdminLayout({ children }) {
     return () => document.removeEventListener('keydown', handleKeydown);
   }, []);
 
+  function toggleMenu(label) {
+    setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
   async function handleLogout() {
     await logout();
     navigate('/login');
   }
 
+  // Valeur du badge pour une entrée : les annonces viennent du hook temps réel,
+  // le reste (à valider / demandes) de l'API.
+  function badgeValueFor(badgeKey) {
+    if (!badgeKey) return 0;
+    if (badgeKey === 'announcements') return announcementUnread;
+    return badges[badgeKey] || 0;
+  }
+
   const firstName = user?.full_name?.split(' ')[0] || '';
 
   const activeItem =
-    NAV_ITEMS.find((item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to))) ||
+    FLAT_ITEMS.find((item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to))) ||
     EXTRA_TITLES[location.pathname] ||
-    NAV_ITEMS[0];
+    FLAT_ITEMS[0];
 
   const searchMatches = searchQuery.trim()
-    ? NAV_ITEMS.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    ? FLAT_ITEMS.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : [];
 
   function handleSearchSubmit(e) {
@@ -196,30 +225,66 @@ function AdminLayout({ children }) {
         <span className="sidebar-role-tag">Espace administrateur</span>
 
         <nav className="sidebar-nav">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="sidebar-group">
-              <p className="sidebar-group-label">{group.label}</p>
-              {group.items.map((item) => {
-                const { to, label, icon: Icon, badgeKey } = item;
-                // Le badge des annonces vient du hook temps réel ; les autres de l'API.
-                const isActive = item === activeItem;
-                const badgeValue =
-                  badgeKey === 'announcements' ? announcementUnread : badgeKey ? badges[badgeKey] : 0;
+          {NAV_ITEMS.map((item) => {
+            // Lien simple
+            if (!item.children) {
+              const { to, label, icon: Icon, end, badgeKey } = item;
+              const isActive = end ? location.pathname === to : location.pathname.startsWith(to);
+              const badgeValue = badgeValueFor(badgeKey);
+              return (
+                <Link key={label} to={to} className={`sidebar-link${isActive ? ' sidebar-link--active' : ''}`}>
+                  <Icon />
+                  <span>{label}</span>
+                  {badgeValue > 0 && <span className="sidebar-badge">{badgeValue}</span>}
+                </Link>
+              );
+            }
 
-                return (
-                  <Link
-                    key={label}
-                    to={to}
-                    className={`sidebar-link${isActive ? ' sidebar-link--active' : ''}`}
-                  >
+            // Lien parent repliable (accordéon)
+            const { label, icon: Icon, children } = item;
+            const isOpen = !!openMenus[label];
+            // Quand le groupe est replié, on agrège les badges des enfants pour ne
+            // pas masquer une notification en attente.
+            const collapsedBadge = children.reduce((sum, c) => sum + badgeValueFor(c.badgeKey), 0);
+
+            return (
+              <div key={label} className="sidebar-subnav">
+                <button
+                  type="button"
+                  className="sidebar-parent"
+                  onClick={() => toggleMenu(label)}
+                  aria-expanded={isOpen}
+                >
+                  <span className="sidebar-link-main">
                     <Icon />
                     <span>{label}</span>
-                    {badgeValue > 0 && <span className="sidebar-badge">{badgeValue}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+                  </span>
+                  {!isOpen && collapsedBadge > 0 && <span className="sidebar-badge">{collapsedBadge}</span>}
+                  <span className={`sidebar-expand-btn${isOpen ? ' sidebar-expand-btn--open' : ''}`}>
+                    <IconChevronDown />
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="sidebar-sublinks">
+                    {children.map((c) => {
+                      const isActive = location.pathname.startsWith(c.to);
+                      const badgeValue = badgeValueFor(c.badgeKey);
+                      return (
+                        <Link
+                          key={c.label}
+                          to={c.to}
+                          className={`sidebar-sublink${isActive ? ' sidebar-sublink--active' : ''}`}
+                        >
+                          <span>{c.label}</span>
+                          {badgeValue > 0 && <span className="sidebar-badge">{badgeValue}</span>}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         <button type="button" className="sidebar-logout" onClick={handleLogout}>
