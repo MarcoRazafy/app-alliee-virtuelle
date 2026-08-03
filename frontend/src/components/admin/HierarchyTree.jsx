@@ -1,7 +1,46 @@
 import { Fragment, useEffect, useState } from 'react';
 import * as hierarchyService from '../../services/hierarchyService';
 import { notifySuccess, notifyError } from '../../utils/toast';
-import { IconLayers, IconFolder, IconChecklist, IconChevronDown, IconPlus, IconPencil, IconTrash } from '../icons';
+import { IconLayers, IconFolder, IconChecklist, IconChevronDown, IconPlus, IconPencil, IconTrash, IconDots } from '../icons';
+
+// Menu d'actions d'un nœud : un seul bouton « … » qui déplie Ajouter / Renommer / Supprimer.
+function NodeActionsMenu({ open, onToggle, onClose, actions, disabled, triggerLabel }) {
+  return (
+    <span className="tree-node-actions tree-menu">
+      <button
+        type="button"
+        className="tree-menu-trigger"
+        title={triggerLabel}
+        aria-label={triggerLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={onToggle}
+      >
+        <IconDots />
+      </button>
+      {open && (
+        <div className="tree-menu-panel" role="menu">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              role="menuitem"
+              className={`tree-menu-item${action.danger ? ' tree-menu-item--danger' : ''}`}
+              onClick={() => {
+                onClose();
+                action.onClick();
+              }}
+            >
+              <action.icon />
+              <span>{action.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
 
 // Arbre Space > Folder > List. onSelectList(listId, list) est appelé au clic sur
 // une liste, pour que la page parente puisse filtrer ses tâches sur cette liste.
@@ -22,6 +61,18 @@ function HierarchyTree({
   // Noeuds repliés (par id d'espace/dossier). Par défaut tout est déplié.
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [busyId, setBusyId] = useState(null);
+  // Menu « … » actuellement ouvert, identifié par une clé unique (`type:id`).
+  const [openMenu, setOpenMenu] = useState(null);
+
+  // Ferme le menu ouvert dès qu'on clique en dehors de tout menu d'actions.
+  useEffect(() => {
+    if (!openMenu) return undefined;
+    function handleClickOutside(e) {
+      if (!e.target.closest('.tree-menu')) setOpenMenu(null);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenu]);
 
   function loadTree() {
     hierarchyService
@@ -181,39 +232,19 @@ function HierarchyTree({
               <span className="tree-icon">
                 <IconLayers />
               </span>
-              <span className="tree-label">{space.name}</span>
-              <span className="tree-node-actions">
-                <button
-                  type="button"
-                  className="tree-node-action"
-                  title="Ajouter un projet"
-                  aria-label={`Ajouter un projet dans ${space.name}`}
-                  onClick={() => startCreating('folder', space.id)}
-                  disabled={Boolean(busyId)}
-                >
-                  <IconPlus />
-                </button>
-                <button
-                  type="button"
-                  className="tree-node-action"
-                  title="Renommer l’espace"
-                  aria-label={`Renommer l’espace ${space.name}`}
-                  onClick={() => startRenaming('space', space)}
-                  disabled={Boolean(busyId)}
-                >
-                  <IconPencil />
-                </button>
-                <button
-                  type="button"
-                  className="tree-node-action tree-node-action--danger"
-                  title="Supprimer l’espace"
-                  aria-label={`Supprimer l’espace ${space.name}`}
-                  onClick={() => handleDelete('space', space)}
-                  disabled={Boolean(busyId)}
-                >
-                  <IconTrash />
-                </button>
-              </span>
+              <span className="tree-label" title={space.name}>{space.name}</span>
+              <NodeActionsMenu
+                open={openMenu === `space:${space.id}`}
+                onToggle={() => setOpenMenu((cur) => (cur === `space:${space.id}` ? null : `space:${space.id}`))}
+                onClose={() => setOpenMenu(null)}
+                disabled={Boolean(busyId)}
+                triggerLabel={`Actions pour l’espace ${space.name}`}
+                actions={[
+                  { label: 'Ajouter un projet', icon: IconPlus, onClick: () => startCreating('folder', space.id) },
+                  { label: 'Renommer l’espace', icon: IconPencil, onClick: () => startRenaming('space', space) },
+                  { label: 'Supprimer l’espace', icon: IconTrash, danger: true, onClick: () => handleDelete('space', space) },
+                ]}
+              />
             </div>
             {renderRenameForm('space', space.id)}
             {renderCreateForm('folder', space.id, 'Nom du projet')}
@@ -235,39 +266,19 @@ function HierarchyTree({
                       <span className="tree-icon">
                         <IconFolder />
                       </span>
-                      <span className="tree-label">{folder.name}</span>
-                      <span className="tree-node-actions">
-                        <button
-                          type="button"
-                          className="tree-node-action"
-                          title="Ajouter une liste"
-                          aria-label={`Ajouter une liste dans ${folder.name}`}
-                          onClick={() => startCreating('list', folder.id)}
-                          disabled={Boolean(busyId)}
-                        >
-                          <IconPlus />
-                        </button>
-                        <button
-                          type="button"
-                          className="tree-node-action"
-                          title="Renommer le projet"
-                          aria-label={`Renommer le projet ${folder.name}`}
-                          onClick={() => startRenaming('folder', folder)}
-                          disabled={Boolean(busyId)}
-                        >
-                          <IconPencil />
-                        </button>
-                        <button
-                          type="button"
-                          className="tree-node-action tree-node-action--danger"
-                          title="Supprimer le projet"
-                          aria-label={`Supprimer le projet ${folder.name}`}
-                          onClick={() => handleDelete('folder', folder)}
-                          disabled={Boolean(busyId)}
-                        >
-                          <IconTrash />
-                        </button>
-                      </span>
+                      <span className="tree-label" title={folder.name}>{folder.name}</span>
+                      <NodeActionsMenu
+                        open={openMenu === `folder:${folder.id}`}
+                        onToggle={() => setOpenMenu((cur) => (cur === `folder:${folder.id}` ? null : `folder:${folder.id}`))}
+                        onClose={() => setOpenMenu(null)}
+                        disabled={Boolean(busyId)}
+                        triggerLabel={`Actions pour le projet ${folder.name}`}
+                        actions={[
+                          { label: 'Ajouter une liste', icon: IconPlus, onClick: () => startCreating('list', folder.id) },
+                          { label: 'Renommer le projet', icon: IconPencil, onClick: () => startRenaming('folder', folder) },
+                          { label: 'Supprimer le projet', icon: IconTrash, danger: true, onClick: () => handleDelete('folder', folder) },
+                        ]}
+                      />
                     </div>
                     {renderRenameForm('folder', folder.id)}
                     {renderCreateForm('list', folder.id, 'Nom de la liste')}
@@ -292,41 +303,21 @@ function HierarchyTree({
                             <span className="tree-icon">
                               <IconChecklist />
                             </span>
-                            <span className="tree-label">{list.name}</span>
+                            <span className="tree-label" title={list.name}>{list.name}</span>
                             <span className="tree-count">{list.task_count}</span>
                           </button>
-                          <span className="tree-node-actions">
-                            <button
-                              type="button"
-                              className="tree-node-action"
-                              title="Ajouter une tâche"
-                              aria-label={`Ajouter une tâche dans ${list.name}`}
-                              onClick={() => onAddTask?.(list.id, list)}
-                              disabled={Boolean(busyId)}
-                            >
-                              <IconPlus />
-                            </button>
-                            <button
-                              type="button"
-                              className="tree-node-action"
-                              title="Renommer la liste"
-                              aria-label={`Renommer la liste ${list.name}`}
-                              onClick={() => startRenaming('list', list)}
-                              disabled={Boolean(busyId)}
-                            >
-                              <IconPencil />
-                            </button>
-                            <button
-                              type="button"
-                              className="tree-node-action tree-node-action--danger"
-                              title="Supprimer la liste"
-                              aria-label={`Supprimer la liste ${list.name}`}
-                              onClick={() => handleDelete('list', list)}
-                              disabled={Boolean(busyId)}
-                            >
-                              <IconTrash />
-                            </button>
-                          </span>
+                          <NodeActionsMenu
+                            open={openMenu === `list:${list.id}`}
+                            onToggle={() => setOpenMenu((cur) => (cur === `list:${list.id}` ? null : `list:${list.id}`))}
+                            onClose={() => setOpenMenu(null)}
+                            disabled={Boolean(busyId)}
+                            triggerLabel={`Actions pour la liste ${list.name}`}
+                            actions={[
+                              { label: 'Ajouter une tâche', icon: IconPlus, onClick: () => onAddTask?.(list.id, list) },
+                              { label: 'Renommer la liste', icon: IconPencil, onClick: () => startRenaming('list', list) },
+                              { label: 'Supprimer la liste', icon: IconTrash, danger: true, onClick: () => handleDelete('list', list) },
+                            ]}
+                          />
                         </div>
                         {renderRenameForm('list', list.id)}
                         </Fragment>

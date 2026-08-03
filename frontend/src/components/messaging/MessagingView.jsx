@@ -17,6 +17,7 @@ import useAuthStore from '../../store/authStore';
 import { notifyError, notifyInfo, notifySuccess } from '../../utils/toast';
 import '../../styles/messaging.css';
 import { SendIcon, PlusIcon, UsersIcon, BackIcon, InfoIcon, SmileyIcon, ImageIcon, MicIcon } from './messagingIcons';
+import LottieIcon from '../LottieIcon';
 import {
   formatMessageTime,
   formatConversationTime,
@@ -1001,11 +1002,19 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         <div className="msgr-sidebar-head">
           <h2>Discussions</h2>
           <div className="msgr-sidebar-head-actions">
-            <button type="button" onClick={() => setGroupCreateOpen(true)} title="Créer un groupe" aria-label="Créer un groupe"><UsersIcon /></button>
+            <button type="button" onClick={() => setGroupCreateOpen(true)} title="Créer un groupe" aria-label="Créer un groupe">
+              <LottieIcon
+                src="/icone/group-messege.json"
+                trigger="hover"
+                color="currentColor"
+                style={{ width: 22, height: 22 }}
+                fallback={<UsersIcon />}
+              />
+            </button>
             {enableBulk && (
               <button type="button" onClick={() => setBulkOpen(true)} title="Message groupé" aria-label="Message groupé"><PlusIcon /></button>
             )}
-            <button type="button" onClick={() => setNewMessageOpen(true)} title="Nouveau message" aria-label="Nouveau message"><PlusIcon /></button>
+            <button type="button" onClick={() => setNewMessageOpen(true)} title="Nouveau message" aria-label="Nouveau message"><IconPencil /></button>
           </div>
         </div>
 
@@ -1040,7 +1049,15 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
               className={`conversation-item${activeChannel === 'global' ? ' conversation-item--active' : ''}`}
               onClick={openGlobalChannel}
             >
-              <span className="conversation-avatar conversation-avatar--team"><IconChat /></span>
+              <span className="conversation-avatar conversation-avatar--team">
+              <LottieIcon
+                src="/icone/message.json"
+                loop
+                color="currentColor"
+                style={{ width: 22, height: 22 }}
+                fallback={<IconChat />}
+              />
+            </span>
               <span className="conversation-content">
                 <span className="conversation-name-row">
                   <strong>Équipe — Général</strong>
@@ -1098,7 +1115,15 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             <BackIcon />
           </button>
           {activeChannel === 'global' ? (
-            <span className="conversation-avatar conversation-avatar--team"><IconChat /></span>
+            <span className="conversation-avatar conversation-avatar--team">
+              <LottieIcon
+                src="/icone/message.json"
+                loop
+                color="currentColor"
+                style={{ width: 22, height: 22 }}
+                fallback={<IconChat />}
+              />
+            </span>
           ) : activeChannel === 'group' ? (
             groupAvatarNode(openGroup)
           ) : (

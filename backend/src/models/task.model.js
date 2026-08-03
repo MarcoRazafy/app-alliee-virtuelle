@@ -491,7 +491,7 @@ async function computeRealtimeDashboard() {
   const employeesResult = await db.query(
     `SELECT u.id, u.full_name, u.position,
             EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = u.id) AS has_avatar
-     FROM users u WHERE u.role = 'EMPLOYEE' AND u.status = 'ACTIF' ORDER BY u.full_name ASC`
+     FROM users u WHERE u.role IN ('EMPLOYEE', 'ADMIN') AND u.status = 'ACTIF' ORDER BY u.full_name ASC`
   );
 
   const statsResult = await db.query(`

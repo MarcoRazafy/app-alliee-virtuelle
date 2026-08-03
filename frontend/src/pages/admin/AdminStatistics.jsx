@@ -17,6 +17,7 @@ function AdminStatistics() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [view, setView] = useState('tasks'); // 'tasks' | 'presence'
 
   const [chartMetric, setChartMetric] = useState('hours_worked_seconds');
   const [boardMetric, setBoardMetric] = useState('hours_worked_seconds');
@@ -83,6 +84,19 @@ function AdminStatistics() {
     return rows.slice(0, 8);
   }, [stats, boardMetric]);
 
+  // Onglet Présence : employés triés par temps de connexion décroissant.
+  const presenceRows = useMemo(() => {
+    if (!stats) return [];
+    return [...stats.by_employee].sort(
+      (a, b) => Number(b.connected_seconds || 0) - Number(a.connected_seconds || 0)
+    );
+  }, [stats]);
+
+  const presenceBoard = useMemo(
+    () => presenceRows.filter((e) => Number(e.connected_seconds || 0) > 0).slice(0, 8),
+    [presenceRows]
+  );
+
   function toggleSort(key) {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
@@ -113,6 +127,20 @@ function AdminStatistics() {
 
   function handleExportCsv() {
     if (!stats) return;
+    if (view === 'presence') {
+      const rows = [
+        ['Employé', 'Temps de connexion', 'Jours présents', 'Sessions', 'Dernière connexion'],
+        ...presenceRows.map((e) => [
+          e.full_name,
+          formatDurationShort(e.connected_seconds),
+          e.days_present,
+          e.sessions_count,
+          e.last_login ? formatShortDate(e.last_login.slice(0, 10)) : '—',
+        ]),
+      ];
+      downloadCsv(`presence_equipe_${from}_${to}.csv`, rows);
+      return;
+    }
     const rows = [
       ['Employé', 'Total tâches', 'Complétées', 'En cours', 'En retard', '% complétion', 'Heures travaillées'],
       ...sortedByEmployee.map((e) => [
@@ -130,6 +158,8 @@ function AdminStatistics() {
 
   const summary = stats?.summary || {};
   const boardMax = Math.max(1, ...leaderboard.map((e) => Number(e[boardMetric] || 0)));
+  const presenceBoardMax = Math.max(1, ...presenceBoard.map((e) => Number(e.connected_seconds || 0)));
+  const totalSessions = (stats?.by_employee || []).reduce((sum, e) => sum + Number(e.sessions_count || 0), 0);
   const boardFormat = LEADERBOARD_METRICS.find((m) => m.id === boardMetric)?.format || String;
   const periodLabel = `${formatShortDate(from)} – ${formatShortDate(to)}`;
 
@@ -171,6 +201,23 @@ function AdminStatistics() {
         </div>
       </div>
 
+      <div className="astat-tabs">
+        <button
+          type="button"
+          className={`astat-tab${view === 'tasks' ? ' astat-tab--active' : ''}`}
+          onClick={() => setView('tasks')}
+        >
+          Tâches
+        </button>
+        <button
+          type="button"
+          className={`astat-tab${view === 'presence' ? ' astat-tab--active' : ''}`}
+          onClick={() => setView('presence')}
+        >
+          Présence
+        </button>
+      </div>
+
       <div className="astat-segmented">
         {PRESETS.map((p) => (
           <button
@@ -198,7 +245,7 @@ function AdminStatistics() {
         </div>
       )}
 
-      {!loading && stats && (
+      {!loading && stats && view === 'tasks' && (
         <>
           <div className="astat-kpi-grid">
             <article className="astat-kpi">
@@ -416,6 +463,136 @@ function AdminStatistics() {
                         </tr>
                       )}
                     </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+
+      {!loading && stats && view === 'presence' && (
+        <>
+          <div className="astat-kpi-grid">
+            <article className="astat-kpi">
+              <span className="astat-kpi-icon"><Icon type="clock" /></span>
+              <div>
+                <p>Temps de connexion</p>
+                <AnimatedNumber
+                  as="strong"
+                  value={summary.total_connected_seconds || 0}
+                  format={(value) => formatDurationShort(Math.round(value))}
+                />
+                <span>Total équipe</span>
+              </div>
+            </article>
+
+            <article className="astat-kpi">
+              <span className="astat-kpi-icon"><Icon type="timer" /></span>
+              <div>
+                <p>Temps moyen / employé</p>
+                <AnimatedNumber
+                  as="strong"
+                  value={summary.average_connected_seconds || 0}
+                  format={(value) => formatDurationShort(Math.round(value))}
+                />
+                <span>Par employé présent</span>
+              </div>
+            </article>
+
+            <article className="astat-kpi">
+              <span className="astat-kpi-icon"><Icon type="users" /></span>
+              <div>
+                <p>Employés présents</p>
+                <strong>
+                  <AnimatedNumber value={summary.present_employees || 0} />
+                  <small>/{derived.employeeCount}</small>
+                </strong>
+                <span>Connectés sur la période</span>
+              </div>
+            </article>
+
+            <article className="astat-kpi">
+              <span className="astat-kpi-icon"><Icon type="calendar" /></span>
+              <div>
+                <p>Sessions de connexion</p>
+                <AnimatedNumber as="strong" value={totalSessions} />
+                <span>Ouvertures cumulées</span>
+              </div>
+            </article>
+          </div>
+
+          <section className="astat-panel astat-chart-panel">
+            <header className="astat-panel-head">
+              <div>
+                <p className="astat-panel-eyebrow">Évolution</p>
+                <h2>Temps de connexion par jour</h2>
+              </div>
+            </header>
+            <ActivityChart rows={stats.by_day} metric="connected_seconds" />
+          </section>
+
+          <section className="astat-panel astat-board-panel">
+            <header className="astat-panel-head">
+              <div>
+                <p className="astat-panel-eyebrow">Classement</p>
+                <h2>Présence de l'équipe</h2>
+              </div>
+            </header>
+
+            {presenceBoard.length === 0 ? (
+              <p className="astat-board-empty">Aucune connexion sur cette période.</p>
+            ) : (
+              <ol className="astat-board">
+                {presenceBoard.map((e, i) => (
+                  <li key={e.user_id} className={i === 0 ? 'is-first' : ''}>
+                    <span className="astat-board-rank">{i + 1}</span>
+                    <span className="astat-board-name">{e.full_name}</span>
+                    <div className="astat-board-bar-track">
+                      <span
+                        className="astat-board-bar"
+                        style={{
+                          width: `${Math.max(3, (Number(e.connected_seconds || 0) / presenceBoardMax) * 100)}%`,
+                          '--board-delay': `${i * 55}ms`,
+                        }}
+                      />
+                    </div>
+                    <span className="astat-board-value">{formatDurationShort(e.connected_seconds)}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section className="astat-panel astat-table-panel">
+            <header className="astat-panel-head">
+              <div>
+                <p className="astat-panel-eyebrow">Détail</p>
+                <h2>Présence par employé</h2>
+              </div>
+              <span className="astat-table-hint">Trié par temps de connexion</span>
+            </header>
+
+            <div className="task-table-wrap">
+              <table className="task-table astat-table">
+                <thead>
+                  <tr>
+                    <th className="astat-th astat-th--left">Employé</th>
+                    <th>Temps de connexion</th>
+                    <th>Jours présents</th>
+                    <th>Sessions</th>
+                    <th>Dernière connexion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {presenceRows.map((e) => (
+                    <tr key={e.user_id} className="astat-row astat-row--static">
+                      <td className="astat-td-name">{e.full_name}</td>
+                      <td>{formatDurationShort(e.connected_seconds)}</td>
+                      <td>{e.days_present}</td>
+                      <td>{e.sessions_count}</td>
+                      <td>{e.last_login ? formatShortDate(e.last_login.slice(0, 10)) : '—'}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>

@@ -6,6 +6,7 @@ import * as statsService from '../services/statsService';
 import * as messageService from '../services/messageService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import AnimatedNumber from '../components/AnimatedNumber';
+import LottieIcon from '../components/LottieIcon';
 import { formatDurationShort, formatRelativeTime } from '../utils/formatters';
 import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
 import {
@@ -25,6 +26,7 @@ import {
   IconPlay,
   IconStop,
   IconLayers,
+  IconMegaphone,
 } from '../components/icons';
 
 function todayDateString() {
@@ -39,6 +41,7 @@ const QUICK_LINKS = [
   { to: '/stats', label: 'Stats', icon: IconBarChart },
   { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
   { to: '/resources', label: 'Ressources', icon: IconFolder },
+  { to: '/announcements', label: 'Annonces', icon: IconMegaphone },
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
 
@@ -123,7 +126,10 @@ function Dashboard() {
             <img src="/logo-mark.png" alt="" />
           </div>
           <div className="dash-hero-info">
-            <h2 className="dash-hero-title">Bonjour, {firstName} 👋</h2>
+            <h2 className="dash-hero-title">
+              Bonjour, {firstName}{' '}
+              <span className="wave-emoji" role="img" aria-label="Bonjour">👋</span>
+            </h2>
             <p className="dash-hero-text">
               {dayValidated
                 ? noTasksAvailable
@@ -139,9 +145,17 @@ function Dashboard() {
           <div className="dash-hero-status">
             {dayValidated ? (
               <>
-                <span className="dash-hero-check">
-                  <IconCheckCircle />
-                </span>
+                <LottieIcon
+                  src="/icone/success.json"
+                  className="dash-hero-lottie"
+                  style={{ width: 72, height: 72 }}
+                  loop
+                  fallback={
+                    <span className="dash-hero-check">
+                      <IconCheckCircle />
+                    </span>
+                  }
+                />
                 <p className="dash-hero-status-title">
                   {noTasksAvailable ? 'Plateforme accessible' : 'Journée validée'}
                 </p>

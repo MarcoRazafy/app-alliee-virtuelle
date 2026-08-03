@@ -1378,49 +1378,106 @@
   gap: 4px;
 }
 
-.tree-node-action {
+/* Menu d'actions « … » : positionne le panneau déroulant sous le bouton. */
+.tree-menu {
+  position: relative;
+}
+
+/* Bouton « … » : sans bordure ni fond au repos (juste l'icône). */
+.tree-menu-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   padding: 0;
+  border: none;
   border-radius: 9px;
-  border: 1px solid var(--color-border);
-  background: var(--input-bg);
+  background: none;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+  transition: color 0.18s ease, opacity 0.18s ease;
 }
 
-.tree-node-action svg {
-  width: 16px;
-  height: 16px;
+.tree-menu-trigger svg {
+  width: 18px;
+  height: 18px;
 }
 
-.tree-node-action:hover,
-.tree-node-action:focus-visible {
+.tree-menu-trigger:hover,
+.tree-menu-trigger:focus-visible,
+.tree-menu-trigger[aria-expanded='true'] {
   color: var(--color-accent-lighter);
-  border-color: var(--color-accent-light);
-  background: var(--glow-info);
 }
 
-.tree-node-action--danger {
-  color: var(--color-error);
-  border-color: color-mix(in srgb, var(--color-error) 38%, var(--color-border));
-  background: color-mix(in srgb, var(--color-error) 8%, transparent);
-}
-
-.tree-node-action--danger:hover,
-.tree-node-action--danger:focus-visible {
-  color: var(--color-error);
-  border-color: var(--color-error);
-  background: color-mix(in srgb, var(--color-error) 16%, transparent);
-}
-
-.tree-node-action:disabled {
+.tree-menu-trigger:disabled {
   cursor: wait;
   opacity: 0.5;
+}
+
+/* Panneau déroulant du menu d'actions. */
+.tree-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.tree-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tree-menu-item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.tree-menu-item:hover,
+.tree-menu-item:focus-visible {
+  background: var(--glow-info);
+  color: var(--color-accent-lighter);
+}
+
+.tree-menu-item:hover svg,
+.tree-menu-item:focus-visible svg {
+  color: var(--color-accent-lighter);
+}
+
+.tree-menu-item--danger,
+.tree-menu-item--danger svg {
+  color: var(--color-error);
+}
+
+.tree-menu-item--danger:hover,
+.tree-menu-item--danger:focus-visible,
+.tree-menu-item--danger:hover svg {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
 }
 
 /* Indentation via padding (et non margin) : avec width:100% + box-sizing:border-box,

@@ -619,7 +619,7 @@ function Planning() {
                           <td>{item.submitted_at ? formatDateTime(item.submitted_at) : '—'}</td>
                           <td>{item.total_hours} h</td>
                           <td>
-                            <button type="button" className="app-link" onClick={() => handleConsultWeek(item.week_start_date)}>
+                            <button type="button" className="btn-outline btn-sm" onClick={() => handleConsultWeek(item.week_start_date)}>
                               Consulter
                             </button>
                           </td>

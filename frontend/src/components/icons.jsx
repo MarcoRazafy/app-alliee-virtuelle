@@ -218,6 +218,33 @@ export const IconBell = (props) =>
     props
   );
 
+// Mégaphone : icône des annonces (distincte de la cloche des notifications).
+export const IconMegaphone = (props) =>
+  base(
+    <>
+      <path d="m3 11 18-5v12L3 14v-3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path
+        d="M11.6 16.8a3 3 0 1 1-5.8-1.6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>,
+    props
+  );
+
+// Trois points verticaux (menu d'actions « … »).
+export const IconDots = (props) =>
+  base(
+    <>
+      <circle cx="12" cy="5" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="19" r="1.6" fill="currentColor" />
+    </>,
+    props
+  );
+
 export const IconLock = (props) =>
   base(
     <>
