@@ -864,6 +864,14 @@
   font-size: 0.76rem;
 }
 
+/* Contenu riche rendu (descriptions de tâche, etc. — HTML nettoyé via sanitizeHtml). */
+.rich-text :where(p) { margin: 0 0 8px; }
+.rich-text :where(p):last-child { margin-bottom: 0; }
+.rich-text :where(ul, ol) { margin: 6px 0; padding-left: 22px; }
+.rich-text :where(li) { margin: 3px 0; }
+.rich-text :where(a) { color: var(--color-accent-lighter); text-decoration: underline; }
+.rich-text :where(strong, b) { font-weight: 700; }
+
 .chrono-ring-wrap {
   position: relative;
   width: 168px;

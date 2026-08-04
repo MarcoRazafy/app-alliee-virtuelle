@@ -10,6 +10,7 @@ import { formatDate } from '../../utils/formatters';
 import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
+import { sanitizeHtml } from '../../utils/sanitizeHtml';
 
 const STATUS_META = {
   DECLAREE: { label: 'Déclarée', pill: 'declared' },
@@ -525,7 +526,12 @@ function AdminTasksToValidate() {
               </div>
             </header>
 
-            {detailTask.description && <p className="validate-detail-desc">{detailTask.description}</p>}
+            {detailTask.description && (
+              <div
+                className="validate-detail-desc rich-text"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(detailTask.description) }}
+              />
+            )}
 
             <div className="validate-detail-meta">
               <span>Échéance : {detailTask.deadline ? formatDate(detailTask.deadline) : '—'}</span>

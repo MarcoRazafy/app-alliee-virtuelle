@@ -8,7 +8,7 @@ import { notifyError, notifySuccess } from '../../utils/toast';
 import { IconUsers, IconClock, IconUser, IconBarChart, IconCheckCircle, IconAlert, IconSearch, IconMenu, IconX } from '../../components/icons';
 import Markdown from '../../components/Markdown';
 import {
-  RobotIcon, ChatDotIcon, ArrowRightMini, SendIcon, ShieldIcon, PlusIcon, PencilIcon,
+  ChatDotIcon, ArrowRightMini, SendIcon, ShieldIcon, PlusIcon, PencilIcon,
   TrashIcon, PaperclipIcon, ImageIcon, MicIcon, XIcon, DownloadIcon, Sparkline,
 } from './adminAssistantIcons';
 import { newId, isImageType, weekRange } from './adminAssistantHelpers';
@@ -349,7 +349,7 @@ function AdminAssistant() {
         </div>
         <div className="ai-msg ai-msg--bot">
           <span className="ai-msg-avatar">
-            <RobotIcon />
+            <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-msg-avatar-img" />
           </span>
           <div className="ai-bubble ai-bubble--bot">
             <Markdown text={entry.answer} />
@@ -473,9 +473,6 @@ function AdminAssistant() {
             <span className="ai-pill ai-pill--online">
               <span className="ai-status-dot" /> En ligne
             </span>
-            <span className="ai-pill ai-pill--model">
-              <RobotIcon /> MISTRAL AI
-            </span>
             <button type="button" className="ai-new-btn ai-main-new" onClick={handleNewConversation}>
               <PlusIcon />
               Nouveau
@@ -570,7 +567,7 @@ function AdminAssistant() {
               )}
               <div className="ai-msg ai-msg--bot">
                 <span className="ai-msg-avatar ai-msg-avatar--live">
-                  <RobotIcon />
+                  <img src="/agentIAImage-removebg-preview.png" alt="" className="ai-msg-avatar-img" />
                 </span>
                 <div className="ai-bubble ai-bubble--bot ai-typing">
                   <span className="ai-typing-label">Analyse des données</span>

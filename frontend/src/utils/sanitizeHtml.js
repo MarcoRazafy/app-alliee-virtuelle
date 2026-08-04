@@ -69,6 +69,47 @@ export function sanitizeHtml(dirty) {
   return out.innerHTML;
 }
 
+// Transforme les URLs des nœuds texte d'un HTML (déjà nettoyé) en liens cliquables.
+// Utilisé pour l'affichage des messages (contenu riche + liens auto-détectés).
+export function linkifyHtml(html) {
+  const template = document.createElement('template');
+  template.innerHTML = html || '';
+  const hasUrl = /https?:\/\//i;
+  const walk = (node) => {
+    [...node.childNodes].forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.nodeValue || '';
+        if (!hasUrl.test(text)) return;
+        const re = /(https?:\/\/[^\s<]+)/g;
+        const frag = document.createDocumentFragment();
+        let last = 0;
+        let match;
+        while ((match = re.exec(text))) {
+          const raw = match[0];
+          const trail = (raw.match(/[.,!?)\]]+$/) || [''])[0];
+          const url = trail ? raw.slice(0, -trail.length) : raw;
+          if (match.index > last) frag.appendChild(document.createTextNode(text.slice(last, match.index)));
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.className = 'msgr-link';
+          a.textContent = url;
+          frag.appendChild(a);
+          if (trail) frag.appendChild(document.createTextNode(trail));
+          last = match.index + raw.length;
+        }
+        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        child.replaceWith(frag);
+      } else if (child.nodeType === Node.ELEMENT_NODE && child.tagName !== 'A') {
+        walk(child);
+      }
+    });
+  };
+  walk(template.content);
+  return template.innerHTML;
+}
+
 // Texte brut (pour aperçus, popup, validation « non vide »), en préservant les sauts de ligne :
 // les blocs (div/p/li…) et les <br> deviennent des retours à la ligne, sinon « test\ntest »
 // se retrouverait collé en « testtest ».

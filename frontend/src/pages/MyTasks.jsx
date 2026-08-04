@@ -8,6 +8,8 @@ import Pagination from '../components/Pagination';
 import { formatDurationShort } from '../utils/formatters';
 import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
 import { IconExternalLink, IconChecklist, IconX } from '../components/icons';
+import RichTextEditor from '../components/RichTextEditor';
+import { htmlToText } from '../utils/sanitizeHtml';
 import { notifySuccess, notifyError } from '../utils/toast';
 
 const EMPTY_NEW_TASK = { title: '', description: '', priority: 'NORMALE', deadline: '', list_id: '' };
@@ -110,7 +112,7 @@ function MyTasks() {
     try {
       await taskService.createTask({
         title: newTask.title.trim(),
-        description: newTask.description.trim(),
+        description: htmlToText(newTask.description) ? newTask.description : '',
         priority: newTask.priority,
         deadline: newTask.deadline,
         list_id: newTask.list_id || null,
@@ -133,7 +135,7 @@ function MyTasks() {
       const matchesSearch =
         !search ||
         task.title.toLowerCase().includes(search) ||
-        (task.description || '').toLowerCase().includes(search);
+        htmlToText(task.description || '').toLowerCase().includes(search);
       const matchesStatus = filters.statuses.length === 0 || filters.statuses.includes(task.displayStatus);
       const matchesPriority = filters.priorities.length === 0 || filters.priorities.includes(task.priority);
       const matchesDeadline = matchesDeadlineRange(task.deadline, filters.deadlineRange);
@@ -258,16 +260,14 @@ function MyTasks() {
                 />
               </label>
 
-              <label className="modal-field">
+              <div className="modal-field">
                 <span className="modal-label">Description</span>
-                <textarea
-                  className="modal-input modal-textarea"
-                  rows={3}
+                <RichTextEditor
                   value={newTask.description}
-                  onChange={(e) => setNewTask((c) => ({ ...c, description: e.target.value }))}
-                  placeholder="Détails (facultatif)"
+                  onChange={(html) => setNewTask((c) => ({ ...c, description: html }))}
+                  placeholder="Détails (facultatif, mise en forme disponible)"
                 />
-              </label>
+              </div>
 
               <div className="modal-card-row">
                 <label className="modal-field">

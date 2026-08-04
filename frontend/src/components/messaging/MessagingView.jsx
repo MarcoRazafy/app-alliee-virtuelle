@@ -21,6 +21,7 @@ import { notifyError, notifyInfo, notifySuccess } from '../../utils/toast';
 import '../../styles/messaging.css';
 import { SendIcon, PlusIcon, UsersIcon, BackIcon, InfoIcon, SmileyIcon, ImageIcon, MicIcon } from './messagingIcons';
 import LottieIcon from '../LottieIcon';
+import { sanitizeHtml, linkifyHtml, htmlToText } from '../../utils/sanitizeHtml';
 import {
   formatMessageTime,
   formatConversationTime,
@@ -400,7 +401,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     if (!query) return list;
     return list.filter((member) => {
       const name = member.other_user_name?.toLowerCase() || '';
-      const preview = member.last_message_content?.toLowerCase() || '';
+      const preview = htmlToText(member.last_message_content).toLowerCase();
       const role = member.other_user_role === 'ADMIN' ? 'administrateur' : 'employé';
       return name.includes(query) || preview.includes(query) || role.includes(query);
     });
@@ -532,7 +533,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     setEditText(message.content || '');
   }
   async function saveEdit(messageId) {
-    const content = editText.trim();
+    const content = htmlToText(editText) ? editText : '';
     if (!content) return;
     try {
       const updated = await messageService.editMessage(messageId, content);
@@ -567,7 +568,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   }
 
   async function handleSendGlobal(file) {
-    const content = globalInput.trim();
+    const content = htmlToText(globalInput) ? globalInput : '';
     if ((!content && !file) || sending) return;
     setSending(true);
     try {
@@ -645,7 +646,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   }, [initialChannel, channelNonce]);
 
   async function handleReply(file) {
-    const content = replyText.trim();
+    const content = htmlToText(replyText) ? replyText : '';
     if ((!content && !file) || !openConversation || sending) return;
     setSending(true);
     try {
@@ -662,7 +663,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   }
 
   async function handleGroupReply(file) {
-    const content = groupReplyText.trim();
+    const content = htmlToText(groupReplyText) ? groupReplyText : '';
     if ((!content && !file) || !openGroup || sending) return;
     setSending(true);
     try {
@@ -764,8 +765,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             </span>
             <span className="conversation-preview-row">
               <span className="conversation-preview">
-                {member.last_message_content ||
-                  (member.other_user_role === 'ADMIN' ? 'Administrateur · Aucun échange' : 'Membre · Aucun échange')}
+                {member.last_message_content
+                  ? htmlToText(member.last_message_content)
+                  : member.other_user_role === 'ADMIN'
+                  ? 'Administrateur · Aucun échange'
+                  : 'Membre · Aucun échange'}
               </span>
               {member.unread_count > 0 && (
                 <span className="conversation-unread">{member.unread_count > 99 ? '99+' : member.unread_count}</span>
@@ -803,7 +807,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           </span>
           <span className="conversation-preview-row">
             <span className="conversation-preview">
-              {group.last_message_content || `${group.member_count} membres · Aucun message`}
+              {group.last_message_content ? htmlToText(group.last_message_content) : `${group.member_count} membres · Aucun message`}
             </span>
             {group.unread_count > 0 && (
               <span className="conversation-unread">{group.unread_count > 99 ? '99+' : group.unread_count}</span>
@@ -891,10 +895,19 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                     <p className="msgr-deleted">Message supprimé</p>
                   ) : isEditing ? (
                     <div className="msgr-edit">
-                      <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={2} autoFocus />
+                      <div
+                        className="msgr-edit-input"
+                        contentEditable
+                        suppressContentEditableWarning
+                        role="textbox"
+                        aria-multiline="true"
+                        aria-label="Modifier le message"
+                        ref={(el) => { if (el && el.innerHTML !== editText) el.innerHTML = editText; }}
+                        onInput={(e) => setEditText(e.currentTarget.innerHTML)}
+                      />
                       <div className="msgr-edit-actions">
                         <button type="button" className="msgr-edit-cancel" onClick={() => { setEditingId(null); setEditText(''); }}>Annuler</button>
-                        <button type="button" className="msgr-edit-save" onClick={() => saveEdit(message.id)} disabled={!editText.trim()}>Enregistrer</button>
+                        <button type="button" className="msgr-edit-save" onClick={() => saveEdit(message.id)} disabled={!htmlToText(editText)}>Enregistrer</button>
                       </div>
                     </div>
                   ) : (
@@ -923,7 +936,12 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                           </button>
                         )
                       )}
-                      {message.content && <p>{message.content}</p>}
+                      {message.content && (
+                        <div
+                          className="msgr-msg-text rich-text"
+                          dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(message.content)) }}
+                        />
+                      )}
                     </>
                   )}
                 </div>
