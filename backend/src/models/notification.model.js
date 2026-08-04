@@ -16,6 +16,7 @@ function visibilityClause(role) {
     OR a.details->>'target_user' = $1::text
     OR a.details->>'target_user_id' = $1::text
     OR a.details->>'employee_id' = $1::text
+    OR a.entity_type = 'announcement'
     OR EXISTS (
       SELECT 1
       FROM tasks attachment_task
@@ -43,7 +44,8 @@ async function findForUser({ userId, role, limit = 30 }) {
          resource_file.file_name,
          task_list.name,
          task_folder.name,
-         task_space.name
+         task_space.name,
+         announcement.title
        ) AS entity_name,
        (a.timestamp > COALESCE(read_state.last_read_at, TIMESTAMP '1970-01-01 00:00:00')) AS is_unread
      FROM audit_log a
@@ -63,6 +65,8 @@ async function findForUser({ userId, role, limit = 30 }) {
        ON a.entity_type = 'task_folder' AND task_folder.id = a.entity_id
      LEFT JOIN task_spaces task_space
        ON a.entity_type = 'task_space' AND task_space.id = a.entity_id
+     LEFT JOIN announcements announcement
+       ON a.entity_type = 'announcement' AND announcement.id = a.entity_id
      LEFT JOIN notification_read_state read_state ON read_state.user_id = $1
      WHERE ${MESSAGE_FILTER}
        -- On ne notifie jamais quelqu'un de ses propres actions (bruit + badge gonflé).

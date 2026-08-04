@@ -12,12 +12,30 @@ export function getAnnouncement(id) {
   return api.get(`/api/announcements/${id}`).then((res) => res.data);
 }
 
+// FormData quand une image est fournie (upload), sinon JSON simple.
+function buildBody({ title, body, is_important, is_pinned, file }) {
+  if (file) {
+    const form = new FormData();
+    form.append('title', title);
+    form.append('body', body);
+    form.append('is_important', String(Boolean(is_important)));
+    form.append('is_pinned', String(Boolean(is_pinned)));
+    form.append('file', file);
+    return form;
+  }
+  return { title, body, is_important, is_pinned };
+}
+
 export function createAnnouncement(payload) {
-  return api.post('/api/announcements', payload).then((res) => res.data);
+  return api.post('/api/announcements', buildBody(payload)).then((res) => res.data);
 }
 
 export function updateAnnouncement(id, payload) {
-  return api.put(`/api/announcements/${id}`, payload).then((res) => res.data);
+  return api.put(`/api/announcements/${id}`, buildBody(payload)).then((res) => res.data);
+}
+
+export function getAnnouncementImageBlob(id) {
+  return api.get(`/api/announcements/${id}/image`, { responseType: 'blob' }).then((res) => res.data);
 }
 
 export function deleteAnnouncement(id) {

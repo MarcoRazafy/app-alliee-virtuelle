@@ -245,12 +245,70 @@ export const IconDots = (props) =>
     props
   );
 
+// Étoile (annonce « Importante »).
+export const IconStar = (props) =>
+  base(
+    <path
+      d="m12 3.2 2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.9l-5.2 2.31.99-5.79-4.21-4.1 5.82-.85z"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinejoin="round"
+      fill="none"
+    />,
+    props
+  );
+
+// Épingle (annonce épinglée).
+export const IconPin = (props) =>
+  base(
+    <>
+      <path d="M12 17v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </>,
+    props
+  );
+
 // Flèche « Transférer » (partage vers une autre discussion).
 export const IconForward = (props) =>
   base(
     <>
       <path d="m15 7 5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M20 12H9a5 5 0 0 0-5 5v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
+// Éditeur riche : lien, liste à puces, liste numérotée.
+export const IconLink = (props) =>
+  base(
+    <>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
+export const IconListUl = (props) =>
+  base(
+    <>
+      <path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="3.6" cy="6" r="1.2" fill="currentColor" />
+      <circle cx="3.6" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="3.6" cy="18" r="1.2" fill="currentColor" />
+    </>,
+    props
+  );
+
+export const IconListOl = (props) =>
+  base(
+    <>
+      <path d="M10 6h11M10 12h11M10 18h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4 6h1v4M4 10h2M6.5 18H4l2.4-3H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </>,
     props
   );

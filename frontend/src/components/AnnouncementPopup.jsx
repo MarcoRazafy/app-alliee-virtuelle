@@ -4,6 +4,7 @@ import * as announcementService from '../services/announcementService';
 import { getSocket } from '../services/socket';
 import { getUser } from '../services/auth';
 import { IconBell, IconX } from './icons';
+import { htmlToText } from '../utils/sanitizeHtml';
 import '../styles/announcement-popup.css';
 
 // Popup affiché quand il existe une annonce non lue (à la connexion / navigation, et en temps
@@ -72,7 +73,7 @@ export default function AnnouncementPopup() {
           <strong className="ann-popup-title">{announcement.title}</strong>
         </div>
       </div>
-      <p className="ann-popup-body">{announcement.body}</p>
+      <p className="ann-popup-body">{htmlToText(announcement.body)}</p>
       <div className="ann-popup-actions">
         <button type="button" className="ann-popup-btn ann-popup-btn--ghost" onClick={handleMarkRead}>
           Marquer comme lu
