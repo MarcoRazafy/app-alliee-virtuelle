@@ -45,6 +45,7 @@ function AdminAssistant() {
   const fileRef = useRef(null);
   const recognitionRef = useRef(null);
   const attachmentFetchedRef = useRef(new Set());
+  const questionRef = useRef(null);
 
   function loadHistory() {
     return aiService
@@ -63,6 +64,15 @@ function AdminAssistant() {
     document.body.classList.add('chat-fullscreen');
     return () => document.body.classList.remove('chat-fullscreen');
   }, []);
+
+  // Champ de question multi-ligne : s'agrandit selon le contenu (borné à ~160px) et revient
+  // à sa taille de départ quand il est vidé (après envoi).
+  useEffect(() => {
+    const el = questionRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [question]);
 
   // KPI de l'écran d'accueil : semaine courante vs semaine précédente.
   useEffect(() => {
@@ -151,6 +161,14 @@ function AdminAssistant() {
         }
       });
   }, [activeMessages]);
+
+  // Entrée = envoyer, Maj+Entrée = nouvelle ligne (isComposing : ne pas couper une saisie IME).
+  function handleQuestionKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -596,9 +614,12 @@ function AdminAssistant() {
             <input ref={fileRef} type="file" hidden onChange={(e) => setPendingFile(e.target.files?.[0] || null)} />
             <button type="button" className={`ai-input-icon${recognizing ? ' ai-input-icon--rec' : ''}`} onClick={toggleDictation} disabled={loading} title='Dicter' aria-label='Dicter'><MicIcon /></button>
             <div className="ai-input-field">
-              <input
+              <textarea
+                ref={questionRef}
+                rows={1}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={handleQuestionKeyDown}
                 placeholder={recognizing ? 'Parlez…' : "Posez votre question à l'assistant…"}
                 disabled={loading}
               />
