@@ -8,6 +8,9 @@ import {
   IconPencil,
   IconTrash,
   IconDownload,
+  IconForward,
+  IconPlus,
+  IconLogout,
 } from '../icons';
 import * as messageService from '../../services/messageService';
 import * as userService from '../../services/userService';
@@ -105,6 +108,15 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   const [groupAvatarUrls, setGroupAvatarUrls] = useState({});
   const groupAvatarFetchedRef = useRef(new Set());
   const [groupPhoto, setGroupPhoto] = useState(null);
+
+  // Gestion de groupe : renommage inline, ajout de membres (modale), transfert de message (modale).
+  const [groupRenaming, setGroupRenaming] = useState(false);
+  const [groupRenameValue, setGroupRenameValue] = useState('');
+  const [addMembersOpen, setAddMembersOpen] = useState(false);
+  const [addMemberIds, setAddMemberIds] = useState([]);
+  const [forwardMessageId, setForwardMessageId] = useState(null);
+  const [forwardTarget, setForwardTarget] = useState(null); // { type:'global'|'private'|'group', id }
+  const groupPhotoInputRef = useRef(null);
 
   const pinStorageKey = user?.id ? `alliee.messaging.pins.${user.id}` : null;
 
@@ -270,8 +282,37 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         }
       } catch { /* silencieux */ }
     }
+    // Un groupe a changé (nom, photo, membres) : on rafraîchit la liste et le groupe ouvert.
+    async function onGroupChanged(payload) {
+      const data = await loadGroups();
+      if (activeChannelRef.current !== 'group' || !openGroupRef.current) return;
+      const fresh = data.find((group) => group.id === openGroupRef.current.id);
+      if (fresh) {
+        setOpenGroup(fresh);
+      } else if (payload?.groupId === openGroupRef.current.id) {
+        // On ne fait plus partie du groupe (retiré) : on ferme.
+        setActiveChannel('global');
+        setOpenGroup(null);
+        setRightPanelOpen(false);
+      }
+    }
+    // Un groupe a été supprimé : on ferme s'il était ouvert, et on rafraîchit la liste.
+    function onGroupDeleted(payload) {
+      loadGroups();
+      if (openGroupRef.current && payload?.groupId === openGroupRef.current.id) {
+        setActiveChannel('global');
+        setOpenGroup(null);
+        setRightPanelOpen(false);
+      }
+    }
     socket.on('message:new', onNewMessage);
-    return () => { socket.off('message:new', onNewMessage); };
+    socket.on('group:changed', onGroupChanged);
+    socket.on('group:deleted', onGroupDeleted);
+    return () => {
+      socket.off('message:new', onNewMessage);
+      socket.off('group:changed', onGroupChanged);
+      socket.off('group:deleted', onGroupDeleted);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -834,6 +875,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                   <div className="msgr-msg-actions">
                     <button type="button" onClick={() => setReactPickerId((id) => (id === message.id ? null : message.id))} title="Réagir" aria-label="Réagir"><SmileyIcon /></button>
                     {canEdit && <button type="button" onClick={() => startEdit(message)} title="Modifier" aria-label="Modifier"><IconPencil /></button>}
+                    <button type="button" onClick={() => { setForwardMessageId(message.id); setForwardTarget(null); }} title="Transférer" aria-label="Transférer"><IconForward /></button>
                     {canDelete && <button type="button" onClick={() => handleDelete(message.id)} title="Supprimer" aria-label="Supprimer"><IconTrash /></button>}
                     {reactPickerId === message.id && (
                       <div className="msgr-react-picker">
@@ -916,7 +958,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           {activeChannel === 'group' ? (
             groupAvatarNode(openGroup, 'conversation-avatar msgr-profile-avatar')
           ) : activeChannel === 'global' ? (
-            <span className="conversation-avatar conversation-avatar--team msgr-profile-avatar"><IconChat /></span>
+            <span className="conversation-avatar conversation-avatar--team msgr-profile-avatar"><UsersIcon /></span>
           ) : (
             <ProfileAvatar name={activeTitle} avatarUrl={avatarUrls[openConversation?.other_user_id]} className="msgr-profile-avatar" />
           )}
@@ -966,25 +1008,199 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           </div>
         )}
 
-        {activeChannel === 'group' && (openGroup?.members || []).length > 0 && (
-          <div className="msgr-profile-section">
-            <p className="msgr-profile-label">Membres de la discussion</p>
-            <div className="msgr-profile-members">
-              {(openGroup.members || []).map((member) => (
-                <div className="msgr-profile-member" key={member.id}>
-                  <ProfileAvatar name={member.full_name} avatarUrl={avatarUrls[member.id]} className="msgr-member-avatar" />
-                  <div>
-                    <strong>{member.full_name}</strong>
-                    <span>{member.role === 'ADMIN' ? 'Administrateur' : 'Employé'}</span>
+        {activeChannel === 'group' && openGroup && (
+          <>
+            {canManageGroup && (
+              <div className="msgr-profile-section">
+                <p className="msgr-profile-label">Gérer le groupe</p>
+                {groupRenaming ? (
+                  <form className="msgr-group-rename" onSubmit={handleRenameGroup}>
+                    <input
+                      type="text"
+                      value={groupRenameValue}
+                      onChange={(e) => setGroupRenameValue(e.target.value)}
+                      minLength={2}
+                      maxLength={100}
+                      autoFocus
+                    />
+                    <div className="msgr-group-rename-actions">
+                      <button type="button" className="messaging-secondary-button" onClick={() => setGroupRenaming(false)}>Annuler</button>
+                      <button type="submit" className="messaging-primary-button" disabled={groupRenameValue.trim().length < 2}>Renommer</button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="msgr-manage-actions">
+                    <button type="button" className="msgr-manage-btn" onClick={startRenameGroup}><IconPencil /> Renommer</button>
+                    <button type="button" className="msgr-manage-btn" onClick={() => groupPhotoInputRef.current?.click()}><ImageIcon /> Changer la photo</button>
+                    <button type="button" className="msgr-manage-btn" onClick={() => { setAddMemberIds([]); setAddMembersOpen(true); }}><IconPlus /> Ajouter des membres</button>
                   </div>
-                  {onlineUserIds.has(member.id) && <span className="msgr-member-online" title="En ligne" />}
+                )}
+                <input ref={groupPhotoInputRef} type="file" accept="image/png,image/jpeg" hidden onChange={handleGroupPhotoChange} />
+              </div>
+            )}
+
+            {(openGroup.members || []).length > 0 && (
+              <div className="msgr-profile-section">
+                <p className="msgr-profile-label">Membres ({openGroup.member_count || openGroup.members.length})</p>
+                <div className="msgr-profile-members">
+                  {(openGroup.members || []).map((member) => (
+                    <div className="msgr-profile-member" key={member.id}>
+                      <ProfileAvatar name={member.full_name} avatarUrl={avatarUrls[member.id]} className="msgr-member-avatar" />
+                      <div>
+                        <strong>{member.full_name}{member.id === openGroup.created_by ? ' · Créateur' : ''}</strong>
+                        <span>{member.role === 'ADMIN' ? 'Administrateur' : 'Employé'}</span>
+                      </div>
+                      {onlineUserIds.has(member.id) && <span className="msgr-member-online" title="En ligne" />}
+                      {canManageGroup && member.id !== openGroup.created_by && member.id !== user?.id && (
+                        <button
+                          type="button"
+                          className="msgr-member-remove"
+                          title="Retirer du groupe"
+                          aria-label={`Retirer ${member.full_name}`}
+                          onClick={() => handleRemoveMember(member.id)}
+                        >
+                          <IconX />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            <div className="msgr-profile-section msgr-profile-danger">
+              <button type="button" className="msgr-leave-btn" onClick={handleLeaveGroup}>
+                <IconLogout /> Quitter le groupe
+              </button>
+              {canManageGroup && (
+                <button type="button" className="msgr-delete-btn" onClick={handleDeleteGroup}>
+                  <IconTrash /> Supprimer le groupe
+                </button>
+              )}
             </div>
-          </div>
+          </>
         )}
       </aside>
     );
+  }
+
+  // --- Gestion du groupe (créateur ou admin ; « Quitter » pour tous les membres) ---
+  const canManageGroup =
+    activeChannel === 'group' && openGroup && (openGroup.created_by === user?.id || isAdmin);
+  // Personnes qui ne sont pas encore dans le groupe (pour « Ajouter des membres »).
+  const memberCandidates = availableUsers.filter(
+    (candidate) =>
+      candidate.id !== user?.id && !(openGroup?.members || []).some((member) => member.id === candidate.id)
+  );
+
+  function startRenameGroup() {
+    setGroupRenameValue(openGroup?.name || '');
+    setGroupRenaming(true);
+  }
+
+  async function handleRenameGroup(event) {
+    event.preventDefault();
+    const name = groupRenameValue.trim();
+    if (name.length < 2 || !openGroup) return;
+    try {
+      const updated = await messageService.updateGroup(openGroup.id, { name });
+      setOpenGroup(updated);
+      setGroupRenaming(false);
+      loadGroups();
+      notifySuccess('Groupe renommé');
+    } catch (error) {
+      notifyError(error.response?.data?.error || 'Impossible de renommer le groupe');
+    }
+  }
+
+  async function handleGroupPhotoChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !openGroup) return;
+    try {
+      // Force le rechargement du blob avatar (mémorisé par id de groupe).
+      groupAvatarFetchedRef.current.delete(openGroup.id);
+      setGroupAvatarUrls((current) => {
+        const next = { ...current };
+        delete next[openGroup.id];
+        return next;
+      });
+      const updated = await messageService.updateGroup(openGroup.id, { file });
+      setOpenGroup(updated);
+      await loadGroups();
+      notifySuccess('Photo du groupe mise à jour');
+    } catch (error) {
+      notifyError(error.response?.data?.error || 'Impossible de changer la photo');
+    }
+  }
+
+  async function handleAddMembers() {
+    if (!openGroup || addMemberIds.length === 0) return;
+    try {
+      const updated = await messageService.addGroupMembers(openGroup.id, addMemberIds);
+      setOpenGroup(updated);
+      setAddMembersOpen(false);
+      setAddMemberIds([]);
+      loadGroups();
+      notifySuccess('Membre(s) ajouté(s)');
+    } catch (error) {
+      notifyError(error.response?.data?.error || "Impossible d'ajouter des membres");
+    }
+  }
+
+  async function handleRemoveMember(memberId) {
+    if (!openGroup || !window.confirm('Retirer cette personne du groupe ?')) return;
+    try {
+      const updated = await messageService.removeGroupMember(openGroup.id, memberId);
+      setOpenGroup(updated);
+      loadGroups();
+      notifySuccess('Membre retiré');
+    } catch (error) {
+      notifyError(error.response?.data?.error || 'Impossible de retirer ce membre');
+    }
+  }
+
+  async function handleDeleteGroup() {
+    if (!openGroup) return;
+    if (!window.confirm(`Supprimer le groupe « ${openGroup.name} » ?\n\nCette action est irréversible : les messages seront perdus.`)) return;
+    try {
+      await messageService.deleteGroup(openGroup.id);
+      setActiveChannel('global');
+      setOpenGroup(null);
+      setRightPanelOpen(false);
+      loadGroups();
+      notifySuccess('Groupe supprimé');
+    } catch (error) {
+      notifyError(error.response?.data?.error || 'Impossible de supprimer le groupe');
+    }
+  }
+
+  async function handleLeaveGroup() {
+    if (!openGroup || !window.confirm(`Quitter le groupe « ${openGroup.name} » ?`)) return;
+    try {
+      await messageService.leaveGroup(openGroup.id);
+      setActiveChannel('global');
+      setOpenGroup(null);
+      setRightPanelOpen(false);
+      loadGroups();
+      notifySuccess('Vous avez quitté le groupe');
+    } catch (error) {
+      notifyError(error.response?.data?.error || 'Impossible de quitter le groupe');
+    }
+  }
+
+  async function handleForward() {
+    if (!forwardMessageId || !forwardTarget) return;
+    try {
+      await messageService.forwardMessage(forwardMessageId, forwardTarget);
+      setForwardMessageId(null);
+      setForwardTarget(null);
+      loadConversations();
+      loadGroups();
+      notifySuccess('Message transféré');
+    } catch (error) {
+      notifyError(error.response?.data?.error || 'Impossible de transférer le message');
+    }
   }
 
   const bulkRecipients = availableUsers.filter((u) => u.role === 'EMPLOYEE');
@@ -1051,11 +1267,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             >
               <span className="conversation-avatar conversation-avatar--team">
               <LottieIcon
-                src="/icone/message.json"
+                src="/icone/group-messege.json"
                 loop
                 color="currentColor"
-                style={{ width: 22, height: 22 }}
-                fallback={<IconChat />}
+                style={{ width: 24, height: 24 }}
+                fallback={<UsersIcon />}
               />
             </span>
               <span className="conversation-content">
@@ -1117,11 +1333,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           {activeChannel === 'global' ? (
             <span className="conversation-avatar conversation-avatar--team">
               <LottieIcon
-                src="/icone/message.json"
+                src="/icone/group-messege.json"
                 loop
                 color="currentColor"
-                style={{ width: 22, height: 22 }}
-                fallback={<IconChat />}
+                style={{ width: 24, height: 24 }}
+                fallback={<UsersIcon />}
               />
             </span>
           ) : activeChannel === 'group' ? (
@@ -1166,6 +1382,114 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       </section>
 
       {rightPanelOpen && renderRightPanel()}
+
+      {addMembersOpen && openGroup && (
+        <div className="messaging-modal-backdrop" role="presentation" onMouseDown={() => setAddMembersOpen(false)}>
+          <section className="messaging-modal" role="dialog" aria-modal="true" aria-labelledby="add-members-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="messaging-modal-header">
+              <div>
+                <span className="messaging-modal-icon"><IconPlus /></span>
+                <div>
+                  <h2 id="add-members-title">Ajouter des membres</h2>
+                  <p>Choisissez les personnes à ajouter à « {openGroup.name} ».</p>
+                </div>
+              </div>
+              <button type="button" className="messaging-modal-close" onClick={() => setAddMembersOpen(false)} aria-label="Fermer la fenêtre"><IconX /></button>
+            </div>
+            <div className="messaging-modal-form">
+              <div className="msg-bulk-recipients-head">
+                <span>Sélectionnées ({addMemberIds.length})</span>
+              </div>
+              <div className="msg-bulk-recipients">
+                {memberCandidates.map((candidate) => (
+                  <label key={candidate.id} className={`msg-bulk-chip${addMemberIds.includes(candidate.id) ? ' msg-bulk-chip--on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={addMemberIds.includes(candidate.id)}
+                      onChange={() =>
+                        setAddMemberIds((current) =>
+                          current.includes(candidate.id)
+                            ? current.filter((id) => id !== candidate.id)
+                            : [...current, candidate.id]
+                        )
+                      }
+                    />
+                    {candidate.full_name}
+                  </label>
+                ))}
+                {memberCandidates.length === 0 && <p className="messaging-modal-empty">Tout le monde est déjà dans le groupe.</p>}
+              </div>
+              <div className="messaging-modal-actions">
+                <button type="button" className="messaging-secondary-button" onClick={() => setAddMembersOpen(false)}>Annuler</button>
+                <button type="button" className="messaging-primary-button" disabled={addMemberIds.length === 0} onClick={handleAddMembers}>
+                  <IconPlus /> Ajouter
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {forwardMessageId && (
+        <div className="messaging-modal-backdrop" role="presentation" onMouseDown={() => { setForwardMessageId(null); setForwardTarget(null); }}>
+          <section className="messaging-modal" role="dialog" aria-modal="true" aria-labelledby="forward-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="messaging-modal-header">
+              <div>
+                <span className="messaging-modal-icon"><IconForward /></span>
+                <div>
+                  <h2 id="forward-title">Transférer le message</h2>
+                  <p>Choisissez la discussion de destination.</p>
+                </div>
+              </div>
+              <button type="button" className="messaging-modal-close" onClick={() => { setForwardMessageId(null); setForwardTarget(null); }} aria-label="Fermer la fenêtre"><IconX /></button>
+            </div>
+            <div className="messaging-modal-form">
+              <div className="msgr-forward-list">
+                <button
+                  type="button"
+                  className={`msgr-forward-item${forwardTarget?.type === 'global' ? ' msgr-forward-item--on' : ''}`}
+                  onClick={() => setForwardTarget({ type: 'global' })}
+                >
+                  <span className="conversation-avatar conversation-avatar--team"><UsersIcon /></span>
+                  <span>Équipe — Général</span>
+                </button>
+
+                {groups.length > 0 && <p className="msgr-forward-label">Groupes</p>}
+                {groups.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    className={`msgr-forward-item${forwardTarget?.type === 'group' && forwardTarget.id === group.id ? ' msgr-forward-item--on' : ''}`}
+                    onClick={() => setForwardTarget({ type: 'group', id: group.id })}
+                  >
+                    {groupAvatarNode(group)}
+                    <span>{group.name}</span>
+                  </button>
+                ))}
+
+                <p className="msgr-forward-label">Personnes</p>
+                {availableUsers.filter((person) => person.id !== user?.id).map((person) => (
+                  <button
+                    key={person.id}
+                    type="button"
+                    className={`msgr-forward-item${forwardTarget?.type === 'private' && forwardTarget.id === person.id ? ' msgr-forward-item--on' : ''}`}
+                    onClick={() => setForwardTarget({ type: 'private', id: person.id })}
+                  >
+                    <ProfileAvatar name={person.full_name} avatarUrl={avatarUrls[person.id]} className="conversation-avatar" />
+                    <span>{person.full_name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="messaging-modal-actions">
+                <button type="button" className="messaging-secondary-button" onClick={() => { setForwardMessageId(null); setForwardTarget(null); }}>Annuler</button>
+                <button type="button" className="messaging-primary-button" disabled={!forwardTarget} onClick={handleForward}>
+                  <IconForward /> Transférer
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
       {groupCreateOpen && (
         <div className="messaging-modal-backdrop" role="presentation" onMouseDown={() => setGroupCreateOpen(false)}>

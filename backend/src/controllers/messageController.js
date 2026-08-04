@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { sendFileOr404 } = require('../utils/sendFile');
 const db = require('../config/database');
 const messageModel = require('../models/message.model');
@@ -7,6 +8,16 @@ const realtime = require('../realtime/io');
 const pushService = require('../services/push.service');
 
 const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
+
+// Supprime un fichier best-effort (ancienne photo de groupe) sans jamais faire échouer la requête.
+function safeUnlink(filePath) {
+  if (filePath) fs.promises.unlink(filePath).catch(() => {});
+}
+
+// Droit de gérer un groupe : le créateur ou un administrateur.
+function canManageGroup(group, user) {
+  return group.created_by === user.id || user.role === 'ADMIN';
+}
 
 // Construit l'objet pièce jointe à partir du fichier multer (ou null).
 function attachmentFrom(req) {
@@ -324,6 +335,209 @@ async function getGroupAvatar(req, res, next) {
   }
 }
 
+// Renommer le groupe et/ou changer sa photo (créateur ou admin). Multipart : name en champ, photo en fichier.
+async function updateGroup(req, res, next) {
+  try {
+    const { groupId } = req.params;
+    const group = await messageModel.findGroupById(groupId);
+    if (!group) return res.status(404).json({ error: 'Groupe introuvable' });
+    if (!canManageGroup(group, req.user)) {
+      return res.status(403).json({ error: 'Seul le créateur ou un administrateur peut modifier le groupe' });
+    }
+
+    if (typeof req.body.name === 'string' && req.body.name.trim()) {
+      const name = req.body.name.trim().replace(/\s+/g, ' ');
+      if (name.length < 2 || name.length > 100) {
+        return res.status(400).json({ error: 'Le nom du groupe doit contenir entre 2 et 100 caractères' });
+      }
+      await messageModel.updateGroupName(groupId, name);
+    }
+
+    if (req.file) {
+      await messageModel.updateGroupAvatar(groupId, req.file.path);
+      safeUnlink(group.avatar_path); // supprime l'ancienne photo
+    }
+
+    const updated = await messageModel.findGroupForUser(groupId, req.user.id);
+    const memberIds = await messageModel.findGroupMemberIds(groupId);
+    realtime.emitToUsers(memberIds, 'group:changed', { groupId });
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Supprimer le groupe (créateur ou admin). Cascade DB + suppression de la photo.
+async function deleteGroup(req, res, next) {
+  try {
+    const { groupId } = req.params;
+    const group = await messageModel.findGroupById(groupId);
+    if (!group) return res.status(404).json({ error: 'Groupe introuvable' });
+    if (!canManageGroup(group, req.user)) {
+      return res.status(403).json({ error: 'Seul le créateur ou un administrateur peut supprimer le groupe' });
+    }
+    const memberIds = await messageModel.findGroupMemberIds(groupId);
+    await messageModel.deleteGroup(groupId);
+    safeUnlink(group.avatar_path);
+    realtime.emitToUsers(memberIds, 'group:deleted', { groupId });
+    res.status(200).json({ deleted: true, groupId });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Ajouter des membres (créateur ou admin).
+async function addGroupMembers(req, res, next) {
+  try {
+    const { groupId } = req.params;
+    const group = await messageModel.findGroupById(groupId);
+    if (!group) return res.status(404).json({ error: 'Groupe introuvable' });
+    if (!canManageGroup(group, req.user)) {
+      return res.status(403).json({ error: 'Seul le créateur ou un administrateur peut ajouter des membres' });
+    }
+    let ids = req.body.member_ids;
+    if (!Array.isArray(ids)) ids = [];
+    const requested = [...new Set(ids.filter((id) => typeof id === 'string'))];
+    if (requested.length === 0) {
+      return res.status(400).json({ error: 'Sélectionnez au moins une personne' });
+    }
+    const activeUsers = await userModel.findActiveExcept(req.user.id);
+    const activeIds = new Set(activeUsers.map((user) => user.id));
+    const valid = requested.filter((id) => activeIds.has(id));
+    if (valid.length === 0) {
+      return res.status(400).json({ error: 'Aucune personne valide sélectionnée' });
+    }
+
+    await messageModel.addGroupMembers(groupId, valid);
+    const updated = await messageModel.findGroupForUser(groupId, req.user.id);
+    // Prévenir tous les membres (y compris les nouveaux, dont la liste doit se rafraîchir).
+    const memberIds = await messageModel.findGroupMemberIds(groupId);
+    realtime.emitToUsers(memberIds, 'group:changed', { groupId });
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Retirer un membre (créateur ou admin ; on ne peut pas retirer le créateur).
+async function removeGroupMember(req, res, next) {
+  try {
+    const { groupId, userId } = req.params;
+    const group = await messageModel.findGroupById(groupId);
+    if (!group) return res.status(404).json({ error: 'Groupe introuvable' });
+    if (!canManageGroup(group, req.user)) {
+      return res.status(403).json({ error: 'Seul le créateur ou un administrateur peut retirer un membre' });
+    }
+    if (userId === group.created_by) {
+      return res.status(400).json({ error: 'Impossible de retirer le créateur du groupe' });
+    }
+    // On récupère les membres AVANT retrait pour notifier aussi la personne retirée.
+    const affected = await messageModel.findGroupMemberIds(groupId);
+    await messageModel.removeGroupMember(groupId, userId);
+    const updated = await messageModel.findGroupForUser(groupId, req.user.id);
+    realtime.emitToUsers(affected, 'group:changed', { groupId });
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Quitter un groupe (tout membre). Si le créateur quitte : transfert au plus ancien membre, ou suppression si plus personne.
+async function leaveGroup(req, res, next) {
+  try {
+    const { groupId } = req.params;
+    const group = await messageModel.findGroupById(groupId);
+    if (!group) return res.status(404).json({ error: 'Groupe introuvable' });
+    if (!(await messageModel.isGroupMember(groupId, req.user.id))) {
+      return res.status(400).json({ error: "Vous n'êtes pas membre de ce groupe" });
+    }
+    const affected = await messageModel.findGroupMemberIds(groupId);
+
+    if (group.created_by === req.user.id) {
+      const newOwner = await messageModel.findOldestMember(groupId, req.user.id);
+      if (!newOwner) {
+        // Dernier membre : on supprime le groupe.
+        await messageModel.deleteGroup(groupId);
+        safeUnlink(group.avatar_path);
+        realtime.emitToUsers(affected, 'group:deleted', { groupId });
+        return res.status(200).json({ left: true, deleted: true, groupId });
+      }
+      await messageModel.setGroupCreator(groupId, newOwner);
+    }
+
+    await messageModel.removeGroupMember(groupId, req.user.id);
+    realtime.emitToUsers(affected, 'group:changed', { groupId });
+    res.status(200).json({ left: true, groupId });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Transférer un message (texte + pièce jointe) vers une autre destination : global / privé / groupe.
+async function forwardMessage(req, res, next) {
+  try {
+    const source = await messageModel.findMessageForForward(req.params.id);
+    if (!source || source.deleted_at) return res.status(404).json({ error: 'Message introuvable' });
+    if (!(await canAccessMessage(source, req.user))) {
+      return res.status(403).json({ error: 'Accès refusé' });
+    }
+
+    const targetType = req.body.target_type;
+    const targetId = req.body.target_id;
+    const content = source.content || '';
+    const attachment = source.attachment_path
+      ? {
+          path: source.attachment_path,
+          name: source.attachment_name,
+          type: source.attachment_type,
+          size: source.attachment_size,
+        }
+      : null;
+    if (!content && !attachment) {
+      return res.status(400).json({ error: 'Ce message ne peut pas être transféré' });
+    }
+
+    if (targetType === 'global') {
+      const message = await messageModel.createGlobalMessage(req.user.id, content, attachment);
+      realtime.broadcast('message:new', { scope: 'global', authorId: req.user.id });
+      return res.status(201).json(message);
+    }
+
+    if (targetType === 'private') {
+      if (!targetId || targetId === req.user.id) {
+        return res.status(400).json({ error: 'Destinataire invalide' });
+      }
+      const recipient = await userModel.findById(targetId);
+      if (!recipient) return res.status(404).json({ error: 'Destinataire introuvable' });
+      const existing = await messageModel.findConversationBetween(req.user.id, targetId);
+      if (!existing) await messageModel.createConversation(req.user.id, targetId);
+      else await messageModel.touchConversation(existing.id);
+      const message = await messageModel.createPrivateMessage(req.user.id, targetId, content, attachment);
+      realtime.emitToUsers([targetId, req.user.id], 'message:new', {
+        scope: 'private',
+        authorId: req.user.id,
+        recipientId: targetId,
+      });
+      return res.status(201).json(message);
+    }
+
+    if (targetType === 'group') {
+      const group = await messageModel.findGroupForUser(targetId, req.user.id);
+      if (!group) return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
+      const message = await db.withTransaction((client) =>
+        messageModel.createGroupMessage(targetId, req.user.id, content, attachment, client)
+      );
+      const memberIds = await messageModel.findGroupMemberIds(targetId);
+      realtime.emitToUsers(memberIds, 'message:new', { scope: 'group', groupId: targetId, authorId: req.user.id });
+      return res.status(201).json(message);
+    }
+
+    return res.status(400).json({ error: 'Destination invalide' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Ids des utilisateurs actuellement connectés (session ouverte) — pour le statut « en ligne ».
 async function getOnlineUsers(req, res, next) {
   try {
@@ -350,5 +564,11 @@ module.exports = {
   reactMessage,
   getMessageAttachment,
   getGroupAvatar,
+  updateGroup,
+  deleteGroup,
+  addGroupMembers,
+  removeGroupMember,
+  leaveGroup,
+  forwardMessage,
   getOnlineUsers,
 };
