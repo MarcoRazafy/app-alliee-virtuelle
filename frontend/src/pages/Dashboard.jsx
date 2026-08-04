@@ -137,10 +137,6 @@ function Dashboard() {
                   : 'Heureux de vous revoir ! Voici un aperçu de votre journée.'
                 : 'Validez votre journée pour commencer à travailler sur vos tâches.'}
             </p>
-            <span className="status-badge status-badge--validated">
-              <span className="status-dot" />
-              Compte actif
-            </span>
           </div>
           <div className="dash-hero-status">
             {dayValidated ? (
@@ -175,6 +171,10 @@ function Dashboard() {
               </>
             )}
           </div>
+          <span className="status-badge status-badge--validated dash-hero-badge">
+            <span className="status-dot" />
+            Compte actif
+          </span>
         </div>
 
         <div className="side-card">
