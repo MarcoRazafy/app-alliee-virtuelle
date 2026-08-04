@@ -62,17 +62,26 @@ async function createAnnouncement(req, res, next) {
       isPinned: req.body.is_pinned === true || req.body.is_pinned === 'true',
       imagePath: req.file ? req.file.path : null,
     });
-    // Trace dans le journal → apparaît dans le centre de notifications de chacun.
-    await taskModel.recordAudit({
-      userId: req.user.id,
-      action: 'PUBLISH_ANNOUNCEMENT',
-      entityType: 'announcement',
-      entityId: created.id,
-      details: { title: created.title },
-    });
-    // Temps réel : popup + pastille annonces, et rafraîchissement du centre de notifications.
+    // Temps réel EN PREMIER : popup + pastille annonces, émis dès que l'annonce existe.
+    // Indépendant du journal ci-dessous, pour qu'un échec de celui-ci ne puisse jamais
+    // empêcher l'événement live (sinon l'annonce n'apparaîtrait qu'au prochain refresh).
     realtime.broadcast('announcement:new', { id: created.id, title: created.title });
-    realtime.broadcast('notification:new', { actorId: req.user.id });
+
+    // Trace dans le journal → apparaît dans le centre de notifications de chacun. Best-effort :
+    // une erreur ici ne doit compromettre ni l'annonce, ni son événement temps réel.
+    try {
+      await taskModel.recordAudit({
+        userId: req.user.id,
+        action: 'PUBLISH_ANNOUNCEMENT',
+        entityType: 'announcement',
+        entityId: created.id,
+        details: { title: created.title },
+      });
+      realtime.broadcast('notification:new', { actorId: req.user.id });
+    } catch (auditErr) {
+      // eslint-disable-next-line no-console
+      console.error('recordAudit(PUBLISH_ANNOUNCEMENT) a échoué:', auditErr);
+    }
     res.status(201).json(created);
   } catch (err) {
     next(err);
