@@ -245,6 +245,16 @@ export const IconDots = (props) =>
     props
   );
 
+// Flèche « Transférer » (partage vers une autre discussion).
+export const IconForward = (props) =>
+  base(
+    <>
+      <path d="m15 7 5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 12H9a5 5 0 0 0-5 5v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
 export const IconLock = (props) =>
   base(
     <>

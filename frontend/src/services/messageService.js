@@ -56,6 +56,35 @@ export function getGroupAvatarBlob(groupId) {
   return api.get(`/api/message-groups/${groupId}/avatar`, { responseType: 'blob' }).then((res) => res.data);
 }
 
+// --- Gestion d'un groupe (créateur ou admin, sauf « quitter ») ---
+
+// Renommer et/ou changer la photo. `name` et/ou `file` optionnels.
+export function updateGroup(groupId, { name, file } = {}) {
+  if (file) {
+    const form = new FormData();
+    if (name) form.append('name', name);
+    form.append('file', file);
+    return api.patch(`/api/message-groups/${groupId}`, form).then((res) => res.data);
+  }
+  return api.patch(`/api/message-groups/${groupId}`, { name }).then((res) => res.data);
+}
+
+export function deleteGroup(groupId) {
+  return api.delete(`/api/message-groups/${groupId}`).then((res) => res.data);
+}
+
+export function addGroupMembers(groupId, memberIds) {
+  return api.post(`/api/message-groups/${groupId}/members`, { member_ids: memberIds }).then((res) => res.data);
+}
+
+export function removeGroupMember(groupId, userId) {
+  return api.delete(`/api/message-groups/${groupId}/members/${userId}`).then((res) => res.data);
+}
+
+export function leaveGroup(groupId) {
+  return api.post(`/api/message-groups/${groupId}/leave`).then((res) => res.data);
+}
+
 export function getGroupMessages(groupId) {
   return api.get(`/api/message-groups/${groupId}/messages`).then((res) => res.data);
 }
@@ -76,6 +105,14 @@ export function deleteMessage(id) {
 
 export function reactMessage(id, emoji) {
   return api.post(`/api/messages/${id}/react`, { emoji }).then((res) => res.data);
+}
+
+// Transférer un message (texte + pièce jointe) vers global / privé / groupe.
+// target = { type: 'global' | 'private' | 'group', id?: string }
+export function forwardMessage(id, target) {
+  return api
+    .post(`/api/messages/${id}/forward`, { target_type: target.type, target_id: target.id })
+    .then((res) => res.data);
 }
 
 export function getOnlineUsers() {

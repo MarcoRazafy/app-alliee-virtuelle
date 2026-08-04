@@ -267,6 +267,77 @@ async function createGroupMessage(groupId, authorId, content, attachment = null,
   return findEnrichedMessageById(inserted.rows[0].id, authorId, client);
 }
 
+// --- Gestion de groupe (renommer / photo / membres / supprimer / quitter) ---
+
+// Groupe brut, sans exigence d'appartenance (pour contrôler les permissions : created_by).
+async function findGroupById(groupId) {
+  const result = await db.query(
+    `SELECT id, name, created_by, avatar_path FROM message_groups WHERE id = $1`,
+    [groupId]
+  );
+  return result.rows[0] || null;
+}
+
+async function isGroupMember(groupId, userId) {
+  const result = await db.query(
+    `SELECT 1 FROM message_group_members WHERE group_id = $1 AND user_id = $2`,
+    [groupId, userId]
+  );
+  return result.rowCount > 0;
+}
+
+async function updateGroupName(groupId, name) {
+  await db.query(`UPDATE message_groups SET name = $2, updated_at = now() WHERE id = $1`, [groupId, name]);
+}
+
+async function updateGroupAvatar(groupId, avatarPath) {
+  await db.query(`UPDATE message_groups SET avatar_path = $2, updated_at = now() WHERE id = $1`, [groupId, avatarPath]);
+}
+
+async function setGroupCreator(groupId, userId) {
+  await db.query(`UPDATE message_groups SET created_by = $2, updated_at = now() WHERE id = $1`, [groupId, userId]);
+}
+
+async function addGroupMembers(groupId, memberIds) {
+  await db.query(
+    `INSERT INTO message_group_members (group_id, user_id)
+     SELECT $1, member_id FROM unnest($2::uuid[]) AS members(member_id)
+     ON CONFLICT (group_id, user_id) DO NOTHING`,
+    [groupId, memberIds]
+  );
+}
+
+async function removeGroupMember(groupId, userId) {
+  await db.query(`DELETE FROM message_group_members WHERE group_id = $1 AND user_id = $2`, [groupId, userId]);
+}
+
+// Plus ancien membre restant (hors utilisateur exclu) : pour transférer la propriété si le créateur quitte.
+async function findOldestMember(groupId, excludeUserId) {
+  const result = await db.query(
+    `SELECT user_id FROM message_group_members
+     WHERE group_id = $1 AND user_id <> $2
+     ORDER BY joined_at ASC LIMIT 1`,
+    [groupId, excludeUserId]
+  );
+  return result.rows[0]?.user_id || null;
+}
+
+// Suppression : membres + messages effacés en cascade (ON DELETE CASCADE).
+async function deleteGroup(groupId) {
+  await db.query(`DELETE FROM message_groups WHERE id = $1`, [groupId]);
+}
+
+// Message source d'un transfert : contenu + pièce jointe complète.
+async function findMessageForForward(id) {
+  const result = await db.query(
+    `SELECT id, author_id, channel_type, group_id, recipient_id, deleted_at, content,
+            attachment_path, attachment_name, attachment_type, attachment_size
+     FROM messages WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
 // --- Message unique (édition / suppression / réactions) ---
 
 // Ligne brute (pour vérifier l'auteur, le type, le chemin de la pièce jointe).
@@ -338,6 +409,16 @@ module.exports = {
   markGroupAsRead,
   findGroupMemberIds,
   createGroupMessage,
+  findGroupById,
+  isGroupMember,
+  updateGroupName,
+  updateGroupAvatar,
+  setGroupCreator,
+  addGroupMembers,
+  removeGroupMember,
+  findOldestMember,
+  deleteGroup,
+  findMessageForForward,
   findRawMessageById,
   findEnrichedMessageById,
   updateMessageContent,

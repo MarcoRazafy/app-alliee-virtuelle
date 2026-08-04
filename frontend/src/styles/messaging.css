@@ -415,8 +415,8 @@
 }
 
 .conversation-avatar--team {
-  color: var(--color-on-accent);
-  background: var(--msg-primary);
+  color: var(--color-text-secondary);
+  background: var(--input-bg);
 }
 
 .conversation-avatar--group {
@@ -1747,3 +1747,118 @@
 .msgr-contact-text { display: flex; flex-direction: column; min-width: 0; }
 .msgr-contact-kind { font-size: 11px; color: var(--color-text-muted); }
 .msgr-contact-value { font-size: 13.5px; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --- Gestion de groupe (panneau d'infos) --- */
+.msgr-manage-actions { display: flex; flex-direction: column; gap: 6px; }
+.msgr-manage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.msgr-manage-btn svg { width: 17px; height: 17px; color: var(--color-text-secondary); flex-shrink: 0; }
+.msgr-manage-btn:hover { background: var(--glass-overlay); color: var(--color-accent-lighter); }
+.msgr-manage-btn:hover svg { color: var(--color-accent-lighter); }
+
+.msgr-group-rename { display: flex; flex-direction: column; gap: 8px; }
+.msgr-group-rename input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+.msgr-group-rename-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.msgr-member-remove {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.msgr-member-remove svg { width: 15px; height: 15px; }
+.msgr-member-remove:hover { background: color-mix(in srgb, var(--color-error) 14%, transparent); color: var(--color-error); }
+
+.msgr-profile-danger { display: flex; flex-direction: column; gap: 8px; }
+.msgr-leave-btn,
+.msgr-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.msgr-leave-btn svg,
+.msgr-delete-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+.msgr-leave-btn { color: var(--color-text-secondary); }
+.msgr-leave-btn:hover { color: var(--color-text-primary); border-color: var(--color-accent-light); }
+.msgr-delete-btn { color: var(--color-error); border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border)); }
+.msgr-delete-btn:hover { background: color-mix(in srgb, var(--color-error) 12%, transparent); border-color: var(--color-error); }
+
+/* --- Transfert de message : liste des destinations --- */
+.msgr-forward-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 340px;
+  overflow-y: auto;
+  margin: 4px 0 12px;
+}
+.msgr-forward-label {
+  margin: 10px 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+.msgr-forward-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.msgr-forward-item:hover { background: var(--glass-overlay); }
+.msgr-forward-item--on { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.msgr-forward-item .conversation-avatar { width: 34px; height: 34px; }
+.msgr-forward-item .conversation-avatar svg { width: 16px; height: 16px; }
