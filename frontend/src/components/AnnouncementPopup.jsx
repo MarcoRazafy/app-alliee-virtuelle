@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as announcementService from '../services/announcementService';
 import { getSocket } from '../services/socket';
@@ -13,7 +13,9 @@ export default function AnnouncementPopup() {
   const navigate = useNavigate();
   const [announcement, setAnnouncement] = useState(null);
   // Annonces déjà écartées pendant cette session (pour ne pas re-popup en boucle).
-  const [dismissed, setDismissed] = useState(() => new Set());
+  // Un ref (et non un state) pour que la vérif reste correcte dans les callbacks socket,
+  // qui capturent la 1re instance de la fonction (deps [] de l'effet).
+  const dismissedRef = useRef(new Set());
 
   function refresh() {
     if (!getUser()) return;
@@ -23,7 +25,7 @@ export default function AnnouncementPopup() {
         const latest = data.latest;
         setAnnouncement((current) => {
           if (!latest) return null;
-          if (dismissed.has(latest.id)) return current;
+          if (dismissedRef.current.has(latest.id)) return current;
           return latest;
         });
       })
@@ -35,14 +37,21 @@ export default function AnnouncementPopup() {
     const socket = getSocket();
     const onNew = () => refresh();
     socket.on('announcement:new', onNew);
-    return () => socket.off('announcement:new', onNew);
+    // Rattrapage : si le socket s'était déconnecté (onglet en arrière-plan, veille, coupure
+    // réseau), on re-vérifie à la (re)connexion → l'annonce ratée en direct apparaît sans
+    // avoir à rafraîchir la page manuellement.
+    socket.on('connect', onNew);
+    return () => {
+      socket.off('announcement:new', onNew);
+      socket.off('connect', onNew);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!announcement) return null;
 
   function dismiss() {
-    setDismissed((prev) => new Set(prev).add(announcement.id));
+    dismissedRef.current.add(announcement.id);
     setAnnouncement(null);
   }
 
