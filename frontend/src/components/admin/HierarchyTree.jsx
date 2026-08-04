@@ -298,7 +298,7 @@ function HierarchyTree({
                             type="button"
                             data-list-id={list.id}
                             className="tree-list-main"
-                            onClick={() => onSelectList?.(list.id, list)}
+                            onClick={() => onSelectList?.(list.id, { ...list, spaceId: space.id, folderId: folder.id })}
                           >
                             <span className="tree-icon">
                               <IconChecklist />
@@ -313,7 +313,7 @@ function HierarchyTree({
                             disabled={Boolean(busyId)}
                             triggerLabel={`Actions pour la liste ${list.name}`}
                             actions={[
-                              { label: 'Ajouter une tâche', icon: IconPlus, onClick: () => onAddTask?.(list.id, list) },
+                              { label: 'Ajouter une tâche', icon: IconPlus, onClick: () => onAddTask?.(list.id, { ...list, spaceId: space.id, folderId: folder.id }) },
                               { label: 'Renommer la liste', icon: IconPencil, onClick: () => startRenaming('list', list) },
                               { label: 'Supprimer la liste', icon: IconTrash, danger: true, onClick: () => handleDelete('list', list) },
                             ]}

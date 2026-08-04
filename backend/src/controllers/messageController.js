@@ -30,9 +30,18 @@ function hasBody(req) {
   return content.length > 0 || Boolean(req.file);
 }
 
+// Retire le HTML (les messages peuvent être mis en forme) pour un aperçu texte propre.
+function stripHtml(value) {
+  return (value || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Aperçu court pour le corps de la notification push : le texte, ou une mention de la pièce jointe.
 function pushPreview(content, hasAttachment) {
-  const text = (content || '').trim();
+  const text = stripHtml(content);
   if (text) return text.length > 120 ? `${text.slice(0, 117)}…` : text;
   return hasAttachment ? '📎 Pièce jointe' : 'Nouveau message';
 }

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import * as hierarchyService from '../../services/hierarchyService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
+import RichTextEditor from '../../components/RichTextEditor';
 import {
   IconChecklist,
   IconFolder,
@@ -37,22 +38,27 @@ const EMPTY_FORM = {
 
 function AdminCreateTask() {
   const location = useLocation();
+  // Pré-remplissage : action « Refaire » (champs de la tâche) et/ou « Ajouter une tâche » depuis un
+  // projet (placement = { spaceId, folderId, listId } → pré-sélectionne la cascade, restant modifiable).
+  const prefill = location.state?.prefill || {};
   const [employees, setEmployees] = useState([]);
-  // Pré-remplissage via l'action « Refaire » (recréer une tâche confirmée) : location.state.prefill.
-  const [form, setForm] = useState(() => ({ ...EMPTY_FORM, ...(location.state?.prefill || {}) }));
-  // Multi-assignation : 1 ou plusieurs employés (une tâche est créée par employé sélectionné).
-  const [assignedIds, setAssignedIds] = useState(() => {
-    const pre = location.state?.prefill?.assigned_to;
-    return pre ? [pre] : [];
+  const [form, setForm] = useState(() => {
+    const initial = { ...EMPTY_FORM, ...prefill };
+    delete initial.placement;
+    return initial;
   });
+  // Multi-assignation : 1 ou plusieurs employés (une tâche est créée par employé sélectionné).
+  const [assignedIds, setAssignedIds] = useState(() => (prefill.assigned_to ? [prefill.assigned_to] : []));
   const [submitting, setSubmitting] = useState(false);
 
   // Sélection hiérarchique Space > Folder > List, entièrement optionnelle
   const [spaces, setSpaces] = useState([]);
   const [folders, setFolders] = useState([]);
   const [lists, setLists] = useState([]);
-  const [selectedSpaceId, setSelectedSpaceId] = useState('');
+  const [selectedSpaceId, setSelectedSpaceId] = useState(() => prefill.placement?.spaceId || '');
   const [selectedFolderId, setSelectedFolderId] = useState('');
+  // Emplacement à appliquer en cascade au chargement (dossier puis liste, une fois chargés).
+  const pendingPlacementRef = useRef(prefill.placement || null);
 
   // Création rapide d'un nouvel espace/dossier/liste sans quitter le formulaire
   const [newSpaceName, setNewSpaceName] = useState('');
@@ -81,7 +87,14 @@ function AdminCreateTask() {
     }
     hierarchyService
       .getFolders(selectedSpaceId)
-      .then(setFolders)
+      .then((data) => {
+        setFolders(data);
+        // Cascade de pré-remplissage : sélectionne le dossier attendu une fois chargé.
+        const pending = pendingPlacementRef.current;
+        if (pending?.folderId && data.some((f) => f.id === pending.folderId)) {
+          setSelectedFolderId(pending.folderId);
+        }
+      })
       .catch(() => setFolders([]));
   }, [selectedSpaceId]);
 
@@ -93,7 +106,14 @@ function AdminCreateTask() {
     }
     hierarchyService
       .getLists(selectedFolderId)
-      .then(setLists)
+      .then((data) => {
+        setLists(data);
+        const pending = pendingPlacementRef.current;
+        if (pending?.listId && data.some((l) => l.id === pending.listId)) {
+          setForm((prev) => ({ ...prev, list_id: pending.listId }));
+        }
+        pendingPlacementRef.current = null; // placement consommé
+      })
       .catch(() => setLists([]));
   }, [selectedFolderId]);
 
@@ -228,17 +248,11 @@ function AdminCreateTask() {
           </div>
 
           <div className="form-field">
-            <label className="form-label" htmlFor="description">
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              className="form-textarea"
+            <span className="form-label">Description</span>
+            <RichTextEditor
               value={form.description}
-              onChange={handleChange}
-              rows={4}
-              placeholder="Précisez le contexte, les attentes, les livrables…"
+              onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+              placeholder="Précisez le contexte, les attentes, les livrables… (mise en forme disponible)"
             />
           </div>
 

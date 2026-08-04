@@ -463,6 +463,14 @@
   height: 20px;
 }
 
+/* Avatar des réponses IA : image de l'agent (remplace l'ancienne icône). */
+.ai-msg-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
 .ai-msg-avatar--live {
   animation: ai-avatar-pulse 1.4s ease-in-out infinite;
 }
@@ -613,6 +621,12 @@
 .ai-input-field:focus-within {
   border-color: var(--color-accent-light);
   box-shadow: 0 0 0 3px var(--glow-accent);
+}
+/* Le champ (wrapper) porte déjà l'état focus (bord + halo) : on retire le second
+   contour que la règle générique .ai-shell :focus-visible posait sur l'input interne. */
+.ai-input-field input:focus,
+.ai-input-field input:focus-visible {
+  outline: none;
 }
 
 .ai-input-glyph {

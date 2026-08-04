@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import HierarchyTree from '../../components/admin/HierarchyTree';
 import * as taskService from '../../services/taskService';
 import * as hierarchyService from '../../services/hierarchyService';
-import * as userService from '../../services/userService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconChecklist, IconExternalLink, IconArrowRight, IconTrash } from '../../components/icons';
+import { IconChecklist, IconExternalLink, IconPlus, IconTrash } from '../../components/icons';
 import '../../styles/admin.css';
 
 // Ordre = celui du workflow (DECISIONS.md) : une tâche neuve tombe toujours dans "Déclarée"
@@ -21,22 +20,12 @@ const STATUS_GROUPS = [
 const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAIBLE: 'faible' };
 
 function AdminListView() {
+  const navigate = useNavigate();
   const [selectedListId, setSelectedListId] = useState(null);
   const [selectedList, setSelectedList] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [deletingProject, setDeletingProject] = useState(false);
-
-  const [quickAdd, setQuickAdd] = useState({ title: '', assigned_to: '', deadline: '', priority: 'NORMALE' });
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-
-  useEffect(() => {
-    userService
-      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
-      .then(setEmployees)
-      .catch(() => setEmployees([]));
-  }, []);
 
   function loadTasks(listId) {
     taskService
@@ -48,46 +37,25 @@ function AdminListView() {
   function handleSelectList(listId, list) {
     setSelectedListId(listId);
     setSelectedList(list);
-    setShowQuickAdd(false);
     loadTasks(listId);
   }
 
-  function handleAddTask(listId, list) {
-    setSelectedListId(listId);
-    setSelectedList(list);
-    setShowQuickAdd(true);
-    loadTasks(listId);
+  // Ajouter une tâche = ouvrir le formulaire complet avec l'emplacement pré-rempli (modifiable).
+  function goToCreateTask(list) {
+    if (!list) return;
+    navigate('/admin/create-task', {
+      state: {
+        prefill: {
+          placement: { spaceId: list.spaceId, folderId: list.folderId, listId: list.id },
+        },
+      },
+    });
   }
 
   function clearHierarchySelection() {
     setSelectedListId(null);
     setSelectedList(null);
     setTasks([]);
-    setShowQuickAdd(false);
-  }
-
-  async function handleQuickAdd(e) {
-    e.preventDefault();
-    if (!quickAdd.title.trim() || !quickAdd.assigned_to || !quickAdd.deadline) {
-      notifyError('Nom, employé assigné et échéance sont requis pour créer une tâche');
-      return;
-    }
-    try {
-      await taskService.createTask({
-        title: quickAdd.title,
-        assigned_to: quickAdd.assigned_to,
-        priority: quickAdd.priority,
-        deadline: quickAdd.deadline,
-        list_id: selectedListId,
-      });
-      notifySuccess('Tâche créée');
-      setQuickAdd({ title: '', assigned_to: '', deadline: '', priority: 'NORMALE' });
-      setShowQuickAdd(false);
-      loadTasks(selectedListId);
-    } catch (err) {
-      const data = err.response?.data;
-      notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
-    }
   }
 
   async function handleDeleteProject() {
@@ -101,9 +69,7 @@ function AdminListView() {
     try {
       await hierarchyService.deleteList(selectedList.id);
       notifySuccess('Projet supprimé');
-      setSelectedListId(null);
-      setSelectedList(null);
-      setTasks([]);
+      clearHierarchySelection();
       setTreeRefreshKey((value) => value + 1);
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de supprimer le projet');
@@ -120,7 +86,7 @@ function AdminListView() {
         </div>
         <HierarchyTree
           onSelectList={handleSelectList}
-          onAddTask={handleAddTask}
+          onAddTask={(listId, list) => goToCreateTask(list)}
           onHierarchyDeleted={clearHierarchySelection}
           selectedListId={selectedListId}
           refreshKey={treeRefreshKey}
@@ -170,61 +136,16 @@ function AdminListView() {
                     {group.key === 'CONFIRMEE' && (
                       <span className="lists-auto-hide-hint">Masquées automatiquement après 5 jours</span>
                     )}
-                    {isDeclared && !showQuickAdd && (
-                      <button type="button" className="lists-add-btn" onClick={() => setShowQuickAdd(true)}>
-                        + Ajouter une tâche
+                    {isDeclared && (
+                      <button
+                        type="button"
+                        className="lists-add-btn"
+                        onClick={() => goToCreateTask(selectedList)}
+                      >
+                        <IconPlus /> Ajouter une tâche
                       </button>
                     )}
                   </div>
-
-                  {isDeclared && showQuickAdd && (
-                    <form className="lists-quick-add" onSubmit={handleQuickAdd}>
-                      <input
-                        className="form-input"
-                        placeholder="Nom de la tâche"
-                        value={quickAdd.title}
-                        onChange={(e) => setQuickAdd({ ...quickAdd, title: e.target.value })}
-                        autoFocus
-                      />
-                      <select
-                        className="form-select"
-                        value={quickAdd.assigned_to}
-                        onChange={(e) => setQuickAdd({ ...quickAdd, assigned_to: e.target.value })}
-                      >
-                        <option value="">Employé…</option>
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={emp.id}>
-                            {emp.full_name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        className="form-input"
-                        type="date"
-                        value={quickAdd.deadline}
-                        onChange={(e) => setQuickAdd({ ...quickAdd, deadline: e.target.value })}
-                      />
-                      <select
-                        className="form-select"
-                        value={quickAdd.priority}
-                        onChange={(e) => setQuickAdd({ ...quickAdd, priority: e.target.value })}
-                      >
-                        <option value="URGENT">Urgent</option>
-                        <option value="HAUTE">Haute</option>
-                        <option value="NORMALE">Normale</option>
-                        <option value="FAIBLE">Faible</option>
-                      </select>
-                      <div className="lists-quick-add-actions">
-                        <button type="submit" className="btn-primary">
-                          <IconArrowRight />
-                          Enregistrer
-                        </button>
-                        <button type="button" className="btn-outline" onClick={() => setShowQuickAdd(false)}>
-                          Annuler
-                        </button>
-                      </div>
-                    </form>
-                  )}
 
                   {groupTasks.length === 0 ? (
                     <p className="lists-group-empty">Aucune tâche.</p>

@@ -6,6 +6,8 @@ import EmployeeLayout from '../components/employee/EmployeeLayout';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconX } from '../components/icons';
+import RichTextEditor from '../components/RichTextEditor';
+import { htmlToText } from '../utils/sanitizeHtml';
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -116,7 +118,7 @@ function MyDay() {
     if (!requestingTask) return;
     setIsSending(true);
     try {
-      await taskService.createExtraTaskRequest(requestingTask.id, requestMessage.trim() || undefined);
+      await taskService.createExtraTaskRequest(requestingTask.id, htmlToText(requestMessage) ? requestMessage : undefined);
       notifySuccess("Demande envoyée à l'administrateur");
       setRequestingTask(null);
       await load();
@@ -231,17 +233,14 @@ function MyDay() {
             </p>
 
             <form className="modal-card-form" onSubmit={submitRequest}>
-              <label className="modal-field">
+              <div className="modal-field">
                 <span className="modal-label">Message à l'administrateur (facultatif)</span>
-                <textarea
-                  className="modal-input modal-textarea"
-                  rows={3}
+                <RichTextEditor
                   value={requestMessage}
-                  onChange={(e) => setRequestMessage(e.target.value)}
+                  onChange={setRequestMessage}
                   placeholder="Ex : j'ai terminé toutes mes tâches, je peux prendre celle-ci."
-                  autoFocus
                 />
-              </label>
+              </div>
 
               <div className="modal-card-foot">
                 <button type="button" className="btn-outline" onClick={() => setRequestingTask(null)}>

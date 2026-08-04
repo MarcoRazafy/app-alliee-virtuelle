@@ -10,6 +10,7 @@ import { STATUS_PILL, priorityPillClass } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconPlay, IconStop, IconCheckCircle, IconArrowRight, IconTrash } from '../components/icons';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 function TaskDetail() {
   const { id } = useParams();
@@ -247,7 +248,12 @@ function TaskDetail() {
             {breadcrumbData.space.name} › {breadcrumbData.folder.name} › {breadcrumbData.list.name}
           </span>
         )}
-        {task.description && <p className="detail-description">{task.description}</p>}
+        {task.description && (
+          <div
+            className="detail-description rich-text"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.description) }}
+          />
+        )}
 
         <div className="detail-meta-row">
           <div className="detail-meta-item">

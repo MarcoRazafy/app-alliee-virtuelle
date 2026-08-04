@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { IconLink, IconListUl, IconListOl } from './icons';
+import '../styles/rich-text-editor.css';
 
 // Éditeur de texte riche léger (contentEditable + document.execCommand), sans dépendance.
 // Produit du HTML nettoyé à l'affichage (voir utils/sanitizeHtml). Boutons : Gras, Italique,

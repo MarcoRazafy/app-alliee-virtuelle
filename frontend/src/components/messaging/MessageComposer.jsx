@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconPaperclip, IconX } from '../icons';
+import { IconPaperclip, IconX, IconListUl, IconListOl } from '../icons';
 import { MicIcon, ImageIcon, SmileyIcon, SendIcon } from './messagingIcons';
 import { isAudioType, isImageType, formatFileSize, formatDuration } from './messagingHelpers';
+import { htmlToText } from '../../utils/sanitizeHtml';
 import { notifyError, notifyInfo } from '../../utils/toast';
 
 const COMPOSER_EMOJIS = [
@@ -22,6 +23,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
   const mediaRecorderRef = useRef(null);
   const recordTimerRef = useRef(null);
   const recordCancelledRef = useRef(false);
+  const editorRef = useRef(null);
 
   useEffect(() => {
     function onClickOutside(event) {
@@ -33,9 +35,16 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
 
   useEffect(() => () => { if (recordTimerRef.current) clearInterval(recordTimerRef.current); }, []);
 
+  // Synchronise le HTML externe (vidage après envoi, insertion d'emoji…) sans casser la frappe.
+  useEffect(() => {
+    if (editorRef.current && value !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value]);
+
   function submitMessage() {
     if (disabled) return;
-    if (!value.trim() && !file) return;
+    if (!htmlToText(value) && !file) return;
     onSend(file);
     setFile(null);
     if (fileRef.current) fileRef.current.value = '';
@@ -49,6 +58,24 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
       event.preventDefault();
       submitMessage();
     }
+  }
+  // Mise en forme WYSIWYG (balises sémantiques grâce à styleWithCSS=false → survivent au nettoyage).
+  function exec(cmd) {
+    if (disabled) return;
+    editorRef.current?.focus();
+    try {
+      window.document.execCommand('styleWithCSS', false, false);
+    } catch {
+      /* ignoré */
+    }
+    window.document.execCommand(cmd, false, null);
+    onChange(editorRef.current?.innerHTML || '');
+  }
+  function insertEmoji(emoji) {
+    editorRef.current?.focus();
+    window.document.execCommand('insertText', false, emoji);
+    onChange(editorRef.current?.innerHTML || '');
+    setEmojiOpen(false);
   }
   function pickFile(event) {
     const selected = event.target.files?.[0];
@@ -140,7 +167,15 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
           </button>
         </div>
       ) : (
-        <div className="msgr-composer-row">
+        <>
+          <div className="msgr-format-bar">
+            <button type="button" className="msgr-format-btn" style={{ fontWeight: 800 }} title="Gras" aria-label="Gras" disabled={disabled} onMouseDown={(e) => { e.preventDefault(); exec('bold'); }}>B</button>
+            <button type="button" className="msgr-format-btn" style={{ fontStyle: 'italic' }} title="Italique" aria-label="Italique" disabled={disabled} onMouseDown={(e) => { e.preventDefault(); exec('italic'); }}>I</button>
+            <button type="button" className="msgr-format-btn" style={{ textDecoration: 'line-through' }} title="Barré" aria-label="Barré" disabled={disabled} onMouseDown={(e) => { e.preventDefault(); exec('strikeThrough'); }}>S</button>
+            <button type="button" className="msgr-format-btn" title="Liste à puces" aria-label="Liste à puces" disabled={disabled} onMouseDown={(e) => { e.preventDefault(); exec('insertUnorderedList'); }}><IconListUl /></button>
+            <button type="button" className="msgr-format-btn" title="Liste numérotée" aria-label="Liste numérotée" disabled={disabled} onMouseDown={(e) => { e.preventDefault(); exec('insertOrderedList'); }}><IconListOl /></button>
+          </div>
+          <div className="msgr-composer-row">
           <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx" onChange={pickFile} />
           <input ref={audioRef} type="file" hidden accept="audio/*" capture onChange={pickAudio} />
           <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx'); fileRef.current.click(); } }} disabled={disabled} aria-label='Ajouter une pièce jointe' title='Fichier'>
@@ -159,32 +194,36 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
             {emojiOpen && (
               <div className="msgr-emoji-picker">
                 {COMPOSER_EMOJIS.map((emoji) => (
-                  <button type="button" key={emoji} onClick={() => { onChange(value + emoji); setEmojiOpen(false); }}>
+                  <button type="button" key={emoji} onMouseDown={(e) => { e.preventDefault(); insertEmoji(emoji); }}>
                     {emoji}
                   </button>
                 ))}
               </div>
             )}
           </div>
-          <textarea
-            rows="1"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+          <div
+            ref={editorRef}
+            className="msgr-composer-input"
+            contentEditable={!disabled}
+            suppressContentEditableWarning
+            role="textbox"
+            aria-multiline="true"
             aria-label={placeholder}
-            disabled={disabled}
+            data-placeholder={placeholder}
+            onInput={() => onChange(editorRef.current?.innerHTML || '')}
+            onKeyDown={handleKeyDown}
           />
           <button
             type="submit"
             className="msgr-send-button"
-            disabled={disabled || (!value.trim() && !file)}
+            disabled={disabled || (!htmlToText(value) && !file)}
             aria-label='Envoyer le message'
             title='Envoyer'
           >
             <SendIcon />
           </button>
-        </div>
+          </div>
+        </>
       )}
     </form>
   );
