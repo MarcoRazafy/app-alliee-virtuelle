@@ -149,6 +149,13 @@ function EmployeeAssistant() {
               maxLength="1200"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(e) => {
+                // Entrée = envoyer, Maj+Entrée = nouvelle ligne.
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  submit(e);
+                }
+              }}
               placeholder='Ex. Quelle tâche dois-je traiter en premier ?'
               disabled={loading}
             />

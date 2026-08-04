@@ -625,7 +625,9 @@
 /* Le champ (wrapper) porte déjà l'état focus (bord + halo) : on retire le second
    contour que la règle générique .ai-shell :focus-visible posait sur l'input interne. */
 .ai-input-field input:focus,
-.ai-input-field input:focus-visible {
+.ai-input-field input:focus-visible,
+.ai-input-field textarea:focus,
+.ai-input-field textarea:focus-visible {
   outline: none;
 }
 
@@ -640,7 +642,8 @@
   height: 18px;
 }
 
-.ai-input-field input {
+.ai-input-field input,
+.ai-input-field textarea {
   flex: 1;
   min-width: 0;
   border: none;
@@ -652,7 +655,18 @@
   color: var(--color-text-primary);
 }
 
-.ai-input-field input::placeholder {
+/* Le champ de question est un textarea multi-ligne auto-extensible (hauteur pilotée en JS,
+   bornée à 160px) : pas de poignée de redimensionnement, il défile au-delà. */
+.ai-input-field textarea {
+  resize: none;
+  overflow-y: auto;
+  max-height: 160px;
+  line-height: 1.5;
+  display: block;
+}
+
+.ai-input-field input::placeholder,
+.ai-input-field textarea::placeholder {
   color: var(--color-text-muted);
 }
 
@@ -784,7 +798,7 @@
 
 /* --- Composer enrichi (icônes + pièce jointe + dictée) --- */
 .ai-input-bar { flex-direction: column; align-items: stretch; gap: 8px; }
-.ai-input-row { display: flex; align-items: center; gap: 8px; }
+.ai-input-row { display: flex; align-items: flex-end; gap: 8px; }
 .ai-input-icon {
   flex-shrink: 0;
   display: inline-flex;
