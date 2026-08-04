@@ -1,5 +1,12 @@
+const fs = require('fs');
 const announcementModel = require('../models/announcement.model');
+const taskModel = require('../models/task.model');
 const realtime = require('../realtime/io');
+const { sendFileOr404 } = require('../utils/sendFile');
+
+function safeUnlink(filePath) {
+  if (filePath) fs.promises.unlink(filePath).catch(() => {});
+}
 
 async function listAnnouncements(req, res, next) {
   try {
@@ -47,9 +54,25 @@ async function createAnnouncement(req, res, next) {
       return res.status(400).json({ error: 'Le contenu est requis' });
     }
 
-    const created = await announcementModel.create({ authorId: req.user.id, title, body });
-    // Temps réel : déclenche le popup + la pastille chez tous les utilisateurs connectés.
+    const created = await announcementModel.create({
+      authorId: req.user.id,
+      title,
+      body,
+      isImportant: req.body.is_important === true || req.body.is_important === 'true',
+      isPinned: req.body.is_pinned === true || req.body.is_pinned === 'true',
+      imagePath: req.file ? req.file.path : null,
+    });
+    // Trace dans le journal → apparaît dans le centre de notifications de chacun.
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'PUBLISH_ANNOUNCEMENT',
+      entityType: 'announcement',
+      entityId: created.id,
+      details: { title: created.title },
+    });
+    // Temps réel : popup + pastille annonces, et rafraîchissement du centre de notifications.
     realtime.broadcast('announcement:new', { id: created.id, title: created.title });
+    realtime.broadcast('notification:new', { actorId: req.user.id });
     res.status(201).json(created);
   } catch (err) {
     next(err);
@@ -66,7 +89,21 @@ async function updateAnnouncement(req, res, next) {
     if (!body) {
       return res.status(400).json({ error: 'Le contenu est requis' });
     }
-    const updated = await announcementModel.update(req.params.id, { title, body });
+    // Nouvelle image uploadée : on remplace et on supprime l'ancien fichier ; sinon on conserve.
+    let imagePath;
+    if (req.file) {
+      const oldPath = await announcementModel.findImagePath(req.params.id);
+      imagePath = req.file.path;
+      safeUnlink(oldPath);
+    }
+
+    const updated = await announcementModel.update(req.params.id, {
+      title,
+      body,
+      isImportant: req.body.is_important === true || req.body.is_important === 'true',
+      isPinned: req.body.is_pinned === true || req.body.is_pinned === 'true',
+      imagePath, // undefined si pas de nouveau fichier → l'image existante est conservée
+    });
     if (!updated) return res.status(404).json({ error: 'Annonce introuvable' });
     res.status(200).json(updated);
   } catch (err) {
@@ -76,8 +113,21 @@ async function updateAnnouncement(req, res, next) {
 
 async function deleteAnnouncement(req, res, next) {
   try {
+    const imagePath = await announcementModel.findImagePath(req.params.id);
     await announcementModel.remove(req.params.id);
+    safeUnlink(imagePath);
     res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Sert l'image uploadée d'une annonce (accessible à tout utilisateur authentifié).
+async function getAnnouncementImage(req, res, next) {
+  try {
+    const imagePath = await announcementModel.findImagePath(req.params.id);
+    if (!imagePath) return res.status(404).json({ error: 'Image introuvable' });
+    return sendFileOr404(res, imagePath, 'Image introuvable');
   } catch (err) {
     next(err);
   }
@@ -108,6 +158,7 @@ module.exports = {
   createAnnouncement,
   updateAnnouncement,
   deleteAnnouncement,
+  getAnnouncementImage,
   markRead,
   getReaders,
 };

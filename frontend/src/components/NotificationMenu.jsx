@@ -10,6 +10,7 @@ import {
   IconCheckCircle,
   IconClock,
   IconFolder,
+  IconMegaphone,
   IconTrash,
   IconUser,
   IconUsers,
@@ -67,9 +68,11 @@ const ACTION_LABELS = {
   ADMIN_UPDATE_WEEKLY_PLANNING: 'a corrigé un planning',
   SET_ATTENDANCE_OVERRIDE: 'a corrigé une présence',
   RESET_ATTENDANCE_OVERRIDE: 'a rétabli le calcul automatique de présence',
+  PUBLISH_ANNOUNCEMENT: 'a publié une annonce',
 };
 
 function getEventIcon(item) {
+  if (item.entity_type === 'announcement') return IconMegaphone;
   if (item.action.includes('TIMELOG')) return IconClock;
   if (item.entity_type === 'task') return IconCheckCircle;
   if (item.entity_type === 'weekly_planning' || item.entity_type === 'attendance_override') return IconCalendarWeek;
@@ -96,6 +99,7 @@ function eventText(item) {
 function resolveLink(item, isAdmin) {
   const { entity_type: type, entity_id: id, action, details } = item;
   if (action === 'DELETE_TASK') return null; // la tâche n'existe plus
+  if (type === 'announcement') return `/announcements?open=${id}`; // ouvre l'annonce directement
   if (type === 'task') return `/tasks/${id}`;
   if (type === 'task_attachment' && details?.task_id) return `/tasks/${details.task_id}`;
   if (type === 'extra_task_requests') return isAdmin ? '/admin/task-requests' : '/tasks';
