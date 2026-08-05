@@ -55,9 +55,9 @@ export default defineConfig(({ mode }) => {
           globIgnores: ['**/employer/**', '**/themeImagelogin.jpeg', '**/agentIAImage-*'],
           // Le shell de l'app (index.html) est renvoyé pour les routes du SPA…
           navigateFallback: '/index.html',
-          // …SAUF pour l'API et le temps réel : jamais interceptés → toujours au réseau,
-          // donc AUCUNE donnée périmée (l'API n'est pas mise en cache).
-          navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/],
+          // …SAUF pour l'API, le temps réel et /health : jamais interceptés → toujours au réseau
+          // (donc AUCUNE donnée périmée, et /health renvoie bien le JSON du serveur, pas le SPA).
+          navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/health/],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           runtimeCaching: [
