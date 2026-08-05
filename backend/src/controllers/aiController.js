@@ -162,6 +162,12 @@ async function buildEmployeeContext(userId) {
 // À garder synchronisé avec les menus réels (AdminLayout.jsx / EmployeeLayout.jsx).
 const APP_TASK_CYCLE = `Cycle d'une tâche : un employé DÉCLARE une tâche (statut "déclarée" = simple proposition), l'admin la VALIDE ; une fois faite, l'employé la marque TERMINÉE, puis l'admin la CONFIRME (= "complétée"). Une tâche créée directement par l'admin est VALIDÉE d'emblée.`;
 
+const APP_MESSAGING_GUIDE = `Messagerie (icône BULLE en haut) : discussions privées à deux ET conversations de GROUPE.
+- Créer un GROUPE : ouvrir la messagerie, onglet "Groupes", bouton "+" ("Créer un groupe"), puis choisir les membres.
+- Gérer un groupe : le renommer, changer sa photo, ajouter ou retirer des membres, le quitter, ou le supprimer (réservé au créateur / à un admin).
+- Dans une discussion : écrire un message (avec mise en forme), joindre un fichier, envoyer un message vocal, réagir, modifier ou supprimer ses propres messages, et TRANSFÉRER un message vers une autre discussion.
+La messagerie est interne à l'équipe. Pour communiquer à TOUTE l'équipe d'un coup, utiliser plutôt le menu "Annonce" (à gauche).`;
+
 const EMPLOYEE_APP_GUIDE = `GUIDE D'UTILISATION DE L'APPLICATION (pour guider un employé pas à pas) :
 Menu vertical à gauche :
 - "Dashboard" : page d'accueil (résumé de la journée, tâche en cours, raccourcis).
@@ -174,7 +180,8 @@ Menu vertical à gauche :
 - "Ressources" : les documents partagés par l'équipe.
 - "Annonces" : les communications de l'administration (un popup s'affiche à la connexion pour une nouvelle annonce).
 - "Profil" : ses informations personnelles et sa photo de profil.
-Barre du haut, à droite, trois icônes : une BULLE = "Messagerie" (discuter avec l'équipe), une CLOCHE = "Notifications", une ÉTINCELLE = ce chatbot.
+Barre du haut, à droite, trois icônes : une BULLE = "Messagerie", une CLOCHE = "Notifications", une ÉTINCELLE = ce chatbot.
+${APP_MESSAGING_GUIDE}
 ${APP_TASK_CYCLE}`;
 
 const ADMIN_APP_GUIDE = `GUIDE D'UTILISATION DE L'APPLICATION (pour guider un administrateur pas à pas) :
@@ -193,6 +200,7 @@ Menu vertical à gauche :
 - "Ressources" : les documents partagés. "Admin Profil" : ses informations.
 - "Créer une tâche" : formulaire complet pour créer et assigner une nouvelle tâche.
 Barre du haut, à droite : une BULLE = "Messagerie", une CLOCHE = "Notifications", une ÉTINCELLE = cet assistant.
+${APP_MESSAGING_GUIDE}
 ${APP_TASK_CYCLE}`;
 
 const ADMIN_SYSTEM_PROMPT = `Tu es l'assistant IA de L'Alliée Virtuelle, un outil de suivi des tâches en équipe.
@@ -241,18 +249,41 @@ Données personnelles de l'employé (JSON) :
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Mémoire du chatbot : on renvoie au modèle les derniers échanges de la conversation en cours.
+const HISTORY_LIMIT = 8; // nombre d'échanges (question+réponse) rappelés au modèle
+const HISTORY_ANSWER_MAX = 1000; // borne la longueur des réponses passées (maîtrise des tokens)
+
+function trimForHistory(text) {
+  if (!text) return '';
+  return text.length > HISTORY_ANSWER_MAX ? `${text.slice(0, HISTORY_ANSWER_MAX)}…` : text;
+}
+
 // Génère une réponse Mistral pour une question (avec mention éventuelle d'une pièce jointe).
-async function generateAnswer(question, attachmentName, requester) {
+// sessionId + excludeId servent à rappeler l'historique de la conversation (mémoire).
+async function generateAnswer(question, attachmentName, requester, sessionId = null, excludeId = null) {
   const isAdmin = requester.role === 'ADMIN';
   const context = isAdmin ? await buildAdminContext() : await buildEmployeeContext(requester.id);
   const userContent = attachmentName
     ? `${question}\n\n[L'utilisateur a joint un fichier nommé « ${attachmentName} ». Tu ne peux pas ouvrir son contenu ; base-toi sur le nom et la question.]`
     : question;
+
+  // Historique de la session → messages user/assistant intercalés (mémoire du fil).
+  const history = await aiModel.findSessionHistory(sessionId, requester.id, {
+    limit: HISTORY_LIMIT,
+    excludeId,
+  });
+  const historyMessages = [];
+  for (const turn of history) {
+    if (turn.question) historyMessages.push({ role: 'user', content: turn.question });
+    if (turn.answer) historyMessages.push({ role: 'assistant', content: trimForHistory(turn.answer) });
+  }
+
   const messages = [
     {
       role: 'system',
       content: (isAdmin ? ADMIN_SYSTEM_PROMPT : EMPLOYEE_SYSTEM_PROMPT) + JSON.stringify(context),
     },
+    ...historyMessages,
     { role: 'user', content: userContent },
   ];
   const answer = await mistral.askMistral(messages);
@@ -272,7 +303,9 @@ async function ask(req, res, next) {
       ? { path: req.file.path, name: req.file.originalname, type: req.file.mimetype }
       : null;
 
-    const { answer, context } = await generateAnswer(question, attachment?.name, req.user);
+    // On passe la session pour que le modèle se souvienne des échanges précédents (le nouvel
+    // échange n'est pas encore enregistré à ce stade, donc pas besoin d'excludeId ici).
+    const { answer, context } = await generateAnswer(question, attachment?.name, req.user, validSessionId);
 
     const conversation = await aiModel.createConversation({
       adminId: req.user.id,
@@ -306,7 +339,14 @@ async function editConversation(req, res, next) {
     if (!conversation) return res.status(404).json({ error: 'Échange introuvable' });
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
     if (!question) return res.status(400).json({ error: 'La question est requise' });
-    const { answer } = await generateAnswer(question, conversation.attachment_name, req.user);
+    // Ré-édition : on rappelle l'historique de la session en excluant l'échange qu'on réécrit.
+    const { answer } = await generateAnswer(
+      question,
+      conversation.attachment_name,
+      req.user,
+      conversation.session_id,
+      conversation.id
+    );
     const updated = await aiModel.updateConversation(req.params.id, req.user.id, { question, answer });
     res.status(200).json(updated);
   } catch (err) {

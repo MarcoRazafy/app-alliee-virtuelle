@@ -63,7 +63,12 @@ function EmployeeAssistant() {
       const response = await aiService.askAssistant(text, sessionId);
       setHistory((current) => [response, ...current]);
     } catch (err) {
-      notifyError(err.response?.data?.error || 'Le chatbot ne peut pas répondre pour le moment');
+      notifyError(
+        err.response?.data?.error ||
+          (err.code === 'ECONNABORTED'
+            ? "L'assistant met trop de temps à répondre. Réessayez ou posez une question plus courte."
+            : 'Le chatbot ne peut pas répondre pour le moment')
+      );
     } finally {
       setLoading(false);
     }

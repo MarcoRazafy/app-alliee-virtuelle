@@ -83,6 +83,21 @@ function accountRejected(user, motif) {
   };
 }
 
+// --- Compte créé, en attente de validation (envoyé au NOUVEL inscrit) ---
+function accountPending(user) {
+  const name = user.full_name || user.first_name || 'bonjour';
+  return {
+    subject: `Votre inscription ${BRAND} a bien été reçue`,
+    text: `Bonjour ${name},\n\nVotre compte a bien été créé. Il doit maintenant être validé par un administrateur avant votre première connexion. Vous recevrez un email dès que votre compte sera approuvé.\n\n${BRAND}`,
+    html: layout({
+      title: 'Inscription bien reçue ✅',
+      intro: `Bonjour <strong>${esc(name)}</strong>, votre compte a bien été <strong>créé</strong>. Il doit maintenant être <strong>validé par un administrateur</strong> avant votre première connexion.`,
+      bodyHtml: `<tr><td style="padding:0 0 4px;font-size:14px;color:#3a4a63;">
+        Vous recevrez un email dès que votre compte sera approuvé. Merci de votre patience.</td></tr>`,
+    }),
+  };
+}
+
 // --- Nouvelle inscription (envoyé aux administrateurs) ---
 function newRegistration(user) {
   const adminUrl = `${env.appUrl}/admin/users`;
@@ -103,4 +118,4 @@ function newRegistration(user) {
   };
 }
 
-module.exports = { accountApproved, accountRejected, newRegistration };
+module.exports = { accountApproved, accountRejected, accountPending, newRegistration };
