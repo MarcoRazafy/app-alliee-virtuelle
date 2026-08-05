@@ -184,7 +184,12 @@ function AdminAssistant() {
       await aiService.askAssistant(q || 'Analyse ce fichier.', activeSessionId, fileToSend);
       await loadHistory();
     } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'interroger l'assistant");
+      notifyError(
+        err.response?.data?.error ||
+          (err.code === 'ECONNABORTED'
+            ? "L'assistant met trop de temps à répondre. Réessayez ou posez une question plus courte."
+            : "Impossible d'interroger l'assistant")
+      );
       setQuestion(q);
     } finally {
       setLoading(false);

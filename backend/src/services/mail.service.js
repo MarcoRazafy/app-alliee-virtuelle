@@ -47,6 +47,12 @@ function sendAccountRejected(user, motif) {
   return sendMail({ to: user.email, subject, html, text });
 }
 
+// Accusé de réception envoyé au NOUVEL inscrit : compte créé, en attente de validation admin.
+function sendAccountPending(user) {
+  const { subject, html, text } = templates.accountPending(user);
+  return sendMail({ to: user.email, subject, html, text });
+}
+
 // Envoi aux administrateurs (liste d'emails) qu'une nouvelle inscription attend validation.
 function sendNewRegistrationToAdmins(user, adminEmails) {
   const recipients = [...new Set((adminEmails || []).filter(Boolean))];
@@ -60,5 +66,6 @@ module.exports = {
   sendMail,
   sendAccountApproved,
   sendAccountRejected,
+  sendAccountPending,
   sendNewRegistrationToAdmins,
 };

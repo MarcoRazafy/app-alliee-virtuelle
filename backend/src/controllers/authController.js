@@ -65,6 +65,9 @@ async function register(req, res, next) {
       .then((adminEmails) => mailService.sendNewRegistrationToAdmins(user, adminEmails))
       .catch(() => {});
 
+    // Accusé de réception au nouvel inscrit : « compte créé, en attente de validation ». Best-effort.
+    mailService.sendAccountPending(user).catch(() => {});
+
     res.status(201).json({
       message: 'Inscription envoyée, attente validation admin',
       user,
