@@ -1,3 +1,8 @@
+// Railway n'a pas d'egress IPv6 : on préfère l'IPv4 pour les connexions sortantes (ex. SMTP
+// Gmail, sinon connect ENETUNREACH sur une adresse IPv6). Sans effet sur les hôtes internes
+// IPv6-only (ne fait que réordonner quand IPv4 ET IPv6 existent). À définir tôt, avant tout réseau.
+require('dns').setDefaultResultOrder('ipv4first');
+
 const http = require('http');
 const env = require('./config/env');
 const app = require('./app');

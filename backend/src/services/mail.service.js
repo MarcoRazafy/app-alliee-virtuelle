@@ -11,6 +11,9 @@ if (enabled) {
   transporter = nodemailer.createTransport({
     host: env.smtpHost,
     port: env.smtpPort,
+    // Railway n'a pas d'egress IPv6 : sans ça, Gmail est résolu en IPv6 et la connexion
+    // échoue (connect ENETUNREACH sur une adresse 2607:f8b0:…). On force l'IPv4.
+    family: 4,
     secure: env.smtpPort === 465, // 465 = SSL implicite ; 587 = STARTTLS
     requireTLS: env.smtpPort !== 465, // 587 : impose STARTTLS (jamais d'envoi en clair)
     auth: { user: env.smtpUser, pass: env.smtpPass },
