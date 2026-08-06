@@ -59,10 +59,13 @@ async function register(req, res, next) {
       .catch(() => {});
 
     // Prévient les administrateurs qu'une inscription attend validation (best-effort : ne doit
-    // jamais faire échouer l'inscription si l'email ou la base admin pose problème).
+    // jamais faire échouer l'inscription si l'email ou la base admin pose problème). On y ajoute
+    // les destinataires supplémentaires configurés (REGISTRATION_NOTIFY_EMAILS), sans droits admin.
     userModel
       .findAdminEmails()
-      .then((adminEmails) => mailService.sendNewRegistrationToAdmins(user, adminEmails))
+      .then((adminEmails) =>
+        mailService.sendNewRegistrationToAdmins(user, [...adminEmails, ...env.registrationNotifyEmails]),
+      )
       .catch(() => {});
 
     // Accusé de réception au nouvel inscrit : « compte créé, en attente de validation ». Best-effort.
