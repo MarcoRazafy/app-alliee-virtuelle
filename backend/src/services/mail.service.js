@@ -20,6 +20,13 @@ if (enabled) {
     greetingTimeout: 10000,
     socketTimeout: 20000,
   });
+  // Diagnostic au démarrage : teste connexion + authentification SMTP et journalise un
+  // résultat clair. Répond au cas « mail: true mais aucun email n'arrive » : si l'auth Gmail
+  // (mot de passe d'application) est refusée, on le voit ici au lieu de chercher à l'aveugle.
+  transporter
+    .verify()
+    .then(() => console.log(`✅ SMTP prêt : connexion + auth OK (${env.smtpHost}:${env.smtpPort})`))
+    .catch((err) => console.error('❌ SMTP : connexion/auth échouée —', err.message));
 } else {
   console.warn('⚠️  SMTP non configuré : emails désactivés (SMTP_HOST/USER/PASS manquants).');
 }
