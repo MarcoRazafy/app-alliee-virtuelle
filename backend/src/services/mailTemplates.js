@@ -29,8 +29,9 @@ function layout({ title, intro, bodyHtml = '', buttonLabel, buttonUrl }) {
       <table role="presentation" width="520" cellpadding="0" cellspacing="0"
              style="max-width:520px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;
                     box-shadow:0 6px 24px rgba(9,30,66,0.08);">
-        <tr><td style="background:${ACCENT};padding:20px 28px;">
-          <span style="color:#ffffff;font-size:18px;font-weight:700;">${BRAND}</span>
+        <tr><td style="background:${ACCENT};padding:18px 28px;">
+          <img src="${env.appUrl}/logo.png" alt="${BRAND}" height="30"
+               style="height:30px;width:auto;display:block;border:0;outline:none;text-decoration:none;" />
         </td></tr>
         <tr><td style="padding:28px;">
           <h1 style="margin:0 0 12px;font-size:20px;color:#0f2544;">${esc(title)}</h1>
