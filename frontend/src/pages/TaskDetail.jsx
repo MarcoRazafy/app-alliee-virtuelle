@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
+import * as userService from '../services/userService';
 import AttachmentUpload from '../components/AttachmentUpload';
 import CommentSection from '../components/CommentSection';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
@@ -30,6 +31,9 @@ function TaskDetail() {
   const [newSubtaskDeadline, setNewSubtaskDeadline] = useState('');
   // Saisie manuelle de temps (admin) : chrono oublié, ajouté a posteriori.
   const [manualTime, setManualTime] = useState({ start: '', end: '' });
+  // Réassignation (admin) : liste des employés + personne choisie pour transférer/ajouter.
+  const [employees, setEmployees] = useState([]);
+  const [pickAssignee, setPickAssignee] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -168,6 +172,41 @@ function TaskDetail() {
     }
   }
 
+  // Charge la liste des employés actifs (pour le menu de réassignation), admin seulement.
+  useEffect(() => {
+    if (!isAdmin) return;
+    userService
+      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
+      .then(setEmployees)
+      .catch(() => setEmployees([]));
+  }, [isAdmin]);
+
+  // Transfère la tâche courante à la personne choisie (change le destinataire).
+  async function handleReassign() {
+    if (!pickAssignee) return;
+    try {
+      await taskService.reassignTask(id, pickAssignee);
+      notifySuccess('Tâche transférée');
+      setPickAssignee('');
+      await loadData();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de transférer la tâche');
+    }
+  }
+
+  // Ajoute la personne choisie = crée une copie de la tâche pour elle (l'originale ne change pas).
+  async function handleAddAssignee() {
+    if (!pickAssignee) return;
+    try {
+      await taskService.addTaskAssignee(id, pickAssignee);
+      const emp = employees.find((e) => e.id === pickAssignee);
+      notifySuccess(`Copie de la tâche créée pour ${emp?.full_name || 'la personne'}`);
+      setPickAssignee('');
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Impossible d'ajouter la personne");
+    }
+  }
+
   async function handleAddSubtask(e) {
     e.preventDefault();
     if (!newSubtaskTitle.trim() || !newSubtaskDeadline) {
@@ -296,6 +335,42 @@ function TaskDetail() {
           )}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="side-card" style={{ marginBottom: '20px' }}>
+          <p className="side-card-title" style={{ marginBottom: '12px' }}>Assignation</p>
+          <p style={{ margin: '0 0 12px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
+            Actuellement :{' '}
+            <strong style={{ color: 'var(--color-text-primary)' }}>{task.assignee_name || 'Employé'}</strong>
+          </p>
+          <select
+            className="filter-select"
+            style={{ width: '100%', marginBottom: '10px' }}
+            value={pickAssignee}
+            onChange={(e) => setPickAssignee(e.target.value)}
+            aria-label="Choisir une personne"
+          >
+            <option value="">Choisir une personne…</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.full_name}
+              </option>
+            ))}
+          </select>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-outline" onClick={handleReassign} disabled={!pickAssignee}>
+              Transférer
+            </button>
+            <button type="button" className="btn-primary" onClick={handleAddAssignee} disabled={!pickAssignee}>
+              + Ajouter une personne
+            </button>
+          </div>
+          <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
+            « Transférer » change la personne de cette tâche. « Ajouter » crée une <strong>copie</strong> de la
+            tâche pour la personne choisie (chacun garde sa propre tâche).
+          </p>
+        </div>
+      )}
 
       {!isAdmin && (
       <div className="side-card" style={{ marginBottom: '20px' }}>

@@ -205,6 +205,16 @@ async function updateStatus(taskId, status, client = db) {
   return result.rows[0];
 }
 
+// Réassigne une tâche à une autre personne (transfert). Ne touche qu'au destinataire.
+async function updateAssignee(taskId, assigneeId, client = db) {
+  const result = await client.query(
+    `UPDATE tasks SET assigned_to = $2, updated_at = now() WHERE id = $1
+     RETURNING id, assigned_to, status`,
+    [taskId, assigneeId]
+  );
+  return result.rows[0] || null;
+}
+
 async function recordHistory({ taskId, fieldChanged, oldValue, newValue, changedBy }, client = db) {
   await client.query(
     `INSERT INTO task_history (task_id, field_changed, old_value, new_value, changed_by)
@@ -626,6 +636,7 @@ module.exports = {
   findSubtasks,
   getTaskDetail,
   updateStatus,
+  updateAssignee,
   recordHistory,
   recordAudit,
   findActiveSessionForEmployee,
