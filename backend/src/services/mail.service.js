@@ -2,40 +2,69 @@ const nodemailer = require('nodemailer');
 const env = require('./../config/env');
 const templates = require('./mailTemplates');
 
-// L'email est actif seulement si le SMTP est configuré (hôte + identifiants). Sinon le service
-// est inerte : aucun email envoyé, mais rien ne casse (utile en dev/local sans SMTP).
-const enabled = Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
+// Deux transports possibles, Brevo prioritaire :
+// 1) API HTTP Brevo (prod) : envoi via HTTPS (port 443), qui CONTOURNE le blocage du SMTP
+//    sortant de Railway (25/465/587 → Connection timeout). Recommandé.
+// 2) SMTP nodemailer (pratique en local, où le SMTP n'est pas bloqué).
+// Inerte si aucun n'est configuré (rien ne casse).
+const brevoEnabled = Boolean(env.brevoApiKey);
+const smtpEnabled = Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
+const enabled = brevoEnabled || smtpEnabled;
+
+// Décompose MAIL_FROM ("Nom <email>" ou "email") en { name, email } pour l'API Brevo.
+function parseFrom(from) {
+  const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(from || '');
+  if (m) return { name: m[1] || undefined, email: m[2].trim() };
+  return { email: (from || '').trim() };
+}
+const sender = parseFrom(env.mailFrom);
 
 let transporter = null;
-if (enabled) {
+if (brevoEnabled) {
+  console.log(`✅ Email via API Brevo (HTTP) — expéditeur ${sender.email}`);
+} else if (smtpEnabled) {
   transporter = nodemailer.createTransport({
     host: env.smtpHost,
     port: env.smtpPort,
-    // Railway n'a pas d'egress IPv6 : sans ça, Gmail est résolu en IPv6 et la connexion
-    // échoue (connect ENETUNREACH sur une adresse 2607:f8b0:…). On force l'IPv4.
-    family: 4,
+    family: 4, // Railway sans egress IPv6 → force IPv4 (sinon ENETUNREACH sur l'IPv6 de Gmail)
     secure: env.smtpPort === 465, // 465 = SSL implicite ; 587 = STARTTLS
     requireTLS: env.smtpPort !== 465, // 587 : impose STARTTLS (jamais d'envoi en clair)
     auth: { user: env.smtpUser, pass: env.smtpPass },
-    // Évite qu'un envoi reste bloqué indéfiniment si le SMTP ne répond pas (symptôme
-    // « parfois l'email ne part pas ») : on échoue proprement au lieu de pendre.
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 20000,
   });
-  // Diagnostic au démarrage : teste connexion + authentification SMTP et journalise un
-  // résultat clair. Répond au cas « mail: true mais aucun email n'arrive » : si l'auth Gmail
-  // (mot de passe d'application) est refusée, on le voit ici au lieu de chercher à l'aveugle.
   transporter
     .verify()
     .then(() => console.log(`✅ SMTP prêt : connexion + auth OK (${env.smtpHost}:${env.smtpPort})`))
     .catch((err) => console.error('❌ SMTP : connexion/auth échouée —', err.message));
 } else {
-  console.warn('⚠️  SMTP non configuré : emails désactivés (SMTP_HOST/USER/PASS manquants).');
+  console.warn('⚠️  Email désactivé : ni BREVO_API_KEY, ni SMTP_HOST/USER/PASS.');
 }
 
 function isEnabled() {
   return enabled;
+}
+
+// Envoi via l'API HTTP de Brevo (https → contourne le blocage SMTP de Railway).
+async function sendViaBrevo({ to, subject, html, text }) {
+  const recipients = String(to)
+    .split(',')
+    .map((e) => ({ email: e.trim() }))
+    .filter((r) => r.email);
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': env.brevoApiKey,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({ sender, to: recipients, subject, htmlContent: html, textContent: text }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Brevo API ${res.status} — ${body.slice(0, 300)}`);
+  }
 }
 
 // Envoi bas niveau, best-effort : ne jette JAMAIS (un email raté ne doit pas faire échouer
@@ -43,7 +72,11 @@ function isEnabled() {
 async function sendMail({ to, subject, html, text }) {
   if (!enabled || !to) return false;
   try {
-    await transporter.sendMail({ from: env.mailFrom, to, subject, html, text });
+    if (brevoEnabled) {
+      await sendViaBrevo({ to, subject, html, text });
+    } else {
+      await transporter.sendMail({ from: env.mailFrom, to, subject, html, text });
+    }
     return true;
   } catch (err) {
     console.error('Email : envoi échoué', err.message);

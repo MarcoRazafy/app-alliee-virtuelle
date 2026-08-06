@@ -38,6 +38,9 @@ module.exports = {
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
   mailFrom: process.env.MAIL_FROM || "L'Alliée Virtuelle <no-reply@lalliee-virtuelle.com>",
+  // API HTTP Brevo (recommandé en prod : contourne le blocage du SMTP sortant de Railway).
+  // Si présent, l'email passe par Brevo au lieu du SMTP. L'expéditeur = MAIL_FROM.
+  brevoApiKey: process.env.BREVO_API_KEY,
   // URL publique de l'app, pour les liens dans les emails (connexion, page admin).
   appUrl: (process.env.APP_URL || 'https://app.lalliee-virtuelle.com').replace(/\/+$/, ''),
   planningTimezone: process.env.PLANNING_TIMEZONE || 'Indian/Antananarivo',
