@@ -16,6 +16,15 @@ const STATUS_PILL = {
   CONFIRMEE: { label: 'Confirmée', cls: 'confirmed' },
 };
 
+// Filtre par statut des tâches de l'employé (mêmes libellés que le dashboard principal,
+// mais groupés pour couvrir tous les statuts possibles du panneau).
+const TASK_FILTERS = [
+  { key: 'all', label: 'Tout', has: () => true },
+  { key: 'todo', label: 'À faire', has: (s) => s === 'VALIDEE' || s === 'DECLAREE' },
+  { key: 'progress', label: 'En cours', has: (s) => s === 'EN_COURS' || s === 'EN_PAUSE' },
+  { key: 'done', label: 'Effectuées', has: (s) => s === 'TERMINEE' || s === 'CONFIRMEE' },
+];
+
 function Initials({ name }) {
   const initials = (name || '')
     .split(' ')
@@ -33,6 +42,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   const [motifs, setMotifs] = useState({});
   const [noteDrafts, setNoteDrafts] = useState({});
   const [taskTab, setTaskTab] = useState('all'); // 'all' = toutes les tâches, 'daily' = sélection du jour
+  const [statusFilter, setStatusFilter] = useState('all'); // filtre par statut (Tout/À faire/En cours/Effectuées)
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -199,16 +209,33 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                   <span className="emp-drawer-tab-count">{(detail.daily_task_ids || []).length}</span>
                 </button>
               </div>
+              <div className="emp-drawer-filter" role="group" aria-label="Filtrer les tâches par statut">
+                {TASK_FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    className={`emp-drawer-filter-chip${statusFilter === f.key ? ' emp-drawer-filter-chip--active' : ''}`}
+                    onClick={() => setStatusFilter(f.key)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
               {(() => {
                 const dailyIds = new Set(detail.daily_task_ids || []);
-                const shownTasks = taskTab === 'daily' ? detail.tasks.filter((t) => dailyIds.has(t.id)) : detail.tasks;
+                const activeFilter = TASK_FILTERS.find((f) => f.key === statusFilter) || TASK_FILTERS[0];
+                const shownTasks = detail.tasks
+                  .filter((t) => taskTab !== 'daily' || dailyIds.has(t.id))
+                  .filter((t) => activeFilter.has(t.status));
                 return (
                   <>
                     {shownTasks.length === 0 && (
                       <p className="emp-drawer-muted">
-                        {taskTab === 'daily'
-                          ? "Aucune tâche sélectionnée pour aujourd'hui."
-                          : 'Aucune tâche assignée.'}
+                        {statusFilter !== 'all'
+                          ? `Aucune tâche « ${activeFilter.label} ».`
+                          : taskTab === 'daily'
+                            ? "Aucune tâche sélectionnée pour aujourd'hui."
+                            : 'Aucune tâche assignée.'}
                       </p>
                     )}
                     <div className="emp-drawer-tasks">

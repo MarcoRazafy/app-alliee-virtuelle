@@ -634,6 +634,35 @@
   align-self: flex-start;
 }
 
+/* Filtre par statut des tâches (Tout / À faire / En cours / Effectuées) dans le panneau. */
+.emp-drawer-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+.emp-drawer-filter-chip {
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--input-bg);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.emp-drawer-filter-chip:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-light);
+}
+.emp-drawer-filter-chip--active {
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  border-color: transparent;
+}
+
 .emp-drawer-tab {
   display: inline-flex;
   align-items: center;
