@@ -77,7 +77,10 @@ function AdminDashboard() {
         setData(payload);
         setLastUpdate(new Date());
       })
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger le tableau de bord'))
+      .catch((err) => {
+        // Pas de toast si la session vient d'expirer / se déconnecter (401) : appel de fond.
+        if (!err.isAuthError) notifyError(err.response?.data?.error || 'Impossible de charger le tableau de bord');
+      })
       .finally(() => setRefreshing(false));
   }
 
