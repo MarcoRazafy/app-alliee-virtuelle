@@ -29,6 +29,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       removeToken();
       removeUser();
+      // Marque l'erreur : un 401 = session expirée / déconnexion. Les appels de fond (polling)
+      // peuvent l'ignorer au lieu d'afficher un toast « Jeton d'authentification manquant ».
+      error.isAuthError = true;
     }
     return Promise.reject(error);
   }
