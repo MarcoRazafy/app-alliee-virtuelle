@@ -28,6 +28,16 @@ export function deleteTask(id) {
   return api.delete(`/api/tasks/${id}`).then((res) => res.data);
 }
 
+// Transfère la tâche à une autre personne (change le destinataire).
+export function reassignTask(id, assignedTo) {
+  return api.post(`/api/tasks/${id}/reassign`, { assigned_to: assignedTo }).then((res) => res.data);
+}
+
+// Ajoute une personne à la tâche (crée sa copie de la tâche).
+export function addTaskAssignee(id, assignedTo) {
+  return api.post(`/api/tasks/${id}/add-assignee`, { assigned_to: assignedTo }).then((res) => res.data);
+}
+
 export function confirmTask(id) {
   return api.post(`/api/tasks/${id}/confirm`).then((res) => res.data);
 }

@@ -69,6 +69,90 @@ async function validateTask(req, res, next) {
   } catch (err) { return next(err); }
 }
 
+// Réassigne (transfère) une tâche existante à une autre personne : change le destinataire.
+// L'ancien assigné ne l'a plus, le nouveau la voit avec son statut actuel. Admin uniquement.
+async function reassignTask(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+
+    const newAssigneeId = req.body.assigned_to;
+    if (!newAssigneeId) return res.status(400).json({ error: 'assigned_to est requis' });
+    if (newAssigneeId === task.assigned_to) {
+      return res.status(400).json({ error: 'La tâche est déjà assignée à cette personne' });
+    }
+    const assignee = await userModel.findById(newAssigneeId);
+    if (!assignee) return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
+
+    // Si l'ancien assigné chronométrait la tâche, on ferme sa session (pas de minuteur fantôme).
+    const activeSession = await taskModel.findActiveSessionForTask(task.id, task.assigned_to);
+    if (activeSession) await taskModel.stopSession(activeSession.id);
+
+    await taskModel.updateAssignee(task.id, newAssigneeId);
+    // Une tâche déjà démarrée repart « À faire » pour que le nouvel arrivant commence proprement.
+    let newStatus = task.status;
+    if (task.status === taskModel.TASK_STATUS.IN_PROGRESS || task.status === 'EN_PAUSE') {
+      newStatus = (await taskModel.updateStatus(task.id, taskModel.TASK_STATUS.VALIDATED)).status;
+    }
+    await taskModel.recordHistory({
+      taskId: task.id,
+      fieldChanged: 'assigned_to',
+      oldValue: task.assigned_to,
+      newValue: newAssigneeId,
+      changedBy: req.user.id,
+    });
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'REASSIGN_TASK',
+      entityType: 'task',
+      entityId: task.id,
+      details: { title: task.title, to: newAssigneeId },
+    });
+    return res.status(200).json({ id: task.id, assigned_to: newAssigneeId, status: newStatus });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// Ajoute une personne à une tâche = crée une COPIE de la tâche pour un autre employé
+// (modèle « une personne par tâche »). La copie repart au statut Validée. Admin uniquement.
+async function addTaskAssignee(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+
+    const newAssigneeId = req.body.assigned_to;
+    if (!newAssigneeId) return res.status(400).json({ error: 'assigned_to est requis' });
+    const assignee = await userModel.findById(newAssigneeId);
+    if (!assignee) return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
+
+    const copy = await taskModel.create({
+      title: task.title,
+      description: task.description,
+      assignedTo: newAssigneeId,
+      createdBy: req.user.id,
+      priority: task.priority,
+      deadline: task.deadline,
+      startDate: task.start_date,
+      listId: task.list_id,
+      parentTaskId: task.parent_task_id,
+      clientName: task.client_name,
+      clientEmail: task.client_email,
+      status: taskModel.TASK_STATUS.VALIDATED,
+    });
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'CREATE_TASK',
+      entityType: 'task',
+      entityId: copy.id,
+      details: { title: task.title, assigned_to: newAssigneeId },
+    });
+    return res.status(201).json(copy);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function getTaskDetail(req, res, next) {
   try {
     const { id } = req.params;
@@ -1015,6 +1099,8 @@ module.exports = {
   downloadAttachment,
   deleteAttachment,
   deleteTask,
+  reassignTask,
+  addTaskAssignee,
   addManualTimelog,
   getActiveTask,
 };
