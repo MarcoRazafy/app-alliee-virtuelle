@@ -41,6 +41,13 @@ module.exports = {
   // API HTTP Brevo (recommandé en prod : contourne le blocage du SMTP sortant de Railway).
   // Si présent, l'email passe par Brevo au lieu du SMTP. L'expéditeur = MAIL_FROM.
   brevoApiKey: process.env.BREVO_API_KEY,
+  // Emails supplémentaires (séparés par des virgules) qui reçoivent AUSSI la notification de
+  // nouvelle inscription, en plus des admins — sans avoir les droits admin. Ex :
+  // REGISTRATION_NOTIFY_EMAILS="rh@exemple.com, direction@exemple.com"
+  registrationNotifyEmails: (process.env.REGISTRATION_NOTIFY_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean),
   // URL publique de l'app, pour les liens dans les emails (connexion, page admin).
   appUrl: (process.env.APP_URL || 'https://app.lalliee-virtuelle.com').replace(/\/+$/, ''),
   planningTimezone: process.env.PLANNING_TIMEZONE || 'Indian/Antananarivo',
