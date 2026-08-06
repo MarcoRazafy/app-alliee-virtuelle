@@ -12,7 +12,13 @@ if (enabled) {
     host: env.smtpHost,
     port: env.smtpPort,
     secure: env.smtpPort === 465, // 465 = SSL implicite ; 587 = STARTTLS
+    requireTLS: env.smtpPort !== 465, // 587 : impose STARTTLS (jamais d'envoi en clair)
     auth: { user: env.smtpUser, pass: env.smtpPass },
+    // Évite qu'un envoi reste bloqué indéfiniment si le SMTP ne répond pas (symptôme
+    // « parfois l'email ne part pas ») : on échoue proprement au lieu de pendre.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
   });
 } else {
   console.warn('⚠️  SMTP non configuré : emails désactivés (SMTP_HOST/USER/PASS manquants).');
