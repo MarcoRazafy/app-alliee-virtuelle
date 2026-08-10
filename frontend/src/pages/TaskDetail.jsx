@@ -73,11 +73,12 @@ function TaskDetail() {
   useEffect(() => {
     if (notFound) {
       notifyError('Tâche introuvable');
-      const timeout = setTimeout(() => navigate('/tasks'), 2000);
+      // Retour vers la bonne liste selon le rôle (admin → liste des tâches admin).
+      const timeout = setTimeout(() => navigate(isAdmin ? '/admin/validate' : '/tasks'), 2000);
       return () => clearTimeout(timeout);
     }
     return undefined;
-  }, [notFound, navigate]);
+  }, [notFound, navigate, isAdmin]);
 
   useEffect(() => {
     if (!activeSession) return undefined;
@@ -252,7 +253,9 @@ function TaskDetail() {
   if (notFound) {
     return (
       <Layout {...layoutProps}>
-        <div className="empty-state">Tâche introuvable. Retour à Mes tâches...</div>
+        <div className="empty-state">
+          Tâche introuvable. Retour à {isAdmin ? 'la liste des tâches' : 'Mes tâches'}...
+        </div>
       </Layout>
     );
   }
@@ -276,8 +279,8 @@ function TaskDetail() {
     <Layout {...layoutProps}>
       {isAdmin && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <Link to="/tasks" className="app-link">
-            ← Retour à mes tâches
+          <Link to="/admin/validate" className="app-link">
+            ← Retour à la liste des tâches
           </Link>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
