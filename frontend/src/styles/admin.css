@@ -147,6 +147,8 @@
 /* Cartes KPI cliquables (raccourcis dashboard) + panneau « Tâches en cours ». */
 .admin-kpi-card--clickable {
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
   transition: box-shadow 0.15s ease, transform 0.15s ease, outline-color 0.15s ease;
 }
 .admin-kpi-card--clickable:hover {
