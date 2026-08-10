@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import AttachmentUpload from '../../components/AttachmentUpload';
@@ -85,6 +85,14 @@ function AdminTasksToValidate() {
   const [detailTaskId, setDetailTaskId] = useState(null);
   const [detailTask, setDetailTask] = useState(null);
   const [motifs, setMotifs] = useState({});
+  const navigate = useNavigate();
+
+  // Clic sur la carte → page détail de la tâche, SAUF si on clique un élément interactif
+  // (case, bouton, lien, champ) qui garde son propre comportement.
+  function openTaskFromCard(e, taskId) {
+    if (e.target.closest('button, a, input, label, select, textarea')) return;
+    navigate(`/tasks/${taskId}`);
+  }
   const [pendingAction, setPendingAction] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -448,7 +456,12 @@ function AdminTasksToValidate() {
             const canValidate = task.status === 'DECLAREE';
             const selected = selectedIds.includes(task.id);
             return (
-              <div key={task.id} className={`validate-card${selected ? ' validate-card--selected' : ''}`}>
+              <div
+                key={task.id}
+                className={`validate-card${selected ? ' validate-card--selected' : ''}`}
+                onClick={(e) => openTaskFromCard(e, task.id)}
+                style={{ cursor: 'pointer' }}
+              >
                 <label className="validate-card-check" aria-label={`Sélectionner la tâche ${task.title}`}>
                   <input
                     type="checkbox"
@@ -460,7 +473,7 @@ function AdminTasksToValidate() {
 
                 <div className="validate-card-body">
                   <div className="validate-card-top">
-                    <button type="button" className="validate-card-title" onClick={() => setDetailTaskId(task.id)}>
+                    <button type="button" className="validate-card-title" onClick={() => navigate(`/tasks/${task.id}`)}>
                       {task.title}
                     </button>
                     <span className={`pill pill--${meta.pill}`}>{meta.label}</span>
