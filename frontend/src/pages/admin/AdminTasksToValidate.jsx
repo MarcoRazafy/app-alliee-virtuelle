@@ -7,7 +7,7 @@ import CommentSection from '../../components/CommentSection';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus } from '../../components/icons';
+import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus, IconTrash } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
@@ -147,12 +147,11 @@ function AdminTasksToValidate() {
   );
 
   const hasFilters = statusFilter || priorityFilter || employeeFilter || deadlineFilter;
-  const actionableFilteredTasks = filteredTasks.filter(isActionableTask);
   const selectedTasks = tasks.filter((task) => selectedIds.includes(task.id));
   const selectedDoneIds = selectedTasks.filter((task) => task.status === 'TERMINEE').map((task) => task.id);
   const selectedDeclaredIds = selectedTasks.filter((task) => task.status === 'DECLAREE').map((task) => task.id);
   const allVisibleSelected =
-    actionableFilteredTasks.length > 0 && actionableFilteredTasks.every((task) => selectedIds.includes(task.id));
+    filteredTasks.length > 0 && filteredTasks.every((task) => selectedIds.includes(task.id));
   const isProcessing = pendingAction !== null;
 
   function resetFilters() {
@@ -163,17 +162,18 @@ function AdminTasksToValidate() {
   }
 
   function toggleSelect(id) {
-    const task = tasks.find((item) => item.id === id);
-    if (!task || !isActionableTask(task) || isProcessing) return;
+    // On peut cocher N'IMPORTE QUELLE tâche (pour la suppression groupée) ; les actions
+    // valider/confirmer/renvoyer ne s'appliquent qu'au sous-ensemble concerné (déclarées/terminées).
+    if (isProcessing) return;
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function toggleSelectAll() {
     if (allVisibleSelected) {
-      const visibleIds = new Set(actionableFilteredTasks.map((task) => task.id));
+      const visibleIds = new Set(filteredTasks.map((task) => task.id));
       setSelectedIds((current) => current.filter((id) => !visibleIds.has(id)));
     } else {
-      setSelectedIds((current) => [...new Set([...current, ...actionableFilteredTasks.map((task) => task.id)])]);
+      setSelectedIds((current) => [...new Set([...current, ...filteredTasks.map((task) => task.id)])]);
     }
   }
 
@@ -221,6 +221,32 @@ function AdminTasksToValidate() {
     try { await taskService.validateTask(id); notifySuccess('Tâche validée'); await load(); }
     catch (err) { notifyError(err.response?.data?.error || 'Impossible de valider la tâche'); }
     finally { setPendingAction(null); }
+  }
+
+  // Suppression groupée : supprime toutes les tâches cochées (n'importe quel statut). Admin.
+  async function handleBulkDelete() {
+    if (selectedIds.length === 0 || isProcessing) return;
+    if (
+      !window.confirm(
+        `Supprimer définitivement ${selectedIds.length} tâche(s) ?\n\n` +
+          'Cette action est irréversible et supprime aussi leurs sous-tâches, commentaires, chronos et pièces jointes.'
+      )
+    ) {
+      return;
+    }
+    setPendingAction('bulk-delete');
+    try {
+      const results = await Promise.allSettled(selectedIds.map((id) => taskService.deleteTask(id)));
+      const outcome = bulkResultMessage(results, 'supprimée');
+      if (outcome.success) notifySuccess(outcome.message);
+      else notifyError(outcome.message);
+      setSelectedIds([]);
+      await load();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de supprimer les tâches');
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function handleBulkConfirm() {
@@ -363,9 +389,9 @@ function AdminTasksToValidate() {
             type="checkbox"
             checked={allVisibleSelected}
             onChange={toggleSelectAll}
-            disabled={actionableFilteredTasks.length === 0 || isProcessing}
+            disabled={filteredTasks.length === 0 || isProcessing}
           />
-          Sélectionner les tâches actionnables
+          Tout sélectionner
         </label>
         <span className="validate-count">
           {filteredTasks.length} tâche{filteredTasks.length > 1 ? 's' : ''}
@@ -405,6 +431,10 @@ function AdminTasksToValidate() {
               <IconArrowRight /> Valider ({selectedDeclaredIds.length})
             </button>
           )}
+          <button type="button" className="btn-danger validate-bulk-delete" onClick={handleBulkDelete} disabled={isProcessing}>
+            <IconTrash />
+            {pendingAction === 'bulk-delete' ? 'Suppression…' : `Supprimer (${selectedIds.length})`}
+          </button>
         </div>
       )}
 
@@ -419,18 +449,14 @@ function AdminTasksToValidate() {
             const selected = selectedIds.includes(task.id);
             return (
               <div key={task.id} className={`validate-card${selected ? ' validate-card--selected' : ''}`}>
-                {isActionableTask(task) ? (
-                  <label className="validate-card-check" aria-label={`Sélectionner la tâche ${task.title}`}>
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleSelect(task.id)}
-                      disabled={isProcessing}
-                    />
-                  </label>
-                ) : (
-                  <span className="validate-card-check validate-card-check--empty" aria-hidden="true" />
-                )}
+                <label className="validate-card-check" aria-label={`Sélectionner la tâche ${task.title}`}>
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => toggleSelect(task.id)}
+                    disabled={isProcessing}
+                  />
+                </label>
 
                 <div className="validate-card-body">
                   <div className="validate-card-top">
