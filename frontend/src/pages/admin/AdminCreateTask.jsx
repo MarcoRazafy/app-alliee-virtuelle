@@ -187,23 +187,12 @@ function AdminCreateTask() {
       if (!base.client_name) delete base.client_name;
       if (!base.client_email) delete base.client_email;
 
-      // Une tâche créée par employé sélectionné.
-      const results = await Promise.allSettled(
-        assignedIds.map((empId) => taskService.createTask({ ...base, assigned_to: empId }))
+      // UNE SEULE tâche, partagée par tous les employés sélectionnés (assignation multiple).
+      await taskService.createTask({ ...base, assignee_ids: assignedIds });
+      notifySuccess(
+        assignedIds.length === 1 ? 'Tâche créée' : `Tâche créée et assignée à ${assignedIds.length} personnes`
       );
-      const ok = results.filter((r) => r.status === 'fulfilled').length;
-      const failed = results.length - ok;
-
-      if (ok > 0) {
-        notifySuccess(ok === 1 ? 'Tâche créée' : `${ok} tâches créées`);
-        resetAll();
-      }
-      if (failed > 0) {
-        const firstError = results.find((r) => r.status === 'rejected')?.reason?.response?.data;
-        notifyError(
-          `${failed} tâche(s) non créée(s)` + (firstError?.error ? ` : ${firstError.error}` : '')
-        );
-      }
+      resetAll();
     } catch (err) {
       const data = err.response?.data;
       notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
@@ -301,7 +290,7 @@ function AdminCreateTask() {
               })}
             </div>
             {assignedIds.length > 1 && (
-              <p className="assignee-note">{assignedIds.length} tâches seront créées (une par employé).</p>
+              <p className="assignee-note">Une seule tâche, partagée par les {assignedIds.length} personnes sélectionnées.</p>
             )}
           </div>
         </section>

@@ -89,13 +89,16 @@ async function computeTeamStats(from, to) {
   // 2 requêtes groupées sur tous les employés plutôt que 2 requêtes par employé (N+1)
   const [taskStatsResult, hoursStatsResult, connStatsResult] = await Promise.all([
     db.query(
-      `SELECT assigned_to,
+      // Assignation multiple : on compte via task_assignees → une tâche partagée compte pour
+      // CHAQUE personne assignée (pas seulement l'assigné « principal »).
+      `SELECT ta.user_id AS assigned_to,
               COUNT(*)::INTEGER AS total_tasks,
-              COUNT(*) FILTER (WHERE status = 'CONFIRMEE')::INTEGER AS confirmed,
-              COUNT(*) FILTER (WHERE status = 'EN_COURS')::INTEGER AS in_progress,
-              COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'CONFIRMEE')::INTEGER AS late
-       FROM tasks WHERE deadline BETWEEN $1 AND $2
-       GROUP BY assigned_to`,
+              COUNT(*) FILTER (WHERE t.status = 'CONFIRMEE')::INTEGER AS confirmed,
+              COUNT(*) FILTER (WHERE t.status = 'EN_COURS')::INTEGER AS in_progress,
+              COUNT(*) FILTER (WHERE t.deadline < CURRENT_DATE AND t.status != 'CONFIRMEE')::INTEGER AS late
+       FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
+       WHERE t.deadline BETWEEN $1 AND $2
+       GROUP BY ta.user_id`,
       [from, to]
     ),
     db.query(
@@ -163,9 +166,10 @@ async function computeTeamStats(from, to) {
 async function computeEmployeeStats(employeeId, from, to) {
   const summaryResult = await db.query(
     `SELECT
-       COUNT(*) FILTER (WHERE status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
+       COUNT(*) FILTER (WHERE t.status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
        COUNT(*)::INTEGER AS total_tasks
-     FROM tasks WHERE assigned_to = $1 AND updated_at::date BETWEEN $2 AND $3`,
+     FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
+     WHERE ta.user_id = $1 AND t.updated_at::date BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
@@ -198,9 +202,10 @@ async function computeEmployeeStats(employeeId, from, to) {
   };
 
   const confirmedByDayResult = await db.query(
-    `SELECT updated_at::date AS date, COUNT(*)::INTEGER AS tasks_confirmed
-     FROM tasks WHERE assigned_to = $1 AND status = 'CONFIRMEE' AND updated_at::date BETWEEN $2 AND $3
-     GROUP BY updated_at::date`,
+    `SELECT t.updated_at::date AS date, COUNT(*)::INTEGER AS tasks_confirmed
+     FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
+     WHERE ta.user_id = $1 AND t.status = 'CONFIRMEE' AND t.updated_at::date BETWEEN $2 AND $3
+     GROUP BY t.updated_at::date`,
     [employeeId, from, to]
   );
   const hoursByDayResult = await db.query(

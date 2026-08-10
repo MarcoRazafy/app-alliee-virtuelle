@@ -2061,3 +2061,46 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Assignés multiples : chips (panneau Assignation) + liste de noms (méta de la fiche tâche). */
+.assignee-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.assignee-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.assignee-chip-x:hover {
+  color: var(--color-error);
+}
+.detail-assignees {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+}
