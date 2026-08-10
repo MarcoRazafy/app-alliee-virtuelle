@@ -194,16 +194,27 @@ function TaskDetail() {
     }
   }
 
-  // Ajoute la personne choisie = crée une copie de la tâche pour elle (l'originale ne change pas).
+  // Ajoute la personne choisie à la tâche (assignation multiple partagée).
   async function handleAddAssignee() {
     if (!pickAssignee) return;
     try {
       await taskService.addTaskAssignee(id, pickAssignee);
-      const emp = employees.find((e) => e.id === pickAssignee);
-      notifySuccess(`Copie de la tâche créée pour ${emp?.full_name || 'la personne'}`);
+      notifySuccess('Personne ajoutée à la tâche');
       setPickAssignee('');
+      await loadData();
     } catch (err) {
       notifyError(err.response?.data?.error || "Impossible d'ajouter la personne");
+    }
+  }
+
+  // Retire une personne de la tâche (impossible de retirer la dernière).
+  async function handleRemoveAssignee(userId) {
+    try {
+      await taskService.removeTaskAssignee(id, userId);
+      notifySuccess('Personne retirée');
+      await loadData();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de retirer la personne');
     }
   }
 
@@ -309,18 +320,28 @@ function TaskDetail() {
             <span className="detail-meta-label">Échéance</span>
             <span>{formatDate(task.deadline)}</span>
           </div>
-          {isAdmin && task.assigned_to && (
+          {isAdmin && (task.assignees?.length || task.assigned_to) && (
             <div className="detail-meta-item">
-              <span className="detail-meta-label">Assigné à</span>
-              <button
-                type="button"
-                className="app-link detail-assignee-link"
-                onClick={() => navigate('/admin/messaging', { state: { employeeId: task.assigned_to } })}
-                title={`Discuter avec ${task.assignee_name || "l'employé"}`}
-              >
-                {task.assignee_name || 'Employé'}
-                <IconArrowRight />
-              </button>
+              <span className="detail-meta-label">
+                {(task.assignees?.length || 1) > 1 ? 'Assignés à' : 'Assigné à'}
+              </span>
+              <span className="detail-assignees">
+                {(task.assignees && task.assignees.length
+                  ? task.assignees
+                  : [{ id: task.assigned_to, full_name: task.assignee_name || 'Employé' }]
+                ).map((a, i, arr) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="app-link detail-assignee-link"
+                    onClick={() => navigate('/admin/messaging', { state: { employeeId: a.id } })}
+                    title={`Discuter avec ${a.full_name}`}
+                  >
+                    {a.full_name}
+                    {i < arr.length - 1 ? ', ' : ''}
+                  </button>
+                ))}
+              </span>
             </div>
           )}
           {(task.client_name || task.client_email) && (
@@ -338,36 +359,56 @@ function TaskDetail() {
 
       {isAdmin && (
         <div className="side-card" style={{ marginBottom: '20px' }}>
-          <p className="side-card-title" style={{ marginBottom: '12px' }}>Assignation</p>
-          <p style={{ margin: '0 0 12px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-            Actuellement :{' '}
-            <strong style={{ color: 'var(--color-text-primary)' }}>{task.assignee_name || 'Employé'}</strong>
+          <p className="side-card-title" style={{ marginBottom: '12px' }}>
+            Assignation
+            <span className="emp-drawer-tab-count" style={{ marginLeft: '8px' }}>
+              {(task.assignees || []).length}
+            </span>
           </p>
+          <div className="assignee-chips">
+            {(task.assignees || []).map((a) => (
+              <span key={a.id} className="assignee-chip">
+                {a.full_name}
+                {(task.assignees || []).length > 1 && (
+                  <button
+                    type="button"
+                    className="assignee-chip-x"
+                    onClick={() => handleRemoveAssignee(a.id)}
+                    aria-label={`Retirer ${a.full_name}`}
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
           <select
             className="filter-select"
-            style={{ width: '100%', marginBottom: '10px' }}
+            style={{ width: '100%', margin: '12px 0 10px' }}
             value={pickAssignee}
             onChange={(e) => setPickAssignee(e.target.value)}
-            aria-label="Choisir une personne"
+            aria-label="Choisir une personne à ajouter ou transférer"
           >
-            <option value="">Choisir une personne…</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.full_name}
-              </option>
-            ))}
+            <option value="">Ajouter / transférer à…</option>
+            {employees
+              .filter((emp) => !(task.assignees || []).some((a) => a.id === emp.id))
+              .map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.full_name}
+                </option>
+              ))}
           </select>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button type="button" className="btn-outline" onClick={handleReassign} disabled={!pickAssignee}>
-              Transférer
-            </button>
             <button type="button" className="btn-primary" onClick={handleAddAssignee} disabled={!pickAssignee}>
-              + Ajouter une personne
+              + Ajouter
+            </button>
+            <button type="button" className="btn-outline" onClick={handleReassign} disabled={!pickAssignee}>
+              Transférer (seul)
             </button>
           </div>
           <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-            « Transférer » change la personne de cette tâche. « Ajouter » crée une <strong>copie</strong> de la
-            tâche pour la personne choisie (chacun garde sa propre tâche).
+            « Ajouter » : la personne <strong>partage</strong> cette tâche. « Transférer » : la tâche passe à cette
+            <strong> seule</strong> personne. Terminer la tâche la termine <strong>pour tout le monde</strong>.
           </p>
         </div>
       )}
