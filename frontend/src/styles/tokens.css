@@ -134,6 +134,18 @@ body {
   min-height: 100vh;
   background: var(--color-bg-primary);
   transition: background-color 0.2s ease;
+  /* Police globale (Montserrat) posée sur le body → héritée PARTOUT, y compris les modals
+     rendus via portail hors du .shell (annonces, etc.). */
+  font-family: var(--font-family);
+}
+
+/* Les éléments de formulaire n'héritent pas de la police par défaut : on les force à Montserrat. */
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
 }
 
 /* Bouton bascule thème — générique, réutilisable partout (auth pour l'instant,
