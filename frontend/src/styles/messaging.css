@@ -1891,8 +1891,8 @@
 .msgr-delete-btn svg { width: 17px; height: 17px; flex-shrink: 0; }
 .msgr-leave-btn { color: var(--color-text-secondary); }
 .msgr-leave-btn:hover { color: var(--color-text-primary); border-color: var(--color-accent-light); }
-.msgr-delete-btn { color: var(--color-error); border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border)); }
-.msgr-delete-btn:hover { background: color-mix(in srgb, var(--color-error) 12%, transparent); border-color: var(--color-error); }
+.msgr-delete-btn { color: #fff; background: var(--color-error); border-color: transparent; }
+.msgr-delete-btn:hover { filter: brightness(1.08); border-color: transparent; }
 
 /* --- Transfert de message : liste des destinations --- */
 .msgr-forward-list {
