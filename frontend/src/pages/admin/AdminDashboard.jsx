@@ -221,16 +221,20 @@ function AdminDashboard() {
             </span>
           </div>
         </div>
-        <div className="admin-kpi-card admin-kpi-card--red">
+        <Link
+          to="/admin/late"
+          className="admin-kpi-card admin-kpi-card--red admin-kpi-card--clickable"
+          title="Voir les tâches en retard"
+        >
           <span className="admin-kpi-icon">
             <IconAlert />
           </span>
           <div className="admin-kpi-copy">
             <p>Tâches en retard</p>
             <AnimatedNumber as="strong" value={data.stats.tasks_late} />
-            <span className="admin-kpi-hint">échéances dépassées</span>
+            <span className="admin-kpi-hint">échéances dépassées · voir</span>
           </div>
-        </div>
+        </Link>
       </div>
 
       {showInProgressPanel && (
