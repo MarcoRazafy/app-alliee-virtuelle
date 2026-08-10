@@ -163,7 +163,11 @@ function AdminListView() {
                         </thead>
                         <tbody>
                           {groupTasks.map((task) => (
-                            <tr key={task.id}>
+                            <tr
+                              key={task.id}
+                              onClick={() => navigate(`/tasks/${task.id}`)}
+                              style={{ cursor: 'pointer' }}
+                            >
                               <td>
                                 <Link to={`/tasks/${task.id}`} className="task-table-title">
                                   {task.title}
