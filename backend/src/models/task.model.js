@@ -14,7 +14,11 @@ const TASK_STATUS = {
 // DECLAREE n'est pas encore visible à l'employé (DECISIONS.md)
 async function findAssignedTasks(userId, { status, priority, deadline, listId } = {}) {
   // Les propositions DECLAREE restent masquées jusqu'à l'approbation admin.
-  const conditions = ['assigned_to = $1', "status != 'DECLAREE'"];
+  // L'employé voit une tâche s'il fait partie de ses assignés (assignation multiple).
+  const conditions = [
+    'EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $1)',
+    "status != 'DECLAREE'",
+  ];
   const params = [userId];
 
   if (status) {
@@ -77,7 +81,9 @@ async function findAllTasks({ status, priority, deadline, listId, activeOnly = f
     `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.assigned_to, t.list_id,
             t.parent_task_id, t.client_name, t.client_email, t.updated_at,
             CASE WHEN t.status = 'CONFIRMEE' THEN t.updated_at + INTERVAL '5 days' END AS auto_hide_at,
-            u.full_name AS assigned_to_name
+            u.full_name AS assigned_to_name,
+            COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name) ORDER BY au.full_name)
+                      FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
      ${where}
@@ -91,7 +97,9 @@ async function findById(taskId) {
   const result = await db.query(
     `SELECT t.id, t.title, t.description, t.assigned_to, t.created_by, t.priority, t.status,
             t.start_date, t.deadline, t.list_id, t.parent_task_id, t.client_name, t.client_email,
-            u.full_name AS assignee_name
+            u.full_name AS assignee_name,
+            COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name) ORDER BY au.full_name)
+                      FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees
      FROM tasks t
      LEFT JOIN users u ON u.id = t.assigned_to
      WHERE t.id = $1`,
@@ -104,6 +112,7 @@ async function create({
   title,
   description,
   assignedTo,
+  assigneeIds, // liste optionnelle (assignation multiple) ; sinon on retombe sur assignedTo
   createdBy,
   priority,
   deadline,
@@ -114,29 +123,79 @@ async function create({
   clientEmail,
   status,
 }) {
+  // Source de vérité des personnes : assigneeIds si fourni, sinon [assignedTo]. Le 1er sert
+  // d'assigné « principal » (colonne assigned_to, gardée pour la compatibilité), et TOUS sont
+  // écrits dans task_assignees. Tâche + assignés créés de façon atomique (transaction).
+  const assignees = [...new Set((assigneeIds && assigneeIds.length ? assigneeIds : [assignedTo]).filter(Boolean))];
+  const primary = assignees[0] || assignedTo;
+  return db.withTransaction(async (client) => {
+    const result = await client.query(
+      `INSERT INTO tasks (
+         title, description, assigned_to, created_by, priority, deadline, start_date, status,
+         list_id, parent_task_id, client_name, client_email
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, status`,
+      [
+        title,
+        description,
+        primary,
+        createdBy,
+        priority,
+        deadline,
+        startDate || null,
+        status || TASK_STATUS.DECLARED,
+        listId || null,
+        parentTaskId || null,
+        clientName || null,
+        clientEmail || null,
+      ]
+    );
+    const task = result.rows[0];
+    for (const uid of assignees) {
+      await client.query(
+        `INSERT INTO task_assignees (task_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [task.id, uid]
+      );
+    }
+    return task;
+  });
+}
+
+// --- Assignés multiples (task_assignees) ---
+
+// Liste des personnes assignées à une tâche (id + nom), triées par nom.
+async function getAssignees(taskId) {
   const result = await db.query(
-    `INSERT INTO tasks (
-       title, description, assigned_to, created_by, priority, deadline, start_date, status,
-       list_id, parent_task_id, client_name, client_email
-     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     RETURNING id, status`,
-    [
-      title,
-      description,
-      assignedTo,
-      createdBy,
-      priority,
-      deadline,
-      startDate || null,
-      status || TASK_STATUS.DECLARED,
-      listId || null,
-      parentTaskId || null,
-      clientName || null,
-      clientEmail || null,
-    ]
+    `SELECT u.id, u.full_name
+       FROM task_assignees ta JOIN users u ON u.id = ta.user_id
+      WHERE ta.task_id = $1
+      ORDER BY u.full_name`,
+    [taskId]
   );
-  return result.rows[0];
+  return result.rows;
+}
+
+// L'utilisateur est-il assigné à la tâche ? (source de vérité pour les permissions)
+async function isAssignee(taskId, userId) {
+  const result = await db.query(
+    `SELECT 1 FROM task_assignees WHERE task_id = $1 AND user_id = $2`,
+    [taskId, userId]
+  );
+  return result.rowCount > 0;
+}
+
+// Ajoute une personne à une tâche (sans doublon). Met à jour assigned_to si vide.
+async function addAssignee(taskId, userId, client = db) {
+  await client.query(
+    `INSERT INTO task_assignees (task_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    [taskId, userId]
+  );
+}
+
+// Retire une personne d'une tâche.
+async function removeAssignee(taskId, userId, client = db) {
+  await client.query(`DELETE FROM task_assignees WHERE task_id = $1 AND user_id = $2`, [taskId, userId]);
 }
 
 // Sous-tâches d'une tâche parente
@@ -637,6 +696,10 @@ module.exports = {
   getTaskDetail,
   updateStatus,
   updateAssignee,
+  getAssignees,
+  isAssignee,
+  addAssignee,
+  removeAssignee,
   recordHistory,
   recordAudit,
   findActiveSessionForEmployee,
