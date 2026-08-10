@@ -5,10 +5,18 @@ const userModel = require('../models/user.model');
 const extraTaskRequestModel = require('../models/extraTaskRequest.model');
 const { isValidTitle, isValidPriority, isTodayOrFuture, isValidEmail } = require('../utils/validators');
 
+// L'utilisateur est-il l'un des assignés de la tâche ? (task issu de findById → contient `assignees`)
+// Repli sur assigned_to si la liste n'est pas chargée, pour ne jamais être moins permissif qu'avant.
+function isTaskAssignee(task, userId) {
+  if (!task) return false;
+  if (task.assigned_to === userId) return true;
+  return Array.isArray(task.assignees) && task.assignees.some((a) => a.id === userId);
+}
+
 function canAccessTask(task, user) {
   if (user.role === 'ADMIN') return true;
   if (task.status === taskModel.TASK_STATUS.DECLARED) return false;
-  return task.assigned_to === user.id;
+  return isTaskAssignee(task, user.id);
 }
 
 function todayDateString() {
@@ -36,7 +44,7 @@ async function getTask(req, res, next) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
 
-    const isOwner = task.assigned_to === req.user.id;
+    const isOwner = isTaskAssignee(task, req.user.id);
     const isAdmin = req.user.role === 'ADMIN';
     if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) return res.status(404).json({ error: 'Tâche introuvable' });
     if (!isOwner && !isAdmin) {
@@ -52,6 +60,7 @@ async function getTask(req, res, next) {
       deadline: task.deadline,
       assigned_to: task.assigned_to,
       assignee_name: task.assignee_name,
+      assignees: task.assignees || [],
       client_name: task.client_name,
       client_email: task.client_email,
     });
@@ -69,8 +78,7 @@ async function validateTask(req, res, next) {
   } catch (err) { return next(err); }
 }
 
-// Réassigne (transfère) une tâche existante à une autre personne : change le destinataire.
-// L'ancien assigné ne l'a plus, le nouveau la voit avec son statut actuel. Admin uniquement.
+// Transfère la tâche à UNE seule personne : remplace tous les assignés par elle. Admin uniquement.
 async function reassignTask(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
@@ -78,29 +86,21 @@ async function reassignTask(req, res, next) {
 
     const newAssigneeId = req.body.assigned_to;
     if (!newAssigneeId) return res.status(400).json({ error: 'assigned_to est requis' });
-    if (newAssigneeId === task.assigned_to) {
-      return res.status(400).json({ error: 'La tâche est déjà assignée à cette personne' });
-    }
     const assignee = await userModel.findById(newAssigneeId);
     if (!assignee) return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
 
-    // Si l'ancien assigné chronométrait la tâche, on ferme sa session (pas de minuteur fantôme).
-    const activeSession = await taskModel.findActiveSessionForTask(task.id, task.assigned_to);
-    if (activeSession) await taskModel.stopSession(activeSession.id);
-
+    // Ferme les minuteurs en cours des anciens assignés (pas de minuteur fantôme).
+    for (const a of task.assignees && task.assignees.length ? task.assignees : [{ id: task.assigned_to }]) {
+      const s = await taskModel.findActiveSessionForTask(task.id, a.id);
+      if (s) await taskModel.stopSession(s.id);
+    }
+    await taskModel.setAssignees(task.id, [newAssigneeId]);
     await taskModel.updateAssignee(task.id, newAssigneeId);
     // Une tâche déjà démarrée repart « À faire » pour que le nouvel arrivant commence proprement.
     let newStatus = task.status;
     if (task.status === taskModel.TASK_STATUS.IN_PROGRESS || task.status === 'EN_PAUSE') {
       newStatus = (await taskModel.updateStatus(task.id, taskModel.TASK_STATUS.VALIDATED)).status;
     }
-    await taskModel.recordHistory({
-      taskId: task.id,
-      fieldChanged: 'assigned_to',
-      oldValue: task.assigned_to,
-      newValue: newAssigneeId,
-      changedBy: req.user.id,
-    });
     await taskModel.recordAudit({
       userId: req.user.id,
       action: 'REASSIGN_TASK',
@@ -108,14 +108,15 @@ async function reassignTask(req, res, next) {
       entityId: task.id,
       details: { title: task.title, to: newAssigneeId },
     });
-    return res.status(200).json({ id: task.id, assigned_to: newAssigneeId, status: newStatus });
+    return res
+      .status(200)
+      .json({ id: task.id, assigned_to: newAssigneeId, status: newStatus, assignees: await taskModel.getAssignees(task.id) });
   } catch (err) {
     return next(err);
   }
 }
 
-// Ajoute une personne à une tâche = crée une COPIE de la tâche pour un autre employé
-// (modèle « une personne par tâche »). La copie repart au statut Validée. Admin uniquement.
+// Ajoute une personne à la tâche = même tâche PARTAGÉE (assignation multiple). Admin uniquement.
 async function addTaskAssignee(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
@@ -125,29 +126,57 @@ async function addTaskAssignee(req, res, next) {
     if (!newAssigneeId) return res.status(400).json({ error: 'assigned_to est requis' });
     const assignee = await userModel.findById(newAssigneeId);
     if (!assignee) return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
+    if (isTaskAssignee(task, newAssigneeId)) {
+      return res.status(400).json({ error: 'Cette personne est déjà assignée à la tâche' });
+    }
 
-    const copy = await taskModel.create({
-      title: task.title,
-      description: task.description,
-      assignedTo: newAssigneeId,
-      createdBy: req.user.id,
-      priority: task.priority,
-      deadline: task.deadline,
-      startDate: task.start_date,
-      listId: task.list_id,
-      parentTaskId: task.parent_task_id,
-      clientName: task.client_name,
-      clientEmail: task.client_email,
-      status: taskModel.TASK_STATUS.VALIDATED,
-    });
+    await taskModel.addAssignee(task.id, newAssigneeId);
     await taskModel.recordAudit({
       userId: req.user.id,
-      action: 'CREATE_TASK',
+      action: 'REASSIGN_TASK',
       entityType: 'task',
-      entityId: copy.id,
-      details: { title: task.title, assigned_to: newAssigneeId },
+      entityId: task.id,
+      details: { title: task.title, added: newAssigneeId },
     });
-    return res.status(201).json(copy);
+    return res.status(200).json({ id: task.id, assignees: await taskModel.getAssignees(task.id) });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// Retire une personne de la tâche. On refuse de retirer la dernière (une tâche a ≥ 1 assigné).
+// Si on retire l'assigné « principal », on bascule assigned_to vers un autre restant. Admin uniquement.
+async function removeTaskAssignee(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+
+    const userId = req.params.userId || req.body.user_id;
+    if (!userId) return res.status(400).json({ error: 'user_id est requis' });
+    const current = task.assignees || [];
+    if (!current.some((a) => a.id === userId)) {
+      return res.status(400).json({ error: "Cette personne n'est pas assignée à la tâche" });
+    }
+    if (current.length <= 1) {
+      return res.status(400).json({ error: 'Impossible de retirer la dernière personne (une tâche doit avoir au moins un assigné)' });
+    }
+
+    const s = await taskModel.findActiveSessionForTask(task.id, userId);
+    if (s) await taskModel.stopSession(s.id);
+
+    await taskModel.removeAssignee(task.id, userId);
+    if (task.assigned_to === userId) {
+      const remaining = current.find((a) => a.id !== userId);
+      if (remaining) await taskModel.updateAssignee(task.id, remaining.id);
+    }
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'REASSIGN_TASK',
+      entityType: 'task',
+      entityId: task.id,
+      details: { title: task.title, removed: userId },
+    });
+    return res.status(200).json({ id: task.id, assignees: await taskModel.getAssignees(task.id) });
   } catch (err) {
     return next(err);
   }
@@ -167,6 +196,7 @@ async function getTaskDetail(req, res, next) {
     }
 
     const detail = await taskModel.getTaskDetail(id);
+    detail.assignees = task.assignees || []; // liste complète des personnes (assignation multiple)
     // Une sous-tâche DECLAREE n'est pas plus visible à l'employé que sa tâche parente (DECISIONS.md)
     if (!isAdmin) {
       detail.subtasks = detail.subtasks.filter((s) => s.status !== taskModel.TASK_STATUS.DECLARED);
@@ -205,6 +235,7 @@ async function createTask(req, res, next) {
       title,
       description,
       assigned_to,
+      assignee_ids: assigneeIdsRaw,
       priority,
       deadline,
       start_date,
@@ -215,24 +246,31 @@ async function createTask(req, res, next) {
     } = req.body;
     const isAdmin = req.user.role === 'ADMIN';
 
-    // Un employé ne peut créer une tâche que pour lui-même ; l'admin assigne librement.
-    const targetAssignee = isAdmin ? assigned_to : req.user.id;
+    // Liste des assignés : l'admin peut en mettre PLUSIEURS (assignee_ids, ou assigned_to seul) ;
+    // un employé ne crée une tâche que pour lui-même. Le 1er est l'assigné « principal ».
+    const assigneeList = isAdmin
+      ? [...new Set((Array.isArray(assigneeIdsRaw) && assigneeIdsRaw.length ? assigneeIdsRaw : [assigned_to]).filter(Boolean))]
+      : [req.user.id];
+    const targetAssignee = assigneeList[0];
 
     const errors = [];
 
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!isTodayOrFuture(deadline)) errors.push("La deadline ne peut pas être dans le passé (aujourd'hui accepté)");
-    if (isAdmin && !assigned_to) errors.push('assigned_to est requis');
+    if (isAdmin && assigneeList.length === 0) errors.push('Au moins une personne à assigner est requise');
     if (isAdmin && clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
 
     if (errors.length > 0) {
       return res.status(400).json({ errors });
     }
 
-    const assignee = await userModel.findById(targetAssignee);
-    if (!assignee) {
-      return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
+    // Vérifie que chaque personne assignée existe.
+    for (const uid of assigneeList) {
+      // eslint-disable-next-line no-await-in-loop
+      if (!(await userModel.findById(uid))) {
+        return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
+      }
     }
 
     // list_id et parent_task_id sont optionnels (tâche "libre" hors hiérarchie)
@@ -251,6 +289,7 @@ async function createTask(req, res, next) {
       title,
       description,
       assignedTo: targetAssignee,
+      assigneeIds: assigneeList,
       createdBy: req.user.id,
       priority,
       deadline,
@@ -297,7 +336,7 @@ async function startTimelog(req, res, next) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
     // L'employé assigné OU un admin peut chronométrer la tâche (le total additionne les deux).
-    if (task.assigned_to !== req.user.id && req.user.role !== 'ADMIN') {
+    if (!isTaskAssignee(task, req.user.id) && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
     // VALIDEE/TERMINEE : premier démarrage ou redémarrage après complétion.
@@ -343,7 +382,7 @@ async function startTimelog(req, res, next) {
 
       // L'admin peut chronométrer sans faire avancer le workflow de l'employé : on ne change
       // le statut (→ EN_COURS) que lorsque c'est l'employé assigné qui démarre.
-      if (!isResuming && req.user.id === task.assigned_to) {
+      if (!isResuming && isTaskAssignee(task, req.user.id)) {
         await taskModel.updateStatus(taskId, taskModel.TASK_STATUS.IN_PROGRESS, client);
         await taskModel.recordHistory(
           {
@@ -391,7 +430,7 @@ async function stopTimelog(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (task.assigned_to !== req.user.id && req.user.role !== 'ADMIN') {
+    if (!isTaskAssignee(task, req.user.id) && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
 
@@ -438,7 +477,7 @@ async function getTimelogHistory(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (task.assigned_to !== req.user.id && req.user.role !== 'ADMIN') {
+    if (!isTaskAssignee(task, req.user.id) && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -484,7 +523,7 @@ async function setMyDay(req, res, next) {
     // Vérifie que chaque tâche est bien assignée à l'employé avant de l'ajouter à sa sélection
     for (const taskId of taskIds) {
       const task = await taskModel.findById(taskId);
-      if (!task || task.assigned_to !== req.user.id) {
+      if (!task || !isTaskAssignee(task, req.user.id)) {
         return res.status(400).json({ error: `Tâche ${taskId} invalide ou non assignée` });
       }
     }
@@ -551,7 +590,7 @@ async function completeTask(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (task.assigned_to !== req.user.id) {
+    if (!isTaskAssignee(task, req.user.id)) {
       return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
     if (task.status !== taskModel.TASK_STATUS.IN_PROGRESS) {
@@ -979,7 +1018,7 @@ async function createExtraTaskRequest(req, res, next) {
     }
 
     const task = await taskModel.findById(taskId);
-    if (!task || task.assigned_to !== req.user.id) {
+    if (!task || !isTaskAssignee(task, req.user.id)) {
       return res.status(400).json({ error: 'Tâche invalide ou non assignée' });
     }
     // On ne demande que des tâches encore actionnables (pas déjà terminées/confirmées).
@@ -1101,6 +1140,7 @@ module.exports = {
   deleteTask,
   reassignTask,
   addTaskAssignee,
+  removeTaskAssignee,
   addManualTimelog,
   getActiveTask,
 };

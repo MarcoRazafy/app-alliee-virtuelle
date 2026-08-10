@@ -198,6 +198,17 @@ async function removeAssignee(taskId, userId, client = db) {
   await client.query(`DELETE FROM task_assignees WHERE task_id = $1 AND user_id = $2`, [taskId, userId]);
 }
 
+// Remplace TOUS les assignés d'une tâche par la liste donnée (utilisé pour un transfert).
+async function setAssignees(taskId, userIds, client = db) {
+  await client.query(`DELETE FROM task_assignees WHERE task_id = $1`, [taskId]);
+  for (const uid of [...new Set(userIds.filter(Boolean))]) {
+    await client.query(
+      `INSERT INTO task_assignees (task_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [taskId, uid]
+    );
+  }
+}
+
 // Sous-tâches d'une tâche parente
 async function findSubtasks(parentTaskId) {
   const result = await db.query(
@@ -700,6 +711,7 @@ module.exports = {
   isAssignee,
   addAssignee,
   removeAssignee,
+  setAssignees,
   recordHistory,
   recordAudit,
   findActiveSessionForEmployee,

@@ -56,9 +56,10 @@ router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskContr
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);
 router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.getNotes);
 router.post('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.createNote);
-// Réassignation (admin) : transférer la tâche à une autre personne, ou ajouter une personne (copie).
+// Assignation (admin) : transférer à une seule personne, ajouter une personne, ou en retirer une.
 router.post('/tasks/:id/reassign', authMiddleware.requireRole('ADMIN'), taskController.reassignTask);
 router.post('/tasks/:id/add-assignee', authMiddleware.requireRole('ADMIN'), taskController.addTaskAssignee);
+router.delete('/tasks/:id/assignees/:userId', authMiddleware.requireRole('ADMIN'), taskController.removeTaskAssignee);
 
 // Suppression d'une tâche (admin) : supprime aussi ses sous-tâches, commentaires, chronos… (CASCADE).
 router.delete('/tasks/:id', authMiddleware.requireRole('ADMIN'), taskController.deleteTask);
