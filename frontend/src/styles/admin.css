@@ -1701,15 +1701,15 @@
 }
 
 .lists-delete-project-btn {
-  border: 1px solid color-mix(in srgb, var(--color-error) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-error) 10%, transparent);
-  color: var(--color-error);
+  border: none;
+  background: var(--color-error);
+  color: #fff;
 }
 
 .lists-delete-project-btn:hover,
 .lists-delete-project-btn:focus-visible {
-  border-color: var(--color-error);
-  background: color-mix(in srgb, var(--color-error) 18%, transparent);
+  filter: brightness(1.08);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-error) 32%, transparent);
 }
 
 .lists-delete-project-btn:disabled {
