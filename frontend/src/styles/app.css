@@ -514,6 +514,18 @@
   transition: color 0.15s ease;
 }
 
+/* Aligne icône + texte quand le lien contient une icône (ex. « Voir toutes les tâches → »). */
+.app-link:has(svg) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.app-link svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
 .app-link:hover {
   color: var(--color-text-primary);
   text-decoration: underline;
