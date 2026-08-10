@@ -302,38 +302,42 @@ function Dashboard() {
         <div className="workspace-side">
           <div className="side-card">
             <div className="side-card-header">
-              <p className="side-card-title">Activité récente</p>
+              <p className="side-card-title">Accès rapides</p>
             </div>
-            {activity.length === 0 && <div className="empty-state">Aucune activité récente.</div>}
-            {activity.map((entry, index) => {
-              const meta = ACTIVITY_META[entry.action];
-              if (!meta) return null;
-              const Icon = meta.icon;
-              return (
-                <div key={index} className="activity-item">
-                  <span className={`activity-icon activity-icon--${meta.variant}`}>
+            <div className="quick-grid">
+              {QUICK_LINKS.map(({ to, label, icon: Icon, badgeKey }) => (
+                <Link key={to} to={to} className="quick-card">
+                  <span className="quick-card-icon">
                     <Icon />
                   </span>
-                  <span className="activity-text">{meta.label(entry)}</span>
-                  <span className="activity-time">{formatRelativeTime(entry.timestamp)}</span>
-                </div>
-              );
-            })}
+                  <span className="quick-card-label">{label}</span>
+                  {badgeKey === 'messages' && unreadCount > 0 && <span className="quick-card-badge">{unreadCount}</span>}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <p className="app-section-title">Accès rapides</p>
-      <div className="quick-grid">
-        {QUICK_LINKS.map(({ to, label, icon: Icon, badgeKey }) => (
-          <Link key={to} to={to} className="quick-card">
-            <span className="quick-card-icon">
-              <Icon />
-            </span>
-            <span className="quick-card-label">{label}</span>
-            {badgeKey === 'messages' && unreadCount > 0 && <span className="quick-card-badge">{unreadCount}</span>}
-          </Link>
-        ))}
+      <div className="side-card">
+        <div className="side-card-header">
+          <p className="side-card-title">Activité récente</p>
+        </div>
+        {activity.length === 0 && <div className="empty-state">Aucune activité récente.</div>}
+        {activity.map((entry, index) => {
+          const meta = ACTIVITY_META[entry.action];
+          if (!meta) return null;
+          const Icon = meta.icon;
+          return (
+            <div key={index} className="activity-item">
+              <span className={`activity-icon activity-icon--${meta.variant}`}>
+                <Icon />
+              </span>
+              <span className="activity-text">{meta.label(entry)}</span>
+              <span className="activity-time">{formatRelativeTime(entry.timestamp)}</span>
+            </div>
+          );
+        })}
       </div>
     </EmployeeLayout>
   );
