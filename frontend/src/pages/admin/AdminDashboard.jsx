@@ -68,6 +68,9 @@ function AdminDashboard() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [avatarUrls, setAvatarUrls] = useState({});
+  // Raccourcis des cartes KPI : filtrer les employés actifs / afficher le panneau des tâches en cours.
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [showInProgressPanel, setShowInProgressPanel] = useState(false);
 
   function load() {
     setRefreshing(true);
@@ -119,6 +122,7 @@ function AdminDashboard() {
     setStatusFilter('');
     setPriorityFilter('');
     setQuery('');
+    setActiveOnly(false);
   }
 
   const showTodo = !statusFilter || statusFilter === 'VALIDEE';
@@ -132,15 +136,26 @@ function AdminDashboard() {
   const visibleEmployees = useMemo(() => {
     if (!data) return [];
     const q = query.trim().toLowerCase();
-    return data.employees.filter((employee) => !q || employee.full_name.toLowerCase().includes(q));
-  }, [data, query]);
+    return data.employees.filter(
+      (employee) =>
+        (!q || employee.full_name.toLowerCase().includes(q)) && (!activeOnly || employee.is_connected)
+    );
+  }, [data, query, activeOnly]);
+
+  // Toutes les tâches en cours (aplaties depuis les employés), pour le panneau « Tâches en cours ».
+  const inProgressTasks = useMemo(() => {
+    if (!data) return [];
+    return data.employees.flatMap((employee) =>
+      (employee.in_progress || []).map((task) => ({ ...task, employee_name: employee.full_name }))
+    );
+  }, [data]);
 
   if (!data) {
     return <PageSkeleton variant="dashboard" />;
   }
 
   const activeCount = data.stats.active_employees;
-  const hasFilters = statusFilter || priorityFilter || query.trim();
+  const hasFilters = statusFilter || priorityFilter || query.trim() || activeOnly;
 
   return (
     <div className="admin-dash">
@@ -168,24 +183,42 @@ function AdminDashboard() {
       </div>
 
       <div className="admin-kpi-grid">
-        <div className="admin-kpi-card admin-kpi-card--green">
+        <div
+          className={`admin-kpi-card admin-kpi-card--green admin-kpi-card--clickable${activeOnly ? ' admin-kpi-card--on' : ''}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => setActiveOnly((v) => !v)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveOnly((v) => !v); } }}
+          title="Filtrer les employés actifs"
+        >
           <span className="admin-kpi-icon">
             <IconWorkspace />
           </span>
           <div className="admin-kpi-copy">
             <p>Employés actifs</p>
             <AnimatedNumber as="strong" value={activeCount} />
-            <span className="admin-kpi-hint">connectés en ce moment</span>
+            <span className="admin-kpi-hint">
+              {activeOnly ? 'filtre actif · clic pour tout voir' : 'connectés en ce moment'}
+            </span>
           </div>
         </div>
-        <div className="admin-kpi-card admin-kpi-card--blue">
+        <div
+          className={`admin-kpi-card admin-kpi-card--blue admin-kpi-card--clickable${showInProgressPanel ? ' admin-kpi-card--on' : ''}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowInProgressPanel((v) => !v)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowInProgressPanel((v) => !v); } }}
+          title="Voir les tâches en cours"
+        >
           <span className="admin-kpi-icon">
             <IconPlay />
           </span>
           <div className="admin-kpi-copy">
             <p>Tâches en cours</p>
             <AnimatedNumber as="strong" value={data.stats.tasks_in_progress} />
-            <span className="admin-kpi-hint">chronos démarrés</span>
+            <span className="admin-kpi-hint">
+              {showInProgressPanel ? 'clic pour masquer' : 'chronos démarrés · clic pour voir'}
+            </span>
           </div>
         </div>
         <div className="admin-kpi-card admin-kpi-card--red">
@@ -199,6 +232,30 @@ function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {showInProgressPanel && (
+        <div className="side-card inprogress-panel">
+          <div className="side-card-header">
+            <p className="side-card-title">Tâches en cours · {inProgressTasks.length}</p>
+            <Link to="/admin/validate" className="app-link">
+              Voir toutes les tâches <IconArrowRight />
+            </Link>
+          </div>
+          {inProgressTasks.length === 0 ? (
+            <div className="empty-state">Aucune tâche en cours pour le moment.</div>
+          ) : (
+            <div className="inprogress-list">
+              {inProgressTasks.map((task) => (
+                <Link key={task.id} to={`/tasks/${task.id}`} className="inprogress-item">
+                  <span className="inprogress-item-title">{task.title}</span>
+                  <span className="inprogress-item-emp">{task.employee_name}</span>
+                  {task.session_start_time && <LiveClock startTime={task.session_start_time} />}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="admin-filter-bar">
         <div className="filter-search admin-filter-search">
