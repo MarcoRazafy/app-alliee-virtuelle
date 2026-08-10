@@ -242,19 +242,6 @@ function Dashboard() {
         </div>
       </div>
 
-      <p className="app-section-title">Accès rapides</p>
-      <div className="quick-grid">
-        {QUICK_LINKS.map(({ to, label, icon: Icon, badgeKey }) => (
-          <Link key={to} to={to} className="quick-card">
-            <span className="quick-card-icon">
-              <Icon />
-            </span>
-            <span className="quick-card-label">{label}</span>
-            {badgeKey === 'messages' && unreadCount > 0 && <span className="quick-card-badge">{unreadCount}</span>}
-          </Link>
-        ))}
-      </div>
-
       <div className="workspace-grid">
         <div className="workspace-main">
           <div className="side-card">
@@ -334,6 +321,19 @@ function Dashboard() {
             })}
           </div>
         </div>
+      </div>
+
+      <p className="app-section-title">Accès rapides</p>
+      <div className="quick-grid">
+        {QUICK_LINKS.map(({ to, label, icon: Icon, badgeKey }) => (
+          <Link key={to} to={to} className="quick-card">
+            <span className="quick-card-icon">
+              <Icon />
+            </span>
+            <span className="quick-card-label">{label}</span>
+            {badgeKey === 'messages' && unreadCount > 0 && <span className="quick-card-badge">{unreadCount}</span>}
+          </Link>
+        ))}
       </div>
     </EmployeeLayout>
   );
