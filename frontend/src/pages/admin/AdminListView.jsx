@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import HierarchyTree from '../../components/admin/HierarchyTree';
 import * as taskService from '../../services/taskService';
 import * as hierarchyService from '../../services/hierarchyService';
@@ -21,6 +21,7 @@ const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAI
 
 function AdminListView() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedListId, setSelectedListId] = useState(null);
   const [selectedList, setSelectedList] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -39,6 +40,13 @@ function AdminListView() {
     setSelectedList(list);
     loadTasks(listId);
   }
+
+  // Pré-sélection d'une liste quand on arrive depuis le chemin d'une tâche (state.selectList).
+  useEffect(() => {
+    const pre = location.state?.selectList;
+    if (pre?.id) handleSelectList(pre.id, pre);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   // Ajouter une tâche = ouvrir le formulaire complet avec l'emplacement pré-rempli (modifiable).
   function goToCreateTask(list) {

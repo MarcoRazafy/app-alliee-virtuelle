@@ -7,7 +7,7 @@ import CommentSection from '../../components/CommentSection';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus, IconTrash } from '../../components/icons';
+import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus, IconTrash, IconLayers } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
@@ -499,6 +499,30 @@ function AdminTasksToValidate() {
                     <span className="validate-meta-sep" />
                     <span>Échéance : {task.deadline ? formatDate(task.deadline) : '—'}</span>
                   </div>
+
+                  {task.list_name && (
+                    <button
+                      type="button"
+                      className="validate-project-path"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/admin/lists', {
+                          state: {
+                            selectList: {
+                              id: task.list_id,
+                              name: task.list_name,
+                              folderId: task.folder_id,
+                              spaceId: task.space_id,
+                            },
+                          },
+                        });
+                      }}
+                      title="Ouvrir ce projet"
+                    >
+                      <IconLayers />
+                      {task.space_name} › {task.folder_name} › {task.list_name}
+                    </button>
+                  )}
 
                   {canValidate && (
                     <div className="validate-card-actions"><button type="button" className="validate-action-confirm" onClick={() => handleValidateOne(task.id)} disabled={isProcessing}><IconArrowRight /> Valider</button></div>

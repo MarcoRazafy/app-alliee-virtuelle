@@ -82,10 +82,14 @@ async function findAllTasks({ status, priority, deadline, listId, activeOnly = f
             t.parent_task_id, t.client_name, t.client_email, t.updated_at,
             CASE WHEN t.status = 'CONFIRMEE' THEN t.updated_at + INTERVAL '5 days' END AS auto_hide_at,
             u.full_name AS assigned_to_name,
+            tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name, ts.id AS space_id, ts.name AS space_name,
             COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name) ORDER BY au.full_name)
                       FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
+     LEFT JOIN task_lists tl ON tl.id = t.list_id
+     LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+     LEFT JOIN task_spaces ts ON ts.id = tf.space_id
      ${where}
      ORDER BY t.deadline ASC`,
     params
