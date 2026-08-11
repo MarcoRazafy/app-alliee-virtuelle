@@ -12,6 +12,10 @@ import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconPlay, IconStop, IconCheckCircle, IconArrowRight, IconTrash } from '../components/icons';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { createPortal } from 'react-dom';
+import RichTextEditor from '../components/RichTextEditor';
+
+const EDIT_PRIORITIES = ['FAIBLE', 'NORMALE', 'HAUTE', 'URGENT'];
 
 function TaskDetail() {
   const { id } = useParams();
@@ -34,6 +38,10 @@ function TaskDetail() {
   // Réassignation (admin) : liste des employés + personne choisie pour transférer/ajouter.
   const [employees, setEmployees] = useState([]);
   const [pickAssignee, setPickAssignee] = useState('');
+  // Édition d'une tâche (admin) : modal + brouillon des champs.
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '', priority: 'NORMALE', deadline: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -219,6 +227,46 @@ function TaskDetail() {
     }
   }
 
+  // Ouvre le modal d'édition avec les valeurs actuelles de la tâche.
+  function openEdit() {
+    setEditForm({
+      title: task.title || '',
+      description: task.description || '',
+      priority: task.priority || 'NORMALE',
+      deadline: task.deadline ? String(task.deadline).slice(0, 10) : '',
+    });
+    setEditOpen(true);
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (!editForm.title.trim()) {
+      notifyError('Le titre est requis');
+      return;
+    }
+    if (!editForm.deadline) {
+      notifyError("L'échéance est requise");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await taskService.updateTask(id, {
+        title: editForm.title.trim(),
+        description: editForm.description,
+        priority: editForm.priority,
+        deadline: editForm.deadline,
+      });
+      notifySuccess('Tâche modifiée');
+      setEditOpen(false);
+      await loadData();
+    } catch (err) {
+      const data = err.response?.data;
+      notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de modifier la tâche');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   async function handleAddSubtask(e) {
     e.preventDefault();
     if (!newSubtaskTitle.trim() || !newSubtaskDeadline) {
@@ -288,6 +336,9 @@ function TaskDetail() {
                 ↻ Refaire
               </button>
             )}
+            <button type="button" className="btn-outline" onClick={openEdit}>
+              ✎ Modifier
+            </button>
             <button type="button" className="btn-danger" onClick={handleDeleteTask}>
               <IconTrash /> Supprimer la tâche
             </button>
@@ -645,6 +696,68 @@ function TaskDetail() {
           <AttachmentUpload taskId={id} canUpload={!isCompleted} />
         </div>
       )}
+
+      {editOpen &&
+        createPortal(
+          <div className="task-edit-overlay" onClick={() => !savingEdit && setEditOpen(false)}>
+            <form className="task-edit-modal" onClick={(e) => e.stopPropagation()} onSubmit={saveEdit}>
+              <h2 className="task-edit-title">Modifier la tâche</h2>
+
+              <label className="form-label" htmlFor="edit-title">Titre</label>
+              <input
+                id="edit-title"
+                className="form-input"
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                placeholder="Titre de la tâche"
+                autoFocus
+              />
+
+              <label className="form-label" htmlFor="edit-desc">Description</label>
+              <RichTextEditor
+                value={editForm.description}
+                onChange={(html) => setEditForm({ ...editForm, description: html })}
+                placeholder="Description de la tâche…"
+              />
+
+              <div className="task-edit-row">
+                <div>
+                  <label className="form-label" htmlFor="edit-priority">Priorité</label>
+                  <select
+                    id="edit-priority"
+                    className="form-select"
+                    value={editForm.priority}
+                    onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+                  >
+                    {EDIT_PRIORITIES.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="edit-deadline">Échéance</label>
+                  <input
+                    id="edit-deadline"
+                    type="date"
+                    className="form-input"
+                    value={editForm.deadline}
+                    onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="task-edit-actions">
+                <button type="button" className="btn-outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
+                  Annuler
+                </button>
+                <button type="submit" className="btn-primary" disabled={savingEdit}>
+                  {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body
+        )}
     </Layout>
   );
 }

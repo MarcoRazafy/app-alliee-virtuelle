@@ -279,6 +279,18 @@ async function updateStatus(taskId, status, client = db) {
   return result.rows[0];
 }
 
+// Modifie les champs éditables d'une tâche (titre, description, priorité, échéance).
+async function updateTask(taskId, { title, description, priority, deadline }, client = db) {
+  const result = await client.query(
+    `UPDATE tasks
+       SET title = $2, description = $3, priority = $4, deadline = $5, updated_at = now()
+     WHERE id = $1
+     RETURNING id, title, status`,
+    [taskId, title, description ?? null, priority, deadline]
+  );
+  return result.rows[0] || null;
+}
+
 // Réassigne une tâche à une autre personne (transfert). Ne touche qu'au destinataire.
 async function updateAssignee(taskId, assigneeId, client = db) {
   const result = await client.query(
@@ -710,6 +722,7 @@ module.exports = {
   findSubtasks,
   getTaskDetail,
   updateStatus,
+  updateTask,
   updateAssignee,
   getAssignees,
   isAssignee,

@@ -28,6 +28,11 @@ export function deleteTask(id) {
   return api.delete(`/api/tasks/${id}`).then((res) => res.data);
 }
 
+// Modifie une tâche (titre, description, priorité, échéance).
+export function updateTask(id, payload) {
+  return api.patch(`/api/tasks/${id}`, payload).then((res) => res.data);
+}
+
 // Transfère la tâche à une autre personne (change le destinataire).
 export function reassignTask(id, assignedTo) {
   return api.post(`/api/tasks/${id}/reassign`, { assigned_to: assignedTo }).then((res) => res.data);
