@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as sessionService from '../../services/sessionService';
+import { getSocket } from '../../services/socket';
 import { formatClock } from '../../utils/formatters';
 import { IconClock } from '../icons';
 import '../../styles/connection-chrono.css';
@@ -40,17 +41,37 @@ function ConnectionChrono() {
   const [dragging, setDragging] = useState(false);
   const nodeRef = useRef(null);
   const dragRef = useRef(null); // { offsetX, offsetY, moved }
+  const gotRef = useRef(false); // login_at déjà obtenu → on arrête de re-tenter
 
+  // Récupère login_at de la session ouverte (lecture seule via /current : le maintien de la
+  // présence est assuré par le heartbeat global de App.jsx). RÉSILIENT : si le 1er appel
+  // échoue (course avec la redirection de connexion, socket en veille, coupure réseau), on
+  // re-tente à la (re)connexion du socket et au retour sur l'onglet, jusqu'à l'obtenir. Sans
+  // ça, un unique échec silencieux laissait le chrono invisible jusqu'au rechargement.
   useEffect(() => {
     let cancelled = false;
-    sessionService
-      .heartbeatSession()
-      .then((data) => {
-        if (!cancelled && data.login_at) setLoginAt(new Date(data.login_at).getTime());
-      })
-      .catch(() => {});
+
+    function fetchSession() {
+      if (gotRef.current) return;
+      sessionService
+        .getMyCurrentSession()
+        .then((data) => {
+          if (!cancelled && data.login_at) {
+            gotRef.current = true;
+            setLoginAt(new Date(data.login_at).getTime());
+          }
+        })
+        .catch(() => {});
+    }
+
+    fetchSession();
+    const socket = getSocket();
+    socket.on('connect', fetchSession);
+    window.addEventListener('focus', fetchSession);
     return () => {
       cancelled = true;
+      socket.off('connect', fetchSession);
+      window.removeEventListener('focus', fetchSession);
     };
   }, []);
 
@@ -64,6 +85,25 @@ function ConnectionChrono() {
     tick();
     const interval = window.setInterval(tick, 1000);
     return () => window.clearInterval(interval);
+  }, [loginAt]);
+
+  // Au montage (dès que le chrono s'affiche) : ramène dans le viewport une position
+  // mémorisée devenue hors-cadre. Sans ça, un viewport plus petit qu'au moment du drag
+  // (redimensionnement, rotation mobile, écran différent) laissait le chrono dessiné en
+  // dehors de l'écran → il « ne s'affichait plus » alors qu'il était bien monté.
+  useLayoutEffect(() => {
+    if (!loginAt || !pos || !nodeRef.current) return;
+    const r = nodeRef.current.getBoundingClientRect();
+    const next = clampPos(pos.x, pos.y, r.width, r.height);
+    if (next.x !== pos.x || next.y !== pos.y) {
+      setPos(next);
+      try {
+        localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loginAt]);
 
   // Re-clampe la position si la fenêtre est redimensionnée / passe en mobile.
