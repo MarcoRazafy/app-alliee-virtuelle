@@ -782,6 +782,37 @@
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
 }
+.emp-task-card--clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.emp-task-card--clickable:hover {
+  border-color: var(--color-accent-light);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.emp-task-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-accent-lighter);
+  text-align: left;
+}
+.emp-task-project:hover {
+  text-decoration: underline;
+}
+.emp-task-project svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
 
 .emp-task-top {
   display: flex;
