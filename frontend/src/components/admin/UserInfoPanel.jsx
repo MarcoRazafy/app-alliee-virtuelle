@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as avatarService from '../../services/avatarService';
 import { formatDate } from '../../utils/formatters';
-import { IconX } from '../icons';
+import { IconX, IconChat } from '../icons';
 
 const STATUS_META = {
   ACTIF: { label: 'Actif', cls: 'user-active' },
@@ -120,32 +121,46 @@ function UserInfoPanel({ user, onClose }) {
     };
   }, [user]);
 
+  const navigate = useNavigate();
   const status = STATUS_META[user.status] || { label: user.status, cls: 'user-refused' };
   const roleLabel = user.role === 'ADMIN' ? 'Administrateur' : 'Employé';
+
+  function goToMessaging() {
+    navigate('/admin/messaging', { state: { employeeId: user.id } });
+  }
 
   return (
     <>
       <div className="emp-drawer-overlay" onClick={onClose} />
-      <aside className="emp-drawer" role="dialog" aria-label="Informations personnelles">
+      <aside className="emp-drawer" role="dialog" aria-label="Profil de l'employé">
         <button type="button" className="emp-drawer-close" onClick={onClose} aria-label="Fermer">
           <IconX />
         </button>
 
-        <header className="emp-drawer-head">
+        <div className="uinfo-hero">
           {avatarUrl ? (
-            <img src={avatarUrl} alt={user.full_name} className="emp-drawer-avatar emp-drawer-avatar--img" />
+            <img src={avatarUrl} alt={user.full_name} className="uinfo-hero-avatar" />
           ) : (
-            <span className="emp-drawer-avatar">{initialsOf(user.full_name) || '?'}</span>
+            <span className="uinfo-hero-avatar uinfo-hero-avatar--initials">{initialsOf(user.full_name) || '?'}</span>
           )}
-          <div className="emp-drawer-identity">
-            <h2>{user.full_name}</h2>
-            <p>{roleLabel}</p>
+          <h2 className="uinfo-hero-name">{user.full_name}</h2>
+          <p className="uinfo-hero-status">
+            <span className={`uinfo-dot uinfo-dot--${status.cls}`} />
+            {status.label}
+          </p>
+          <p className="uinfo-hero-role">
+            {roleLabel}
+            {user.position ? ` · ${user.position}` : ''}
+          </p>
+          <div className="uinfo-hero-actions">
+            <button type="button" className="btn-outline uinfo-msg-btn" onClick={goToMessaging}>
+              <IconChat /> Message
+            </button>
           </div>
-          <span className={`pill pill--${status.cls}`}>{status.label}</span>
-        </header>
+        </div>
 
         <section className="emp-drawer-section">
-          <h3 className="app-section-title">Informations personnelles</h3>
+          <h3 className="app-section-title">Informations de contact</h3>
           <div className="uinfo-list">
             <InfoRow icon="mail" label="Email" value={user.email} />
             <InfoRow icon="phone" label="Téléphone" value={user.phone_number} />
