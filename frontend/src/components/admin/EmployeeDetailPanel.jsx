@@ -5,7 +5,7 @@ import * as taskService from '../../services/taskService';
 import * as avatarService from '../../services/avatarService';
 import { formatDurationShort, formatDateTime, formatDate } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
-import { IconX, IconChat, IconCheckCircle, IconClock } from '../icons';
+import { IconX, IconChat, IconCheckCircle, IconClock, IconLayers } from '../icons';
 
 const STATUS_PILL = {
   DECLAREE: { label: 'Déclarée', cls: 'declared' },
@@ -243,7 +243,14 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                   const meta = STATUS_PILL[task.status] || { label: task.status, cls: 'declared' };
                   const canReview = task.status === 'TERMINEE';
                   return (
-                    <div key={task.id} className="emp-task-card">
+                    <div
+                      key={task.id}
+                      className="emp-task-card emp-task-card--clickable"
+                      onClick={(e) => {
+                        if (e.target.closest('button, a, input, label, select, textarea')) return;
+                        navigate(`/tasks/${task.id}`);
+                      }}
+                    >
                       <div className="emp-task-top">
                         <span className="emp-task-title">{task.title}</span>
                         <span className={`pill pill--${meta.cls}`}>{meta.label}</span>
@@ -256,6 +263,30 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                           </span>
                         )}
                       </div>
+
+                      {task.list_name && (
+                        <button
+                          type="button"
+                          className="emp-task-project"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/admin/lists', {
+                              state: {
+                                selectList: {
+                                  id: task.list_id,
+                                  name: task.list_name,
+                                  folderId: task.folder_id,
+                                  spaceId: task.space_id,
+                                },
+                              },
+                            });
+                          }}
+                          title="Ouvrir ce projet"
+                        >
+                          <IconLayers />
+                          {task.space_name} › {task.folder_name} › {task.list_name}
+                        </button>
+                      )}
 
                       {canReview && (
                         <div className="emp-task-review">

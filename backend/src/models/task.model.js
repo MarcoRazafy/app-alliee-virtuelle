@@ -536,8 +536,14 @@ async function findLateTasks() {
 // Vue admin : toutes les tâches d'un employé, y compris DECLAREE (l'admin voit tout)
 async function findTasksForEmployee(userId) {
   const result = await db.query(
-    `SELECT id, title, priority, status, deadline
-     FROM tasks WHERE assigned_to = $1 ORDER BY deadline ASC`,
+    `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.list_id,
+            tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name, ts.id AS space_id, ts.name AS space_name
+     FROM tasks t
+     LEFT JOIN task_lists tl ON tl.id = t.list_id
+     LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+     LEFT JOIN task_spaces ts ON ts.id = tf.space_id
+     WHERE t.assigned_to = $1
+     ORDER BY t.deadline ASC`,
     [userId]
   );
   return result.rows;
