@@ -1737,6 +1737,51 @@
   margin-top: 22px;
 }
 
+/* Sélecteur de priorité segmenté (pastilles cliquables) — remplace le <select> natif. */
+.priority-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.priority-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--input-bg);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.priority-option:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-light);
+}
+.priority-option--active {
+  color: var(--color-text-primary);
+}
+.priority-option--faible.priority-option--active {
+  border-color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text-muted) 14%, transparent);
+}
+.priority-option--normale.priority-option--active {
+  border-color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 14%, transparent);
+}
+.priority-option--haute.priority-option--active {
+  border-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+}
+.priority-option--urgent.priority-option--active {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 14%, transparent);
+}
+
 .detail-description {
   font-size: 14px;
   color: var(--color-text-secondary);
