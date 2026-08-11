@@ -720,31 +720,30 @@ function TaskDetail() {
                 placeholder="Description de la tâche…"
               />
 
-              <div className="task-edit-row">
-                <div>
-                  <label className="form-label" htmlFor="edit-priority">Priorité</label>
-                  <select
-                    id="edit-priority"
-                    className="form-select"
-                    value={editForm.priority}
-                    onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+              <label className="form-label">Priorité</label>
+              <div className="priority-picker">
+                {EDIT_PRIORITIES.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`priority-option priority-option--${p.toLowerCase()}${editForm.priority === p ? ' priority-option--active' : ''}`}
+                    onClick={() => setEditForm({ ...editForm, priority: p })}
                   >
-                    {EDIT_PRIORITIES.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label" htmlFor="edit-deadline">Échéance</label>
-                  <input
-                    id="edit-deadline"
-                    type="date"
-                    className="form-input"
-                    value={editForm.deadline}
-                    onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
-                  />
-                </div>
+                    <span className={`priority-dot priority-dot--${p.toLowerCase()}`} />
+                    {p}
+                  </button>
+                ))}
               </div>
+
+              <label className="form-label" htmlFor="edit-deadline">Échéance</label>
+              <input
+                id="edit-deadline"
+                type="date"
+                className="form-input"
+                style={{ maxWidth: '240px' }}
+                value={editForm.deadline}
+                onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
+              />
 
               <div className="task-edit-actions">
                 <button type="button" className="btn-outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
