@@ -370,7 +370,7 @@ function AdminProfile() {
                 </label>
 
                 <label className="profile-form-full">
-                  <span>Adresse postale</span>
+                  <span>Adresse</span>
                   <input
                     type="text"
                     value={form.postal_address}

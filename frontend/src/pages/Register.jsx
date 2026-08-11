@@ -137,7 +137,7 @@ function Register() {
             <input id="position" name="position" type="text" value={form.position} onChange={handleChange} required />
           </div>
           <div className="auth-field">
-            <label htmlFor="postal_address">Adresse postale</label>
+            <label htmlFor="postal_address">Adresse</label>
             <input
               id="postal_address"
               name="postal_address"
