@@ -1910,12 +1910,48 @@
   cursor: pointer;
 }
 
+/* Cases à cocher custom (sélection des tâches) : carré arrondi contour, coche blanche sur
+   fond accent quand cochée — au lieu de la case blanche native (moche en mode sombre). */
 .validate-selectall input,
 .validate-card-check input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--color-accent);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  position: relative;
+  border: 1.5px solid color-mix(in srgb, var(--color-border) 80%, var(--color-text-muted));
+  border-radius: 5px;
+  background: var(--input-bg);
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.validate-selectall input:hover,
+.validate-card-check input:hover {
+  border-color: var(--color-accent-light);
+}
+.validate-selectall input:checked,
+.validate-card-check input:checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.validate-selectall input:checked::after,
+.validate-card-check input:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1.5px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.validate-selectall input:focus-visible,
+.validate-card-check input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  outline-offset: 2px;
 }
 
 .validate-count {
