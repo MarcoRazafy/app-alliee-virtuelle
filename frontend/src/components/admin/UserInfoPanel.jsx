@@ -167,7 +167,7 @@ function UserInfoPanel({ user, onClose }) {
             <InfoRow icon="briefcase" label="Poste" value={user.position} />
             <InfoRow icon="at" label="Nom d'utilisateur" value={user.username} />
             <InfoRow icon="calendar" label="Date de naissance" value={user.birth_date ? formatDate(user.birth_date) : null} />
-            <InfoRow icon="pin" label="Adresse postale" value={user.postal_address} />
+            <InfoRow icon="pin" label="Adresse" value={user.postal_address} />
             <InfoRow icon="clock" label="Membre depuis" value={user.created_at ? formatDate(user.created_at) : null} />
           </div>
         </section>
