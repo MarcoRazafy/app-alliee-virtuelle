@@ -301,6 +301,7 @@ function TaskDetail() {
             {breadcrumbData.space.name} › {breadcrumbData.folder.name} › {breadcrumbData.list.name}
           </span>
         )}
+        <h1 className="detail-task-title">{task.title}</h1>
         {task.description && (
           <div
             className="detail-description rich-text"
