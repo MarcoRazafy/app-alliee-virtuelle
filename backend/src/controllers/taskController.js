@@ -182,6 +182,35 @@ async function removeTaskAssignee(req, res, next) {
   }
 }
 
+// Modifie une tâche existante (titre, description, priorité, échéance). Admin uniquement.
+// On n'impose pas « échéance dans le futur » ici : une tâche déjà en retard doit pouvoir être éditée.
+async function updateTask(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+
+    const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+    const { description, priority, deadline } = req.body;
+    const errors = [];
+    if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
+    if (!isValidPriority(priority)) errors.push('Priorité invalide');
+    if (!deadline) errors.push("L'échéance est requise");
+    if (errors.length > 0) return res.status(400).json({ errors });
+
+    const updated = await taskModel.updateTask(task.id, { title, description, priority, deadline });
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'UPDATE_TASK',
+      entityType: 'task',
+      entityId: task.id,
+      details: { title },
+    });
+    return res.status(200).json(updated);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function getTaskDetail(req, res, next) {
   try {
     const { id } = req.params;
@@ -1138,6 +1167,7 @@ module.exports = {
   downloadAttachment,
   deleteAttachment,
   deleteTask,
+  updateTask,
   reassignTask,
   addTaskAssignee,
   removeTaskAssignee,

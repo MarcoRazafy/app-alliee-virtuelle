@@ -1680,6 +1680,63 @@
   margin: 14px 0 6px;
 }
 
+/* Modal d'édition d'une tâche (admin). */
+.task-edit-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 12, 28, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+.task-edit-modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+.task-edit-title {
+  margin: 0 0 18px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.task-edit-modal .form-label {
+  display: block;
+  margin: 14px 0 6px;
+}
+.task-edit-modal > .form-label:first-of-type {
+  margin-top: 0;
+}
+.task-edit-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.task-edit-row > div {
+  flex: 1;
+  min-width: 160px;
+}
+.task-edit-row .form-label {
+  margin-top: 0;
+}
+.task-edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
 .detail-description {
   font-size: 14px;
   color: var(--color-text-secondary);
