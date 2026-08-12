@@ -4,7 +4,7 @@ import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import * as hierarchyService from '../../services/hierarchyService';
 import { notifySuccess, notifyError } from '../../utils/toast';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, formatBytes } from '../../utils/formatters';
 import RichTextEditor from '../../components/RichTextEditor';
 import {
   IconChecklist,
@@ -14,6 +14,8 @@ import {
   IconChat,
   IconArrowRight,
   IconCheckCircle,
+  IconPaperclip,
+  IconX,
 } from '../../components/icons';
 import '../../styles/admin.css';
 
@@ -23,6 +25,10 @@ const PRIORITIES = [
   { value: 'NORMALE', label: 'Normale', cls: 'normale' },
   { value: 'FAIBLE', label: 'Faible', cls: 'faible' },
 ];
+
+// Aligné sur la limite backend (config/upload.js). Les fichiers sont retenus localement
+// puis envoyés APRÈS la création de la tâche (l'upload a besoin de l'id de la tâche).
+const MAX_ATTACH_SIZE = 5 * 1024 * 1024; // 5 Mo
 
 const EMPTY_FORM = {
   title: '',
@@ -42,6 +48,8 @@ function AdminCreateTask() {
   // projet (placement = { spaceId, folderId, listId } → pré-sélectionne la cascade, restant modifiable).
   const prefill = location.state?.prefill || {};
   const [employees, setEmployees] = useState([]);
+  // Pièces jointes retenues localement jusqu'à la création de la tâche.
+  const [pendingFiles, setPendingFiles] = useState([]);
   const [form, setForm] = useState(() => {
     const initial = { ...EMPTY_FORM, ...prefill };
     delete initial.placement;
@@ -171,6 +179,23 @@ function AdminCreateTask() {
     setAssignedIds([]);
     setSelectedSpaceId('');
     setSelectedFolderId('');
+    setPendingFiles([]);
+  }
+
+  function handleFilesSelected(e) {
+    const chosen = Array.from(e.target.files || []);
+    e.target.value = ''; // permet de re-sélectionner le même fichier
+    if (chosen.length === 0) return;
+    const tooBig = chosen.filter((f) => f.size > MAX_ATTACH_SIZE);
+    if (tooBig.length) {
+      notifyError(`Fichier(s) trop volumineux (max 5 Mo) : ${tooBig.map((f) => f.name).join(', ')}`);
+    }
+    const ok = chosen.filter((f) => f.size <= MAX_ATTACH_SIZE);
+    if (ok.length) setPendingFiles((cur) => [...cur, ...ok]);
+  }
+
+  function removePendingFile(index) {
+    setPendingFiles((cur) => cur.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e) {
@@ -188,10 +213,24 @@ function AdminCreateTask() {
       if (!base.client_email) delete base.client_email;
 
       // UNE SEULE tâche, partagée par tous les employés sélectionnés (assignation multiple).
-      await taskService.createTask({ ...base, assignee_ids: assignedIds });
+      const created = await taskService.createTask({ ...base, assignee_ids: assignedIds });
+
+      // Pièces jointes : envoyées APRÈS la création (l'upload cible l'id de la tâche).
+      // Best-effort : un échec d'upload ne remet pas en cause la tâche déjà créée.
+      let attachFailed = 0;
+      if (created?.id && pendingFiles.length > 0) {
+        const results = await Promise.allSettled(
+          pendingFiles.map((file) => taskService.uploadAttachment(created.id, file))
+        );
+        attachFailed = results.filter((r) => r.status === 'rejected').length;
+      }
+
       notifySuccess(
         assignedIds.length === 1 ? 'Tâche créée' : `Tâche créée et assignée à ${assignedIds.length} personnes`
       );
+      if (attachFailed > 0) {
+        notifyError(`${attachFailed} pièce(s) jointe(s) n'ont pas pu être envoyées.`);
+      }
       resetAll();
     } catch (err) {
       const data = err.response?.data;
@@ -498,6 +537,47 @@ function AdminCreateTask() {
               />
             </div>
           </div>
+        </section>
+
+        {/* Pièces jointes */}
+        <section className="admin-form-card">
+          <h2 className="admin-form-card-title">
+            <IconPaperclip />
+            Pièces jointes <span className="admin-form-card-optional">optionnel</span>
+          </h2>
+          <div className="upload-zone">
+            <label className="upload-btn">
+              <IconPaperclip />
+              Ajouter des fichiers
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
+                onChange={handleFilesSelected}
+                style={{ display: 'none' }}
+              />
+            </label>
+            <span className="create-attach-hint">PDF, images, Word, Excel — 5 Mo max par fichier</span>
+          </div>
+          {pendingFiles.length > 0 && (
+            <div className="create-attach-list">
+              {pendingFiles.map((file, index) => (
+                <div key={`${file.name}-${index}`} className="create-attach-item">
+                  <IconPaperclip />
+                  <span className="create-attach-name">{file.name}</span>
+                  <span className="create-attach-size">{formatBytes(file.size)}</span>
+                  <button
+                    type="button"
+                    className="create-attach-remove"
+                    onClick={() => removePendingFile(index)}
+                    aria-label={`Retirer ${file.name}`}
+                  >
+                    <IconX />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
 
