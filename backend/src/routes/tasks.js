@@ -58,6 +58,8 @@ router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskControll
 router.post('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.createNote);
 // Modification d'une tâche (admin) : titre, description, priorité, échéance.
 router.patch('/tasks/:id', authMiddleware.requireRole('ADMIN'), taskController.updateTask);
+// Changement de statut d'une tâche (admin) : À faire / En cours / Terminée / Confirmée.
+router.patch('/tasks/:id/status', authMiddleware.requireRole('ADMIN'), taskController.updateTaskStatus);
 
 // Assignation (admin) : transférer à une seule personne, ajouter une personne, ou en retirer une.
 router.post('/tasks/:id/reassign', authMiddleware.requireRole('ADMIN'), taskController.reassignTask);

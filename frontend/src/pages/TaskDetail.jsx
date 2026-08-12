@@ -14,6 +14,7 @@ import { IconPlay, IconStop, IconCheckCircle, IconArrowRight, IconTrash } from '
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { createPortal } from 'react-dom';
 import RichTextEditor from '../components/RichTextEditor';
+import StatusDropdown from '../components/StatusDropdown';
 
 const EDIT_PRIORITIES = ['FAIBLE', 'NORMALE', 'HAUTE', 'URGENT'];
 
@@ -363,9 +364,13 @@ function TaskDetail() {
         <div className="detail-meta-row">
           <div className="detail-meta-item">
             <span className="detail-meta-label">Statut</span>
-            <span className={`pill ${STATUS_PILL[displayStatus]?.className || ''}`}>
-              {STATUS_PILL[displayStatus]?.label || displayStatus}
-            </span>
+            {isAdmin ? (
+              <StatusDropdown taskId={id} status={task.status} displayStatus={displayStatus} onChanged={loadData} />
+            ) : (
+              <span className={`pill ${STATUS_PILL[displayStatus]?.className || ''}`}>
+                {STATUS_PILL[displayStatus]?.label || displayStatus}
+              </span>
+            )}
           </div>
           <div className="detail-meta-item">
             <span className="detail-meta-label">Priorité</span>
