@@ -31,9 +31,6 @@ function TaskDetail() {
   const [elapsed, setElapsed] = useState(0);
   const [notFound, setNotFound] = useState(false);
   const [breadcrumbData, setBreadcrumbData] = useState(null);
-  const [subtasks, setSubtasks] = useState([]);
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
-  const [newSubtaskDeadline, setNewSubtaskDeadline] = useState('');
   // Saisie manuelle de temps (admin) : chrono oublié, ajouté a posteriori.
   const [manualTime, setManualTime] = useState({ start: '', end: '' });
   // Réassignation (admin) : liste des employés + personne choisie pour transférer/ajouter.
@@ -58,7 +55,6 @@ function TaskDetail() {
       setActiveSession(running || null);
       if (detailData) {
         setBreadcrumbData(detailData.breadcrumb);
-        setSubtasks(detailData.subtasks || []);
       }
     } catch (err) {
       if (err.response?.status === 404) {
@@ -268,30 +264,6 @@ function TaskDetail() {
     }
   }
 
-  async function handleAddSubtask(e) {
-    e.preventDefault();
-    if (!newSubtaskTitle.trim() || !newSubtaskDeadline) {
-      notifyError('Titre et deadline sont requis pour la sous-tâche');
-      return;
-    }
-    try {
-      await taskService.createTask({
-        title: newSubtaskTitle,
-        assigned_to: task.assigned_to,
-        priority: 'NORMALE',
-        deadline: newSubtaskDeadline,
-        parent_task_id: id,
-      });
-      notifySuccess('Sous-tâche ajoutée');
-      setNewSubtaskTitle('');
-      setNewSubtaskDeadline('');
-      await loadData();
-    } catch (err) {
-      const data = err.response?.data;
-      notifyError(data?.errors?.join(', ') || data?.error || "Impossible d'ajouter la sous-tâche");
-    }
-  }
-
   const layoutProps = isAdmin
     ? {}
     : {
@@ -319,10 +291,7 @@ function TaskDetail() {
 
   const totalSeconds = history.reduce((sum, session) => sum + (session.duration_seconds || 0), 0);
   const sortedHistory = [...history].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-  const isCompleted = ['TERMINEE', 'CONFIRMEE'].includes(task.status);
   const displayStatus = task.status === 'EN_COURS' && !activeSession ? 'A_REPRENDRE' : task.status;
-  const confirmedSubtasks = subtasks.filter((s) => s.status === 'CONFIRMEE').length;
-  const subtaskProgress = subtasks.length > 0 ? Math.round((confirmedSubtasks / subtasks.length) * 100) : 0;
 
   return (
     <Layout {...layoutProps}>
@@ -644,63 +613,19 @@ function TaskDetail() {
 
       <div className="side-card" style={{ marginBottom: '20px' }}>
         <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Sous-tâches
-        </p>
-        {subtasks.length === 0 && <div className="empty-state">Aucune sous-tâche.</div>}
-        {subtasks.length > 0 && (
-          <>
-            <div className="progress-row">
-              <div className="progress-bar-track">
-                <div className="progress-bar-fill" style={{ width: `${subtaskProgress}%` }} />
-              </div>
-              <span className="progress-label">
-                {confirmedSubtasks}/{subtasks.length} confirmée(s)
-              </span>
-            </div>
-            {subtasks.map((subtask) => (
-              <Link key={subtask.id} to={`/tasks/${subtask.id}`} className="subtask-item">
-                <span className={`pill ${priorityPillClass(subtask.priority)}`}>{subtask.priority}</span>
-                <span className="subtask-title">{subtask.title}</span>
-                <span className={`pill ${STATUS_PILL[subtask.status]?.className || ''}`}>
-                  {STATUS_PILL[subtask.status]?.label || subtask.status}
-                </span>
-                <span className="subtask-deadline">{formatDate(subtask.deadline)}</span>
-                <IconArrowRight />
-              </Link>
-            ))}
-          </>
-        )}
-        {isAdmin && (
-          <form className="add-subtask-form" onSubmit={handleAddSubtask}>
-            <input
-              type="text"
-              placeholder="Titre de la sous-tâche"
-              value={newSubtaskTitle}
-              onChange={(e) => setNewSubtaskTitle(e.target.value)}
-            />
-            <input type="date" value={newSubtaskDeadline} onChange={(e) => setNewSubtaskDeadline(e.target.value)} />
-            <button type="submit" className="btn-primary">
-              Ajouter
-            </button>
-          </form>
-        )}
-      </div>
-
-      <div className="side-card" style={{ marginBottom: '20px' }}>
-        <p className="side-card-title" style={{ marginBottom: '16px' }}>
           Commentaires & Notes
         </p>
         <CommentSection taskId={id} />
       </div>
 
-      {!isAdmin && (
-        <div className="side-card">
-          <p className="side-card-title" style={{ marginBottom: '16px' }}>
-            Pièces jointes
-          </p>
-          <AttachmentUpload taskId={id} canUpload={!isCompleted} />
-        </div>
-      )}
+      {/* Pièces jointes : visibles par l'admin ET l'employé. Seul l'admin peut importer /
+          supprimer (canUpload) ; l'employé les consulte et les télécharge (lecture seule). */}
+      <div className="side-card">
+        <p className="side-card-title" style={{ marginBottom: '16px' }}>
+          Pièces jointes
+        </p>
+        <AttachmentUpload taskId={id} canUpload={isAdmin} />
+      </div>
 
       {editOpen &&
         createPortal(

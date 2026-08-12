@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import * as taskService from '../services/taskService';
 import { formatBytes, formatDateTime } from '../utils/formatters';
 import { notifySuccess, notifyError } from '../utils/toast';
-import { IconFileText, IconDownload, IconTrash, IconPaperclip } from './icons';
+import { IconFileText, IconEye, IconDownload, IconTrash, IconPaperclip } from './icons';
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
@@ -42,6 +42,23 @@ function AttachmentUpload({ taskId, canUpload }) {
       notifyError(err.response?.data?.error || "Impossible d'ajouter le fichier");
     } finally {
       setUploading(false);
+    }
+  }
+
+  // Prévisualise le fichier dans un nouvel onglet (PDF, image… rendus par le navigateur).
+  async function handleView(attachment) {
+    // On ouvre l'onglet AVANT le fetch (asynchrone) pour éviter le blocage des popups.
+    const win = window.open('', '_blank');
+    try {
+      const blob = await taskService.downloadAttachment(attachment.id);
+      const url = window.URL.createObjectURL(blob);
+      if (win) win.location = url;
+      else window.open(url, '_blank');
+      // Laisse le temps au nouvel onglet de charger avant de libérer l'URL.
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      if (win) win.close();
+      notifyError(err.response?.data?.error || "Impossible d'ouvrir le fichier");
     }
   }
 
@@ -95,6 +112,14 @@ function AttachmentUpload({ taskId, canUpload }) {
             </div>
           </div>
           <div className="attachment-actions">
+            <button
+              className="icon-link-btn"
+              onClick={() => handleView(attachment)}
+              aria-label="Voir"
+              title="Voir le fichier"
+            >
+              <IconEye />
+            </button>
             <button
               className="icon-link-btn"
               onClick={() => handleDownload(attachment)}
