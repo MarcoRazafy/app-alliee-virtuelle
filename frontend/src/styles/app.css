@@ -1782,6 +1782,91 @@
   background: color-mix(in srgb, var(--color-error) 14%, transparent);
 }
 
+/* Statut cliquable (fiche tâche, admin) — la pastille ouvre un menu déroulant (façon ClickUp). */
+.status-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+.pill-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+.pill-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 0 0 1px var(--color-accent-light);
+}
+.pill-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.pill-button svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.75;
+}
+.status-menu {
+  position: fixed;
+  z-index: 4000;
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.status-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.status-menu-item:hover {
+  background: var(--glass-overlay);
+  color: var(--color-text-primary);
+}
+.status-menu-item--active {
+  color: var(--color-text-primary);
+  background: var(--glass-overlay);
+}
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot--todo {
+  background: var(--color-info);
+}
+.status-dot--progress {
+  background: var(--color-warning);
+}
+.status-dot--done {
+  background: var(--color-success);
+}
+.status-dot--confirmed {
+  background: var(--color-success);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success) 35%, transparent);
+}
+
 .detail-description {
   font-size: 14px;
   color: var(--color-text-secondary);

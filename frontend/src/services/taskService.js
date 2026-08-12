@@ -33,6 +33,11 @@ export function updateTask(id, payload) {
   return api.patch(`/api/tasks/${id}`, payload).then((res) => res.data);
 }
 
+// Change le statut d'une tâche (admin) : VALIDEE / EN_COURS / TERMINEE / CONFIRMEE.
+export function updateTaskStatus(id, status) {
+  return api.patch(`/api/tasks/${id}/status`, { status }).then((res) => res.data);
+}
+
 // Transfère la tâche à une autre personne (change le destinataire).
 export function reassignTask(id, assignedTo) {
   return api.post(`/api/tasks/${id}/reassign`, { assigned_to: assignedTo }).then((res) => res.data);

@@ -211,6 +211,63 @@ async function updateTask(req, res, next) {
   }
 }
 
+// Statuts qu'un admin peut poser à la main depuis la fiche (workflow visible par l'employé).
+// DECLAREE est exclue : c'est l'état « proposition » (masqué à l'employé), pas un statut de travail.
+const ADMIN_SETTABLE_STATUSES = [
+  taskModel.TASK_STATUS.VALIDATED,
+  taskModel.TASK_STATUS.IN_PROGRESS,
+  taskModel.TASK_STATUS.DONE,
+  taskModel.TASK_STATUS.CONFIRMED,
+];
+
+// Change le statut d'une tâche (admin) : À faire / En cours / Terminée / Confirmée.
+// Effet de bord : en quittant « En cours », on ferme les chronos encore ouverts des assignés
+// (pas de minuteur fantôme). Le changement est historisé + audité (l'audit rafraîchit aussi
+// le dashboard temps réel via notification:new).
+async function updateTaskStatus(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+
+    const newStatus = req.body.status;
+    if (!ADMIN_SETTABLE_STATUSES.includes(newStatus)) {
+      return res.status(400).json({ error: 'Statut invalide' });
+    }
+    if (newStatus === task.status) {
+      return res.status(200).json({ id: task.id, status: task.status });
+    }
+
+    await db.withTransaction(async (client) => {
+      if (task.status === taskModel.TASK_STATUS.IN_PROGRESS) {
+        const assignees = task.assignees && task.assignees.length ? task.assignees : [{ id: task.assigned_to }];
+        for (const a of assignees) {
+          const s = await taskModel.findActiveSessionForTask(task.id, a.id);
+          if (s) await taskModel.stopSession(s.id, client);
+        }
+      }
+      await taskModel.updateStatus(task.id, newStatus, client);
+      await taskModel.recordHistory(
+        { taskId: task.id, fieldChanged: 'status', oldValue: task.status, newValue: newStatus, changedBy: req.user.id },
+        client
+      );
+      await taskModel.recordAudit(
+        {
+          userId: req.user.id,
+          action: 'UPDATE_TASK_STATUS',
+          entityType: 'task',
+          entityId: task.id,
+          details: { title: task.title, from: task.status, to: newStatus },
+        },
+        client
+      );
+    });
+
+    return res.status(200).json({ id: task.id, status: newStatus });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function getTaskDetail(req, res, next) {
   try {
     const { id } = req.params;
@@ -1168,6 +1225,7 @@ module.exports = {
   deleteAttachment,
   deleteTask,
   updateTask,
+  updateTaskStatus,
   reassignTask,
   addTaskAssignee,
   removeTaskAssignee,

@@ -4,6 +4,7 @@ import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import AttachmentUpload from '../../components/AttachmentUpload';
 import CommentSection from '../../components/CommentSection';
+import StatusDropdown from '../../components/StatusDropdown';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
@@ -451,7 +452,6 @@ function AdminTasksToValidate() {
       ) : (
         <div className="validate-list">
           {filteredTasks.map((task) => {
-            const meta = STATUS_META[task.status] || { label: task.status, pill: 'declared' };
             const canReview = task.status === 'TERMINEE';
             const canValidate = task.status === 'DECLAREE';
             const selected = selectedIds.includes(task.id);
@@ -476,7 +476,7 @@ function AdminTasksToValidate() {
                     <button type="button" className="validate-card-title" onClick={() => navigate(`/tasks/${task.id}`)}>
                       {task.title}
                     </button>
-                    <span className={`pill pill--${meta.pill}`}>{meta.label}</span>
+                    <StatusDropdown taskId={task.id} status={task.status} onChanged={load} />
                     <Link
                       to={`/tasks/${task.id}`}
                       className="validate-card-open"
