@@ -436,13 +436,13 @@
     font-size: 10px;
   }
 
-  /* --- Déploiement au survol / focus clavier : overlay, sans décaler le contenu --- */
+  /* --- Déploiement au survol / focus clavier : le menu élargi POUSSE le contenu ---
+     (plus de margin négative → il occupe réellement 236px et décale la page au lieu de
+     la recouvrir ; la transition de width anime le décalage en douceur). */
   .sidebar--rail:hover,
   .sidebar--rail:focus-within {
     width: 236px;
-    margin-right: -160px; /* 76 - 236 : l'espace réellement occupé reste = rail */
     padding: 28px 16px;
-    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.4);
     z-index: 60;
   }
 

@@ -579,6 +579,17 @@
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
+/* Zone tactile étendue à 44×44px sans agrandir le bouton (règle touch-target). */
+.emp-drawer-close::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
 .emp-drawer-close:hover {
   color: var(--color-error);
   border-color: var(--color-error);
@@ -1060,6 +1071,16 @@
   min-height: 44px;
   padding: 0 var(--space-4);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+/* Chevron custom + suppression de la flèche native (uniquement les <select>, pas les textarea). */
+.form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a94a6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
 }
 
 .form-input:hover:not(:focus),
@@ -2913,8 +2934,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border: none;
   border-radius: 8px;
