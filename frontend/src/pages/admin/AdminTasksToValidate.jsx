@@ -5,6 +5,7 @@ import * as userService from '../../services/userService';
 import AttachmentUpload from '../../components/AttachmentUpload';
 import CommentSection from '../../components/CommentSection';
 import StatusDropdown from '../../components/StatusDropdown';
+import MultiSelectFilter from '../../components/MultiSelectFilter';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
@@ -77,10 +78,11 @@ function AdminTasksToValidate() {
   const [lateCount, setLateCount] = useState(0);
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [employeeFilter, setEmployeeFilter] = useState('');
-  const [deadlineFilter, setDeadlineFilter] = useState('');
+  // Filtres multi-sélection : chaque filtre est une liste de valeurs cochées (OU logique).
+  const [statusFilters, setStatusFilters] = useState([]);
+  const [priorityFilters, setPriorityFilters] = useState([]);
+  const [employeeFilters, setEmployeeFilters] = useState([]);
+  const [deadlineFilters, setDeadlineFilters] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkMotif, setBulkMotif] = useState('');
   const [detailTaskId, setDetailTaskId] = useState(null);
@@ -141,10 +143,16 @@ function AdminTasksToValidate() {
     () =>
       tasks
         .filter((task) => {
-        const matchesStatus = !statusFilter || task.status === statusFilter;
-        const matchesPriority = !priorityFilter || task.priority === priorityFilter;
-        const matchesEmployee = !employeeFilter || task.assigned_to === employeeFilter;
-        const matchesDeadline = matchesDeadlineRange(task.deadline, deadlineFilter);
+        // Multi-sélection : un filtre vide = pas de contrainte ; sinon OU logique sur les valeurs cochées.
+        const matchesStatus = !statusFilters.length || statusFilters.includes(task.status);
+        const matchesPriority = !priorityFilters.length || priorityFilters.includes(task.priority);
+        const matchesEmployee =
+          !employeeFilters.length ||
+          employeeFilters.some(
+            (id) => task.assigned_to === id || (task.assignees || []).some((a) => a.id === id)
+          );
+        const matchesDeadline =
+          !deadlineFilters.length || deadlineFilters.some((d) => matchesDeadlineRange(task.deadline, d));
         return matchesStatus && matchesPriority && matchesEmployee && matchesDeadline;
         })
         .sort((a, b) => {
@@ -152,10 +160,11 @@ function AdminTasksToValidate() {
           const updatedB = new Date(b.updated_at || b.updatedAt || b.created_at || b.createdAt || 0).getTime();
           return updatedB - updatedA;
         }),
-    [tasks, statusFilter, priorityFilter, employeeFilter, deadlineFilter]
+    [tasks, statusFilters, priorityFilters, employeeFilters, deadlineFilters]
   );
 
-  const hasFilters = statusFilter || priorityFilter || employeeFilter || deadlineFilter;
+  const hasFilters =
+    statusFilters.length || priorityFilters.length || employeeFilters.length || deadlineFilters.length;
   const selectedTasks = tasks.filter((task) => selectedIds.includes(task.id));
   const selectedDoneIds = selectedTasks.filter((task) => task.status === 'TERMINEE').map((task) => task.id);
   const selectedDeclaredIds = selectedTasks.filter((task) => task.status === 'DECLAREE').map((task) => task.id);
@@ -164,10 +173,19 @@ function AdminTasksToValidate() {
   const isProcessing = pendingAction !== null;
 
   function resetFilters() {
-    setStatusFilter('');
-    setPriorityFilter('');
-    setEmployeeFilter('');
-    setDeadlineFilter('');
+    setStatusFilters([]);
+    setPriorityFilters([]);
+    setEmployeeFilters([]);
+    setDeadlineFilters([]);
+  }
+
+  // Coche/décoche une valeur de statut ('' = « Tous » → tout effacer).
+  function toggleStatus(value) {
+    if (value === '') {
+      setStatusFilters([]);
+      return;
+    }
+    setStatusFilters((cur) => (cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]));
   }
 
   function toggleSelect(id) {
@@ -350,40 +368,53 @@ function AdminTasksToValidate() {
       <div className="admin-filter-bar">
         <div className="filter-group">
           <span className="filter-group-label">Statut</span>
-          {STATUS_FILTERS.map((option) => (
-            <button
-              key={option.value || 'all'}
-              type="button"
-              className={`filter-chip${statusFilter === option.value ? ' filter-chip--active' : ''}`}
-              onClick={() => setStatusFilter(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
+          {STATUS_FILTERS.map((option) => {
+            const active =
+              option.value === '' ? statusFilters.length === 0 : statusFilters.includes(option.value);
+            return (
+              <button
+                key={option.value || 'all'}
+                type="button"
+                className={`filter-chip${active ? ' filter-chip--active' : ''}`}
+                onClick={() => toggleStatus(option.value)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </div>
         <div className="filter-group">
-          <select className="filter-select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-            <option value="">Toutes priorités</option>
-            <option value="URGENT">Urgent</option>
-            <option value="HAUTE">Haute</option>
-            <option value="NORMALE">Normale</option>
-            <option value="FAIBLE">Faible</option>
-          </select>
-          <select className="filter-select" value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}>
-            <option value="">Tous les employés</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.full_name}
-              </option>
-            ))}
-          </select>
-          <select className="filter-select" value={deadlineFilter} onChange={(e) => setDeadlineFilter(e.target.value)}>
-            <option value="">Toutes échéances</option>
-            <option value="today">Aujourd'hui</option>
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-            <option value="past">Passée</option>
-          </select>
+          <MultiSelectFilter
+            allLabel="Toutes priorités"
+            baseLabel="Priorité"
+            selected={priorityFilters}
+            onChange={setPriorityFilters}
+            options={[
+              { value: 'URGENT', label: 'Urgent' },
+              { value: 'HAUTE', label: 'Haute' },
+              { value: 'NORMALE', label: 'Normale' },
+              { value: 'FAIBLE', label: 'Faible' },
+            ]}
+          />
+          <MultiSelectFilter
+            allLabel="Tous les employés"
+            baseLabel="Employés"
+            selected={employeeFilters}
+            onChange={setEmployeeFilters}
+            options={employees.map((emp) => ({ value: emp.id, label: emp.full_name }))}
+          />
+          <MultiSelectFilter
+            allLabel="Toutes échéances"
+            baseLabel="Échéance"
+            selected={deadlineFilters}
+            onChange={setDeadlineFilters}
+            options={[
+              { value: 'today', label: "Aujourd'hui" },
+              { value: 'week', label: 'Cette semaine' },
+              { value: 'month', label: 'Ce mois' },
+              { value: 'past', label: 'Passée' },
+            ]}
+          />
           {hasFilters && (
             <button type="button" className="admin-filter-reset" onClick={resetFilters}>
               Réinitialiser

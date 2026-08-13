@@ -182,6 +182,9 @@ export const IconX = (props) =>
 export const IconArrowRight = (props) =>
   base(<path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
 
+export const IconArrowLeft = (props) =>
+  base(<path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
+
 export const IconTrendingUp = (props) =>
   base(
     <path

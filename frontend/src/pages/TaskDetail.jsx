@@ -10,7 +10,7 @@ import { formatClock, formatDurationShort, formatDateTime, formatDate } from '..
 import { STATUS_PILL, priorityPillClass } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
-import { IconPlay, IconStop, IconCheckCircle, IconArrowRight, IconTrash } from '../components/icons';
+import { IconPlay, IconStop, IconCheckCircle, IconArrowRight, IconArrowLeft, IconTrash, IconRestore, IconPencil } from '../components/icons';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { createPortal } from 'react-dom';
 import RichTextEditor from '../components/RichTextEditor';
@@ -298,16 +298,16 @@ function TaskDetail() {
       {isAdmin && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <Link to="/admin/validate" className="app-link">
-            ← Retour à la liste des tâches
+            <IconArrowLeft /> Retour à la liste des tâches
           </Link>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
               <button type="button" className="btn-outline" onClick={handleRedoTask} title="Recréer et réassigner cette tâche">
-                ↻ Refaire
+                <IconRestore /> Refaire
               </button>
             )}
             <button type="button" className="btn-outline" onClick={openEdit}>
-              ✎ Modifier
+              <IconPencil /> Modifier
             </button>
             <button type="button" className="btn-danger" onClick={handleDeleteTask}>
               <IconTrash /> Supprimer la tâche
