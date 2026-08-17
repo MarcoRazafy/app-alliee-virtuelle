@@ -107,6 +107,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const [pickAssignee, setPickAssignee] = useState('');
   // Édition inline (admin) : titre, description, gestion des assignés.
   const [editingTitle, setEditingTitle] = useState(false);
+  
   const [titleDraft, setTitleDraft] = useState('');
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState('');
@@ -303,6 +304,32 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     }
   }
 
+  // Dates en YYYY-MM-DD (comparables lexicographiquement = chronologiquement).
+  const startYMD = task?.start_date ? String(task.start_date).slice(0, 10) : '';
+  const deadlineYMD = task?.deadline ? String(task.deadline).slice(0, 10) : '';
+
+  // Début : refusé s'il est postérieur à l'échéance.
+  function handleStartChange(value) {
+    if (!value) return;
+    if (deadlineYMD && value > deadlineYMD) {
+      notifyError("La date de début ne peut pas être postérieure à l'échéance.");
+      return;
+    }
+    savePatch({ start_date: value });
+    setEditingStart(false);
+  }
+
+  // Échéance : refusée si antérieure à la date de début.
+  function handleDeadlineChange(value) {
+    if (!value) return;
+    if (startYMD && value < startYMD) {
+      notifyError("L'échéance ne peut pas être antérieure à la date de début.");
+      return;
+    }
+    savePatch({ deadline: value });
+    setEditingDeadline(false);
+  }
+
   async function commitTitle() {
     const trimmed = titleDraft.trim();
     setEditingTitle(false);
@@ -462,8 +489,9 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                       type="date"
                       className="tk-date-input"
                       autoFocus
-                      value={task.start_date ? String(task.start_date).slice(0, 10) : ''}
-                      onChange={(e) => e.target.value && savePatch({ start_date: e.target.value })}
+                      value={startYMD}
+                      max={deadlineYMD || undefined}
+                      onChange={(e) => handleStartChange(e.target.value)}
                       onBlur={() => setEditingStart(false)}
                       title="Date de début"
                     />
@@ -489,8 +517,9 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                       type="date"
                       className="tk-date-input"
                       autoFocus
-                      value={task.deadline ? String(task.deadline).slice(0, 10) : ''}
-                      onChange={(e) => e.target.value && savePatch({ deadline: e.target.value })}
+                      value={deadlineYMD}
+                      min={startYMD || undefined}
+                      onChange={(e) => handleDeadlineChange(e.target.value)}
                       onBlur={() => setEditingDeadline(false)}
                       title="Échéance"
                     />

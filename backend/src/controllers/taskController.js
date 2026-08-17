@@ -192,10 +192,25 @@ async function updateTask(req, res, next) {
 
     const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
     const { description, priority, deadline, start_date: startDate } = req.body;
+    const isAdmin = req.user.role === 'ADMIN';
     const errors = [];
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!deadline) errors.push("L'échéance est requise");
+
+    // Cohérence des dates : début ≤ échéance. Le début effectif = celui fourni (admin),
+    // sinon celui déjà enregistré. On normalise en YYYY-MM-DD (composantes locales).
+    const toYMD = (d) => {
+      if (!d) return null;
+      if (typeof d === 'string') return d.slice(0, 10);
+      const dt = new Date(d);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    };
+    const effectiveStart = isAdmin && startDate ? toYMD(startDate) : toYMD(task.start_date);
+    if (effectiveStart && deadline && effectiveStart > toYMD(deadline)) {
+      errors.push("La date de début ne peut pas être postérieure à l'échéance");
+    }
+
     if (errors.length > 0) return res.status(400).json({ errors });
 
     const updated = await taskModel.updateTask(task.id, {
@@ -204,7 +219,7 @@ async function updateTask(req, res, next) {
       priority,
       deadline,
       // Seul un admin fixe la date de début ; chaîne vide → on garde la valeur existante.
-      startDate: req.user.role === 'ADMIN' && startDate ? String(startDate) : undefined,
+      startDate: isAdmin && startDate ? String(startDate) : undefined,
     });
     await taskModel.recordAudit({
       userId: req.user.id,
