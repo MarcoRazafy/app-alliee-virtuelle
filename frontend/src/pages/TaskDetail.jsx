@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as userService from '../services/userService';
+import * as avatarService from '../services/avatarService';
 import AttachmentUpload from '../components/AttachmentUpload';
-import CommentSection from '../components/CommentSection';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import AdminLayout from '../components/admin/AdminLayout';
 import { formatClock, formatDurationShort, formatDateTime, formatDate } from '../utils/formatters';
@@ -22,6 +22,7 @@ import {
   IconCalendarWeek,
   IconAlert,
   IconX,
+  IconPaperclip,
 } from '../components/icons';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { createPortal } from 'react-dom';
@@ -31,15 +32,58 @@ import '../styles/task-detail.css';
 
 const EDIT_PRIORITIES = ['FAIBLE', 'NORMALE', 'HAUTE', 'URGENT'];
 
+// Initiales d'un nom (2 lettres max) pour le repli quand il n'y a pas de photo.
+function assigneeInitials(name) {
+  return String(name || '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() || '')
+    .join('');
+}
+
+// Petite pastille photo d'un assigné (photo de profil si dispo, sinon initiales).
+function AssigneeAvatar({ user }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let obj;
+    if (user.has_avatar) {
+      avatarService
+        .getUserAvatarBlob(user.id)
+        .then((blob) => {
+          obj = URL.createObjectURL(blob);
+          setUrl(obj);
+        })
+        .catch(() => setUrl(null));
+    } else {
+      setUrl(null);
+    }
+    return () => {
+      if (obj) URL.revokeObjectURL(obj);
+    };
+  }, [user.id, user.has_avatar]);
+
+  return url ? (
+    <img src={url} alt="" className="tk-assignee-avatar" />
+  ) : (
+    <span className="tk-assignee-avatar tk-assignee-avatar--initials">{assigneeInitials(user.full_name) || '?'}</span>
+  );
+}
+
 // Ligne de propriété (icône · libellé · valeur), façon ClickUp.
-function PropRow({ icon, label, children }) {
+// `full` = ligne pleine largeur (2 colonnes) avec valeur en bloc (ex. pièces jointes).
+function PropRow({ icon, label, children, full = false }) {
   return (
-    <div className="tk-prop">
+    <div className={`tk-prop${full ? ' tk-prop--full' : ''}`}>
       <span className="tk-prop-label">
         {icon}
         {label}
       </span>
-      <span className="tk-prop-value">{children}</span>
+      {full ? (
+        <div className="tk-prop-value tk-prop-value--block">{children}</div>
+      ) : (
+        <span className="tk-prop-value">{children}</span>
+      )}
     </div>
   );
 }
@@ -68,6 +112,8 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const [descDraft, setDescDraft] = useState('');
   const [showAssignManage, setShowAssignManage] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false); // Suivi du temps : 3 derniers par défaut
+  const [editingDeadline, setEditingDeadline] = useState(false); // échéance éditable au clic (admin)
+  const [editingStart, setEditingStart] = useState(false); // date de début éditable au clic (admin)
 
   const loadData = useCallback(async () => {
     try {
@@ -245,6 +291,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
         description: task.description,
         priority: task.priority,
         deadline: task.deadline ? String(task.deadline).slice(0, 10) : '',
+        start_date: task.start_date ? String(task.start_date).slice(0, 10) : '',
         ...partial,
       });
       await loadData();
@@ -302,25 +349,11 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
   const content = (
     <>
-      {isAdmin && (
+      {isAdmin && !isModal && (
         <div className="tk-topbar">
-          {isModal ? (
-            <span />
-          ) : (
-            <Link to="/admin/validate" className="app-link">
-              <IconArrowLeft /> Retour à la liste des tâches
-            </Link>
-          )}
-          <div className="tk-topbar-actions">
-            {['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
-              <button type="button" className="btn-outline" onClick={handleRedoTask} title="Recréer et réassigner cette tâche">
-                <IconRestore /> Refaire
-              </button>
-            )}
-            <button type="button" className="btn-danger" onClick={handleDeleteTask}>
-              <IconTrash /> Supprimer
-            </button>
-          </div>
+          <Link to="/admin/validate" className="app-link">
+            <IconArrowLeft /> Retour à la liste des tâches
+          </Link>
         </div>
       )}
 
@@ -375,22 +408,22 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               <PropRow icon={<IconUser />} label="Assignés">
                 <span className="tk-assignees">
                   {assignees.length === 0 && <span className="tk-empty">Non assignée</span>}
-                  {assignees.map((a, i, arr) =>
+                  {assignees.map((a) =>
                     isAdmin ? (
                       <button
                         key={a.id}
                         type="button"
-                        className="app-link tk-assignee-link"
+                        className="tk-assignee-chip"
                         onClick={() => navigate('/admin/messaging', { state: { employeeId: a.id } })}
                         title={`Discuter avec ${a.full_name}`}
                       >
-                        {a.full_name}
-                        {i < arr.length - 1 ? ', ' : ''}
+                        <AssigneeAvatar user={a} />
+                        <span className="tk-assignee-name">{a.full_name}</span>
                       </button>
                     ) : (
-                      <span key={a.id}>
-                        {a.full_name}
-                        {i < arr.length - 1 ? ', ' : ''}
+                      <span key={a.id} className="tk-assignee-chip">
+                        <AssigneeAvatar user={a} />
+                        <span className="tk-assignee-name">{a.full_name}</span>
                       </span>
                     )
                   )}
@@ -422,21 +455,62 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                 )}
               </PropRow>
 
-              <PropRow icon={<IconCalendarWeek />} label="Début">
-                {task.start_date ? formatDate(task.start_date) : <span className="tk-empty">—</span>}
-              </PropRow>
-
-              <PropRow icon={<IconCalendarWeek />} label="Échéance">
-                {isAdmin ? (
-                  <input
-                    type="date"
-                    className="tk-date-input"
-                    value={task.deadline ? String(task.deadline).slice(0, 10) : ''}
-                    onChange={(e) => e.target.value && savePatch({ deadline: e.target.value })}
-                  />
-                ) : (
-                  formatDate(task.deadline)
-                )}
+              <PropRow icon={<IconCalendarWeek />} label="Dates">
+                <span className="tk-dates">
+                  {isAdmin && editingStart ? (
+                    <input
+                      type="date"
+                      className="tk-date-input"
+                      autoFocus
+                      value={task.start_date ? String(task.start_date).slice(0, 10) : ''}
+                      onChange={(e) => e.target.value && savePatch({ start_date: e.target.value })}
+                      onBlur={() => setEditingStart(false)}
+                      title="Date de début"
+                    />
+                  ) : isAdmin ? (
+                    <button
+                      type="button"
+                      className="tk-date-part"
+                      onClick={() => setEditingStart(true)}
+                      title="Modifier la date de début"
+                    >
+                      <IconCalendarWeek />
+                      {task.start_date ? formatDate(task.start_date) : <span className="tk-empty">Début</span>}
+                    </button>
+                  ) : (
+                    <span className="tk-date-part">
+                      <IconCalendarWeek />
+                      {task.start_date ? formatDate(task.start_date) : <span className="tk-empty">Début</span>}
+                    </span>
+                  )}
+                  <span className="tk-date-arrow" aria-hidden="true">→</span>
+                  {isAdmin && editingDeadline ? (
+                    <input
+                      type="date"
+                      className="tk-date-input"
+                      autoFocus
+                      value={task.deadline ? String(task.deadline).slice(0, 10) : ''}
+                      onChange={(e) => e.target.value && savePatch({ deadline: e.target.value })}
+                      onBlur={() => setEditingDeadline(false)}
+                      title="Échéance"
+                    />
+                  ) : isAdmin ? (
+                    <button
+                      type="button"
+                      className="tk-date-part tk-date-due"
+                      onClick={() => setEditingDeadline(true)}
+                      title="Modifier l’échéance"
+                    >
+                      <IconCalendarWeek />
+                      {task.deadline ? formatDate(task.deadline) : <span className="tk-empty">Échéance</span>}
+                    </button>
+                  ) : (
+                    <span className="tk-date-part tk-date-due">
+                      <IconCalendarWeek />
+                      {task.deadline ? formatDate(task.deadline) : <span className="tk-empty">Échéance</span>}
+                    </span>
+                  )}
+                </span>
               </PropRow>
 
               <PropRow icon={<IconClock />} label="Suivre le temps">
@@ -475,6 +549,23 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                   {task.client_email}
                 </PropRow>
               )}
+
+              <div className="tk-prop tk-prop--full">
+                {isAdmin ? (
+                  <label className="tk-prop-label tk-attach-trigger" htmlFor="tk-attach-input" title="Cliquer pour joindre un fichier">
+                    <IconPaperclip />
+                    Pièces jointes
+                  </label>
+                ) : (
+                  <span className="tk-prop-label">
+                    <IconPaperclip />
+                    Pièces jointes
+                  </span>
+                )}
+                <div className="tk-prop-value tk-prop-value--block">
+                  <AttachmentUpload taskId={id} canUpload={isAdmin} inputId="tk-attach-input" hideTrigger />
+                </div>
+              </div>
             </div>
 
             {/* Gestion des assignés (admin) — dépliable depuis « Gérer ». */}
@@ -569,10 +660,9 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                 <p className="tk-empty">Aucune description.</p>
               )}
             </div>
-          </div>
 
-          {/* Suivi du temps détaillé */}
-          <div className="side-card">
+          {/* Suivi du temps détaillé — même carte que la description, séparé par un filet. */}
+          <div className="tk-card-section">
             <p className="side-card-title" style={{ marginBottom: '16px' }}>
               Suivi du temps
             </p>
@@ -638,26 +728,23 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               </form>
             )}
           </div>
+          </div>{/* fin de la carte : propriétés + description + suivi du temps */}
 
-          {/* Pièces jointes */}
-          <div className="side-card">
-            <p className="side-card-title" style={{ marginBottom: '16px' }}>
-              Pièces jointes
-            </p>
-            <AttachmentUpload taskId={id} canUpload={isAdmin} />
-          </div>
         </div>
-
-        {/* Rail droit : commentaires */}
-        <aside className="tk-rail">
-          <div className="side-card tk-rail-card">
-            <p className="side-card-title" style={{ marginBottom: '16px' }}>
-              Commentaires & Notes
-            </p>
-            <CommentSection taskId={id} />
-          </div>
-        </aside>
       </div>
+
+      {isAdmin && (
+        <div className="tk-footer">
+          {['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
+            <button type="button" className="btn-outline" onClick={handleRedoTask} title="Recréer et réassigner cette tâche">
+              <IconRestore /> Refaire
+            </button>
+          )}
+          <button type="button" className="btn-danger" onClick={handleDeleteTask}>
+            <IconTrash /> Supprimer
+          </button>
+        </div>
+      )}
     </>
   );
 
