@@ -40,9 +40,12 @@ async function findAssignedTasks(userId, { status, priority, deadline, listId } 
 
   const result = await db.query(
     `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.list_id, t.parent_task_id,
-            t.client_name, t.client_email, tl.name AS list_name
+            t.client_name, t.client_email, tl.name AS list_name,
+            tf.name AS folder_name, ts.name AS space_name
      FROM tasks t
      LEFT JOIN task_lists tl ON tl.id = t.list_id
+     LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+     LEFT JOIN task_spaces ts ON ts.id = tf.space_id
      WHERE ${conditions.join(' AND ')}
      ORDER BY t.deadline ASC`,
     params

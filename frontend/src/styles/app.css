@@ -351,6 +351,25 @@
   white-space: nowrap;
 }
 
+/* Titre + chemin du projet empilés (l'origine de la tâche). */
+.task-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-card-main .task-card-title {
+  flex: none;
+}
+.task-card-path {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .task-card-priority {
   flex-shrink: 0;
   font-size: 11px;

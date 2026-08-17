@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import AttachmentUpload from '../../components/AttachmentUpload';
@@ -89,12 +89,13 @@ function AdminTasksToValidate() {
   const [detailTask, setDetailTask] = useState(null);
   const [motifs, setMotifs] = useState({});
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Clic sur la carte → page détail de la tâche, SAUF si on clique un élément interactif
   // (case, bouton, lien, champ) qui garde son propre comportement.
   function openTaskFromCard(e, taskId) {
     if (e.target.closest('button, a, input, label, select, textarea')) return;
-    navigate(`/tasks/${taskId}`);
+    navigate(`/tasks/${taskId}`, { state: { backgroundLocation: location } });
   }
   const [pendingAction, setPendingAction] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -504,12 +505,17 @@ function AdminTasksToValidate() {
 
                 <div className="validate-card-body">
                   <div className="validate-card-top">
-                    <button type="button" className="validate-card-title" onClick={() => navigate(`/tasks/${task.id}`)}>
+                    <button
+                      type="button"
+                      className="validate-card-title"
+                      onClick={() => navigate(`/tasks/${task.id}`, { state: { backgroundLocation: location } })}
+                    >
                       {task.title}
                     </button>
                     <StatusDropdown taskId={task.id} status={task.status} onChanged={load} />
                     <Link
                       to={`/tasks/${task.id}`}
+                      state={{ backgroundLocation: location }}
                       className="validate-card-open"
                       title="Ouvrir le détail de la tâche"
                       aria-label={`Ouvrir le détail de la tâche ${task.title}`}

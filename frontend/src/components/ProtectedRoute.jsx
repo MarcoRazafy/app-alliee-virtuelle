@@ -9,11 +9,12 @@ function ProtectedRoute({ children, role }) {
   const checkDayValidated = useAuthStore((state) => state.checkDayValidated);
   const location = useLocation();
 
+  // Récupère l'état de validation du jour (côté serveur) pour les employés, une fois par session.
   useEffect(() => {
-    if (isAuthenticated && dayValidated === null) {
+    if (isAuthenticated && user?.role === 'EMPLOYEE' && dayValidated === null) {
       checkDayValidated();
     }
-  }, [isAuthenticated, dayValidated, checkDayValidated]);
+  }, [isAuthenticated, user, dayValidated, checkDayValidated]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -23,13 +24,20 @@ function ProtectedRoute({ children, role }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (user?.role === 'EMPLOYEE' && dayValidated === null) {
-    return <p className="route-access-loading" role="status">Vérification de votre espace…</p>;
-  }
-
-  // L'employé doit valider sa journée (au moins une tâche) avant d'accéder à toute autre page
-  if (user?.role === 'EMPLOYEE' && dayValidated === false && location.pathname !== '/my-day') {
-    return <Navigate to="/my-day" replace />;
+  // Redirection d'ENTRÉE : à l'arrivée sur l'espace (le dashboard), un employé qui n'a pas
+  // encore validé sa journée est dirigé vers « Ma journée ». Le reste de l'application reste
+  // librement accessible ensuite (ce n'est PAS un blocage global).
+  if (user?.role === 'EMPLOYEE' && location.pathname === '/dashboard') {
+    if (dayValidated === null) {
+      return (
+        <p className="route-access-loading" role="status">
+          Vérification de votre espace…
+        </p>
+      );
+    }
+    if (dayValidated === false) {
+      return <Navigate to="/my-day" replace />;
+    }
   }
 
   return children;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
+import * as dailyService from '../services/dailyService';
 import DragDropTasks from '../components/DragDropTasks';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import { notifySuccess, notifyError } from '../utils/toast';
@@ -8,6 +9,7 @@ import useAuthStore from '../store/authStore';
 import { IconX } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
 import { htmlToText } from '../utils/sanitizeHtml';
+import '../styles/daily.css';
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -15,6 +17,29 @@ const today = new Date().toLocaleDateString('fr-FR', {
   month: 'long',
   day: 'numeric',
 });
+const todayShort = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+
+// Regroupe des tâches par projet (nom de liste) → [{ project, tasks }] trié par projet.
+function groupByProject(tasks) {
+  const map = new Map();
+  for (const t of tasks) {
+    const project = t.list_name || 'Sans projet';
+    if (!map.has(project)) map.set(project, []);
+    map.get(project).push(t);
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'fr'))
+    .map(([project, list]) => ({ project, tasks: list }));
+}
+
+// Date + heure d'envoi (validation), ex. « 13/08/2026 à 16:45 ».
+function formatSubmit(ts) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  const date = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return `${date} à ${time}`;
+}
 
 function MyDay() {
   const [available, setAvailable] = useState([]);
@@ -29,6 +54,13 @@ function MyDay() {
   const [isSending, setIsSending] = useState(false);
   const setDayValidated = useAuthStore((state) => state.setDayValidated);
   const storedDayValidated = useAuthStore((state) => state.dayValidated);
+  const user = useAuthStore((state) => state.user);
+  // Section « Daily » : 2ᵉ glisser-déposer (tâches faites aujourd'hui), envoyé au clic sur « Valider ».
+  const [dailyAvailable, setDailyAvailable] = useState([]);
+  const [dailySelected, setDailySelected] = useState([]);
+  const [dailyDirty, setDailyDirty] = useState(false);
+  const [savingDaily, setSavingDaily] = useState(false);
+  const [dailySubmittedAt, setDailySubmittedAt] = useState(null);
 
   // Recharge tout l'état. En mode "journée validée", on l'appelle aussi en polling pour voir
   // apparaître les tâches supplémentaires approuvées par l'admin (et le statut des demandes).
@@ -49,6 +81,8 @@ function MyDay() {
         title: item.task_data.title,
         priority: item.task_data.priority,
         deadline: item.task_data.deadline,
+        list_name: item.task_data.list_name,
+        validated_at: item.validated_at,
       }))
     );
     setAvailable(selectableTasks.filter((task) => !selectedIds.has(task.id)));
@@ -87,6 +121,46 @@ function MyDay() {
   function handleUpdate({ available: newAvailable, selected: newSelected }) {
     setAvailable(newAvailable);
     setSelected(newSelected);
+  }
+
+  // Charge la sélection « Daily » (une fois au montage, indépendamment du polling To Do
+  // pour ne pas écraser un glisser-déposer en cours). Le pool = toutes les tâches assignées.
+  useEffect(() => {
+    let cancelled = false;
+    dailyService
+      .getMyDailyDone()
+      .then((data) => {
+        if (cancelled) return;
+        // Le pool « disponible » = MES tâches assignées (calculé côté serveur), pas toutes les tâches.
+        setDailySelected(data.done || []);
+        setDailyAvailable(data.available || []);
+        setDailySubmittedAt((data.done || [])[0]?.created_at || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Le glisser-déposer met à jour l'état local ; l'envoi se fait au clic sur « Valider le daily ».
+  function handleDailyUpdate({ available, selected }) {
+    setDailyAvailable(available);
+    setDailySelected(selected);
+    setDailyDirty(true);
+  }
+
+  async function handleValidateDaily() {
+    setSavingDaily(true);
+    try {
+      await dailyService.saveMyDailyDone({ task_ids: dailySelected.map((t) => t.id) });
+      setDailyDirty(false);
+      setDailySubmittedAt(new Date().toISOString());
+      notifySuccess('Daily validé et envoyé');
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de valider le daily');
+    } finally {
+      setSavingDaily(false);
+    }
   }
 
   async function handleValidate() {
@@ -129,12 +203,17 @@ function MyDay() {
     }
   }
 
+  // Horodatage d'envoi du To Do = le plus récent validated_at de la sélection.
+  const todoSubmittedAt = selected.reduce(
+    (max, t) => (t.validated_at && (!max || t.validated_at > max) ? t.validated_at : max),
+    null
+  );
+
   return (
     <EmployeeLayout
       title="Ma journée"
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Ma journée' }]}
       subtitle={today}
-      locked={!platformAccessible}
     >
       <div className="app-page-header">
         <span className={`status-badge ${platformAccessible ? 'status-badge--validated' : 'status-badge--pending'}`}>
@@ -207,6 +286,76 @@ function MyDay() {
           </Link>
         )}
       </div>
+
+      {validated && selected.length > 0 && (
+        <section className="side-card daily-recap">
+          <div className="daily-recap-head">
+            <span className="daily-recap-user">{user?.full_name}</span>
+            <strong className="daily-recap-title">To do du {todayShort}</strong>
+            {todoSubmittedAt && <span className="daily-recap-sent">Envoyé le {formatSubmit(todoSubmittedAt)}</span>}
+          </div>
+          {groupByProject(selected).map((group) => (
+            <div key={group.project} className="daily-recap-group">
+              <p className="daily-recap-project">{group.project}</p>
+              {group.tasks.map((task) => (
+                <div key={task.id} className="daily-recap-item">
+                  <span className="daily-bullet" />
+                  <span>{task.title}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {(dailyAvailable.length > 0 || dailySelected.length > 0) && (
+        <section className="daily-drag-section">
+          <div className="daily-recap-head">
+            <span className="daily-recap-user">{user?.full_name}</span>
+            <strong className="daily-recap-title">Daily du {todayShort}</strong>
+          </div>
+          <p className="daily-drag-hint">Glissez les tâches que vous avez faites aujourd'hui.</p>
+          <DragDropTasks
+            availableTasks={dailyAvailable}
+            selectedTasks={dailySelected}
+            onUpdate={handleDailyUpdate}
+            validated={false}
+            availableTitle="Tâches disponibles"
+            selectedTitle="Tâches faites (Daily)"
+            selectedEmptyLabel="Glissez ici les tâches faites."
+          />
+          <div className="app-actions">
+            <button type="button" className="btn-primary" onClick={handleValidateDaily} disabled={savingDaily}>
+              {savingDaily && <span className="btn-spinner" />}
+              {savingDaily ? 'Envoi…' : 'Valider le daily'}
+              {dailyDirty && !savingDaily && <span className="daily-dirty-dot" title="Modifications non envoyées" />}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {dailySelected.length > 0 && (
+        <section className="side-card daily-recap">
+          <div className="daily-recap-head">
+            <span className="daily-recap-user">{user?.full_name}</span>
+            <strong className="daily-recap-title">Daily du {todayShort}</strong>
+            {dailySubmittedAt && !dailyDirty && (
+              <span className="daily-recap-sent">Envoyé le {formatSubmit(dailySubmittedAt)}</span>
+            )}
+          </div>
+          {groupByProject(dailySelected).map((group) => (
+            <div key={group.project} className="daily-recap-group">
+              <p className="daily-recap-project">{group.project}</p>
+              {group.tasks.map((task) => (
+                <div key={task.id} className="daily-recap-item">
+                  <span className="daily-bullet" />
+                  <span>{task.title}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </section>
+      )}
 
       {requestingTask && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setRequestingTask(null)}>

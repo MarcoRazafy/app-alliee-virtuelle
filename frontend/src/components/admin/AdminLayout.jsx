@@ -10,6 +10,7 @@ import {
   IconWorkspace,
   IconLayers,
   IconChecklist,
+  IconListUl,
   IconCheckCircle,
   IconBell,
   IconMegaphone,
@@ -47,6 +48,7 @@ const NAV_ITEMS = [
     icon: IconUsers,
     children: [
       { to: '/admin/planning', label: 'Planning & Présence', subtitle: 'Disponibilités et présence des employés', icon: IconCalendarWeek },
+      { to: '/admin/daily', label: 'Daily & To Do', subtitle: 'Rapports quotidiens des employés', icon: IconListUl },
       { to: '/admin/users', label: 'Équipe', subtitle: "Membres de l'équipe", icon: IconUser },
     ],
   },

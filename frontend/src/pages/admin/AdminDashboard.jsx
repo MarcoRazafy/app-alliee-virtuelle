@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import * as dashboardService from '../../services/dashboardService';
 import * as avatarService from '../../services/avatarService';
 import { getSocket } from '../../services/socket';
@@ -13,6 +13,7 @@ import {
   IconSearch,
   IconArrowRight,
   IconCheckCircle,
+  IconListUl,
 } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
@@ -60,6 +61,7 @@ function Initials({ name, avatarUrl }) {
 }
 
 function AdminDashboard() {
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
@@ -235,6 +237,20 @@ function AdminDashboard() {
             <span className="admin-kpi-hint">échéances dépassées · voir</span>
           </div>
         </Link>
+        <Link
+          to="/admin/daily"
+          className="admin-kpi-card admin-kpi-card--violet admin-kpi-card--clickable"
+          title="Voir les To Do / Daily des employés"
+        >
+          <span className="admin-kpi-icon">
+            <IconListUl />
+          </span>
+          <div className="admin-kpi-copy">
+            <p>Daily / To Do</p>
+            <strong>Équipe</strong>
+            <span className="admin-kpi-hint">rapports quotidiens · voir</span>
+          </div>
+        </Link>
       </div>
 
       {showInProgressPanel && (
@@ -250,7 +266,12 @@ function AdminDashboard() {
           ) : (
             <div className="inprogress-list">
               {inProgressTasks.map((task) => (
-                <Link key={task.id} to={`/tasks/${task.id}`} className="inprogress-item">
+                <Link
+                  key={task.id}
+                  to={`/tasks/${task.id}`}
+                  state={{ backgroundLocation: location }}
+                  className="inprogress-item"
+                >
                   <span className="inprogress-item-title">{task.title}</span>
                   <span className="inprogress-item-emp">{task.employee_name}</span>
                   {task.session_start_time && <LiveClock startTime={task.session_start_time} />}

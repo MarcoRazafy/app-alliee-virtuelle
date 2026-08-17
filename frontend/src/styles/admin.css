@@ -139,7 +139,7 @@
 
 .admin-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -226,6 +226,7 @@
 .admin-kpi-card--green { color: var(--color-success); }
 .admin-kpi-card--blue { color: var(--color-text-secondary); }
 .admin-kpi-card--red { color: var(--color-error); }
+.admin-kpi-card--violet { color: var(--color-accent-lighter); }
 
 .admin-kpi-icon {
   flex-shrink: 0;

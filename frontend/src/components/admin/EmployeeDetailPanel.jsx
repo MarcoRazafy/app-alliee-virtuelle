@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as userService from '../../services/userService';
 import * as taskService from '../../services/taskService';
 import * as avatarService from '../../services/avatarService';
@@ -44,6 +44,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   const [taskTab, setTaskTab] = useState('all'); // 'all' = toutes les tâches, 'daily' = sélection du jour
   const [statusFilter, setStatusFilter] = useState('all'); // filtre par statut (Tout/À faire/En cours/Effectuées)
   const navigate = useNavigate();
+  const location = useLocation();
 
   const load = useCallback(async () => {
     try {
@@ -248,7 +249,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                       className="emp-task-card emp-task-card--clickable"
                       onClick={(e) => {
                         if (e.target.closest('button, a, input, label, select, textarea')) return;
-                        navigate(`/tasks/${task.id}`);
+                        navigate(`/tasks/${task.id}`, { state: { backgroundLocation: location } });
                       }}
                     >
                       <div className="emp-task-top">

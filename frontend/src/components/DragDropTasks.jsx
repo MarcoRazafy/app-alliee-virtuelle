@@ -96,6 +96,8 @@ function DraggableTask({ task, index, column, order, moveTask, disabled, request
   // — surlignée non verrouillée — car son bouton doit être cliquable.
   const locked = disabled && !requestable;
   const dl = deadlineInfo(task.deadline);
+  // Chemin du projet (Espace › Dossier › Liste) pour situer l'origine de la tâche.
+  const taskPath = [task.space_name, task.folder_name, task.list_name].filter(Boolean).join(' › ');
 
   return (
     <div
@@ -106,7 +108,14 @@ function DraggableTask({ task, index, column, order, moveTask, disabled, request
     >
       {order != null && <span className="task-order-badge">{order}</span>}
       <span className={`priority-dot ${PRIORITY_DOT_CLASS[task.priority] || 'priority-dot--normale'}`} />
-      <span className="task-card-title">{task.title}</span>
+      <span className="task-card-main">
+        <span className="task-card-title">{task.title}</span>
+        {taskPath && (
+          <span className="task-card-path" title={taskPath}>
+            {taskPath}
+          </span>
+        )}
+      </span>
       {dl && (
         <span
           className={`task-card-deadline task-card-deadline--${dl.urgency}`}
@@ -166,7 +175,17 @@ function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disable
   );
 }
 
-function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated, requestsByTaskId, onRequestTask }) {
+function DragDropTasks({
+  availableTasks,
+  selectedTasks,
+  onUpdate,
+  validated,
+  requestsByTaskId,
+  onRequestTask,
+  availableTitle = 'Tâches disponibles',
+  selectedTitle = "Mes tâches aujourd'hui",
+  selectedEmptyLabel = 'Glissez des tâches ici.',
+}) {
   function moveTask(fromColumn, fromIndex, toColumn, toIndex) {
     if (validated) return;
 
@@ -186,7 +205,7 @@ function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated, req
     <DndProvider backend={HTML5Backend}>
       <div className="dnd-columns">
         <Column
-          title="Tâches disponibles"
+          title={availableTitle}
           tasks={availableTasks}
           column="available"
           moveTask={moveTask}
@@ -197,12 +216,12 @@ function DragDropTasks({ availableTasks, selectedTasks, onUpdate, validated, req
           onRequestTask={onRequestTask}
         />
         <Column
-          title="Mes tâches aujourd'hui"
+          title={selectedTitle}
           tasks={selectedTasks}
           column="selected"
           moveTask={moveTask}
           showOrder
-          emptyLabel="Glissez des tâches ici."
+          emptyLabel={selectedEmptyLabel}
           disabled={validated}
         />
       </div>
