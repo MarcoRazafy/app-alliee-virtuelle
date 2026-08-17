@@ -6,7 +6,10 @@ import { IconFileText, IconEye, IconDownload, IconTrash, IconPaperclip } from '.
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
-function AttachmentUpload({ taskId, canUpload }) {
+// `hideTrigger` + `inputId` : le bouton d'upload interne est masqué et le champ fichier
+// (caché) est déclenché par un <label htmlFor={inputId}> rendu ailleurs (ex. le libellé
+// « Pièces jointes » de la fiche détail).
+function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
 
@@ -89,7 +92,18 @@ function AttachmentUpload({ taskId, canUpload }) {
 
   return (
     <div>
-      {canUpload && (
+      {/* Déclencheur externe : input fichier caché, activé par un <label htmlFor={inputId}>. */}
+      {canUpload && hideTrigger && (
+        <input
+          id={inputId}
+          className="attach-hidden-input"
+          type="file"
+          onChange={handleFileChange}
+          disabled={uploading}
+        />
+      )}
+
+      {canUpload && !hideTrigger && (
         <div className="upload-zone">
           <label className="upload-btn">
             <IconPaperclip />
@@ -99,14 +113,21 @@ function AttachmentUpload({ taskId, canUpload }) {
         </div>
       )}
 
-      {attachments.length === 0 && <div className="empty-state">Aucune pièce jointe pour le moment.</div>}
+      {hideTrigger && uploading && <div className="attach-uploading">Envoi en cours…</div>}
       {attachments.map((attachment) => (
         <div key={attachment.id} className="attachment-row">
           <span className="attachment-icon">
             <IconFileText />
           </span>
           <div className="attachment-info">
-            <div className="attachment-name">{attachment.file_name}</div>
+            <button
+              type="button"
+              className="attachment-name attachment-name-btn"
+              onClick={() => handleView(attachment)}
+              title="Voir le fichier"
+            >
+              {attachment.file_name}
+            </button>
             <div className="attachment-meta">
               {formatBytes(attachment.file_size)} · {formatDateTime(attachment.created_at)}
             </div>

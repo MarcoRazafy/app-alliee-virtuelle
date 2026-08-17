@@ -15,10 +15,21 @@
   flex-wrap: wrap;
 }
 
-/* Deux colonnes : contenu principal + rail commentaires. */
+/* Actions en pied (Refaire / Supprimer), séparées du contenu par un filet. */
+.tk-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Une seule colonne : contenu principal (le rail commentaires a été retiré). */
 .tk-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -115,6 +126,39 @@
   font-size: 13.5px;
   color: var(--color-text-primary);
 }
+/* Ligne pleine largeur (2 colonnes) — ex. pièces jointes : label en haut, contenu en bloc. */
+.tk-prop--full {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+  min-height: 0;
+  padding-top: 6px;
+}
+.tk-prop--full .tk-prop-label {
+  padding-top: 4px;
+}
+.tk-prop-value--block {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+}
+/* Libellé « Pièces jointes » qui sert de bouton d'import (sans bordure). */
+.tk-attach-trigger {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.tk-attach-trigger:hover {
+  color: var(--color-accent-lighter);
+}
+.attach-hidden-input {
+  display: none;
+}
+.attach-uploading {
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--color-accent-lighter);
+}
 .tk-prop-edit {
   padding: 2px 4px;
   border: none;
@@ -135,15 +179,46 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 10px;
 }
-/* Assigné cliquable : bouton dépouillé du chrome natif — garde la couleur lien de .app-link. */
-.tk-assignee-link {
+/* Assigné : pastille photo (ou initiales) + nom. Cliquable côté admin (→ messagerie). */
+.tk-assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 0;
   border: none;
   background: none;
-  font-size: 13.5px;
+  font-family: var(--font-family);
+  cursor: default;
+}
+button.tk-assignee-chip {
   cursor: pointer;
+}
+.tk-assignee-name {
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+  transition: color 0.15s ease;
+}
+button.tk-assignee-chip:hover .tk-assignee-name {
+  color: var(--color-accent-lighter);
+}
+.tk-assignee-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.tk-assignee-avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 .tk-priority-picker {
   display: flex;
@@ -154,6 +229,49 @@
   padding: 4px 10px;
   font-size: 12px;
 }
+/* Ligne « Dates » : 📅 début → 📅 échéance (échéance en rouge). */
+.tk-dates {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tk-date-arrow {
+  color: var(--color-text-muted);
+}
+.tk-date-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-primary);
+  font-size: 13.5px;
+}
+.tk-date-part svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+}
+/* Échéance mise en évidence en rouge (comme la date d'échéance ClickUp). */
+.tk-date-due {
+  color: var(--color-error);
+}
+.tk-date-due svg {
+  color: var(--color-error);
+}
+/* Échéance cliquable (admin) : bouton dépouillé, léger surlignage au survol. */
+button.tk-date-part {
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+button.tk-date-part:hover {
+  background: var(--glass-overlay);
+}
+
 .tk-date-input {
   padding: 5px 10px;
   font-family: var(--font-family);
@@ -280,6 +398,14 @@
   color: var(--color-text-muted);
 }
 
+/* Section liée dans la carte principale (ex. Suivi du temps sous la description),
+   séparée par un filet plutôt que par une carte distincte. */
+.tk-card-section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--color-border);
+}
+
 /* --- Description --- */
 .tk-desc-block {
   margin-top: 6px;
@@ -345,7 +471,8 @@
   margin: auto;
   padding: 28px 28px 32px;
   border-radius: 16px;
-  background: var(--color-bg-primary);
+  /* Surface « carte » (blanc en clair) plutôt que le gris de fond de page. */
+  background: var(--color-bg-secondary);
   /* La modale est rendue en portail dans <body>, HORS du conteneur applicatif qui
      définit la couleur de texte de base. Sans ça, tout texte sans couleur explicite
      (cellules de tableau, commentaires…) retombe sur le noir par défaut du navigateur. */
@@ -382,6 +509,15 @@
 /* Laisse la place au bouton fermer (les actions admin ne passent pas dessous). */
 .task-modal-body .tk-topbar {
   padding-right: 44px;
+}
+/* Dans la modale, la carte principale est aplatie : la modale EST la surface blanche
+   (pas de carte-dans-carte). La page pleine, elle, garde sa carte. */
+.task-modal .tk-card {
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
 }
 @keyframes tk-modal-fade {
   from { opacity: 0; }

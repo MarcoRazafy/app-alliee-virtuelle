@@ -86,7 +86,8 @@ async function findAllTasks({ status, priority, deadline, listId, activeOnly = f
             CASE WHEN t.status = 'CONFIRMEE' THEN t.updated_at + INTERVAL '5 days' END AS auto_hide_at,
             u.full_name AS assigned_to_name,
             tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name, ts.id AS space_id, ts.name AS space_name,
-            COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name) ORDER BY au.full_name)
+            COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name,
+                        'has_avatar', EXISTS (SELECT 1 FROM user_avatars uav WHERE uav.user_id = au.id)) ORDER BY au.full_name)
                       FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
@@ -105,7 +106,8 @@ async function findById(taskId) {
     `SELECT t.id, t.title, t.description, t.assigned_to, t.created_by, t.priority, t.status,
             t.start_date, t.deadline, t.list_id, t.parent_task_id, t.client_name, t.client_email,
             u.full_name AS assignee_name,
-            COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name) ORDER BY au.full_name)
+            COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name,
+                        'has_avatar', EXISTS (SELECT 1 FROM user_avatars uav WHERE uav.user_id = au.id)) ORDER BY au.full_name)
                       FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees
      FROM tasks t
      LEFT JOIN users u ON u.id = t.assigned_to
@@ -283,13 +285,15 @@ async function updateStatus(taskId, status, client = db) {
 }
 
 // Modifie les champs éditables d'une tâche (titre, description, priorité, échéance).
-async function updateTask(taskId, { title, description, priority, deadline }, client = db) {
+async function updateTask(taskId, { title, description, priority, deadline, startDate }, client = db) {
+  // start_date : COALESCE → on ne l'écrase que si une valeur est explicitement fournie.
   const result = await client.query(
     `UPDATE tasks
-       SET title = $2, description = $3, priority = $4, deadline = $5, updated_at = now()
+       SET title = $2, description = $3, priority = $4, deadline = $5,
+           start_date = COALESCE($6, start_date), updated_at = now()
      WHERE id = $1
      RETURNING id, title, status`,
-    [taskId, title, description ?? null, priority, deadline]
+    [taskId, title, description ?? null, priority, deadline, startDate ?? null]
   );
   return result.rows[0] || null;
 }

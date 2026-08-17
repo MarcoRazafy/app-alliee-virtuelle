@@ -57,6 +57,7 @@ async function getTask(req, res, next) {
       description: task.description,
       priority: task.priority,
       status: task.status,
+      start_date: task.start_date,
       deadline: task.deadline,
       assigned_to: task.assigned_to,
       assignee_name: task.assignee_name,
@@ -190,14 +191,21 @@ async function updateTask(req, res, next) {
     if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
 
     const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
-    const { description, priority, deadline } = req.body;
+    const { description, priority, deadline, start_date: startDate } = req.body;
     const errors = [];
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!deadline) errors.push("L'échéance est requise");
     if (errors.length > 0) return res.status(400).json({ errors });
 
-    const updated = await taskModel.updateTask(task.id, { title, description, priority, deadline });
+    const updated = await taskModel.updateTask(task.id, {
+      title,
+      description,
+      priority,
+      deadline,
+      // Seul un admin fixe la date de début ; chaîne vide → on garde la valeur existante.
+      startDate: req.user.role === 'ADMIN' && startDate ? String(startDate) : undefined,
+    });
     await taskModel.recordAudit({
       userId: req.user.id,
       action: 'UPDATE_TASK',
