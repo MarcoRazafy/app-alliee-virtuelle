@@ -1,4 +1,13 @@
-function Pagination({ page, totalItems, itemsPerPage, onPageChange, onItemsPerPageChange }) {
+// `options` : liste de tailles de page. Un item peut être un nombre (ex. 10) ou
+// { value, label } — utiliser value=Infinity pour « Toutes ».
+function Pagination({
+  page,
+  totalItems,
+  itemsPerPage,
+  onPageChange,
+  onItemsPerPageChange,
+  options = [10, 20, 50],
+}) {
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const start = totalItems === 0 ? 0 : (page - 1) * itemsPerPage + 1;
   const end = Math.min(page * itemsPerPage, totalItems);
@@ -24,9 +33,15 @@ function Pagination({ page, totalItems, itemsPerPage, onPageChange, onItemsPerPa
             onPageChange(1);
           }}
         >
-          <option value={10}>10 par page</option>
-          <option value={20}>20 par page</option>
-          <option value={50}>50 par page</option>
+          {options.map((opt) => {
+            const value = typeof opt === 'object' ? opt.value : opt;
+            const label = typeof opt === 'object' ? opt.label : `${opt} par page`;
+            return (
+              <option key={String(value)} value={value}>
+                {label}
+              </option>
+            );
+          })}
         </select>
 
         <button className="pagination-btn" onClick={() => goToPage(page - 1)} disabled={page === 1}>

@@ -280,6 +280,12 @@
   margin-bottom: 22px;
 }
 
+/* Barre de recherche de la liste des tâches (au-dessus des filtres). */
+.atv-search {
+  margin-bottom: 14px;
+  max-width: 420px;
+}
+
 .admin-filter-search {
   min-width: 240px;
   flex: 0 1 280px;

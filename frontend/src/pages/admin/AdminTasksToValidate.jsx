@@ -6,13 +6,14 @@ import AttachmentUpload from '../../components/AttachmentUpload';
 import CommentSection from '../../components/CommentSection';
 import StatusDropdown from '../../components/StatusDropdown';
 import MultiSelectFilter from '../../components/MultiSelectFilter';
+import Pagination from '../../components/Pagination';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus, IconTrash, IconLayers } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
-import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { sanitizeHtml, htmlToText } from '../../utils/sanitizeHtml';
 
 const STATUS_META = {
   DECLAREE: { label: 'Déclarée', pill: 'declared' },
@@ -78,6 +79,7 @@ function AdminTasksToValidate() {
   const [lateCount, setLateCount] = useState(0);
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [search, setSearch] = useState(''); // recherche texte (titre, assigné, projet, description)
   // Filtres multi-sélection : chaque filtre est une liste de valeurs cochées (OU logique).
   const [statusFilters, setStatusFilters] = useState([]);
   const [priorityFilters, setPriorityFilters] = useState([]);
@@ -99,6 +101,9 @@ function AdminTasksToValidate() {
   }
   const [pendingAction, setPendingAction] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Pagination de la liste : 10 / 50 / Toutes (Infinity).
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   async function load() {
     try {
@@ -140,10 +145,25 @@ function AdminTasksToValidate() {
     return found ? found.full_name : id;
   }
 
-  const filteredTasks = useMemo(
-    () =>
-      tasks
+  const filteredTasks = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return tasks
         .filter((task) => {
+        // Recherche texte : titre, assignés, chemin projet, description (OU logique).
+        const matchesSearch =
+          !q ||
+          [
+            task.title,
+            ...(task.assignees || []).map((a) => a.full_name),
+            task.space_name,
+            task.folder_name,
+            task.list_name,
+            htmlToText(task.description || ''),
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+            .includes(q);
         // Multi-sélection : un filtre vide = pas de contrainte ; sinon OU logique sur les valeurs cochées.
         const matchesStatus = !statusFilters.length || statusFilters.includes(task.status);
         const matchesPriority = !priorityFilters.length || priorityFilters.includes(task.priority);
@@ -154,15 +174,23 @@ function AdminTasksToValidate() {
           );
         const matchesDeadline =
           !deadlineFilters.length || deadlineFilters.some((d) => matchesDeadlineRange(task.deadline, d));
-        return matchesStatus && matchesPriority && matchesEmployee && matchesDeadline;
+        return matchesSearch && matchesStatus && matchesPriority && matchesEmployee && matchesDeadline;
         })
         .sort((a, b) => {
           const updatedA = new Date(a.updated_at || a.updatedAt || a.created_at || a.createdAt || 0).getTime();
           const updatedB = new Date(b.updated_at || b.updatedAt || b.created_at || b.createdAt || 0).getTime();
           return updatedB - updatedA;
-        }),
-    [tasks, statusFilters, priorityFilters, employeeFilters, deadlineFilters]
-  );
+        });
+  }, [tasks, search, statusFilters, priorityFilters, employeeFilters, deadlineFilters]);
+
+  // Sous-ensemble affiché selon la pagination (Toutes = pas de découpe).
+  const pagedTasks =
+    pageSize === Infinity ? filteredTasks : filteredTasks.slice((page - 1) * pageSize, page * pageSize);
+
+  // Un changement de recherche ou de filtre remet à la première page.
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilters, priorityFilters, employeeFilters, deadlineFilters]);
 
   const hasFilters =
     statusFilters.length || priorityFilters.length || employeeFilters.length || deadlineFilters.length;
@@ -366,6 +394,17 @@ function AdminTasksToValidate() {
         <AdminLateTasks />
       ) : (
         <>
+      <div className="filter-search atv-search">
+        <IconSearch />
+        <input
+          type="search"
+          placeholder="Rechercher une tâche (titre, assigné, projet…)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Rechercher une tâche"
+        />
+      </div>
+
       <div className="admin-filter-bar">
         <div className="filter-group">
           <span className="filter-group-label">Statut</span>
@@ -483,7 +522,7 @@ function AdminTasksToValidate() {
         <div className="empty-state">Aucune tâche ne correspond à ces filtres.</div>
       ) : (
         <div className="validate-list">
-          {filteredTasks.map((task) => {
+          {pagedTasks.map((task) => {
             const canReview = task.status === 'TERMINEE';
             const canValidate = task.status === 'DECLAREE';
             const selected = selectedIds.includes(task.id);
@@ -600,6 +639,21 @@ function AdminTasksToValidate() {
             );
           })}
         </div>
+      )}
+
+      {filteredTasks.length > 0 && (
+        <Pagination
+          page={page}
+          totalItems={filteredTasks.length}
+          itemsPerPage={pageSize}
+          onPageChange={setPage}
+          onItemsPerPageChange={setPageSize}
+          options={[
+            { value: 10, label: '10 par page' },
+            { value: 50, label: '50 par page' },
+            { value: Infinity, label: 'Toutes' },
+          ]}
+        />
       )}
         </>
       )}
