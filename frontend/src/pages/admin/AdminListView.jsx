@@ -173,11 +173,15 @@ function AdminListView() {
                           {groupTasks.map((task) => (
                             <tr
                               key={task.id}
-                              onClick={() => navigate(`/tasks/${task.id}`)}
+                              onClick={() => navigate(`/tasks/${task.id}`, { state: { backgroundLocation: location } })}
                               style={{ cursor: 'pointer' }}
                             >
                               <td>
-                                <Link to={`/tasks/${task.id}`} className="task-table-title">
+                                <Link
+                                  to={`/tasks/${task.id}`}
+                                  state={{ backgroundLocation: location }}
+                                  className="task-table-title"
+                                >
                                   {task.title}
                                 </Link>
                               </td>
@@ -192,7 +196,12 @@ function AdminListView() {
                                 </span>
                               </td>
                               <td>
-                                <Link to={`/tasks/${task.id}`} className="icon-link-btn" title="Ouvrir la tâche">
+                                <Link
+                                  to={`/tasks/${task.id}`}
+                                  state={{ backgroundLocation: location }}
+                                  className="icon-link-btn"
+                                  title="Ouvrir la tâche"
+                                >
                                   <IconExternalLink />
                                 </Link>
                               </td>

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { heartbeatSession, signalSessionDisconnect } from './services/sessionService';
 import { getUser } from './services/auth';
@@ -19,6 +19,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Workspace = lazy(() => import('./pages/Workspace'));
 const MyTasks = lazy(() => import('./pages/MyTasks'));
 const TaskDetail = lazy(() => import('./pages/TaskDetail'));
+// Même module, export nommé → ouvert en fenêtre modale par-dessus la liste.
+const TaskDetailModal = lazy(() => import('./pages/TaskDetail').then((m) => ({ default: m.TaskDetailModal })));
 const MyDay = lazy(() => import('./pages/MyDay'));
 const MyStats = lazy(() => import('./pages/MyStats'));
 const Planning = lazy(() => import('./pages/Planning'));
@@ -31,6 +33,7 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminCreateTask = lazy(() => import('./pages/admin/AdminCreateTask'));
 const AdminListView = lazy(() => import('./pages/admin/AdminListView'));
 const AdminTasksToValidate = lazy(() => import('./pages/admin/AdminTasksToValidate'));
+const AdminDaily = lazy(() => import('./pages/admin/AdminDaily'));
 const AdminLateTasks = lazy(() => import('./pages/admin/AdminLateTasks'));
 const AdminTaskRequests = lazy(() => import('./pages/admin/AdminTaskRequests'));
 const AdminStatistics = lazy(() => import('./pages/admin/AdminStatistics'));
@@ -75,7 +78,21 @@ function App() {
       <InstallPrompt />
       <AnnouncementPopup />
       <Suspense fallback={<RouteFallback />}>
-      <Routes>
+        <AppRoutes />
+      </Suspense>
+    </BrowserRouter>
+  );
+}
+
+// Routes de l'app. Isolé dans un composant pour pouvoir lire useLocation (background location) :
+// une tâche ouverte depuis une liste s'affiche en MODALE par-dessus la liste (state.backgroundLocation),
+// tout en gardant l'URL /tasks/:id (le lien direct / le rafraîchissement ouvrent la page pleine).
+function AppRoutes() {
+  const location = useLocation();
+  const backgroundLocation = location.state?.backgroundLocation;
+  return (
+    <>
+      <Routes location={backgroundLocation || location}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route
@@ -179,6 +196,7 @@ function App() {
         <Route path="/admin/create-task" element={<AdminRoute><AdminCreateTask /></AdminRoute>} />
         <Route path="/admin/lists" element={<AdminRoute><AdminListView /></AdminRoute>} />
         <Route path="/admin/validate" element={<AdminRoute><AdminTasksToValidate /></AdminRoute>} />
+        <Route path="/admin/daily" element={<AdminRoute><AdminDaily /></AdminRoute>} />
         <Route path="/admin/late" element={<AdminRoute><AdminLateTasks /></AdminRoute>} />
         <Route path="/admin/task-requests" element={<AdminRoute><AdminTaskRequests /></AdminRoute>} />
         <Route path="/admin/stats" element={<AdminRoute><AdminStatistics /></AdminRoute>} />
@@ -191,8 +209,21 @@ function App() {
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-      </Suspense>
-    </BrowserRouter>
+
+      {/* Route modale : rendue EN PLUS de la liste de fond quand on vient d'une liste. */}
+      {backgroundLocation && (
+        <Routes>
+          <Route
+            path="/tasks/:id"
+            element={
+              <ProtectedRoute>
+                <TaskDetailModal />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      )}
+    </>
   );
 }
 

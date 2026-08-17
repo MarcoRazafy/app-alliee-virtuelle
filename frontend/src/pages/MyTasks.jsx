@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as hierarchyService from '../services/hierarchyService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
@@ -49,6 +49,7 @@ function matchesDeadlineRange(deadline, range) {
 }
 
 function MyTasks() {
+  const location = useLocation();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: '', statuses: [], priorities: [], deadlineRange: '' });
@@ -186,7 +187,11 @@ function MyTasks() {
                 {paginatedTasks.map((task) => (
                   <tr key={task.id}>
                     <td>
-                      <Link to={`/tasks/${task.id}`} className="task-table-title">
+                      <Link
+                        to={`/tasks/${task.id}`}
+                        state={{ backgroundLocation: location }}
+                        className="task-table-title"
+                      >
                         {task.title}
                       </Link>
                     </td>
@@ -202,7 +207,12 @@ function MyTasks() {
                     </td>
                     <td>{task.totalDuration != null ? formatDurationShort(task.totalDuration) : '—'}</td>
                     <td>
-                      <Link to={`/tasks/${task.id}`} className="icon-link-btn" aria-label="Ouvrir la tâche">
+                      <Link
+                        to={`/tasks/${task.id}`}
+                        state={{ backgroundLocation: location }}
+                        className="icon-link-btn"
+                        aria-label="Ouvrir la tâche"
+                      >
                         <IconExternalLink />
                       </Link>
                     </td>

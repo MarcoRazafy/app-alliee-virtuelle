@@ -1,0 +1,399 @@
+/* Fiche détail tâche — mise en page façon ClickUp (Phase 1) :
+   grille de propriétés, édition inline, temps compact, commentaires en rail droit. */
+
+.tk-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.tk-topbar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Deux colonnes : contenu principal + rail commentaires. */
+.tk-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+.tk-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.tk-rail {
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .tk-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- En-tête --- */
+.tk-breadcrumb {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.detail-task-title.tk-editable {
+  cursor: text;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.detail-task-title.tk-editable:hover {
+  background: var(--glass-overlay);
+}
+.tk-title-input {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  font-family: var(--font-family);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--color-accent-light);
+  border-radius: 8px;
+}
+.tk-title-input:focus {
+  outline: none;
+}
+
+/* --- Grille de propriétés --- */
+.tk-props {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 40px;
+  margin: 18px 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+@media (max-width: 620px) {
+  .tk-props {
+    grid-template-columns: 1fr;
+  }
+}
+.tk-prop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  min-width: 0;
+}
+.tk-prop-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 130px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.tk-prop-label svg {
+  width: 16px;
+  height: 16px;
+}
+.tk-prop-value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+}
+.tk-prop-edit {
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-accent-lighter);
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tk-prop-edit:hover {
+  text-decoration: underline;
+}
+.tk-empty {
+  color: var(--color-text-muted);
+}
+.tk-assignees {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+/* Assigné cliquable : bouton dépouillé du chrome natif — garde la couleur lien de .app-link. */
+.tk-assignee-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.tk-priority-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tk-priority-picker .priority-option {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.tk-date-input {
+  padding: 5px 10px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+/* Contrôle date natif : aligne le rendu du navigateur sur le thème
+   (sinon le texte de la date reste noir sur fond sombre = invisible). */
+[data-theme='dark'] .tk-date-input {
+  color-scheme: dark;
+}
+[data-theme='light'] .tk-date-input {
+  color-scheme: light;
+}
+/* Idem pour les champs datetime-local de la saisie manuelle de temps (admin). */
+[data-theme='dark'] .manual-time-fields input {
+  color-scheme: dark;
+}
+[data-theme='light'] .manual-time-fields input {
+  color-scheme: light;
+}
+
+/* Bouton « Afficher plus / moins » du Suivi du temps (3 sessions par défaut). */
+.tk-history-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-accent-lighter);
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tk-history-toggle:hover {
+  border-color: var(--color-accent-light);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+/* --- Temps compact --- */
+.tk-time {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tk-time-total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tk-time-live {
+  font-size: 12.5px;
+  color: var(--color-warning);
+}
+.tk-time-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.tk-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.tk-icon-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.tk-icon-btn:hover:not(:disabled) {
+  border-color: var(--color-accent-light);
+  color: var(--color-text-primary);
+}
+.tk-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tk-icon-btn--play:hover:not(:disabled) {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.tk-icon-btn--stop {
+  color: var(--color-error);
+  border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+}
+.tk-icon-btn--done:hover:not(:disabled) {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+/* --- Gestion des assignés (dépliable) --- */
+.tk-assign-manage {
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-secondary);
+}
+.tk-assign-select {
+  width: 100%;
+  margin: 12px 0 10px;
+}
+.tk-assign-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tk-assign-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* --- Description --- */
+.tk-desc-block {
+  margin-top: 6px;
+}
+.tk-section-label {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.tk-desc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.detail-description.tk-editable {
+  cursor: text;
+  padding: 8px;
+  margin: -8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.detail-description.tk-editable:hover {
+  background: var(--glass-overlay);
+}
+.tk-desc-empty {
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-family);
+  font-size: 13px;
+  cursor: pointer;
+}
+.tk-desc-empty:hover {
+  border-color: var(--color-accent-light);
+  color: var(--color-text-secondary);
+}
+
+/* --- Fenêtre modale (tâche ouverte par-dessus une liste) --- */
+.task-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  animation: tk-modal-fade 0.15s ease-out;
+}
+.task-modal {
+  position: relative;
+  width: 100%;
+  max-width: 90vw;
+  margin: auto;
+  padding: 28px 28px 32px;
+  border-radius: 16px;
+  background: var(--color-bg-primary);
+  /* La modale est rendue en portail dans <body>, HORS du conteneur applicatif qui
+     définit la couleur de texte de base. Sans ça, tout texte sans couleur explicite
+     (cellules de tableau, commentaires…) retombe sur le noir par défaut du navigateur. */
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--card-shadow);
+  animation: tk-modal-in 0.18s ease-out;
+}
+.task-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.task-modal-close:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-light);
+}
+.task-modal-close svg {
+  width: 16px;
+  height: 16px;
+}
+/* Laisse la place au bouton fermer (les actions admin ne passent pas dessous). */
+.task-modal-body .tk-topbar {
+  padding-right: 44px;
+}
+@keyframes tk-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes tk-modal-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-modal-overlay,
+  .task-modal {
+    animation: none;
+  }
+}

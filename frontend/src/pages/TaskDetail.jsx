@@ -10,16 +10,43 @@ import { formatClock, formatDurationShort, formatDateTime, formatDate } from '..
 import { STATUS_PILL, priorityPillClass } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
-import { IconPlay, IconStop, IconCheckCircle, IconArrowRight, IconArrowLeft, IconTrash, IconRestore, IconPencil } from '../components/icons';
+import {
+  IconPlay,
+  IconStop,
+  IconCheckCircle,
+  IconArrowLeft,
+  IconTrash,
+  IconRestore,
+  IconUser,
+  IconClock,
+  IconCalendarWeek,
+  IconAlert,
+  IconX,
+} from '../components/icons';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { createPortal } from 'react-dom';
 import RichTextEditor from '../components/RichTextEditor';
 import StatusDropdown from '../components/StatusDropdown';
+import '../styles/task-detail.css';
 
 const EDIT_PRIORITIES = ['FAIBLE', 'NORMALE', 'HAUTE', 'URGENT'];
 
-function TaskDetail() {
-  const { id } = useParams();
+// Ligne de propriété (icône · libellé · valeur), façon ClickUp.
+function PropRow({ icon, label, children }) {
+  return (
+    <div className="tk-prop">
+      <span className="tk-prop-label">
+        {icon}
+        {label}
+      </span>
+      <span className="tk-prop-value">{children}</span>
+    </div>
+  );
+}
+
+function TaskDetail({ taskId, isModal = false, onClose }) {
+  const params = useParams();
+  const id = taskId || params.id;
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'ADMIN';
@@ -31,15 +58,16 @@ function TaskDetail() {
   const [elapsed, setElapsed] = useState(0);
   const [notFound, setNotFound] = useState(false);
   const [breadcrumbData, setBreadcrumbData] = useState(null);
-  // Saisie manuelle de temps (admin) : chrono oublié, ajouté a posteriori.
   const [manualTime, setManualTime] = useState({ start: '', end: '' });
-  // Réassignation (admin) : liste des employés + personne choisie pour transférer/ajouter.
   const [employees, setEmployees] = useState([]);
   const [pickAssignee, setPickAssignee] = useState('');
-  // Édition d'une tâche (admin) : modal + brouillon des champs.
-  const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', priority: 'NORMALE', deadline: '' });
-  const [savingEdit, setSavingEdit] = useState(false);
+  // Édition inline (admin) : titre, description, gestion des assignés.
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState('');
+  const [showAssignManage, setShowAssignManage] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false); // Suivi du temps : 3 derniers par défaut
 
   const loadData = useCallback(async () => {
     try {
@@ -50,18 +78,12 @@ function TaskDetail() {
       ]);
       setTask(taskData);
       setHistory(historyData);
-      // Session active = celle de l'utilisateur COURANT (admin comme employé peut chronométrer).
       const running = historyData.find((session) => !session.end_time && session.employee_id === user?.id);
       setActiveSession(running || null);
-      if (detailData) {
-        setBreadcrumbData(detailData.breadcrumb);
-      }
+      if (detailData) setBreadcrumbData(detailData.breadcrumb);
     } catch (err) {
-      if (err.response?.status === 404) {
-        setNotFound(true);
-      } else {
-        notifyError(err.response?.data?.error || 'Impossible de charger la tâche');
-      }
+      if (err.response?.status === 404) setNotFound(true);
+      else notifyError(err.response?.data?.error || 'Impossible de charger la tâche');
     }
   }, [id, user?.id]);
 
@@ -69,21 +91,22 @@ function TaskDetail() {
     loadData();
   }, [loadData]);
 
-  // Repère les changements faits ailleurs (bascule depuis une autre tâche, autre onglet...)
+  // Repère les changements faits ailleurs — mais on ne rafraîchit pas pendant une édition inline.
   useEffect(() => {
-    const poll = setInterval(loadData, 5000);
+    const poll = setInterval(() => {
+      if (!editingTitle && !editingDesc) loadData();
+    }, 5000);
     return () => clearInterval(poll);
-  }, [loadData]);
+  }, [loadData, editingTitle, editingDesc]);
 
   useEffect(() => {
-    if (notFound) {
+    if (notFound && !isModal) {
       notifyError('Tâche introuvable');
-      // Retour vers la bonne liste selon le rôle (admin → liste des tâches admin).
       const timeout = setTimeout(() => navigate(isAdmin ? '/admin/validate' : '/tasks'), 2000);
       return () => clearTimeout(timeout);
     }
     return undefined;
-  }, [notFound, navigate, isAdmin]);
+  }, [notFound, navigate, isAdmin, isModal]);
 
   useEffect(() => {
     if (!activeSession) return undefined;
@@ -93,6 +116,14 @@ function TaskDetail() {
     }, 1000);
     return () => clearInterval(interval);
   }, [activeSession]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    userService
+      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
+      .then(setEmployees)
+      .catch(() => setEmployees([]));
+  }, [isAdmin]);
 
   async function handleStart() {
     try {
@@ -104,11 +135,8 @@ function TaskDetail() {
       }
       await loadData();
     } catch (err) {
-      if (err.response?.status === 409) {
-        notifyError('Le chrono est déjà actif sur cette tâche');
-      } else {
-        notifyError(err.response?.data?.error || 'Impossible de démarrer le chrono');
-      }
+      if (err.response?.status === 409) notifyError('Le chrono est déjà actif sur cette tâche');
+      else notifyError(err.response?.data?.error || 'Impossible de démarrer le chrono');
     }
   }
 
@@ -132,7 +160,6 @@ function TaskDetail() {
     }
   }
 
-  // Ajout manuel de temps par l'admin (chrono oublié par l'employé).
   async function handleAddManualTime(event) {
     event.preventDefault();
     if (!manualTime.start || !manualTime.end) return;
@@ -146,8 +173,6 @@ function TaskDetail() {
     }
   }
 
-  // « Refaire » (admin) : recrée la tâche en pré-remplissant le formulaire de création, pour
-  // pouvoir la réassigner (même employé par défaut) et repartir sur un chrono neuf.
   function handleRedoTask() {
     const today = new Date().toISOString().slice(0, 10);
     const deadline = task.deadline && String(task.deadline).slice(0, 10) >= today ? String(task.deadline).slice(0, 10) : '';
@@ -165,7 +190,6 @@ function TaskDetail() {
     });
   }
 
-  // Suppression d'une tâche (admin). Prévient que les sous-tâches et le suivi seront supprimés.
   async function handleDeleteTask() {
     const confirmMessage = `Supprimer la tâche « ${task?.title || ''} » ?\n\nCette action est définitive et supprime aussi ses sous-tâches, commentaires, chronos et pièces jointes.`;
     if (!window.confirm(confirmMessage)) return;
@@ -178,16 +202,6 @@ function TaskDetail() {
     }
   }
 
-  // Charge la liste des employés actifs (pour le menu de réassignation), admin seulement.
-  useEffect(() => {
-    if (!isAdmin) return;
-    userService
-      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
-      .then(setEmployees)
-      .catch(() => setEmployees([]));
-  }, [isAdmin]);
-
-  // Transfère la tâche courante à la personne choisie (change le destinataire).
   async function handleReassign() {
     if (!pickAssignee) return;
     try {
@@ -200,7 +214,6 @@ function TaskDetail() {
     }
   }
 
-  // Ajoute la personne choisie à la tâche (assignation multiple partagée).
   async function handleAddAssignee() {
     if (!pickAssignee) return;
     try {
@@ -213,7 +226,6 @@ function TaskDetail() {
     }
   }
 
-  // Retire une personne de la tâche (impossible de retirer la dernière).
   async function handleRemoveAssignee(userId) {
     try {
       await taskService.removeTaskAssignee(id, userId);
@@ -224,44 +236,35 @@ function TaskDetail() {
     }
   }
 
-  // Ouvre le modal d'édition avec les valeurs actuelles de la tâche.
-  function openEdit() {
-    setEditForm({
-      title: task.title || '',
-      description: task.description || '',
-      priority: task.priority || 'NORMALE',
-      deadline: task.deadline ? String(task.deadline).slice(0, 10) : '',
-    });
-    setEditOpen(true);
-  }
-
-  async function saveEdit(e) {
-    e.preventDefault();
-    if (!editForm.title.trim()) {
-      notifyError('Le titre est requis');
-      return;
-    }
-    if (!editForm.deadline) {
-      notifyError("L'échéance est requise");
-      return;
-    }
-    setSavingEdit(true);
+  // Enregistre une modification partielle : updateTask exige titre + priorité + échéance,
+  // on renvoie donc les valeurs actuelles fusionnées avec le champ modifié.
+  async function savePatch(partial) {
     try {
       await taskService.updateTask(id, {
-        title: editForm.title.trim(),
-        description: editForm.description,
-        priority: editForm.priority,
-        deadline: editForm.deadline,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        deadline: task.deadline ? String(task.deadline).slice(0, 10) : '',
+        ...partial,
       });
-      notifySuccess('Tâche modifiée');
-      setEditOpen(false);
       await loadData();
+      return true;
     } catch (err) {
       const data = err.response?.data;
       notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de modifier la tâche');
-    } finally {
-      setSavingEdit(false);
+      return false;
     }
+  }
+
+  async function commitTitle() {
+    const trimmed = titleDraft.trim();
+    setEditingTitle(false);
+    if (trimmed && trimmed !== task.title) await savePatch({ title: trimmed });
+  }
+
+  async function commitDesc() {
+    setEditingDesc(false);
+    if (descDraft !== (task.description || '')) await savePatch({ description: descDraft });
   }
 
   const layoutProps = isAdmin
@@ -272,422 +275,421 @@ function TaskDetail() {
       };
 
   if (notFound) {
-    return (
-      <Layout {...layoutProps}>
-        <div className="empty-state">
-          Tâche introuvable. Retour à {isAdmin ? 'la liste des tâches' : 'Mes tâches'}...
-        </div>
-      </Layout>
+    const body = (
+      <div className="empty-state">
+        Tâche introuvable{isModal ? '.' : `. Retour à ${isAdmin ? 'la liste des tâches' : 'Mes tâches'}...`}
+      </div>
     );
+    return isModal ? body : <Layout {...layoutProps}>{body}</Layout>;
   }
-
   if (!task) {
-    return (
-      <Layout {...layoutProps}>
-        <p>Chargement...</p>
-      </Layout>
-    );
+    const body = <p style={{ padding: isModal ? '24px' : 0 }}>Chargement...</p>;
+    return isModal ? body : <Layout {...layoutProps}>{body}</Layout>;
   }
 
   const totalSeconds = history.reduce((sum, session) => sum + (session.duration_seconds || 0), 0);
   const sortedHistory = [...history].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+  const HISTORY_PREVIEW = 3; // nombre de sessions visibles avant « Afficher plus »
+  const visibleHistory = showAllHistory ? sortedHistory : sortedHistory.slice(0, HISTORY_PREVIEW);
   const displayStatus = task.status === 'EN_COURS' && !activeSession ? 'A_REPRENDRE' : task.status;
+  const assignees =
+    task.assignees && task.assignees.length
+      ? task.assignees
+      : task.assigned_to
+        ? [{ id: task.assigned_to, full_name: task.assignee_name || 'Employé' }]
+        : [];
+  const canTime = ['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status);
 
-  return (
-    <Layout {...layoutProps}>
+  const content = (
+    <>
       {isAdmin && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <Link to="/admin/validate" className="app-link">
-            <IconArrowLeft /> Retour à la liste des tâches
-          </Link>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="tk-topbar">
+          {isModal ? (
+            <span />
+          ) : (
+            <Link to="/admin/validate" className="app-link">
+              <IconArrowLeft /> Retour à la liste des tâches
+            </Link>
+          )}
+          <div className="tk-topbar-actions">
             {['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
               <button type="button" className="btn-outline" onClick={handleRedoTask} title="Recréer et réassigner cette tâche">
                 <IconRestore /> Refaire
               </button>
             )}
-            <button type="button" className="btn-outline" onClick={openEdit}>
-              <IconPencil /> Modifier
-            </button>
             <button type="button" className="btn-danger" onClick={handleDeleteTask}>
-              <IconTrash /> Supprimer la tâche
+              <IconTrash /> Supprimer
             </button>
           </div>
         </div>
       )}
 
-      <div className="side-card" style={{ marginBottom: '20px' }}>
-        {breadcrumbData && (
-          <span className="hierarchy-chip">
-            {breadcrumbData.space.name} › {breadcrumbData.folder.name} › {breadcrumbData.list.name}
-          </span>
-        )}
-        <h1 className="detail-task-title">{task.title}</h1>
-        {task.description && (
-          <div
-            className="detail-description rich-text"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.description) }}
-          />
-        )}
-
-        <div className="detail-meta-row">
-          <div className="detail-meta-item">
-            <span className="detail-meta-label">Statut</span>
-            {isAdmin ? (
-              <StatusDropdown taskId={id} status={task.status} displayStatus={displayStatus} onChanged={loadData} />
-            ) : (
-              <span className={`pill ${STATUS_PILL[displayStatus]?.className || ''}`}>
-                {STATUS_PILL[displayStatus]?.label || displayStatus}
+      <div className="tk-layout">
+        <div className="tk-main">
+          {/* En-tête : fil d'Ariane + titre + propriétés + description */}
+          <div className="side-card tk-card">
+            {breadcrumbData && (
+              <span className="tk-breadcrumb">
+                {breadcrumbData.space.name} › {breadcrumbData.folder.name} › {breadcrumbData.list.name}
               </span>
             )}
-          </div>
-          <div className="detail-meta-item">
-            <span className="detail-meta-label">Priorité</span>
-            <span className={`pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
-          </div>
-          <div className="detail-meta-item">
-            <span className="detail-meta-label">Échéance</span>
-            <span>{formatDate(task.deadline)}</span>
-          </div>
-          {isAdmin && (task.assignees?.length || task.assigned_to) && (
-            <div className="detail-meta-item">
-              <span className="detail-meta-label">
-                {(task.assignees?.length || 1) > 1 ? 'Assignés à' : 'Assigné à'}
-              </span>
-              <span className="detail-assignees">
-                {(task.assignees && task.assignees.length
-                  ? task.assignees
-                  : [{ id: task.assigned_to, full_name: task.assignee_name || 'Employé' }]
-                ).map((a, i, arr) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className="app-link detail-assignee-link"
-                    onClick={() => navigate('/admin/messaging', { state: { employeeId: a.id } })}
-                    title={`Discuter avec ${a.full_name}`}
-                  >
-                    {a.full_name}
-                    {i < arr.length - 1 ? ', ' : ''}
-                  </button>
-                ))}
-              </span>
-            </div>
-          )}
-          {(task.client_name || task.client_email) && (
-            <div className="detail-meta-item">
-              <span className="detail-meta-label">Client</span>
-              <span>
-                {task.client_name}
-                {task.client_name && task.client_email && ' — '}
-                {task.client_email}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {isAdmin && (
-        <div className="side-card" style={{ marginBottom: '20px' }}>
-          <p className="side-card-title" style={{ marginBottom: '12px' }}>
-            Assignation
-            <span className="emp-drawer-tab-count" style={{ marginLeft: '8px' }}>
-              {(task.assignees || []).length}
-            </span>
-          </p>
-          <div className="assignee-chips">
-            {(task.assignees || []).map((a) => (
-              <span key={a.id} className="assignee-chip">
-                {a.full_name}
-                {(task.assignees || []).length > 1 && (
-                  <button
-                    type="button"
-                    className="assignee-chip-x"
-                    onClick={() => handleRemoveAssignee(a.id)}
-                    aria-label={`Retirer ${a.full_name}`}
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-          <select
-            className="filter-select"
-            style={{ width: '100%', margin: '12px 0 10px' }}
-            value={pickAssignee}
-            onChange={(e) => setPickAssignee(e.target.value)}
-            aria-label="Choisir une personne à ajouter ou transférer"
-          >
-            <option value="">Ajouter / transférer à…</option>
-            {employees
-              .filter((emp) => !(task.assignees || []).some((a) => a.id === emp.id))
-              .map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.full_name}
-                </option>
-              ))}
-          </select>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button type="button" className="btn-primary" onClick={handleAddAssignee} disabled={!pickAssignee}>
-              + Ajouter
-            </button>
-            <button type="button" className="btn-outline" onClick={handleReassign} disabled={!pickAssignee}>
-              Transférer (seul)
-            </button>
-          </div>
-          <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-            « Ajouter » : la personne <strong>partage</strong> cette tâche. « Transférer » : la tâche passe à cette
-            <strong> seule</strong> personne. Terminer la tâche la termine <strong>pour tout le monde</strong>.
-          </p>
-        </div>
-      )}
-
-      {!isAdmin && (
-      <div className="side-card" style={{ marginBottom: '20px' }}>
-        <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Suivi du temps
-        </p>
-        <div className="chrono-card-body">
-          {activeSession && (
-            <div className="chrono-ring-wrap">
-              <div className="chrono-ring" />
-              <div className="chrono-ring-inner">
-                <span className="chrono-ring-value">{formatClock(elapsed)}</span>
-                <span className="chrono-ring-caption">Temps écoulé</span>
-              </div>
-            </div>
-          )}
-          <div className="chrono-card-actions">
-            {activeSession ? (
-              <button className="btn-danger" onClick={handleStop}>
-                <IconStop /> Arrêter le chrono
-              </button>
-            ) : (
-              <button
-                className="btn-primary"
-                onClick={handleStart}
-                disabled={!['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status)}
-              >
-                <IconPlay /> Démarrer le chrono
-              </button>
-            )}
-            <button className="btn-outline" onClick={handleComplete} disabled={task.status !== 'EN_COURS'}>
-              <IconCheckCircle /> Marquer comme terminée
-            </button>
-          </div>
-        </div>
-      </div>
-      )}
-
-      {!isAdmin && (
-      <div className="side-card" style={{ marginBottom: '20px' }}>
-        <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Historique du chrono
-        </p>
-        {sortedHistory.length === 0 && <div className="empty-state">Aucune session.</div>}
-        {sortedHistory.length > 0 && (
-          <>
-            <div className="task-table-wrap">
-              <table className="task-table">
-                <thead>
-                  <tr>
-                    <th>Qui</th>
-                    <th>Début</th>
-                    <th>Fin</th>
-                    <th>Durée</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedHistory.map((session, index) => (
-                    <tr key={index}>
-                      <td>{session.employee_name || '—'}</td>
-                      <td>{formatDateTime(session.start_time)}</td>
-                      <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
-                      <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p style={{ marginTop: '12px', fontSize: '13.5px' }}>
-              <strong>Total : {formatDurationShort(totalSeconds)}</strong>
-            </p>
-          </>
-        )}
-      </div>
-      )}
-
-      {/* Côté admin : temps passé en LECTURE SEULE (le chrono est piloté par l'employé). */}
-      {isAdmin && (
-      <div className="side-card" style={{ marginBottom: '20px' }}>
-        <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Temps passé
-        </p>
-        {/* L'admin peut lui aussi chronométrer la tâche (son temps s'ajoute au total). */}
-        <div className="chrono-card-body" style={{ marginBottom: '16px' }}>
-          {activeSession && (
-            <div className="chrono-ring-wrap">
-              <div className="chrono-ring" />
-              <div className="chrono-ring-inner">
-                <span className="chrono-ring-value">{formatClock(elapsed)}</span>
-                <span className="chrono-ring-caption">Mon chrono</span>
-              </div>
-            </div>
-          )}
-          <p style={{ fontSize: '15px' }}>
-            <strong>Total : {formatDurationShort(totalSeconds)}</strong>
-          </p>
-          <div className="chrono-card-actions">
-            {activeSession ? (
-              <button className="btn-danger" onClick={handleStop}>
-                <IconStop /> Arrêter mon chrono
-              </button>
-            ) : (
-              <button
-                className="btn-primary"
-                onClick={handleStart}
-                disabled={!['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status)}
-              >
-                <IconPlay /> Démarrer mon chrono
-              </button>
-            )}
-          </div>
-        </div>
-
-        {sortedHistory.length === 0 && <div className="empty-state">Aucun temps enregistré.</div>}
-        {sortedHistory.length > 0 && (
-          <div className="task-table-wrap">
-            <table className="task-table">
-              <thead>
-                <tr>
-                  <th>Qui</th>
-                  <th>Début</th>
-                  <th>Fin</th>
-                  <th>Durée</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedHistory.map((session, index) => (
-                  <tr key={index}>
-                    <td>{session.employee_name || '—'}</td>
-                    <td>{formatDateTime(session.start_time)}</td>
-                    <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
-                    <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {task.assigned_to && (
-          <form className="manual-time-form" onSubmit={handleAddManualTime}>
-            <p className="manual-time-hint">Chrono oublié ? Ajoutez le temps manuellement :</p>
-            <div className="manual-time-fields">
-              <label>
-                <span>Début</span>
-                <input
-                  type="datetime-local"
-                  value={manualTime.start}
-                  onChange={(e) => setManualTime((m) => ({ ...m, start: e.target.value }))}
-                  required
-                />
-              </label>
-              <label>
-                <span>Fin</span>
-                <input
-                  type="datetime-local"
-                  value={manualTime.end}
-                  onChange={(e) => setManualTime((m) => ({ ...m, end: e.target.value }))}
-                  required
-                />
-              </label>
-              <button type="submit" className="btn-outline">
-                Ajouter le temps
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-      )}
-
-      <div className="side-card" style={{ marginBottom: '20px' }}>
-        <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Commentaires & Notes
-        </p>
-        <CommentSection taskId={id} />
-      </div>
-
-      {/* Pièces jointes : visibles par l'admin ET l'employé. Seul l'admin peut importer /
-          supprimer (canUpload) ; l'employé les consulte et les télécharge (lecture seule). */}
-      <div className="side-card">
-        <p className="side-card-title" style={{ marginBottom: '16px' }}>
-          Pièces jointes
-        </p>
-        <AttachmentUpload taskId={id} canUpload={isAdmin} />
-      </div>
-
-      {editOpen &&
-        createPortal(
-          <div className="task-edit-overlay" onClick={() => !savingEdit && setEditOpen(false)}>
-            <form className="task-edit-modal" onClick={(e) => e.stopPropagation()} onSubmit={saveEdit}>
-              <h2 className="task-edit-title">Modifier la tâche</h2>
-
-              <label className="form-label" htmlFor="edit-title">Titre</label>
+            {isAdmin && editingTitle ? (
               <input
-                id="edit-title"
-                className="form-input"
-                value={editForm.title}
-                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                placeholder="Titre de la tâche"
+                className="tk-title-input"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={commitTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                  if (e.key === 'Escape') setEditingTitle(false);
+                }}
                 autoFocus
               />
+            ) : (
+              <h1
+                className={`detail-task-title${isAdmin ? ' tk-editable' : ''}`}
+                onClick={() => {
+                  if (isAdmin) {
+                    setTitleDraft(task.title || '');
+                    setEditingTitle(true);
+                  }
+                }}
+                title={isAdmin ? 'Cliquer pour modifier' : undefined}
+              >
+                {task.title}
+              </h1>
+            )}
 
-              <label className="form-label" htmlFor="edit-desc">Description</label>
-              <RichTextEditor
-                value={editForm.description}
-                onChange={(html) => setEditForm({ ...editForm, description: html })}
-                placeholder="Description de la tâche…"
-              />
+            <div className="tk-props">
+              <PropRow icon={<IconCheckCircle />} label="Statut">
+                {isAdmin ? (
+                  <StatusDropdown taskId={id} status={task.status} displayStatus={displayStatus} onChanged={loadData} />
+                ) : (
+                  <span className={`pill ${STATUS_PILL[displayStatus]?.className || ''}`}>
+                    {STATUS_PILL[displayStatus]?.label || displayStatus}
+                  </span>
+                )}
+              </PropRow>
 
-              <label className="form-label">Priorité</label>
-              <div className="priority-picker">
-                {EDIT_PRIORITIES.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    className={`priority-option priority-option--${p.toLowerCase()}${editForm.priority === p ? ' priority-option--active' : ''}`}
-                    onClick={() => setEditForm({ ...editForm, priority: p })}
-                  >
-                    <span className={`priority-dot priority-dot--${p.toLowerCase()}`} />
-                    {p}
+              <PropRow icon={<IconUser />} label="Assignés">
+                <span className="tk-assignees">
+                  {assignees.length === 0 && <span className="tk-empty">Non assignée</span>}
+                  {assignees.map((a, i, arr) =>
+                    isAdmin ? (
+                      <button
+                        key={a.id}
+                        type="button"
+                        className="app-link tk-assignee-link"
+                        onClick={() => navigate('/admin/messaging', { state: { employeeId: a.id } })}
+                        title={`Discuter avec ${a.full_name}`}
+                      >
+                        {a.full_name}
+                        {i < arr.length - 1 ? ', ' : ''}
+                      </button>
+                    ) : (
+                      <span key={a.id}>
+                        {a.full_name}
+                        {i < arr.length - 1 ? ', ' : ''}
+                      </span>
+                    )
+                  )}
+                  {isAdmin && (
+                    <button type="button" className="tk-prop-edit" onClick={() => setShowAssignManage((v) => !v)}>
+                      {showAssignManage ? 'Fermer' : 'Gérer'}
+                    </button>
+                  )}
+                </span>
+              </PropRow>
+
+              <PropRow icon={<IconAlert />} label="Priorité">
+                {isAdmin ? (
+                  <div className="tk-priority-picker">
+                    {EDIT_PRIORITIES.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`priority-option priority-option--${p.toLowerCase()}${task.priority === p ? ' priority-option--active' : ''}`}
+                        onClick={() => task.priority !== p && savePatch({ priority: p })}
+                      >
+                        <span className={`priority-dot priority-dot--${p.toLowerCase()}`} />
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={`pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
+                )}
+              </PropRow>
+
+              <PropRow icon={<IconCalendarWeek />} label="Début">
+                {task.start_date ? formatDate(task.start_date) : <span className="tk-empty">—</span>}
+              </PropRow>
+
+              <PropRow icon={<IconCalendarWeek />} label="Échéance">
+                {isAdmin ? (
+                  <input
+                    type="date"
+                    className="tk-date-input"
+                    value={task.deadline ? String(task.deadline).slice(0, 10) : ''}
+                    onChange={(e) => e.target.value && savePatch({ deadline: e.target.value })}
+                  />
+                ) : (
+                  formatDate(task.deadline)
+                )}
+              </PropRow>
+
+              <PropRow icon={<IconClock />} label="Suivre le temps">
+                <span className="tk-time">
+                  <span className="tk-time-total">{formatDurationShort(totalSeconds)}</span>
+                  {activeSession && <span className="tk-time-live">· {formatClock(elapsed)} en cours</span>}
+                  <span className="tk-time-actions">
+                    {activeSession ? (
+                      <button type="button" className="tk-icon-btn tk-icon-btn--stop" onClick={handleStop} title="Arrêter le chrono">
+                        <IconStop />
+                      </button>
+                    ) : (
+                      <button type="button" className="tk-icon-btn tk-icon-btn--play" onClick={handleStart} disabled={!canTime} title="Démarrer le chrono">
+                        <IconPlay />
+                      </button>
+                    )}
+                    {!isAdmin && (
+                      <button
+                        type="button"
+                        className="tk-icon-btn tk-icon-btn--done"
+                        onClick={handleComplete}
+                        disabled={task.status !== 'EN_COURS'}
+                        title="Marquer comme terminée"
+                      >
+                        <IconCheckCircle />
+                      </button>
+                    )}
+                  </span>
+                </span>
+              </PropRow>
+
+              {(task.client_name || task.client_email) && (
+                <PropRow icon={<IconUser />} label="Client">
+                  {task.client_name}
+                  {task.client_name && task.client_email && ' — '}
+                  {task.client_email}
+                </PropRow>
+              )}
+            </div>
+
+            {/* Gestion des assignés (admin) — dépliable depuis « Gérer ». */}
+            {isAdmin && showAssignManage && (
+              <div className="tk-assign-manage">
+                <div className="assignee-chips">
+                  {(task.assignees || []).map((a) => (
+                    <span key={a.id} className="assignee-chip">
+                      {a.full_name}
+                      {(task.assignees || []).length > 1 && (
+                        <button
+                          type="button"
+                          className="assignee-chip-x"
+                          onClick={() => handleRemoveAssignee(a.id)}
+                          aria-label={`Retirer ${a.full_name}`}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <select
+                  className="filter-select tk-assign-select"
+                  value={pickAssignee}
+                  onChange={(e) => setPickAssignee(e.target.value)}
+                  aria-label="Choisir une personne à ajouter ou transférer"
+                >
+                  <option value="">Ajouter / transférer à…</option>
+                  {employees
+                    .filter((emp) => !(task.assignees || []).some((a) => a.id === emp.id))
+                    .map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name}
+                      </option>
+                    ))}
+                </select>
+                <div className="tk-assign-actions">
+                  <button type="button" className="btn-primary" onClick={handleAddAssignee} disabled={!pickAssignee}>
+                    + Ajouter
                   </button>
-                ))}
+                  <button type="button" className="btn-outline" onClick={handleReassign} disabled={!pickAssignee}>
+                    Transférer (seul)
+                  </button>
+                </div>
+                <p className="tk-assign-hint">
+                  « Ajouter » : la personne <strong>partage</strong> la tâche. « Transférer » : la tâche passe à cette
+                  <strong> seule</strong> personne. Terminer la tâche la termine <strong>pour tout le monde</strong>.
+                </p>
               </div>
+            )}
 
-              <label className="form-label" htmlFor="edit-deadline">Échéance</label>
-              <input
-                id="edit-deadline"
-                type="date"
-                className="form-input"
-                style={{ maxWidth: '240px' }}
-                value={editForm.deadline}
-                onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })}
-              />
+            {/* Description */}
+            <div className="tk-desc-block">
+              <p className="tk-section-label">Description</p>
+              {isAdmin && editingDesc ? (
+                <div className="tk-desc-edit">
+                  <RichTextEditor value={descDraft} onChange={setDescDraft} placeholder="Description de la tâche…" />
+                  <div className="tk-desc-actions">
+                    <button type="button" className="btn-outline" onClick={() => setEditingDesc(false)}>
+                      Annuler
+                    </button>
+                    <button type="button" className="btn-primary" onClick={commitDesc}>
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+              ) : task.description ? (
+                <div
+                  className={`detail-description rich-text${isAdmin ? ' tk-editable' : ''}`}
+                  onClick={() => {
+                    if (isAdmin) {
+                      setDescDraft(task.description || '');
+                      setEditingDesc(true);
+                    }
+                  }}
+                  title={isAdmin ? 'Cliquer pour modifier' : undefined}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.description) }}
+                />
+              ) : isAdmin ? (
+                <button
+                  type="button"
+                  className="tk-desc-empty"
+                  onClick={() => {
+                    setDescDraft('');
+                    setEditingDesc(true);
+                  }}
+                >
+                  + Ajouter une description
+                </button>
+              ) : (
+                <p className="tk-empty">Aucune description.</p>
+              )}
+            </div>
+          </div>
 
-              <div className="task-edit-actions">
-                <button type="button" className="btn-outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn-primary" disabled={savingEdit}>
-                  {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-              </div>
-            </form>
-          </div>,
-          document.body
-        )}
-    </Layout>
+          {/* Suivi du temps détaillé */}
+          <div className="side-card">
+            <p className="side-card-title" style={{ marginBottom: '16px' }}>
+              Suivi du temps
+            </p>
+            {sortedHistory.length === 0 ? (
+              <div className="empty-state">Aucune session enregistrée.</div>
+            ) : (
+              <>
+                <div className="task-table-wrap">
+                  <table className="task-table">
+                    <thead>
+                      <tr>
+                        <th>Qui</th>
+                        <th>Début</th>
+                        <th>Fin</th>
+                        <th>Durée</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleHistory.map((session, index) => (
+                        <tr key={index}>
+                          <td>{session.employee_name || '—'}</td>
+                          <td>{formatDateTime(session.start_time)}</td>
+                          <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
+                          <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {sortedHistory.length > HISTORY_PREVIEW && (
+                  <button
+                    type="button"
+                    className="tk-history-toggle"
+                    onClick={() => setShowAllHistory((v) => !v)}
+                  >
+                    {showAllHistory
+                      ? 'Afficher moins'
+                      : `Afficher plus (${sortedHistory.length - HISTORY_PREVIEW})`}
+                  </button>
+                )}
+                <p style={{ marginTop: '12px', fontSize: '13.5px' }}>
+                  <strong>Total : {formatDurationShort(totalSeconds)}</strong>
+                </p>
+              </>
+            )}
+
+            {isAdmin && task.assigned_to && (
+              <form className="manual-time-form" onSubmit={handleAddManualTime}>
+                <p className="manual-time-hint">Chrono oublié ? Ajoutez le temps manuellement :</p>
+                <div className="manual-time-fields">
+                  <label>
+                    <span>Début</span>
+                    <input type="datetime-local" value={manualTime.start} onChange={(e) => setManualTime((m) => ({ ...m, start: e.target.value }))} required />
+                  </label>
+                  <label>
+                    <span>Fin</span>
+                    <input type="datetime-local" value={manualTime.end} onChange={(e) => setManualTime((m) => ({ ...m, end: e.target.value }))} required />
+                  </label>
+                  <button type="submit" className="btn-outline">
+                    Ajouter le temps
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Pièces jointes */}
+          <div className="side-card">
+            <p className="side-card-title" style={{ marginBottom: '16px' }}>
+              Pièces jointes
+            </p>
+            <AttachmentUpload taskId={id} canUpload={isAdmin} />
+          </div>
+        </div>
+
+        {/* Rail droit : commentaires */}
+        <aside className="tk-rail">
+          <div className="side-card tk-rail-card">
+            <p className="side-card-title" style={{ marginBottom: '16px' }}>
+              Commentaires & Notes
+            </p>
+            <CommentSection taskId={id} />
+          </div>
+        </aside>
+      </div>
+    </>
+  );
+
+  return isModal ? content : <Layout {...layoutProps}>{content}</Layout>;
+}
+
+// Version fenêtre modale (ouverte par-dessus la liste via le pattern « background location »).
+export function TaskDetailModal() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const close = () => navigate(-1);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') navigate(-1);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [navigate]);
+
+  return createPortal(
+    <div className="task-modal-overlay" onMouseDown={close}>
+      <div className="task-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+        <button type="button" className="task-modal-close" onClick={close} aria-label="Fermer">
+          <IconX />
+        </button>
+        <div className="task-modal-body">
+          <TaskDetail key={id} isModal onClose={close} />
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
