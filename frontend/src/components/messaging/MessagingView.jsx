@@ -11,6 +11,7 @@ import {
   IconForward,
   IconPlus,
   IconLogout,
+  IconBarChart,
 } from '../icons';
 import * as messageService from '../../services/messageService';
 import * as userService from '../../services/userService';
@@ -35,6 +36,46 @@ import {
 import MessageComposer from './MessageComposer';
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
+
+// Carte sondage affichée dans une bulle : options + barres + %, clic pour voter/retirer.
+function PollBubble({ poll, onVote }) {
+  const total = poll.total_voters || 0;
+  return (
+    <div className="msgr-poll">
+      <div className="msgr-poll-q">
+        <IconBarChart />
+        <span>{poll.question}</span>
+      </div>
+      <div className="msgr-poll-options">
+        {poll.options.map((opt) => {
+          const pct = total > 0 ? Math.round((opt.votes / total) * 100) : 0;
+          return (
+            <button
+              type="button"
+              key={opt.id}
+              className={`msgr-poll-opt${opt.mine ? ' msgr-poll-opt--mine' : ''}`}
+              onClick={() => onVote(opt.id)}
+              title={opt.mine ? 'Retirer mon vote' : 'Voter'}
+            >
+              <span className="msgr-poll-bar" style={{ width: `${pct}%` }} />
+              <span className="msgr-poll-opt-main">
+                <span className="msgr-poll-check">{opt.mine ? '✓' : ''}</span>
+                <span className="msgr-poll-opt-label">{opt.label}</span>
+              </span>
+              <span className="msgr-poll-opt-count">
+                {opt.votes} · {pct}%
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="msgr-poll-foot">
+        {total} vote{total > 1 ? 's' : ''}
+        {poll.allow_multiple ? ' · plusieurs choix' : ''}
+      </div>
+    </div>
+  );
+}
 
 function ProfileAvatar({ name, avatarUrl, className = '' }) {
   const initials = String(name || '')
@@ -104,6 +145,12 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [reactPickerId, setReactPickerId] = useState(null);
+  // Sondage (création)
+  const [pollOpen, setPollOpen] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [pollMulti, setPollMulti] = useState(false);
+  const [pollSubmitting, setPollSubmitting] = useState(false);
   const [attachmentUrls, setAttachmentUrls] = useState({});
   const attachmentFetchedRef = useRef(new Set());
   const [groupAvatarUrls, setGroupAvatarUrls] = useState({});
@@ -307,10 +354,12 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       }
     }
     socket.on('message:new', onNewMessage);
+    socket.on('poll:update', onNewMessage); // un vote → rafraîchit les messages (résultats à jour)
     socket.on('group:changed', onGroupChanged);
     socket.on('group:deleted', onGroupDeleted);
     return () => {
       socket.off('message:new', onNewMessage);
+      socket.off('poll:update', onNewMessage);
       socket.off('group:changed', onGroupChanged);
       socket.off('group:deleted', onGroupDeleted);
     };
@@ -517,6 +566,62 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     setGlobalMessages(apply);
     setConversationMessages(apply);
     setGroupMessages(apply);
+  }
+
+  // --- Vote sur un sondage : bascule l'option (retire si déjà votée) selon simple/multiple ---
+  async function handleVote(message, optionId) {
+    const poll = message.poll;
+    if (!poll) return;
+    const mineNow = poll.options.find((o) => o.id === optionId)?.mine;
+    let optionIds;
+    if (poll.allow_multiple) {
+      const current = poll.options.filter((o) => o.mine).map((o) => o.id);
+      optionIds = mineNow ? current.filter((oid) => oid !== optionId) : [...current, optionId];
+    } else {
+      optionIds = mineNow ? [] : [optionId];
+    }
+    try {
+      const updated = await messageService.votePoll(poll.id, optionIds);
+      replaceMessage(updated);
+    } catch (error) {
+      notifyError(requestErrorMessage(error, 'Impossible de voter'));
+    }
+  }
+
+  // --- Création d'un sondage dans le canal actif ---
+  async function handleCreatePoll(event) {
+    event.preventDefault();
+    const question = pollQuestion.trim();
+    const options = pollOptions.map((o) => o.trim()).filter(Boolean);
+    if (!question || options.length < 2 || pollSubmitting) return;
+
+    let scope = 'GLOBAL';
+    let targetId = null;
+    if (activeChannel === 'private' && openConversation) {
+      scope = 'PRIVATE';
+      targetId = openConversation.other_user_id;
+    } else if (activeChannel === 'group' && openGroup) {
+      scope = 'GROUP';
+      targetId = openGroup.id;
+    }
+
+    setPollSubmitting(true);
+    try {
+      await messageService.createPoll({ scope, target_id: targetId, question, options, allow_multiple: pollMulti });
+      if (scope === 'GLOBAL') setGlobalMessages(await messageService.getGlobalMessages());
+      else if (scope === 'PRIVATE') setConversationMessages(await messageService.getPrivateMessages(targetId));
+      else setGroupMessages(await messageService.getGroupMessages(targetId));
+      loadConversations();
+      loadGroups();
+      setPollOpen(false);
+      setPollQuestion('');
+      setPollOptions(['', '']);
+      setPollMulti(false);
+    } catch (error) {
+      notifyError(requestErrorMessage(error, 'Impossible de créer le sondage'));
+    } finally {
+      setPollSubmitting(false);
+    }
   }
 
   async function handleReact(messageId, emoji) {
@@ -936,11 +1041,15 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                           </button>
                         )
                       )}
-                      {message.content && (
-                        <div
-                          className="msgr-msg-text rich-text"
-                          dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(message.content)) }}
-                        />
+                      {message.poll ? (
+                        <PollBubble poll={message.poll} onVote={(optionId) => handleVote(message, optionId)} />
+                      ) : (
+                        message.content && (
+                          <div
+                            className="msgr-msg-text rich-text"
+                            dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(message.content)) }}
+                          />
+                        )
                       )}
                     </>
                   )}
@@ -1390,11 +1499,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
 
         <div className="msgr-composer-wrap">
           {activeChannel === 'global' ? (
-            <MessageComposer value={globalInput} onChange={setGlobalInput} onSend={handleSendGlobal} disabled={sending} placeholder="Écrire dans le salon général..." />
+            <MessageComposer value={globalInput} onChange={setGlobalInput} onSend={handleSendGlobal} disabled={sending} placeholder="Écrire dans le salon général..." onCreatePoll={() => setPollOpen(true)} />
           ) : activeChannel === 'group' ? (
-            <MessageComposer value={groupReplyText} onChange={setGroupReplyText} onSend={handleGroupReply} disabled={sending || !openGroup} placeholder={`Écrire dans ${openGroup?.name || 'le groupe'}...`} />
+            <MessageComposer value={groupReplyText} onChange={setGroupReplyText} onSend={handleGroupReply} disabled={sending || !openGroup} placeholder={`Écrire dans ${openGroup?.name || 'le groupe'}...`} onCreatePoll={() => setPollOpen(true)} />
           ) : (
-            <MessageComposer value={replyText} onChange={setReplyText} onSend={handleReply} disabled={sending || !openConversation} placeholder="Écrire un message..." />
+            <MessageComposer value={replyText} onChange={setReplyText} onSend={handleReply} disabled={sending || !openConversation} placeholder="Écrire un message..." onCreatePoll={() => setPollOpen(true)} />
           )}
         </div>
       </section>
@@ -1595,6 +1704,79 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                 <button type="button" className="messaging-secondary-button" onClick={() => setNewMessageOpen(false)}>Annuler</button>
                 <button type="submit" className="messaging-primary-button" disabled={!newRecipientId || !newMessageText.trim() || sending}>
                   <SendIcon /> {sending ? 'Envoi...' : 'Envoyer'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {pollOpen && (
+        <div className="messaging-modal-backdrop" role="presentation" onMouseDown={() => setPollOpen(false)}>
+          <section className="messaging-modal" role="dialog" aria-modal="true" aria-labelledby="poll-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="messaging-modal-header">
+              <div>
+                <span className="messaging-modal-icon"><IconBarChart /></span>
+                <div>
+                  <h2 id="poll-title">Créer un sondage</h2>
+                  <p>Il sera publié dans {activeChannel === 'group' ? `« ${openGroup?.name} »` : activeChannel === 'private' ? 'cette conversation' : 'le salon général'}.</p>
+                </div>
+              </div>
+              <button type="button" className="messaging-modal-close" onClick={() => setPollOpen(false)} aria-label="Fermer la fenêtre"><IconX /></button>
+            </div>
+            <form className="messaging-modal-form" onSubmit={handleCreatePoll}>
+              <label>
+                <span>Question</span>
+                <input
+                  className="msgr-poll-field"
+                  value={pollQuestion}
+                  onChange={(e) => setPollQuestion(e.target.value)}
+                  placeholder="Poser une question…"
+                  maxLength={300}
+                  autoFocus
+                  required
+                />
+              </label>
+              <div className="msgr-poll-optlist">
+                {pollOptions.map((opt, i) => (
+                  <div className="msgr-poll-optrow" key={i}>
+                    <input
+                      className="msgr-poll-field"
+                      value={opt}
+                      onChange={(e) => setPollOptions((cur) => cur.map((o, idx) => (idx === i ? e.target.value : o)))}
+                      placeholder={`Option ${i + 1}`}
+                      maxLength={150}
+                    />
+                    {pollOptions.length > 2 && (
+                      <button
+                        type="button"
+                        className="msgr-poll-optdel"
+                        onClick={() => setPollOptions((cur) => cur.filter((_, idx) => idx !== i))}
+                        aria-label="Retirer l'option"
+                      >
+                        <IconX />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {pollOptions.length < 10 && (
+                <button type="button" className="msgr-poll-optadd" onClick={() => setPollOptions((cur) => [...cur, ''])}>
+                  <IconPlus /> Ajouter une option
+                </button>
+              )}
+              <label className="msgr-poll-multichk">
+                <input type="checkbox" checked={pollMulti} onChange={(e) => setPollMulti(e.target.checked)} />
+                <span>Autoriser plusieurs choix</span>
+              </label>
+              <div className="messaging-modal-actions">
+                <button type="button" className="messaging-secondary-button" onClick={() => setPollOpen(false)}>Annuler</button>
+                <button
+                  type="submit"
+                  className="messaging-primary-button"
+                  disabled={pollSubmitting || !pollQuestion.trim() || pollOptions.filter((o) => o.trim()).length < 2}
+                >
+                  <IconBarChart /> {pollSubmitting ? 'Création…' : 'Créer le sondage'}
                 </button>
               </div>
             </form>

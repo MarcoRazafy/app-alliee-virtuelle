@@ -13,6 +13,10 @@ router.get('/messages/online-users', messageController.getOnlineUsers);
 router.get('/messages/global', messageController.getGlobalMessages);
 router.post('/messages/global', handleSingleUpload, messageController.postGlobalMessage);
 
+// Sondages (déclarés avant /messages/:id pour éviter tout conflit de matching)
+router.post('/messages/polls', messageController.createPoll);
+router.post('/messages/polls/:id/vote', messageController.votePoll);
+
 router.get('/conversations', messageController.getConversations);
 router.get('/messages/private/:userId', messageController.getPrivateMessages);
 router.post('/messages/private/:userId', handleSingleUpload, messageController.postPrivateMessage);

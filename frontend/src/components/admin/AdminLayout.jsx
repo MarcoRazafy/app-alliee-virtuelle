@@ -5,6 +5,7 @@ import * as avatarService from '../../services/avatarService';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import ThemeToggle from '../ThemeToggle';
+import ZoomControl from '../ZoomControl';
 import TopbarTools from '../TopbarTools';
 import {
   IconWorkspace,
@@ -344,6 +345,7 @@ function AdminLayout({ children }) {
 
             <TopbarTools messagingPath="/admin/messaging" assistantPath="/admin/assistant" />
 
+            <ZoomControl />
             <ThemeToggle />
 
             <div className="user-menu" ref={menuRef}>

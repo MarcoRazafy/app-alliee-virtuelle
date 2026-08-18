@@ -465,7 +465,8 @@ async function findComments(taskId, { onlyType } = {}) {
   }
 
   const result = await db.query(
-    `SELECT c.id, c.content, c.type, c.is_visible_to_employee, c.created_at, c.author_id, u.full_name AS author_name
+    `SELECT c.id, c.content, c.type, c.is_visible_to_employee, c.created_at, c.author_id, u.full_name AS author_name,
+            EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = c.author_id) AS has_avatar
      FROM task_comments c
      JOIN users u ON u.id = c.author_id
      WHERE ${conditions.join(' AND ')}

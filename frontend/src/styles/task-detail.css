@@ -26,12 +26,18 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* Une seule colonne : contenu principal (le rail commentaires a été retiré). */
+/* Deux colonnes : détail ~80 % + rail commentaires ~20 % (min 260px pour rester utilisable). */
 .tk-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 4fr) minmax(260px, 1fr);
   gap: 20px;
   align-items: start;
+}
+/* Sous 1000px : les commentaires passent DESSOUS le détail (responsive). */
+@media (max-width: 1000px) {
+  .tk-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .tk-main {
   display: flex;
@@ -39,13 +45,26 @@
   gap: 20px;
   min-width: 0;
 }
+/* Le rail remplit la hauteur de la ligne (= hauteur du détail) pour que le composeur
+   se cale EN BAS (façon panneau d'activité ClickUp), au lieu de flotter en haut. */
 .tk-rail {
   min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
-@media (max-width: 1100px) {
-  .tk-layout {
-    grid-template-columns: 1fr;
-  }
+.tk-rail-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.tk-rail .cmt {
+  flex: 1;
+  min-height: 0;
+}
+.tk-rail .cmt-composer {
+  margin-top: auto; /* pousse le champ + Envoyer tout en bas du rail */
 }
 
 /* --- En-tête --- */
@@ -512,12 +531,27 @@ button.tk-date-part:hover {
 }
 /* Dans la modale, la carte principale est aplatie : la modale EST la surface blanche
    (pas de carte-dans-carte). La page pleine, elle, garde sa carte. */
-.task-modal .tk-card {
+.task-modal .tk-card,
+.task-modal .tk-rail-card {
   background: none;
   border: none;
   box-shadow: none;
   border-radius: 0;
   padding: 0;
+}
+/* Dans la modale, le rail commentaires est séparé du détail par un filet vertical (façon panneau). */
+.task-modal .tk-rail {
+  padding-left: 22px;
+  border-left: 1px solid var(--color-border);
+}
+@media (max-width: 1000px) {
+  /* Empilé : le filet passe en haut du bloc commentaires. */
+  .task-modal .tk-rail {
+    padding-left: 0;
+    padding-top: 22px;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
 }
 @keyframes tk-modal-fade {
   from { opacity: 0; }

@@ -28,6 +28,15 @@
         document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>
+    <!-- Applique le zoom d'affichage mémorisé (par appareil) avant le premier rendu -->
+    <script>
+      (function () {
+        var z = Number(localStorage.getItem('ui-zoom'));
+        if ([80, 90, 100, 110].indexOf(z) !== -1 && z !== 100) {
+          document.documentElement.style.zoom = String(z / 100);
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

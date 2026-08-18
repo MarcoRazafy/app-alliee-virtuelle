@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import ThemeToggle from '../ThemeToggle';
+import ZoomControl from '../ZoomControl';
 import ConnectionChrono from './ConnectionChrono';
 import ActiveTaskWidget from './ActiveTaskWidget';
 import api from '../../services/api';
@@ -320,6 +321,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
 
             <TopbarTools messagingPath="/messaging" assistantPath="/assistant" locked={locked} />
 
+            <ZoomControl />
             <ThemeToggle />
             <div className="user-menu" ref={menuRef}>
               <button type="button" className="user-menu-trigger" onClick={() => setMenuOpen((v) => !v)}>

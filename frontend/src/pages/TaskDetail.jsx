@@ -4,6 +4,7 @@ import * as taskService from '../services/taskService';
 import * as userService from '../services/userService';
 import * as avatarService from '../services/avatarService';
 import AttachmentUpload from '../components/AttachmentUpload';
+import CommentSection from '../components/CommentSection';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import AdminLayout from '../components/admin/AdminLayout';
 import { formatClock, formatDurationShort, formatDateTime, formatDate } from '../utils/formatters';
@@ -760,6 +761,16 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
           </div>{/* fin de la carte : propriétés + description + suivi du temps */}
 
         </div>
+
+        {/* Rail commentaires (colonne droite ~20 %, passe dessous en responsive) */}
+        <aside className="tk-rail">
+          <div className="side-card tk-rail-card">
+            <p className="side-card-title" style={{ marginBottom: '16px' }}>
+              Commentaires
+            </p>
+            <CommentSection taskId={id} />
+          </div>
+        </aside>
       </div>
 
       {isAdmin && (
