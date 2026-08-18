@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import * as dashboardService from '../../services/dashboardService';
 import * as avatarService from '../../services/avatarService';
+import * as dailyService from '../../services/dailyService';
 import { getSocket } from '../../services/socket';
 import EmployeeDetailPanel from '../../components/admin/EmployeeDetailPanel';
 import { formatClock, formatDurationShort } from '../../utils/formatters';
@@ -73,6 +74,8 @@ function AdminDashboard() {
   // Raccourcis des cartes KPI : filtrer les employés actifs / afficher le panneau des tâches en cours.
   const [activeOnly, setActiveOnly] = useState(false);
   const [showInProgressPanel, setShowInProgressPanel] = useState(false);
+  // Totaux équipe du jour pour la card « To Do / Daily » (nb d'items à faire / faits).
+  const [dailyCounts, setDailyCounts] = useState({ todo: 0, daily: 0 });
 
   function load() {
     setRefreshing(true);
@@ -87,6 +90,18 @@ function AdminDashboard() {
         if (!err.isAuthError) notifyError(err.response?.data?.error || 'Impossible de charger le tableau de bord');
       })
       .finally(() => setRefreshing(false));
+
+    // Totaux To Do / Daily de l'équipe (silencieux, appel de fond).
+    dailyService
+      .getOverview()
+      .then((d) => {
+        const emps = d.employees || [];
+        setDailyCounts({
+          todo: emps.reduce((sum, e) => sum + (e.todo?.length || 0), 0),
+          daily: emps.reduce((sum, e) => sum + (e.daily?.length || 0), 0),
+        });
+      })
+      .catch(() => {});
   }
 
   useEffect(() => {
@@ -246,9 +261,11 @@ function AdminDashboard() {
             <IconListUl />
           </span>
           <div className="admin-kpi-copy">
-            <p>Daily / To Do</p>
-            <strong>Équipe</strong>
-            <span className="admin-kpi-hint">rapports quotidiens · voir</span>
+            <p>To Do / Daily</p>
+            <strong title="À faire / Fait aujourd'hui (équipe)">
+              {dailyCounts.todo}/{dailyCounts.daily}
+            </strong>
+            <span className="admin-kpi-hint">à faire / fait · voir</span>
           </div>
         </Link>
       </div>
