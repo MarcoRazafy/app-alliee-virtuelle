@@ -558,9 +558,101 @@ async function getOnlineUsers(req, res, next) {
   }
 }
 
+// --- Sondages ---
+
+// Crée un sondage dans le canal choisi (global / privé / groupe). Réutilise l'accès et le
+// broadcast des messages classiques : un sondage est un message porteur + des options.
+async function createPoll(req, res, next) {
+  try {
+    const { scope, target_id: targetId } = req.body;
+    const allowMultiple = Boolean(req.body.allow_multiple);
+    const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
+    let options = Array.isArray(req.body.options) ? req.body.options : [];
+    options = options.map((o) => (typeof o === 'string' ? o.trim() : '')).filter(Boolean);
+    options = [...new Set(options)]; // dédoublonne en gardant l'ordre
+
+    if (!question) return res.status(400).json({ error: 'La question du sondage est requise' });
+    if (question.length > 300) return res.status(400).json({ error: 'La question est trop longue (300 caractères max)' });
+    if (options.length < 2) return res.status(400).json({ error: 'Ajoutez au moins 2 options' });
+    if (options.length > 10) return res.status(400).json({ error: 'Un sondage ne peut pas dépasser 10 options' });
+    if (!['GLOBAL', 'PRIVATE', 'GROUP'].includes(scope)) return res.status(400).json({ error: 'Canal invalide' });
+
+    const payload = { authorId: req.user.id, question, allowMultiple, options, scope };
+
+    if (scope === 'PRIVATE') {
+      if (!targetId || targetId === req.user.id) return res.status(400).json({ error: 'Destinataire invalide' });
+      const recipient = await userModel.findById(targetId);
+      if (!recipient) return res.status(404).json({ error: 'Utilisateur introuvable' });
+      let conversation = await messageModel.findConversationBetween(req.user.id, targetId);
+      if (!conversation) conversation = await messageModel.createConversation(req.user.id, targetId);
+      else await messageModel.touchConversation(conversation.id);
+      payload.recipientId = targetId;
+    } else if (scope === 'GROUP') {
+      const group = await messageModel.findGroupForUser(targetId, req.user.id);
+      if (!group) return res.status(404).json({ error: 'Groupe introuvable ou accès refusé' });
+      payload.groupId = targetId;
+    }
+
+    const message = await messageModel.createPoll(payload);
+
+    if (scope === 'GLOBAL') {
+      realtime.broadcast('message:new', { scope: 'global', authorId: req.user.id });
+    } else if (scope === 'PRIVATE') {
+      realtime.emitToUsers([targetId, req.user.id], 'message:new', { scope: 'private', authorId: req.user.id, recipientId: targetId });
+    } else {
+      const memberIds = await messageModel.findGroupMemberIds(targetId);
+      realtime.emitToUsers(memberIds, 'message:new', { scope: 'group', groupId: targetId, authorId: req.user.id });
+    }
+
+    res.status(201).json(message);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Vote sur un sondage : remplace le vote de l'utilisateur. Contrôle d'accès selon le canal.
+async function votePoll(req, res, next) {
+  try {
+    const { id: pollId } = req.params;
+    let optionIds = Array.isArray(req.body.option_ids) ? req.body.option_ids : [];
+    optionIds = optionIds.filter((x) => typeof x === 'string');
+
+    const ctx = await messageModel.findPollContext(pollId);
+    if (!ctx) return res.status(404).json({ error: 'Sondage introuvable' });
+
+    if (ctx.channel_type === 'PRIVATE') {
+      if (ctx.author_id !== req.user.id && ctx.recipient_id !== req.user.id) {
+        return res.status(403).json({ error: 'Accès refusé' });
+      }
+    } else if (ctx.channel_type === 'GROUP') {
+      const member = await messageModel.isGroupMember(ctx.group_id, req.user.id);
+      if (!member) return res.status(403).json({ error: 'Accès refusé' });
+    }
+
+    const ok = await messageModel.votePoll(pollId, req.user.id, optionIds);
+    if (!ok) return res.status(404).json({ error: 'Sondage introuvable' });
+
+    if (ctx.channel_type === 'GLOBAL') {
+      realtime.broadcast('poll:update', { scope: 'global', pollId });
+    } else if (ctx.channel_type === 'PRIVATE') {
+      realtime.emitToUsers([ctx.author_id, ctx.recipient_id], 'poll:update', { scope: 'private', pollId });
+    } else {
+      const memberIds = await messageModel.findGroupMemberIds(ctx.group_id);
+      realtime.emitToUsers(memberIds, 'poll:update', { scope: 'group', groupId: ctx.group_id, pollId });
+    }
+
+    const message = await messageModel.findEnrichedMessageById(ctx.message_id, req.user.id);
+    res.status(200).json(message);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getGlobalMessages,
   postGlobalMessage,
+  createPoll,
+  votePoll,
   getConversations,
   getPrivateMessages,
   postPrivateMessage,

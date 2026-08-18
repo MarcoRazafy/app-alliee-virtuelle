@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconPaperclip, IconX, IconListUl, IconListOl } from '../icons';
+import { IconPaperclip, IconX, IconListUl, IconListOl, IconBarChart } from '../icons';
 import { MicIcon, ImageIcon, SmileyIcon, SendIcon } from './messagingIcons';
 import { isAudioType, isImageType, formatFileSize, formatDuration } from './messagingHelpers';
 import { htmlToText } from '../../utils/sanitizeHtml';
@@ -12,7 +12,7 @@ const COMPOSER_EMOJIS = [
 ];
 
 // Composer avec pièce jointe, emoji et message vocal. onSend reçoit le fichier éventuel.
-function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
+function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCreatePoll }) {
   const [file, setFile] = useState(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -187,6 +187,11 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder }) {
           <button type="button" className="msgr-composer-icon" onClick={startRecording} disabled={disabled} aria-label='Message vocal' title='Message vocal'>
             <MicIcon />
           </button>
+          {onCreatePoll && (
+            <button type="button" className="msgr-composer-icon" onClick={onCreatePoll} disabled={disabled} aria-label='Créer un sondage' title='Sondage'>
+              <IconBarChart />
+            </button>
+          )}
           <div className="msgr-emoji-anchor" ref={emojiRef}>
             <button type="button" className="msgr-composer-icon" onClick={() => setEmojiOpen((v) => !v)} disabled={disabled} aria-label="Emoji" title="Emoji">
               <SmileyIcon />

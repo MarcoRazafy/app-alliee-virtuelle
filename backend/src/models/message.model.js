@@ -23,6 +23,29 @@ function reactionsSql(userParam) {
   ), '[]'::json) AS reactions`;
 }
 
+// Sondage attaché à un message (null s'il n'y en a pas) : question, options + votes + « mon vote ».
+// userParam = placeholder $N de l'utilisateur courant (pour marquer ses propres votes).
+function pollSql(userParam) {
+  return `(
+    SELECT CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object(
+      'id', p.id,
+      'question', p.question,
+      'allow_multiple', p.allow_multiple,
+      'total_voters', (SELECT COUNT(DISTINCT v.user_id)::int FROM message_poll_votes v WHERE v.poll_id = p.id),
+      'options', COALESCE((
+        SELECT json_agg(json_build_object(
+          'id', o.id,
+          'label', o.label,
+          'votes', (SELECT COUNT(*)::int FROM message_poll_votes v WHERE v.option_id = o.id),
+          'mine', EXISTS (SELECT 1 FROM message_poll_votes v WHERE v.option_id = o.id AND v.user_id = ${userParam})
+        ) ORDER BY o.position, o.id)
+        FROM message_poll_options o WHERE o.poll_id = p.id
+      ), '[]'::json)
+    ) END
+    FROM message_polls p WHERE p.message_id = m.id
+  ) AS poll`;
+}
+
 // Aperçu de conversation : gère les messages supprimés et les pièces jointes seules.
 function previewSql(subWhere) {
   return `(SELECT CASE
@@ -35,7 +58,7 @@ function previewSql(subWhere) {
 
 async function findGlobalMessages(userId) {
   const result = await db.query(
-    `SELECT ${MSG_COLS}, ${reactionsSql('$1')}
+    `SELECT ${MSG_COLS}, ${reactionsSql('$1')}, ${pollSql('$1')}
      FROM messages m
      JOIN users u ON u.id = m.author_id
      WHERE m.channel_type = 'GLOBAL'
@@ -101,7 +124,7 @@ async function touchConversation(conversationId) {
 
 async function findPrivateMessages(userId, otherUserId) {
   const result = await db.query(
-    `SELECT ${MSG_COLS}, m.is_read, ${reactionsSql('$1')}
+    `SELECT ${MSG_COLS}, m.is_read, ${reactionsSql('$1')}, ${pollSql('$1')}
      FROM messages m
      JOIN users u ON u.id = m.author_id
      WHERE m.channel_type = 'PRIVATE'
@@ -224,7 +247,7 @@ async function findGroupAvatarForMember(groupId, userId) {
 
 async function findGroupMessages(groupId, userId) {
   const result = await db.query(
-    `SELECT ${MSG_COLS}, ${reactionsSql('$2')}
+    `SELECT ${MSG_COLS}, ${reactionsSql('$2')}, ${pollSql('$2')}
      FROM messages m
      JOIN users u ON u.id = m.author_id
      WHERE m.channel_type = 'GROUP' AND m.group_id = $1
@@ -353,7 +376,7 @@ async function findRawMessageById(id) {
 // Message enrichi (comme dans les listes) pour renvoyer après édition/réaction.
 async function findEnrichedMessageById(id, userId, client = db) {
   const result = await client.query(
-    `SELECT ${MSG_COLS}, ${reactionsSql('$2')}
+    `SELECT ${MSG_COLS}, ${reactionsSql('$2')}, ${pollSql('$2')}
      FROM messages m JOIN users u ON u.id = m.author_id
      WHERE m.id = $1`,
     [id, userId]
@@ -391,9 +414,96 @@ async function toggleReaction(messageId, userId, emoji) {
   return findEnrichedMessageById(messageId, userId);
 }
 
+// --- Sondages ---
+
+// Crée le message porteur (selon le canal) + le sondage + ses options, en transaction.
+// `content` du message = la question (pour les aperçus de conversation et notifications).
+async function createPoll({ authorId, question, allowMultiple, options, scope, recipientId, groupId }) {
+  return db.withTransaction(async (client) => {
+    let messageId;
+    if (scope === 'GLOBAL') {
+      const r = await client.query(
+        `INSERT INTO messages (author_id, content, channel_type) VALUES ($1, $2, 'GLOBAL') RETURNING id`,
+        [authorId, question]
+      );
+      messageId = r.rows[0].id;
+    } else if (scope === 'PRIVATE') {
+      const r = await client.query(
+        `INSERT INTO messages (author_id, recipient_id, content, channel_type, is_read)
+         VALUES ($1, $2, $3, 'PRIVATE', FALSE) RETURNING id`,
+        [authorId, recipientId, question]
+      );
+      messageId = r.rows[0].id;
+    } else {
+      const r = await client.query(
+        `INSERT INTO messages (author_id, content, channel_type, group_id) VALUES ($1, $2, 'GROUP', $3) RETURNING id`,
+        [authorId, question, groupId]
+      );
+      messageId = r.rows[0].id;
+      await client.query('UPDATE message_groups SET last_message_at = now(), updated_at = now() WHERE id = $1', [groupId]);
+      await client.query('UPDATE message_group_members SET last_read_at = now() WHERE group_id = $1 AND user_id = $2', [groupId, authorId]);
+    }
+
+    const pollRes = await client.query(
+      `INSERT INTO message_polls (message_id, question, allow_multiple) VALUES ($1, $2, $3) RETURNING id`,
+      [messageId, question, allowMultiple]
+    );
+    const pollId = pollRes.rows[0].id;
+
+    for (let i = 0; i < options.length; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await client.query(
+        `INSERT INTO message_poll_options (poll_id, label, position) VALUES ($1, $2, $3)`,
+        [pollId, options[i], i]
+      );
+    }
+
+    return findEnrichedMessageById(messageId, authorId, client);
+  });
+}
+
+// Contexte d'un sondage (canal, destinataire/groupe, auteur) — pour les contrôles d'accès et le temps réel.
+async function findPollContext(pollId) {
+  const r = await db.query(
+    `SELECT m.id AS message_id, m.channel_type, m.recipient_id, m.group_id, m.author_id
+     FROM message_polls p JOIN messages m ON m.id = p.message_id
+     WHERE p.id = $1`,
+    [pollId]
+  );
+  return r.rows[0] || null;
+}
+
+// Remplace le vote de l'utilisateur : en choix simple on garde 1 option, en multiple on garde les N valides.
+async function votePoll(pollId, userId, optionIds) {
+  return db.withTransaction(async (client) => {
+    const poll = await client.query('SELECT allow_multiple FROM message_polls WHERE id = $1', [pollId]);
+    if (!poll.rows[0]) return false;
+    const allowMultiple = poll.rows[0].allow_multiple;
+
+    const valid = await client.query('SELECT id FROM message_poll_options WHERE poll_id = $1', [pollId]);
+    const validIds = new Set(valid.rows.map((row) => row.id));
+    let chosen = (optionIds || []).filter((oid) => validIds.has(oid));
+    if (!allowMultiple) chosen = chosen.slice(0, 1);
+
+    await client.query('DELETE FROM message_poll_votes WHERE poll_id = $1 AND user_id = $2', [pollId, userId]);
+    for (const optId of chosen) {
+      // eslint-disable-next-line no-await-in-loop
+      await client.query(
+        `INSERT INTO message_poll_votes (poll_id, option_id, user_id) VALUES ($1, $2, $3)
+         ON CONFLICT (option_id, user_id) DO NOTHING`,
+        [pollId, optId, userId]
+      );
+    }
+    return true;
+  });
+}
+
 module.exports = {
   findGlobalMessages,
   createGlobalMessage,
+  createPoll,
+  findPollContext,
+  votePoll,
   findConversationsForUser,
   findConversationBetween,
   createConversation,

@@ -2064,77 +2064,181 @@
 
 /* --- Commentaires --- */
 
-.comment-list {
+/* ===== Panneau d'activité / commentaires (façon ClickUp) ===== */
+.cmt {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-bottom: 16px;
 }
-
-.comment-bubble {
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--input-bg);
-  border: 1px solid var(--color-border);
-}
-
-.comment-bubble--note {
-  background: rgba(245, 158, 11, 0.08);
-  border-color: rgba(245, 158, 11, 0.3);
-}
-
-.comment-header {
+.cmt-list {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 4px;
+  flex-direction: column;
+  gap: 2px;
 }
-
-.comment-author {
+.cmt-empty {
+  padding: 22px 8px;
+  text-align: center;
   font-size: 13px;
-  font-weight: 600;
-}
-
-.comment-time {
-  font-size: 11.5px;
   color: var(--color-text-muted);
 }
 
-.comment-content {
-  font-size: 13.5px;
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-  margin: 0;
-}
-
-.comment-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.comment-form-row {
+/* Un élément d'activité : avatar + (auteur · heure) + contenu */
+.cmt-item {
   display: flex;
   gap: 10px;
-}
-
-.comment-form input[type='text'] {
-  flex: 1;
-  font-family: var(--font-family);
-  font-size: 13.5px;
-  color: var(--color-text-primary);
-  background: var(--input-bg);
-  border: 1px solid var(--color-border);
+  padding: 9px 8px;
   border-radius: 10px;
-  padding: 10px 14px;
+  transition: background 0.15s ease;
 }
-
-.comment-form-note-toggle {
+.cmt-item:hover {
+  background: var(--glass-overlay);
+}
+.cmt-avatar {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.cmt-item--note .cmt-avatar {
+  background: color-mix(in srgb, var(--color-warning) 82%, #000);
+}
+.cmt-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.cmt-body {
+  min-width: 0;
+  flex: 1;
+}
+.cmt-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-bottom: 3px;
+}
+.cmt-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.cmt-time {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cmt-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
   color: var(--color-warning);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cmt-content {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cmt-item--note .cmt-content {
+  color: var(--color-text-primary);
+}
+
+/* Composeur : conteneur arrondi (input + pied avec toggle & envoi) */
+.cmt-composer {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--input-bg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cmt-composer:focus-within {
+  border-color: var(--color-accent-light);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+.cmt-input {
+  width: 100%;
+  resize: none;
+  padding: 11px 13px 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.cmt-input:focus {
+  outline: none;
+}
+.cmt-composer-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 4px 10px 10px;
+}
+.cmt-note-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.cmt-note-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex: none;
+}
+.cmt-note-toggle--on {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+.cmt-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+.cmt-send svg {
+  width: 15px;
+  height: 15px;
+}
+.cmt-send:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+.cmt-send:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* --- Pièces jointes --- */

@@ -19,6 +19,17 @@ export function sendGlobalMessage(content, file = null) {
   return api.post('/api/messages/global', buildBody(content, file)).then((res) => res.data);
 }
 
+// Sondages : création (canal GLOBAL/PRIVATE/GROUP) et vote.
+export function createPoll({ scope, target_id, question, options, allow_multiple }) {
+  return api
+    .post('/api/messages/polls', { scope, target_id, question, options, allow_multiple })
+    .then((res) => res.data);
+}
+
+export function votePoll(pollId, optionIds) {
+  return api.post(`/api/messages/polls/${pollId}/vote`, { option_ids: optionIds }).then((res) => res.data);
+}
+
 export function getConversations() {
   return api.get('/api/conversations').then((res) => res.data);
 }
