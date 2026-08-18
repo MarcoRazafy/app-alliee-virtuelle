@@ -40,6 +40,7 @@ const AdminStatistics = lazy(() => import('./pages/admin/AdminStatistics'));
 const AdminPlanningPresence = lazy(() => import('./pages/admin/AdminPlanningPresence'));
 const AdminAssistant = lazy(() => import('./pages/admin/AdminAssistant'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminUserProfile = lazy(() => import('./pages/admin/AdminUserProfile'));
 const AdminMessaging = lazy(() => import('./pages/admin/AdminMessaging'));
 const AdminResources = lazy(() => import('./pages/admin/AdminResources'));
 const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
@@ -203,6 +204,7 @@ function AppRoutes() {
         <Route path="/admin/planning" element={<AdminRoute><AdminPlanningPresence /></AdminRoute>} />
         <Route path="/admin/assistant" element={<AdminRoute><AdminAssistant /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+        <Route path="/admin/users/:id" element={<AdminRoute><AdminUserProfile /></AdminRoute>} />
         <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
         <Route path="/admin/resources" element={<AdminRoute><AdminResources /></AdminRoute>} />
         <Route path="/admin/profile" element={<AdminRoute><AdminProfile /></AdminRoute>} />

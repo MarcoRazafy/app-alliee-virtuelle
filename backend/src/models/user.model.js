@@ -186,6 +186,37 @@ async function promoteToAdmin(id, client = db) {
   return result.rows[0];
 }
 
+// --- Notes internes admin sur un employé (fiche employé) ---
+async function listNotes(userId) {
+  const result = await db.query(
+    `SELECT n.id, n.content, n.created_at, n.author_id, a.full_name AS author_name
+       FROM user_notes n
+       LEFT JOIN users a ON a.id = n.author_id
+      WHERE n.user_id = $1
+      ORDER BY n.created_at DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
+async function createNote(userId, authorId, content) {
+  const result = await db.query(
+    `INSERT INTO user_notes (user_id, author_id, content)
+     VALUES ($1, $2, $3)
+     RETURNING id, content, created_at, author_id`,
+    [userId, authorId, content]
+  );
+  return result.rows[0];
+}
+
+async function deleteNote(noteId, userId) {
+  const result = await db.query('DELETE FROM user_notes WHERE id = $1 AND user_id = $2 RETURNING id', [
+    noteId,
+    userId,
+  ]);
+  return result.rows[0] || null;
+}
+
 module.exports = {
   findByEmail,
   findByUsername,
@@ -202,6 +233,9 @@ module.exports = {
   findAdminEmails,
   updateStatus,
   promoteToAdmin,
+  listNotes,
+  createNote,
+  deleteNote,
   USER_STATUS,
   USER_ROLE,
 };

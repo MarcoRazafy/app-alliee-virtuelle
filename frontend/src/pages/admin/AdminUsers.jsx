@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import * as userService from '../../services/userService';
 import * as avatarService from '../../services/avatarService';
-import UserInfoPanel from '../../components/admin/UserInfoPanel';
 import { notifySuccess, notifyError, notifyInfo } from '../../utils/toast';
 import { IconSearch, IconCheckCircle, IconArrowRight } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
@@ -351,9 +351,9 @@ function PendingTab({ onCountChange }) {
 }
 
 function AdminUsers() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('employees');
   const [pendingCount, setPendingCount] = useState(0);
-  const [selectedUser, setSelectedUser] = useState(null);
 
   const refreshPendingCount = useCallback(() => {
     userService.getPendingUsers().then((data) => setPendingCount(data.length)).catch(() => {});
@@ -383,10 +383,8 @@ function AdminUsers() {
         </button>
       </div>
 
-      {tab === 'employees' && <EmployeesTab onSelect={setSelectedUser} />}
+      {tab === 'employees' && <EmployeesTab onSelect={(user) => navigate(`/admin/users/${user.id}`)} />}
       {tab === 'pending' && <PendingTab onCountChange={setPendingCount} />}
-
-      {selectedUser && <UserInfoPanel user={selectedUser} onClose={() => setSelectedUser(null)} />}
     </div>
   );
 }

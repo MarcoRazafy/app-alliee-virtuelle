@@ -20,4 +20,9 @@ router.post('/users/:id/suspend', authMiddleware.requireRole('ADMIN'), userContr
 router.post('/users/:id/activate', authMiddleware.requireRole('ADMIN'), userController.activateUser);
 router.post('/users/:id/promote', authMiddleware.requireRole('ADMIN'), userController.promoteUser);
 
+// Notes internes admin sur un employé (fiche employé)
+router.get('/users/:id/notes', authMiddleware.requireRole('ADMIN'), userController.listUserNotes);
+router.post('/users/:id/notes', authMiddleware.requireRole('ADMIN'), userController.createUserNote);
+router.delete('/users/:id/notes/:noteId', authMiddleware.requireRole('ADMIN'), userController.deleteUserNote);
+
 module.exports = router;

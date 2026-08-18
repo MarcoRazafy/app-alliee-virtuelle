@@ -932,12 +932,30 @@ async function adminSetAttendanceOverride(req, res, next) {
 async function adminAttendanceStats(req, res, next) {
   try {
     const { userId } = req.params;
-    const month = req.query.month || planningDates.formatDate(planningDates.nowInPlanningZone()).slice(0, 7);
     if (!UUID_PATTERN.test(userId)) {
       return res.status(400).json({ error: 'Identifiant employé invalide.' });
     }
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-      return res.status(400).json({ error: 'Le mois doit respecter le format YYYY-MM.' });
+
+    // Deux modes : plage `start`/`end` (aujourd'hui/semaine/année/perso) OU `month` (rétro-compat).
+    const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+    const { start, end } = req.query;
+    let month = req.query.month || null;
+    let monthStart;
+    let monthEnd;
+    if (start && end && DATE_ONLY.test(start) && DATE_ONLY.test(end)) {
+      monthStart = planningDates.parsePlanningDate(start);
+      monthEnd = planningDates.parsePlanningDate(end).plus({ days: 1 }); // `end` inclusif → borne exclusive
+      if (monthEnd <= monthStart) {
+        return res.status(400).json({ error: 'Plage de dates invalide.' });
+      }
+      month = null;
+    } else {
+      month = month || planningDates.formatDate(planningDates.nowInPlanningZone()).slice(0, 7);
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+        return res.status(400).json({ error: 'Le mois doit respecter le format YYYY-MM.' });
+      }
+      monthStart = planningDates.parsePlanningDate(`${month}-01`);
+      monthEnd = monthStart.plus({ months: 1 });
     }
 
     const employee = await userModel.findById(userId);
@@ -945,8 +963,6 @@ async function adminAttendanceStats(req, res, next) {
       return res.status(404).json({ error: 'Employé introuvable.' });
     }
 
-    const monthStart = planningDates.parsePlanningDate(`${month}-01`);
-    const monthEnd = monthStart.plus({ months: 1 });
     const now = planningDates.nowInPlanningZone();
     const tomorrow = now.startOf('day').plus({ days: 1 });
     const assessedEnd = monthEnd < tomorrow ? monthEnd : tomorrow;
