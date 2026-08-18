@@ -101,8 +101,10 @@ export function setAdminAttendanceOverride(userId, { date, status, lateMinutes, 
     .then((res) => res.data);
 }
 
-export function getAdminAttendanceStats(userId, month) {
+// `params` : soit une chaîne mois 'YYYY-MM' (rétro-compat), soit { month } ou { start, end }.
+export function getAdminAttendanceStats(userId, params = {}) {
+  const query = typeof params === 'string' ? (params ? { month: params } : {}) : params;
   return api
-    .get(`/api/planning/admin/attendance/${userId}/stats`, { params: month ? { month } : {} })
+    .get(`/api/planning/admin/attendance/${userId}/stats`, { params: query })
     .then((res) => res.data);
 }

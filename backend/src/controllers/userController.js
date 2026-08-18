@@ -230,6 +230,13 @@ async function getUserDetail(req, res, next) {
         position: user.position,
         status: user.status,
         has_avatar: !!avatar,
+        // Champs contact/identité pour la fiche employé (vue admin).
+        role: user.role,
+        username: user.username,
+        phone_number: user.phone_number,
+        birth_date: user.birth_date,
+        postal_address: user.postal_address,
+        created_at: user.created_at,
       },
       stats,
       tasks,
@@ -237,6 +244,43 @@ async function getUserDetail(req, res, next) {
       daily_task_ids: dailySelection.map((row) => row.task_id),
       recent_activity: recentActivity,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- Notes internes admin sur un employé ---
+async function listUserNotes(req, res, next) {
+  try {
+    const notes = await userModel.listNotes(req.params.id);
+    res.status(200).json(notes);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function createUserNote(req, res, next) {
+  try {
+    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+    if (!content) return res.status(400).json({ error: 'La note ne peut pas être vide' });
+    if (content.length > 2000) return res.status(400).json({ error: 'La note est trop longue (2000 caractères max)' });
+
+    const target = await userModel.findById(req.params.id);
+    if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+    const note = await userModel.createNote(req.params.id, req.user.id, content);
+    // Renvoie la note enrichie de l'auteur (l'admin courant) pour un affichage immédiat.
+    res.status(201).json({ ...note, author_name: req.user.full_name || null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteUserNote(req, res, next) {
+  try {
+    const removed = await userModel.deleteNote(req.params.noteId, req.params.id);
+    if (!removed) return res.status(404).json({ error: 'Note introuvable' });
+    res.status(204).end();
   } catch (err) {
     next(err);
   }
@@ -253,4 +297,7 @@ module.exports = {
   activateUser,
   promoteUser,
   getUserDetail,
+  listUserNotes,
+  createUserNote,
+  deleteUserNote,
 };

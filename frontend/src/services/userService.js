@@ -18,6 +18,19 @@ export function getUserDetail(id) {
   return api.get(`/api/users/${id}/detail`).then((res) => res.data);
 }
 
+// Notes internes admin sur un employé
+export function getUserNotes(id) {
+  return api.get(`/api/users/${id}/notes`).then((res) => res.data);
+}
+
+export function createUserNote(id, content) {
+  return api.post(`/api/users/${id}/notes`, { content }).then((res) => res.data);
+}
+
+export function deleteUserNote(id, noteId) {
+  return api.delete(`/api/users/${id}/notes/${noteId}`).then((res) => res.data);
+}
+
 export function approveUser(id) {
   return api.post(`/api/users/${id}/approve`).then((res) => res.data);
 }
