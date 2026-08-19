@@ -17,8 +17,10 @@ async function getMyDailyDone(req, res, next) {
     const done = await dailyModel.findDailyDone(req.user.id, date);
     const doneIds = new Set(done.map((t) => t.id));
     const assigned = await taskModel.findAssignedTasks(req.user.id);
-    // On exclut les tâches CONFIRMÉE (clôturées) du pool disponible + celles déjà dans le Daily.
-    const available = assigned.filter((t) => t.status !== 'CONFIRMEE' && !doneIds.has(t.id));
+    // On exclut du pool : CONFIRMÉE (clôturées), DECLAREE (non validées) et celles déjà dans le Daily.
+    const available = assigned.filter(
+      (t) => t.status !== 'CONFIRMEE' && t.status !== 'DECLAREE' && !doneIds.has(t.id)
+    );
     res.status(200).json({ date, done, available });
   } catch (err) {
     next(err);

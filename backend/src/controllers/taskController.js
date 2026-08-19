@@ -46,7 +46,8 @@ async function getTask(req, res, next) {
 
     const isOwner = isTaskAssignee(task, req.user.id);
     const isAdmin = req.user.role === 'ADMIN';
-    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin) return res.status(404).json({ error: 'Tâche introuvable' });
+    // DECLAREE reste caché aux autres employés, mais le propriétaire (proposeur) peut voir sa tâche « Non validée ».
+    if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin && !isOwner) return res.status(404).json({ error: 'Tâche introuvable' });
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
@@ -367,6 +368,7 @@ async function createTask(req, res, next) {
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!isTodayOrFuture(deadline)) errors.push("La deadline ne peut pas être dans le passé (aujourd'hui accepté)");
+    if (!listId) errors.push('Le projet est requis');
     if (isAdmin && assigneeList.length === 0) errors.push('Au moins une personne à assigner est requise');
     if (isAdmin && clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
 

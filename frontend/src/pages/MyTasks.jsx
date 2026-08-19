@@ -108,7 +108,7 @@ function MyTasks() {
 
   async function handleCreateTask(e) {
     e.preventDefault();
-    if (!newTask.title.trim() || !newTask.deadline) return;
+    if (!newTask.title.trim() || !newTask.deadline || !newTask.list_id) return;
     setCreating(true);
     try {
       await taskService.createTask({
@@ -308,13 +308,14 @@ function MyTasks() {
               </div>
 
               <label className="modal-field">
-                <span className="modal-label">Projet (optionnel)</span>
+                <span className="modal-label">Projet</span>
                 <select
                   className="modal-input"
                   value={newTask.list_id}
                   onChange={(e) => setNewTask((c) => ({ ...c, list_id: e.target.value }))}
+                  required
                 >
-                  <option value="">Aucun projet</option>
+                  <option value="" disabled>Sélectionnez un projet…</option>
                   {projectLists.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.path}
@@ -327,7 +328,7 @@ function MyTasks() {
                 <button type="button" className="btn-outline" onClick={() => setCreateOpen(false)}>
                   Annuler
                 </button>
-                <button type="submit" className="btn-primary" disabled={creating || !newTask.title.trim() || !newTask.deadline}>
+                <button type="submit" className="btn-primary" disabled={creating || !newTask.title.trim() || !newTask.deadline || !newTask.list_id}>
                   {creating ? 'Envoi…' : 'Proposer la tâche'}
                 </button>
               </div>
