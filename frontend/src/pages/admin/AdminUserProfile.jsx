@@ -681,6 +681,10 @@ function AdminUserProfile() {
         ) : (
           <>
             <div className="aup-pres-kpis">
+              <div className="aup-pres-kpi aup-pres-kpi--connect">
+                <strong>{formatMinutes(attendance.summary.total_connected_minutes)}</strong>
+                <span>Temps de connexion</span>
+              </div>
               <div className="aup-pres-kpi aup-pres-kpi--ok">
                 <strong>{attendance.summary.present}</strong>
                 <span>Présent{attendance.summary.present > 1 ? 's' : ''}</span>

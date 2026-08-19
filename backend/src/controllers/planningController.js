@@ -1029,6 +1029,21 @@ async function adminAttendanceStats(req, res, next) {
       : 0;
     summary.assessed_days = summary.present + summary.late + summary.absent + summary.partial + summary.outside;
 
+    // Temps de connexion total sur la période : somme des durées de session,
+    // bornées à la plage [monthStart, monthEnd] et jamais dans le futur (≤ now).
+    let totalConnectedMinutes = 0;
+    for (const session of sessionRows) {
+      const login = DateTime.fromJSDate(session.login_at, { zone: planningDates.PLANNING_TIMEZONE });
+      const rawLogout = session.effective_logout_at
+        ? DateTime.fromJSDate(session.effective_logout_at, { zone: planningDates.PLANNING_TIMEZONE })
+        : now;
+      const start = DateTime.max(login, monthStart);
+      const end = DateTime.min(rawLogout, monthEnd, now);
+      const minutes = end.diff(start, 'minutes').minutes;
+      if (minutes > 0) totalConnectedMinutes += minutes;
+    }
+    summary.total_connected_minutes = Math.round(totalConnectedMinutes);
+
     res.status(200).json({
       employee: {
         id: employee.id,
