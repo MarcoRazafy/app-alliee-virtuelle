@@ -335,6 +335,8 @@
 }
 .mbx-body-html {
   margin-top: 14px;
+  display: flex;
+  justify-content: center;
 }
 .mbx-images-btn {
   margin-bottom: 10px;
@@ -351,13 +353,16 @@
   border-color: var(--color-accent);
   color: var(--color-text-primary);
 }
-/* L'iframe rend l'email sur fond blanc (comme un client mail) — cadre neutre. */
+/* L'email est rendu sur fond blanc (comme tout client mail) : on le présente comme une
+   « feuille » centrée posée sur le fond sombre du volet, pour que le blanc paraisse voulu. */
 .mbx-iframe {
   width: 100%;
+  max-width: 760px;
   min-height: 240px;
   border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff;
+  box-shadow: 0 8px 30px rgba(4, 12, 28, 0.14);
 }
 
 /* --- Réponse --- */
