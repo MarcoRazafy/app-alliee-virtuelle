@@ -3,6 +3,7 @@ const db = require('../config/database');
 const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
 const extraTaskRequestModel = require('../models/extraTaskRequest.model');
+const mailService = require('../services/mail.service');
 const { isValidTitle, isValidPriority, isTodayOrFuture, isValidEmail } = require('../utils/validators');
 
 // L'utilisateur est-il l'un des assignés de la tâche ? (task issu de findById → contient `assignees`)
@@ -434,6 +435,20 @@ async function createTask(req, res, next) {
         client_email: isAdmin ? clientEmail || null : null,
       },
     });
+
+    // Proposition d'employé (« Non validée ») : prévenir les admins par email qu'une tâche attend
+    // validation. Best-effort — ne doit jamais faire échouer la création (email/base admin).
+    if (!isAdmin) {
+      Promise.all([userModel.findById(req.user.id).catch(() => null), userModel.findAdminEmails().catch(() => [])])
+        .then(([proposer, adminEmails]) =>
+          mailService.sendNewTaskProposalToAdmins(
+            { id: task.id, title },
+            proposer?.full_name || proposer?.username || null,
+            adminEmails
+          )
+        )
+        .catch(() => {});
+    }
 
     res.status(201).json({ id: task.id, status: task.status });
   } catch (err) {
@@ -1155,6 +1170,17 @@ async function createExtraTaskRequest(req, res, next) {
       entityId: request.id,
       details: { task_id: taskId, date },
     });
+
+    // Prévenir les admins par email qu'une demande de tâche attend leur examen. Best-effort.
+    Promise.all([userModel.findById(req.user.id).catch(() => null), userModel.findAdminEmails().catch(() => [])])
+      .then(([requester, adminEmails]) =>
+        mailService.sendNewTaskRequestToAdmins(
+          { requesterName: requester?.full_name || requester?.username || null, taskTitle: task.title, message },
+          adminEmails
+        )
+      )
+      .catch(() => {});
+
     res.status(201).json(request);
   } catch (err) {
     next(err);

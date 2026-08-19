@@ -119,4 +119,60 @@ function newRegistration(user) {
   };
 }
 
-module.exports = { accountApproved, accountRejected, accountPending, newRegistration };
+// Un employé a PROPOSÉ une tâche (statut « Non validée ») → prévenir les admins.
+function newTaskProposal(task, proposerName) {
+  const adminUrl = `${env.appUrl}/admin/validate`;
+  const name = proposerName || '—';
+  const title = task?.title || '—';
+  return {
+    subject: `Nouvelle tâche à valider — ${BRAND}`,
+    text: `${name} a proposé une nouvelle tâche à valider :\n\nTâche : ${title}\n\nValider les tâches : ${adminUrl}`,
+    html: layout({
+      title: 'Nouvelle tâche à valider',
+      intro: `<strong>${esc(name)}</strong> a proposé une nouvelle tâche. Elle attend votre validation.`,
+      bodyHtml: `
+        <tr><td style="padding:0 0 16px;font-size:14px;color:#3a4a63;">
+          <strong>Tâche :</strong> ${esc(title)}</td></tr>`,
+      buttonLabel: 'Valider les tâches',
+      buttonUrl: adminUrl,
+    }),
+  };
+}
+
+// Un employé a DEMANDÉ une tâche supplémentaire (après avoir validé sa journée) → prévenir les admins.
+function newTaskRequest({ requesterName, taskTitle, message }) {
+  const adminUrl = `${env.appUrl}/admin/task-requests`;
+  const name = requesterName || '—';
+  const title = taskTitle || '—';
+  return {
+    subject: `Nouvelle demande de tâche — ${BRAND}`,
+    text:
+      `${name} demande une tâche supplémentaire :\n\nTâche : ${title}` +
+      (message ? `\nMessage : ${message}` : '') +
+      `\n\nExaminer les demandes : ${adminUrl}`,
+    html: layout({
+      title: 'Nouvelle demande de tâche',
+      intro: `<strong>${esc(name)}</strong> demande une tâche supplémentaire à faire.`,
+      bodyHtml: `
+        <tr><td style="padding:0 0 6px;font-size:14px;color:#3a4a63;">
+          <strong>Tâche :</strong> ${esc(title)}</td></tr>
+        ${
+          message
+            ? `<tr><td style="padding:0 0 16px;font-size:14px;color:#3a4a63;">
+                 <strong>Message :</strong> ${esc(message)}</td></tr>`
+            : ''
+        }`,
+      buttonLabel: 'Examiner les demandes',
+      buttonUrl: adminUrl,
+    }),
+  };
+}
+
+module.exports = {
+  accountApproved,
+  accountRejected,
+  accountPending,
+  newRegistration,
+  newTaskProposal,
+  newTaskRequest,
+};

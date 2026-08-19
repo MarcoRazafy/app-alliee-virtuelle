@@ -110,6 +110,22 @@ function sendNewRegistrationToAdmins(user, adminEmails) {
   return sendMail({ to: recipients.join(', '), subject, html, text });
 }
 
+// Un employé a proposé une tâche (« Non validée ») → prévenir les admins.
+function sendNewTaskProposalToAdmins(task, proposerName, adminEmails) {
+  const recipients = [...new Set((adminEmails || []).filter(Boolean))];
+  if (recipients.length === 0) return Promise.resolve(false);
+  const { subject, html, text } = templates.newTaskProposal(task, proposerName);
+  return sendMail({ to: recipients.join(', '), subject, html, text });
+}
+
+// Un employé a demandé une tâche supplémentaire → prévenir les admins.
+function sendNewTaskRequestToAdmins(payload, adminEmails) {
+  const recipients = [...new Set((adminEmails || []).filter(Boolean))];
+  if (recipients.length === 0) return Promise.resolve(false);
+  const { subject, html, text } = templates.newTaskRequest(payload);
+  return sendMail({ to: recipients.join(', '), subject, html, text });
+}
+
 module.exports = {
   isEnabled,
   sendMail,
@@ -117,4 +133,6 @@ module.exports = {
   sendAccountRejected,
   sendAccountPending,
   sendNewRegistrationToAdmins,
+  sendNewTaskProposalToAdmins,
+  sendNewTaskRequestToAdmins,
 };
