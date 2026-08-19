@@ -217,6 +217,91 @@ async function deleteNote(noteId, userId) {
   return result.rows[0] || null;
 }
 
+// --- Évaluations mensuelles -------------------------------------------------
+
+const EVALUATION_COLUMNS = `id, user_id, to_char(period_month, 'YYYY-MM') AS month,
+  visible_to_employee, global_comment,
+  delais_items, qualite_items, autonomie_items, adaptabilite_items,
+  created_by, created_at, updated_at`;
+
+// Toutes les évaluations d'un employé, du mois le plus récent au plus ancien (vue admin, complète).
+async function listEvaluations(userId) {
+  const result = await db.query(
+    `SELECT ${EVALUATION_COLUMNS} FROM employee_evaluations
+      WHERE user_id = $1 ORDER BY period_month DESC`,
+    [userId]
+  );
+  return result.rows;
+}
+
+// Une évaluation précise (mois = 'YYYY-MM'), ou null.
+async function getEvaluation(userId, month) {
+  const result = await db.query(
+    `SELECT ${EVALUATION_COLUMNS} FROM employee_evaluations
+      WHERE user_id = $1 AND period_month = to_date($2, 'YYYY-MM')`,
+    [userId, month]
+  );
+  return result.rows[0] || null;
+}
+
+// Crée ou met à jour l'évaluation d'un mois (unique par user_id + mois).
+// data.*_items = tableaux [{ rating, comment }] (déjà validés par le contrôleur).
+async function upsertEvaluation(userId, month, createdBy, data) {
+  const result = await db.query(
+    `INSERT INTO employee_evaluations (
+       user_id, period_month, visible_to_employee, global_comment,
+       delais_items, qualite_items, autonomie_items, adaptabilite_items,
+       created_by, updated_at
+     ) VALUES ($1, to_date($2, 'YYYY-MM'), $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9, now())
+     ON CONFLICT (user_id, period_month) DO UPDATE SET
+       visible_to_employee = EXCLUDED.visible_to_employee,
+       global_comment = EXCLUDED.global_comment,
+       delais_items = EXCLUDED.delais_items,
+       qualite_items = EXCLUDED.qualite_items,
+       autonomie_items = EXCLUDED.autonomie_items,
+       adaptabilite_items = EXCLUDED.adaptabilite_items,
+       updated_at = now()
+     RETURNING ${EVALUATION_COLUMNS}`,
+    [
+      userId,
+      month,
+      Boolean(data.visible_to_employee),
+      data.global_comment || null,
+      JSON.stringify(data.delais_items || []),
+      JSON.stringify(data.qualite_items || []),
+      JSON.stringify(data.autonomie_items || []),
+      JSON.stringify(data.adaptabilite_items || []),
+      createdBy,
+    ]
+  );
+  return result.rows[0];
+}
+
+// Évaluations visibles par l'employé lui-même : on renvoie toujours le mois + commentaire
+// global ; le détail (les listes de remarques) n'est inclus que si visible_to_employee = true.
+async function listEvaluationsForEmployee(userId) {
+  const rows = await listEvaluations(userId);
+  return rows
+    .filter((r) => r.visible_to_employee || r.global_comment)
+    .map((r) => {
+      const base = {
+        id: r.id,
+        month: r.month,
+        global_comment: r.global_comment,
+        visible_to_employee: r.visible_to_employee,
+        updated_at: r.updated_at,
+      };
+      if (!r.visible_to_employee) return { ...base, criteria_hidden: true };
+      return {
+        ...base,
+        delais_items: r.delais_items,
+        qualite_items: r.qualite_items,
+        autonomie_items: r.autonomie_items,
+        adaptabilite_items: r.adaptabilite_items,
+      };
+    });
+}
+
 module.exports = {
   findByEmail,
   findByUsername,
@@ -236,6 +321,10 @@ module.exports = {
   listNotes,
   createNote,
   deleteNote,
+  listEvaluations,
+  getEvaluation,
+  upsertEvaluation,
+  listEvaluationsForEmployee,
   USER_STATUS,
   USER_ROLE,
 };

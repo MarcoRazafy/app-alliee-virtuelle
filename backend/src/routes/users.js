@@ -8,6 +8,8 @@ router.use(authMiddleware);
 
 // Annuaire minimal, ouvert à tout utilisateur connecté (messagerie)
 router.get('/users/directory', userController.listDirectory);
+// Ses propres évaluations (employé) — AVANT /users/:id/... pour que « me » ne soit pas pris comme id.
+router.get('/users/me/evaluations', userController.listMyEvaluations);
 router.get('/users/:id/avatar', userController.getUserAvatar);
 
 // Gestion des comptes : admin uniquement
@@ -24,5 +26,9 @@ router.post('/users/:id/promote', authMiddleware.requireRole('ADMIN'), userContr
 router.get('/users/:id/notes', authMiddleware.requireRole('ADMIN'), userController.listUserNotes);
 router.post('/users/:id/notes', authMiddleware.requireRole('ADMIN'), userController.createUserNote);
 router.delete('/users/:id/notes/:noteId', authMiddleware.requireRole('ADMIN'), userController.deleteUserNote);
+
+// Évaluations mensuelles d'un employé (fiche employé) : admin uniquement
+router.get('/users/:id/evaluations', authMiddleware.requireRole('ADMIN'), userController.listUserEvaluations);
+router.put('/users/:id/evaluations/:month', authMiddleware.requireRole('ADMIN'), userController.upsertUserEvaluation);
 
 module.exports = router;

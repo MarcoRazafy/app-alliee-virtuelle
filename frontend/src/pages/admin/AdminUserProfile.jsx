@@ -20,7 +20,9 @@ import {
   IconCalendarWeek,
   IconTrash,
   IconTrendingUp,
+  IconChecklist,
 } from '../../components/icons';
+import EvaluationModal from '../../components/admin/EvaluationModal';
 import WeekCalendarGrid from '../../components/employee/WeekCalendarGrid';
 import * as sessionService from '../../services/sessionService';
 import { computeWeekPresence, formatPresenceMinutes } from '../../utils/presenceMetrics';
@@ -209,6 +211,7 @@ function AdminUserProfile() {
   const [notes, setNotes] = useState([]);
   const [noteDraft, setNoteDraft] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [showEval, setShowEval] = useState(false);
 
   async function load() {
     try {
@@ -430,6 +433,9 @@ function AdminUserProfile() {
         </div>
 
         <div className="aup-hero-actions">
+          <button type="button" className="btn-primary" onClick={() => setShowEval(true)}>
+            <IconChecklist /> Évaluer
+          </button>
           <button
             type="button"
             className="btn-outline"
@@ -873,6 +879,10 @@ function AdminUserProfile() {
           )}
         </div>
       </div>
+
+      {showEval && (
+        <EvaluationModal userId={user.id} userName={user.full_name} onClose={() => setShowEval(false)} />
+      )}
     </div>
   );
 }
