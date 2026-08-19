@@ -65,12 +65,24 @@ export function completeTask(id) {
   return api.post(`/api/tasks/${id}/complete`).then((res) => res.data);
 }
 
+// Signale au widget « tâche en cours » qu'un chrono vient de démarrer/s'arrêter,
+// pour qu'il se rafraîchisse tout de suite (sans attendre le polling de 15 s).
+function notifyTimelogChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('timelog:changed'));
+}
+
 export function startTimelog(taskId) {
-  return api.post(`/api/timelog/${taskId}/start`).then((res) => res.data);
+  return api.post(`/api/timelog/${taskId}/start`).then((res) => {
+    notifyTimelogChanged();
+    return res.data;
+  });
 }
 
 export function stopTimelog(taskId) {
-  return api.post(`/api/timelog/${taskId}/stop`).then((res) => res.data);
+  return api.post(`/api/timelog/${taskId}/stop`).then((res) => {
+    notifyTimelogChanged();
+    return res.data;
+  });
 }
 
 export function addManualTimelog(taskId, payload) {

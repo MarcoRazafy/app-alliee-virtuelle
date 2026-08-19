@@ -6,6 +6,8 @@ import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import ThemeToggle from '../ThemeToggle';
 import ZoomControl from '../ZoomControl';
+import ReloadButton from '../ReloadButton';
+import ActiveTaskWidget from '../employee/ActiveTaskWidget';
 import TopbarTools from '../TopbarTools';
 import {
   IconWorkspace,
@@ -314,6 +316,7 @@ function AdminLayout({ children }) {
           </div>
 
           <div className="shell-header-actions">
+            <ActiveTaskWidget />
             <form className="search-input" ref={searchRef} onSubmit={handleSearchSubmit}>
               <IconSearch />
               <input
@@ -345,6 +348,7 @@ function AdminLayout({ children }) {
 
             <TopbarTools messagingPath="/admin/messaging" assistantPath="/admin/assistant" />
 
+            <ReloadButton />
             <ZoomControl />
             <ThemeToggle />
 

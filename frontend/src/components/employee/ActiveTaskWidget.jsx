@@ -31,6 +31,8 @@ export default function ActiveTaskWidget() {
     const poll = window.setInterval(refresh, 15000);
     const onFocus = () => refresh();
     window.addEventListener('focus', onFocus);
+    // Rafraîchissement immédiat quand on démarre/arrête un chrono dans cet onglet.
+    window.addEventListener('timelog:changed', refresh);
 
     const socket = getSocket();
     const onNotif = (payload) => {
@@ -41,6 +43,7 @@ export default function ActiveTaskWidget() {
     return () => {
       window.clearInterval(poll);
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('timelog:changed', refresh);
       socket.off('notification:new', onNotif);
     };
   }, []);
