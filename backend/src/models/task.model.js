@@ -11,13 +11,12 @@ const TASK_STATUS = {
   CONFIRMED: 'CONFIRMEE',
 };
 
-// DECLAREE n'est pas encore visible à l'employé (DECISIONS.md)
 async function findAssignedTasks(userId, { status, priority, deadline, listId } = {}) {
-  // Les propositions DECLAREE restent masquées jusqu'à l'approbation admin.
   // L'employé voit une tâche s'il fait partie de ses assignés (assignation multiple).
+  // Les propositions DECLAREE (créées par l'employé lui-même) sont désormais visibles
+  // dans « Mes tâches » avec le libellé « Non validée », en attente d'approbation admin.
   const conditions = [
     'EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $1)',
-    "status != 'DECLAREE'",
   ];
   const params = [userId];
 

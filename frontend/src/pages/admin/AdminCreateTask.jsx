@@ -204,6 +204,10 @@ function AdminCreateTask() {
       notifyError('Sélectionnez au moins un employé');
       return;
     }
+    if (!form.list_id) {
+      notifyError('Sélectionnez un projet (liste)');
+      return;
+    }
     setSubmitting(true);
     try {
       const base = { ...form };
@@ -458,7 +462,7 @@ function AdminCreateTask() {
 
           <div className="form-field">
             <label className="form-label" htmlFor="list_id">
-              Liste
+              Liste <span className="form-required">*</span>
             </label>
             <div className="form-inline">
               <select
