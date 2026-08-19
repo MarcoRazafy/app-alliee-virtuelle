@@ -2,7 +2,7 @@
 
 .shell {
   display: flex;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--ui-zoom, 1));
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-family);
@@ -21,7 +21,8 @@
   align-self: flex-start;
   position: sticky;
   top: 0;
-  height: 100vh;
+  /* `vh` ignore le zoom → on divise par --ui-zoom pour que le sidebar fasse vraiment 100vh visuel. */
+  height: calc(100vh / var(--ui-zoom, 1));
   overflow-y: auto;
   display: flex;
   flex-direction: column;

@@ -35,6 +35,17 @@
   height: 112px;
 }
 
+/* Mode édition : l'en-tête porte titre + pastilles + « Copier vers » + champ de plages.
+   On lui donne assez de hauteur (comme la présence) et on cale le titre en haut. */
+.cal-grid--edit .cal-corner,
+.cal-grid--edit .cal-day-header {
+  height: 116px;
+}
+.cal-grid--edit .cal-day-header {
+  justify-content: flex-start;
+  gap: 5px;
+}
+
 .cal-hour-label {
   display: flex;
   align-items: flex-start;

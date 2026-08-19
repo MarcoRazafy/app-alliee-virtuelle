@@ -2,7 +2,7 @@
    à auth.css qui ne sert que les écrans de connexion/inscription. Mêmes tokens. */
 
 .app-page {
-  min-height: 100vh;
+  min-height: calc(100vh / var(--ui-zoom, 1));
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-family);

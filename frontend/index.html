@@ -32,8 +32,9 @@
     <script>
       (function () {
         var z = Number(localStorage.getItem('ui-zoom'));
-        if ([80, 90, 100, 110].indexOf(z) !== -1 && z !== 100) {
-          document.documentElement.style.zoom = String(z / 100);
+        if ([80, 90, 100, 110].indexOf(z) !== -1) {
+          if (z !== 100) document.documentElement.style.zoom = String(z / 100);
+          document.documentElement.style.setProperty('--ui-zoom', String(z / 100));
         }
       })();
     </script>
