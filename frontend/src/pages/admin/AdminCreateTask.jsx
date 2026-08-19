@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import * as hierarchyService from '../../services/hierarchyService';
+import * as teamAvatarService from '../../services/teamAvatarService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatBytes } from '../../utils/formatters';
 import RichTextEditor from '../../components/RichTextEditor';
@@ -15,6 +16,8 @@ import {
   IconAlert,
   IconPaperclip,
   IconX,
+  IconSearch,
+  IconCheckCircle,
 } from '../../components/icons';
 import '../../styles/admin.css';
 import '../../styles/task-detail.css';
@@ -39,6 +42,15 @@ function initialsOf(name) {
       .slice(0, 2)
       .map((w) => w[0]?.toUpperCase() || '')
       .join('') || '?'
+  );
+}
+
+// Avatar d'employé : photo si disponible, sinon initiales sur fond dégradé.
+function PersonAvatar({ name, src, className = '' }) {
+  return (
+    <span className={`tk-person-avatar${className ? ` ${className}` : ''}`}>
+      {src ? <img src={src} alt="" /> : <span className="tk-person-initials">{initialsOf(name)}</span>}
+    </span>
   );
 }
 
@@ -124,6 +136,8 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
   const [assignedIds, setAssignedIds] = useState(() => (prefill.assigned_to ? [prefill.assigned_to] : []));
   const [submitting, setSubmitting] = useState(false);
   const [showAssignManage, setShowAssignManage] = useState(false); // panneau de sélection des assignés
+  const [assignSearch, setAssignSearch] = useState(''); // filtre du panneau d'assignés
+  const [avatars, setAvatars] = useState({}); // { userId: objectURL } — photos de profil
 
   // Sélection hiérarchique Space > Folder > List
   const [spaces, setSpaces] = useState([]);
@@ -152,6 +166,34 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
       .then(setSpaces)
       .catch(() => setSpaces([]));
   }, []);
+
+  // Récupère les photos de profil des employés qui en ont une (blob → objectURL),
+  // nettoyées au démontage pour éviter les fuites mémoire.
+  useEffect(() => {
+    const withAvatar = employees.filter((emp) => emp.has_avatar);
+    if (withAvatar.length === 0) return undefined;
+    let cancelled = false;
+    const created = [];
+    Promise.all(
+      withAvatar.map(async (emp) => {
+        try {
+          const blob = await teamAvatarService.getUserAvatarBlob(emp.id);
+          const url = URL.createObjectURL(blob);
+          created.push(url);
+          return [emp.id, url];
+        } catch {
+          return [emp.id, null];
+        }
+      })
+    ).then((pairs) => {
+      if (cancelled) return;
+      setAvatars((cur) => ({ ...cur, ...Object.fromEntries(pairs.filter(([, url]) => url)) }));
+    });
+    return () => {
+      cancelled = true;
+      created.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [employees]);
 
   useEffect(() => {
     if (!selectedSpaceId) {
@@ -316,6 +358,17 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
     () => employees.filter((emp) => assignedIds.includes(emp.id)),
     [employees, assignedIds]
   );
+  // Employés filtrés par la recherche du panneau (nom ou poste).
+  const filteredEmployees = useMemo(() => {
+    const q = assignSearch.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter(
+      (emp) =>
+        emp.full_name?.toLowerCase().includes(q) || emp.position?.toLowerCase().includes(q)
+    );
+  }, [employees, assignSearch]);
+  const toggleAssignee = (id) =>
+    setAssignedIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const spaceName = spaces.find((s) => s.id === selectedSpaceId)?.name;
   const folderName = folders.find((f) => f.id === selectedFolderId)?.name;
   const listName = lists.find((l) => l.id === form.list_id)?.name;
@@ -375,8 +428,16 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
               {selectedEmployees.length === 0 && <span className="tk-empty">Personne</span>}
               {selectedEmployees.map((emp) => (
                 <span key={emp.id} className="tk-assignee-chip">
-                  <span className="tk-assignee-avatar tk-assignee-avatar--initials">{initialsOf(emp.full_name)}</span>
+                  <PersonAvatar name={emp.full_name} src={avatars[emp.id]} className="tk-person-avatar--sm" />
                   <span className="tk-assignee-name">{emp.full_name}</span>
+                  <button
+                    type="button"
+                    className="tk-assignee-remove"
+                    onClick={() => toggleAssignee(emp.id)}
+                    aria-label={`Retirer ${emp.full_name}`}
+                  >
+                    <IconX />
+                  </button>
                 </span>
               ))}
               <button type="button" className="tk-prop-edit" onClick={() => setShowAssignManage((v) => !v)}>
@@ -445,27 +506,66 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
         {showAssignManage && (
           <div className="tk-prop tk-prop--full">
             <div className="tk-prop-value tk-prop-value--block">
-              <div className="tk-create-assign-panel">
-                {employees.length === 0 && <p className="tk-empty">Aucun employé disponible.</p>}
-                {employees.map((emp) => {
-                  const checked = assignedIds.includes(emp.id);
-                  return (
-                    <label key={emp.id} className={`assignee-check${checked ? ' assignee-check--on' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          setAssignedIds((cur) =>
-                            cur.includes(emp.id) ? cur.filter((x) => x !== emp.id) : [...cur, emp.id]
-                          )
-                        }
-                      />
-                      <span>
-                        {emp.full_name} <em>({emp.position})</em>
-                      </span>
-                    </label>
-                  );
-                })}
+              <div className="tk-assign-box">
+                <div className="tk-assign-head">
+                  <div className="tk-assign-search">
+                    <IconSearch />
+                    <input
+                      type="text"
+                      value={assignSearch}
+                      onChange={(e) => setAssignSearch(e.target.value)}
+                      placeholder="Rechercher un nom ou un poste…"
+                      aria-label="Rechercher un employé"
+                    />
+                    {assignSearch && (
+                      <button
+                        type="button"
+                        className="tk-assign-search-clear"
+                        onClick={() => setAssignSearch('')}
+                        aria-label="Effacer la recherche"
+                      >
+                        <IconX />
+                      </button>
+                    )}
+                  </div>
+                  <span className="tk-assign-count">
+                    {assignedIds.length > 0 ? `${assignedIds.length} sélectionné${assignedIds.length > 1 ? 's' : ''}` : 'Aucun'}
+                    {assignedIds.length > 0 && (
+                      <button type="button" className="tk-assign-clear" onClick={() => setAssignedIds([])}>
+                        Tout retirer
+                      </button>
+                    )}
+                  </span>
+                </div>
+
+                <div className="tk-create-assign-panel">
+                  {filteredEmployees.length === 0 && (
+                    <p className="tk-empty">
+                      {employees.length === 0 ? 'Aucun employé disponible.' : 'Aucun résultat.'}
+                    </p>
+                  )}
+                  {filteredEmployees.map((emp) => {
+                    const checked = assignedIds.includes(emp.id);
+                    return (
+                      <button
+                        type="button"
+                        key={emp.id}
+                        className={`tk-person-card${checked ? ' tk-person-card--on' : ''}`}
+                        onClick={() => toggleAssignee(emp.id)}
+                        aria-pressed={checked}
+                      >
+                        <PersonAvatar name={emp.full_name} src={avatars[emp.id]} />
+                        <span className="tk-person-copy">
+                          <span className="tk-person-name">{emp.full_name}</span>
+                          {emp.position && <span className="tk-person-role">{emp.position}</span>}
+                        </span>
+                        <span className="tk-person-check" aria-hidden="true">
+                          <IconCheckCircle />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               {assignedIds.length > 1 && (
                 <p className="assignee-note">
