@@ -526,7 +526,7 @@ function WeekCalendarGrid({
   return (
     <div className="cal-calendar">
       <div className="cal-grid-wrap">
-        <div className={`cal-grid${hasPresenceData ? ' cal-grid--presence' : ''}`}>
+        <div className={`cal-grid${hasPresenceData ? ' cal-grid--presence' : ''}${canEdit ? ' cal-grid--edit' : ''}`}>
         <div className="cal-hour-column">
           <div className="cal-corner" />
           {HOURS.map((hour) => (

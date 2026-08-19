@@ -11,9 +11,13 @@ function readZoom() {
 }
 
 // La propriété CSS `zoom` prend un ratio (1 = 100 %). On efface pour 100 % (état neutre).
+// On expose aussi le ratio en variable CSS `--ui-zoom` : les hauteurs en `vh` (sidebar…)
+// doivent le diviser, car `vh` ignore le zoom (sinon 100vh devient 100vh × zoom).
 // index.html applique déjà ce calcul en inline avant le premier rendu (anti-flash).
 function applyZoomToDom(zoom) {
-  document.documentElement.style.zoom = zoom === 100 ? '' : String(zoom / 100);
+  const ratio = zoom / 100;
+  document.documentElement.style.zoom = zoom === 100 ? '' : String(ratio);
+  document.documentElement.style.setProperty('--ui-zoom', String(ratio));
 }
 
 const initialZoom = readZoom();

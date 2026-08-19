@@ -4,8 +4,12 @@ import * as avatarService from '../../services/avatarService';
 import { notifyError } from '../../utils/toast';
 import '../../styles/daily.css';
 
+// YYYY-MM-DD depuis les composantes LOCALES (toISOString = UTC → décale d'un jour en UTC+, ex. Madagascar).
+function toYMD(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return toYMD(new Date());
 }
 function formatLongDate(dateStr) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString('fr-FR', {
@@ -18,7 +22,7 @@ function formatLongDate(dateStr) {
 function shiftDate(dateStr, days) {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return toYMD(d);
 }
 function groupByProject(tasks) {
   const map = new Map();
