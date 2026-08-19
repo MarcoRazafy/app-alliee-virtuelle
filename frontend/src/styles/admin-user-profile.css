@@ -360,6 +360,13 @@
 .aup-pres-kpi--absent strong {
   color: var(--color-error);
 }
+.aup-pres-kpi--connect {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--glass-overlay));
+}
+.aup-pres-kpi--connect strong {
+  color: var(--color-primary);
+}
 .aup-pres-list {
   display: flex;
   flex-direction: column;
