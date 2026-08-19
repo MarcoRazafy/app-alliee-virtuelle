@@ -5,14 +5,34 @@ import * as hierarchyService from '../services/hierarchyService';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
-import { formatDurationShort } from '../utils/formatters';
+import { formatDurationShort, formatBytes } from '../utils/formatters';
 import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
-import { IconExternalLink, IconChecklist, IconX } from '../components/icons';
+import { IconExternalLink, IconChecklist, IconX, IconAlert, IconCalendarWeek, IconFolder, IconChat, IconPaperclip } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
 import { htmlToText } from '../utils/sanitizeHtml';
 import { notifySuccess, notifyError } from '../utils/toast';
+import '../styles/task-detail.css';
+import '../styles/admin-create-task.css';
 
-const EMPTY_NEW_TASK = { title: '', description: '', priority: 'NORMALE', deadline: '', list_id: '' };
+const PRIORITIES = [
+  { value: 'URGENT', label: 'Urgent' },
+  { value: 'HAUTE', label: 'Haute' },
+  { value: 'NORMALE', label: 'Normale' },
+  { value: 'FAIBLE', label: 'Faible' },
+];
+
+const EMPTY_NEW_TASK = {
+  title: '',
+  description: '',
+  priority: 'NORMALE',
+  deadline: '',
+  start_date: '',
+  list_id: '',
+  client_name: '',
+  client_email: '',
+};
+
+const MAX_ATTACH_SIZE = 5 * 1024 * 1024; // 5 Mo (aligné au backend)
 
 // Aplatit l'arborescence Espace > Projet > Liste en une liste d'options « Espace › Projet › Liste ».
 function flattenLists(tree) {
@@ -59,6 +79,22 @@ function MyTasks() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTask, setNewTask] = useState(EMPTY_NEW_TASK);
+  const [pendingFiles, setPendingFiles] = useState([]); // pièces jointes retenues jusqu'à la création
+
+  function handleFilesSelected(e) {
+    const chosen = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (chosen.length === 0) return;
+    const tooBig = chosen.filter((f) => f.size > MAX_ATTACH_SIZE);
+    if (tooBig.length) {
+      notifyError(`Fichier(s) trop volumineux (max 5 Mo) : ${tooBig.map((f) => f.name).join(', ')}`);
+    }
+    const ok = chosen.filter((f) => f.size <= MAX_ATTACH_SIZE);
+    if (ok.length) setPendingFiles((cur) => [...cur, ...ok]);
+  }
+  function removePendingFile(index) {
+    setPendingFiles((cur) => cur.filter((_, i) => i !== index));
+  }
   // Projets (listes) proposés au choix — optionnel — à la création d'une tâche (#4).
   const [projectLists, setProjectLists] = useState([]);
 
@@ -111,15 +147,30 @@ function MyTasks() {
     if (!newTask.title.trim() || !newTask.deadline || !newTask.list_id) return;
     setCreating(true);
     try {
-      await taskService.createTask({
+      const created = await taskService.createTask({
         title: newTask.title.trim(),
         description: htmlToText(newTask.description) ? newTask.description : '',
         priority: newTask.priority,
         deadline: newTask.deadline,
+        start_date: newTask.start_date || null,
         list_id: newTask.list_id || null,
+        client_name: newTask.client_name.trim() || null,
+        client_email: newTask.client_email.trim() || null,
       });
+
+      // Pièces jointes : envoyées APRÈS la création (best-effort, comme côté admin).
+      let attachFailed = 0;
+      if (created?.id && pendingFiles.length > 0) {
+        const results = await Promise.allSettled(
+          pendingFiles.map((file) => taskService.uploadAttachment(created.id, file))
+        );
+        attachFailed = results.filter((r) => r.status === 'rejected').length;
+      }
+
       notifySuccess('Tâche proposée : en attente de validation par un administrateur');
+      if (attachFailed > 0) notifyError(`${attachFailed} pièce(s) jointe(s) n'ont pas pu être envoyées.`);
       setNewTask(EMPTY_NEW_TASK);
+      setPendingFiles([]);
       setCreateOpen(false);
       await loadTasks();
     } catch (err) {
@@ -237,7 +288,7 @@ function MyTasks() {
       {createOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setCreateOpen(false)}>
           <div
-            className="modal-card"
+            className="modal-card modal-card--task"
             role="dialog"
             aria-modal="true"
             aria-labelledby="new-task-title"
@@ -257,21 +308,158 @@ function MyTasks() {
               Votre tâche sera soumise à un administrateur. Vous pourrez la démarrer une fois validée.
             </p>
 
-            <form className="modal-card-form" onSubmit={handleCreateTask}>
-              <label className="modal-field">
-                <span className="modal-label">Titre</span>
-                <input
-                  className="modal-input"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask((c) => ({ ...c, title: e.target.value }))}
-                  placeholder="Intitulé de la tâche"
-                  required
-                  autoFocus
-                />
-              </label>
+            <form className="tk-create-modal-form" onSubmit={handleCreateTask}>
+              {/* Titre */}
+              <input
+                className="tk-create-title"
+                value={newTask.title}
+                onChange={(e) => setNewTask((c) => ({ ...c, title: e.target.value }))}
+                placeholder="Nom de la tâche…"
+                maxLength={255}
+                required
+                autoFocus
+              />
 
-              <div className="modal-field">
-                <span className="modal-label">Description</span>
+              {/* Propriétés */}
+              <div className="tk-props">
+                {/* Priorité */}
+                <div className="tk-prop">
+                  <span className="tk-prop-label">
+                    <IconAlert /> Priorité
+                  </span>
+                  <span className="tk-prop-value">
+                    <div className="tk-priority-picker">
+                      {PRIORITIES.map((p) => (
+                        <button
+                          key={p.value}
+                          type="button"
+                          className={`priority-option priority-option--${p.value.toLowerCase()}${
+                            newTask.priority === p.value ? ' priority-option--active' : ''
+                          }`}
+                          onClick={() => setNewTask((c) => ({ ...c, priority: p.value }))}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </span>
+                </div>
+
+                {/* Dates : Début → Échéance */}
+                <div className="tk-prop">
+                  <span className="tk-prop-label">
+                    <IconCalendarWeek /> Dates
+                  </span>
+                  <span className="tk-prop-value">
+                    <span className="tk-dates">
+                      <input
+                        type="date"
+                        className="tk-date-input"
+                        value={newTask.start_date}
+                        max={newTask.deadline || undefined}
+                        onChange={(e) => setNewTask((c) => ({ ...c, start_date: e.target.value }))}
+                        aria-label="Date de début"
+                      />
+                      <span className="tk-date-arrow" aria-hidden="true">→</span>
+                      <input
+                        type="date"
+                        className="tk-date-input tk-date-due"
+                        value={newTask.deadline}
+                        min={newTask.start_date || minDeadline}
+                        onChange={(e) => setNewTask((c) => ({ ...c, deadline: e.target.value }))}
+                        required
+                        aria-label="Échéance (requise)"
+                      />
+                    </span>
+                  </span>
+                </div>
+
+                {/* Client (optionnel) */}
+                <div className="tk-prop">
+                  <span className="tk-prop-label">
+                    <IconChat /> Client
+                  </span>
+                  <span className="tk-prop-value tk-create-client">
+                    <input
+                      className="tk-date-input"
+                      value={newTask.client_name}
+                      onChange={(e) => setNewTask((c) => ({ ...c, client_name: e.target.value }))}
+                      placeholder="Nom (optionnel)"
+                    />
+                    <input
+                      className="tk-date-input"
+                      type="email"
+                      value={newTask.client_email}
+                      onChange={(e) => setNewTask((c) => ({ ...c, client_email: e.target.value }))}
+                      placeholder="Email (optionnel)"
+                    />
+                  </span>
+                </div>
+
+                {/* Projet (pleine largeur, requis) */}
+                <div className="tk-prop tk-prop--full">
+                  <span className="tk-prop-label">
+                    <IconFolder /> Projet <span className="form-required">*</span>
+                  </span>
+                  <div className="tk-prop-value tk-prop-value--block">
+                    <select
+                      className="form-select tk-create-project"
+                      value={newTask.list_id}
+                      onChange={(e) => setNewTask((c) => ({ ...c, list_id: e.target.value }))}
+                      required
+                    >
+                      <option value="" disabled>
+                        Sélectionnez un projet…
+                      </option>
+                      {projectLists.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.path}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Pièces jointes — libellé cliquable (sans bouton bordé) */}
+                <div className="tk-prop tk-prop--full">
+                  <label className="tk-prop-label tk-attach-trigger" title="Cliquer pour joindre un fichier">
+                    <IconPaperclip /> Pièces jointes
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
+                      onChange={handleFilesSelected}
+                      className="attach-hidden-input"
+                    />
+                  </label>
+                  <div className="tk-prop-value tk-prop-value--block">
+                    <p className="create-attach-hint">PDF, images, Word, Excel — 5 Mo max par fichier</p>
+                    {pendingFiles.length > 0 && (
+                      <div className="create-attach-list">
+                        {pendingFiles.map((file, index) => (
+                          <div key={`${file.name}-${index}`} className="create-attach-item">
+                            <IconPaperclip />
+                            <span className="create-attach-name">{file.name}</span>
+                            <span className="create-attach-size">{formatBytes(file.size)}</span>
+                            <button
+                              type="button"
+                              className="create-attach-remove"
+                              onClick={() => removePendingFile(index)}
+                              aria-label={`Retirer ${file.name}`}
+                            >
+                              <IconX />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="tk-desc-block tk-create-desc">
+                <p className="tk-section-label">Description</p>
                 <RichTextEditor
                   value={newTask.description}
                   onChange={(html) => setNewTask((c) => ({ ...c, description: html }))}
@@ -279,56 +467,16 @@ function MyTasks() {
                 />
               </div>
 
-              <div className="modal-card-row">
-                <label className="modal-field">
-                  <span className="modal-label">Priorité</span>
-                  <select
-                    className="modal-input"
-                    value={newTask.priority}
-                    onChange={(e) => setNewTask((c) => ({ ...c, priority: e.target.value }))}
-                  >
-                    <option value="FAIBLE">Faible</option>
-                    <option value="NORMALE">Normale</option>
-                    <option value="HAUTE">Haute</option>
-                    <option value="URGENT">Urgent</option>
-                  </select>
-                </label>
-
-                <label className="modal-field">
-                  <span className="modal-label">Échéance</span>
-                  <input
-                    className="modal-input"
-                    type="date"
-                    value={newTask.deadline}
-                    min={minDeadline}
-                    onChange={(e) => setNewTask((c) => ({ ...c, deadline: e.target.value }))}
-                    required
-                  />
-                </label>
-              </div>
-
-              <label className="modal-field">
-                <span className="modal-label">Projet</span>
-                <select
-                  className="modal-input"
-                  value={newTask.list_id}
-                  onChange={(e) => setNewTask((c) => ({ ...c, list_id: e.target.value }))}
-                  required
-                >
-                  <option value="" disabled>Sélectionnez un projet…</option>
-                  {projectLists.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.path}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="modal-card-foot">
+              {/* Pied */}
+              <div className="tk-footer">
                 <button type="button" className="btn-outline" onClick={() => setCreateOpen(false)}>
                   Annuler
                 </button>
-                <button type="submit" className="btn-primary" disabled={creating || !newTask.title.trim() || !newTask.deadline || !newTask.list_id}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={creating || !newTask.title.trim() || !newTask.deadline || !newTask.list_id}
+                >
                   {creating ? 'Envoi…' : 'Proposer la tâche'}
                 </button>
               </div>

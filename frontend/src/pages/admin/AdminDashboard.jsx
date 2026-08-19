@@ -192,7 +192,7 @@ function AdminDashboard() {
             {refreshing ? <span className="btn-spinner btn-spinner--dark" /> : <IconArrowRight />}
             Actualiser
           </button>
-          <Link to="/admin/create-task" className="btn-primary">
+          <Link to="/admin/create-task" state={{ backgroundLocation: location }} className="btn-primary">
             <IconArrowRight />
             Créer une tâche
           </Link>

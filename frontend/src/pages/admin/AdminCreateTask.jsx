@@ -1,23 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import * as hierarchyService from '../../services/hierarchyService';
 import { notifySuccess, notifyError } from '../../utils/toast';
-import { formatDate, formatBytes } from '../../utils/formatters';
+import { formatBytes } from '../../utils/formatters';
 import RichTextEditor from '../../components/RichTextEditor';
 import {
-  IconChecklist,
   IconFolder,
   IconUser,
   IconCalendarWeek,
   IconChat,
-  IconArrowRight,
-  IconCheckCircle,
+  IconAlert,
   IconPaperclip,
   IconX,
 } from '../../components/icons';
 import '../../styles/admin.css';
+import '../../styles/task-detail.css';
+import '../../styles/admin-create-task.css';
 
 const PRIORITIES = [
   { value: 'URGENT', label: 'Urgent', cls: 'urgent' },
@@ -29,6 +30,70 @@ const PRIORITIES = [
 // Aligné sur la limite backend (config/upload.js). Les fichiers sont retenus localement
 // puis envoyés APRÈS la création de la tâche (l'upload a besoin de l'id de la tâche).
 const MAX_ATTACH_SIZE = 5 * 1024 * 1024; // 5 Mo
+
+function initialsOf(name) {
+  return (
+    String(name || '')
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() || '')
+      .join('') || '?'
+  );
+}
+
+// Un niveau de la cascade projet (Espace / Dossier / Liste) : select + « + créer » dépliable.
+function CascadeField({
+  label,
+  required,
+  value,
+  onChange,
+  options,
+  disabled,
+  placeholder,
+  addLabel,
+  showNew,
+  onToggleNew,
+  newValue,
+  onNewChange,
+  onCreate,
+}) {
+  return (
+    <div className="tk-cascade-field">
+      <span className="tk-cascade-label">
+        {label}
+        {required && <span className="form-required"> *</span>}
+      </span>
+      <div className="form-inline">
+        <select className="form-select" value={value} disabled={disabled} onChange={onChange}>
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="form-add-btn" disabled={disabled} onClick={onToggleNew}>
+          {addLabel}
+        </button>
+      </div>
+      {showNew && (
+        <div className="form-quick-add">
+          <input
+            className="form-input"
+            placeholder={`Nom : ${label.toLowerCase()}`}
+            value={newValue}
+            onChange={onNewChange}
+            autoFocus
+          />
+          <button type="button" className="btn-outline form-quick-add-btn" onClick={onCreate}>
+            Créer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const EMPTY_FORM = {
   title: '',
@@ -42,7 +107,7 @@ const EMPTY_FORM = {
   client_email: '',
 };
 
-function AdminCreateTask() {
+function AdminCreateTask({ isModal = false, onClose } = {}) {
   const location = useLocation();
   // Pré-remplissage : action « Refaire » (champs de la tâche) et/ou « Ajouter une tâche » depuis un
   // projet (placement = { spaceId, folderId, listId } → pré-sélectionne la cascade, restant modifiable).
@@ -58,8 +123,9 @@ function AdminCreateTask() {
   // Multi-assignation : 1 ou plusieurs employés (une tâche est créée par employé sélectionné).
   const [assignedIds, setAssignedIds] = useState(() => (prefill.assigned_to ? [prefill.assigned_to] : []));
   const [submitting, setSubmitting] = useState(false);
+  const [showAssignManage, setShowAssignManage] = useState(false); // panneau de sélection des assignés
 
-  // Sélection hiérarchique Space > Folder > List, entièrement optionnelle
+  // Sélection hiérarchique Space > Folder > List
   const [spaces, setSpaces] = useState([]);
   const [folders, setFolders] = useState([]);
   const [lists, setLists] = useState([]);
@@ -180,6 +246,7 @@ function AdminCreateTask() {
     setSelectedSpaceId('');
     setSelectedFolderId('');
     setPendingFiles([]);
+    setShowAssignManage(false);
   }
 
   function handleFilesSelected(e) {
@@ -236,6 +303,7 @@ function AdminCreateTask() {
         notifyError(`${attachFailed} pièce(s) jointe(s) n'ont pas pu être envoyées.`);
       }
       resetAll();
+      if (isModal && onClose) onClose(); // en modale : on ferme la fenêtre après création
     } catch (err) {
       const data = err.response?.data;
       notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
@@ -244,392 +312,314 @@ function AdminCreateTask() {
     }
   }
 
-  const assignedNames = useMemo(
-    () => employees.filter((emp) => assignedIds.includes(emp.id)).map((emp) => emp.full_name),
+  const selectedEmployees = useMemo(
+    () => employees.filter((emp) => assignedIds.includes(emp.id)),
     [employees, assignedIds]
   );
-  const priorityMeta = PRIORITIES.find((p) => p.value === form.priority);
   const spaceName = spaces.find((s) => s.id === selectedSpaceId)?.name;
   const folderName = folders.find((f) => f.id === selectedFolderId)?.name;
   const listName = lists.find((l) => l.id === form.list_id)?.name;
   const locationPath = [spaceName, folderName, listName].filter(Boolean);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const canSubmit = form.title.trim() && form.deadline && form.list_id && assignedIds.length > 0 && !submitting;
 
   return (
-    <form className="admin-form" onSubmit={handleSubmit}>
-      <div className="admin-form-main">
-        {/* Détails */}
-        <section className="admin-form-card">
-          <h2 className="admin-form-card-title">
-            <IconChecklist />
-            Détails de la tâche
-          </h2>
+    <form className="tk-create" onSubmit={handleSubmit}>
+      {/* En-tête : fil d'Ariane du projet + titre */}
+      <div className="tk-create-head">
+        {locationPath.length > 0 && <p className="tk-breadcrumb">{locationPath.join(' › ')}</p>}
+        <input
+          className="tk-create-title"
+          name="title"
+          value={form.title}
+          onChange={handleChange}
+          placeholder="Nom de la tâche…"
+          maxLength={255}
+          autoFocus
+          required
+        />
+      </div>
 
-          <div className="form-field">
-            <label className="form-label" htmlFor="title">
-              Titre <span className="form-required">*</span>
-            </label>
-            <input
-              id="title"
-              name="title"
-              className="form-input"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="Ex. Rédiger le rapport mensuel"
-              required
-            />
-          </div>
-
-          <div className="form-field">
-            <span className="form-label">Description</span>
-            <RichTextEditor
-              value={form.description}
-              onChange={(html) => setForm((f) => ({ ...f, description: html }))}
-              placeholder="Précisez le contexte, les attentes, les livrables… (mise en forme disponible)"
-            />
-          </div>
-
-          <div className="form-field">
-            <span className="form-label">Priorité</span>
-            <div className="priority-chip-row">
+      {/* Grille de propriétés (façon fiche détail) */}
+      <div className="tk-props tk-create-props">
+        {/* Priorité */}
+        <div className="tk-prop">
+          <span className="tk-prop-label">
+            <IconAlert /> Priorité
+          </span>
+          <span className="tk-prop-value">
+            <div className="tk-priority-picker">
               {PRIORITIES.map((p) => (
                 <button
                   key={p.value}
                   type="button"
-                  className={`priority-chip${form.priority === p.value ? ' priority-chip--active' : ''}`}
+                  className={`priority-option priority-option--${p.value.toLowerCase()}${
+                    form.priority === p.value ? ' priority-option--active' : ''
+                  }`}
                   onClick={() => setForm({ ...form, priority: p.value })}
                 >
-                  <span className={`priority-dot priority-dot--${p.cls}`} />
                   {p.label}
                 </button>
               ))}
             </div>
-          </div>
+          </span>
+        </div>
 
-          <div className="form-field">
-            <label className="form-label">
-              Employés assignés <span className="form-required">*</span>
-              <span className="assignee-hint"> — 1 ou plusieurs (une tâche par employé)</span>
-            </label>
-            <div className="assignee-checklist">
-              {employees.length === 0 && <p className="assignee-empty">Aucun employé disponible.</p>}
-              {employees.map((emp) => {
-                const checked = assignedIds.includes(emp.id);
-                return (
-                  <label key={emp.id} className={`assignee-check${checked ? ' assignee-check--on' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() =>
-                        setAssignedIds((cur) =>
-                          cur.includes(emp.id) ? cur.filter((x) => x !== emp.id) : [...cur, emp.id]
-                        )
-                      }
-                    />
-                    <span>
-                      {emp.full_name} <em>({emp.position})</em>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-            {assignedIds.length > 1 && (
-              <p className="assignee-note">Une seule tâche, partagée par les {assignedIds.length} personnes sélectionnées.</p>
-            )}
-          </div>
-        </section>
+        {/* Assignés */}
+        <div className="tk-prop">
+          <span className="tk-prop-label">
+            <IconUser /> Assignés <span className="form-required">*</span>
+          </span>
+          <span className="tk-prop-value">
+            <span className="tk-assignees">
+              {selectedEmployees.length === 0 && <span className="tk-empty">Personne</span>}
+              {selectedEmployees.map((emp) => (
+                <span key={emp.id} className="tk-assignee-chip">
+                  <span className="tk-assignee-avatar tk-assignee-avatar--initials">{initialsOf(emp.full_name)}</span>
+                  <span className="tk-assignee-name">{emp.full_name}</span>
+                </span>
+              ))}
+              <button type="button" className="tk-prop-edit" onClick={() => setShowAssignManage((v) => !v)}>
+                {showAssignManage ? 'Fermer' : 'Gérer'}
+              </button>
+            </span>
+          </span>
+        </div>
 
-        {/* Planification */}
-        <section className="admin-form-card">
-          <h2 className="admin-form-card-title">
-            <IconCalendarWeek />
-            Planification
-          </h2>
-          <div className="form-row">
-            <div className="form-field">
-              <label className="form-label" htmlFor="start_date">
-                Date de début
-              </label>
+        {/* Dates : Début → Échéance */}
+        <div className="tk-prop">
+          <span className="tk-prop-label">
+            <IconCalendarWeek /> Dates
+          </span>
+          <span className="tk-prop-value">
+            <span className="tk-dates">
               <input
-                id="start_date"
-                name="start_date"
                 type="date"
-                className="form-input"
+                className="tk-date-input"
+                name="start_date"
                 value={form.start_date}
                 onChange={handleChange}
+                max={form.deadline || undefined}
+                aria-label="Date de début"
               />
-            </div>
-            <div className="form-field">
-              <label className="form-label" htmlFor="deadline">
-                Échéance <span className="form-required">*</span>
-              </label>
+              <span className="tk-date-arrow" aria-hidden="true">→</span>
               <input
-                id="deadline"
-                name="deadline"
                 type="date"
-                className="form-input"
+                className="tk-date-input tk-date-due"
+                name="deadline"
                 value={form.deadline}
                 onChange={handleChange}
-                min={new Date().toISOString().slice(0, 10)}
+                min={form.start_date || todayStr}
                 required
+                aria-label="Échéance (requise)"
               />
-            </div>
-          </div>
-        </section>
+            </span>
+          </span>
+        </div>
 
-        {/* Emplacement */}
-        <section className="admin-form-card">
-          <h2 className="admin-form-card-title">
-            <IconFolder />
-            Emplacement <span className="admin-form-card-optional">optionnel</span>
-          </h2>
+        {/* Client (optionnel) */}
+        <div className="tk-prop">
+          <span className="tk-prop-label">
+            <IconChat /> Client
+          </span>
+          <span className="tk-prop-value tk-create-client">
+            <input
+              className="tk-date-input"
+              name="client_name"
+              value={form.client_name}
+              onChange={handleChange}
+              placeholder="Nom (optionnel)"
+            />
+            <input
+              className="tk-date-input"
+              type="email"
+              name="client_email"
+              value={form.client_email}
+              onChange={handleChange}
+              placeholder="Email (optionnel)"
+            />
+          </span>
+        </div>
 
-          <div className="form-field">
-            <label className="form-label" htmlFor="space">
-              Espace
-            </label>
-            <div className="form-inline">
-              <select id="space" className="form-select" value={selectedSpaceId} onChange={(e) => setSelectedSpaceId(e.target.value)}>
-                <option value="">Aucun espace (tâche libre)</option>
-                {spaces.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="form-add-btn" onClick={() => setShowNewSpace((v) => !v)}>
-                + Espace
-              </button>
-            </div>
-            {showNewSpace && (
-              <div className="form-quick-add">
-                <input
-                  className="form-input"
-                  placeholder="Nom de l'espace"
-                  value={newSpaceName}
-                  onChange={(e) => setNewSpaceName(e.target.value)}
-                  autoFocus
-                />
-                <button type="button" className="btn-outline form-quick-add-btn" onClick={handleCreateSpace}>
-                  Créer
-                </button>
+        {/* Panneau de sélection des assignés (dépliable) */}
+        {showAssignManage && (
+          <div className="tk-prop tk-prop--full">
+            <div className="tk-prop-value tk-prop-value--block">
+              <div className="tk-create-assign-panel">
+                {employees.length === 0 && <p className="tk-empty">Aucun employé disponible.</p>}
+                {employees.map((emp) => {
+                  const checked = assignedIds.includes(emp.id);
+                  return (
+                    <label key={emp.id} className={`assignee-check${checked ? ' assignee-check--on' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setAssignedIds((cur) =>
+                            cur.includes(emp.id) ? cur.filter((x) => x !== emp.id) : [...cur, emp.id]
+                          )
+                        }
+                      />
+                      <span>
+                        {emp.full_name} <em>({emp.position})</em>
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
-            )}
+              {assignedIds.length > 1 && (
+                <p className="assignee-note">
+                  Une seule tâche, partagée par les {assignedIds.length} personnes sélectionnées.
+                </p>
+              )}
+            </div>
           </div>
+        )}
 
-          <div className="form-field">
-            <label className="form-label" htmlFor="folder">
-              Dossier
-            </label>
-            <div className="form-inline">
-              <select
-                id="folder"
-                className="form-select"
+        {/* Projet (cascade Espace › Dossier › Liste) — pleine largeur, requis */}
+        <div className="tk-prop tk-prop--full">
+          <span className="tk-prop-label">
+            <IconFolder /> Projet <span className="form-required">*</span>
+          </span>
+          <div className="tk-prop-value tk-prop-value--block">
+            <div className="tk-create-cascade">
+              <CascadeField
+                label="Espace"
+                value={selectedSpaceId}
+                onChange={(e) => setSelectedSpaceId(e.target.value)}
+                options={spaces}
+                placeholder="Choisir un espace…"
+                addLabel="+ Espace"
+                showNew={showNewSpace}
+                onToggleNew={() => setShowNewSpace((v) => !v)}
+                newValue={newSpaceName}
+                onNewChange={(e) => setNewSpaceName(e.target.value)}
+                onCreate={handleCreateSpace}
+              />
+              <CascadeField
+                label="Dossier"
                 value={selectedFolderId}
-                disabled={!selectedSpaceId}
                 onChange={(e) => setSelectedFolderId(e.target.value)}
-              >
-                <option value="">Aucun dossier</option>
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="form-add-btn"
+                options={folders}
                 disabled={!selectedSpaceId}
-                onClick={() => setShowNewFolder((v) => !v)}
-              >
-                + Dossier
-              </button>
-            </div>
-            {showNewFolder && (
-              <div className="form-quick-add">
-                <input
-                  className="form-input"
-                  placeholder="Nom du dossier"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  autoFocus
-                />
-                <button type="button" className="btn-outline form-quick-add-btn" onClick={handleCreateFolder}>
-                  Créer
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="form-field">
-            <label className="form-label" htmlFor="list_id">
-              Liste <span className="form-required">*</span>
-            </label>
-            <div className="form-inline">
-              <select
-                id="list_id"
-                name="list_id"
-                className="form-select"
+                placeholder="Choisir un dossier…"
+                addLabel="+ Dossier"
+                showNew={showNewFolder}
+                onToggleNew={() => setShowNewFolder((v) => !v)}
+                newValue={newFolderName}
+                onNewChange={(e) => setNewFolderName(e.target.value)}
+                onCreate={handleCreateFolder}
+              />
+              <CascadeField
+                label="Liste"
+                required
                 value={form.list_id}
+                onChange={(e) => setForm((f) => ({ ...f, list_id: e.target.value }))}
+                options={lists}
                 disabled={!selectedFolderId}
-                onChange={handleChange}
-              >
-                <option value="">Aucune liste</option>
-                {lists.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="form-add-btn"
-                disabled={!selectedFolderId}
-                onClick={() => setShowNewList((v) => !v)}
-              >
-                + Liste
-              </button>
+                placeholder="Choisir une liste…"
+                addLabel="+ Liste"
+                showNew={showNewList}
+                onToggleNew={() => setShowNewList((v) => !v)}
+                newValue={newListName}
+                onNewChange={(e) => setNewListName(e.target.value)}
+                onCreate={handleCreateList}
+              />
             </div>
-            {showNewList && (
-              <div className="form-quick-add">
-                <input
-                  className="form-input"
-                  placeholder="Nom de la liste"
-                  value={newListName}
-                  onChange={(e) => setNewListName(e.target.value)}
-                  autoFocus
-                />
-                <button type="button" className="btn-outline form-quick-add-btn" onClick={handleCreateList}>
-                  Créer
-                </button>
+          </div>
+        </div>
+
+        {/* Pièces jointes — libellé cliquable (sans bouton bordé) */}
+        <div className="tk-prop tk-prop--full">
+          <label className="tk-prop-label tk-attach-trigger" title="Cliquer pour joindre un fichier">
+            <IconPaperclip /> Pièces jointes
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
+              onChange={handleFilesSelected}
+              className="attach-hidden-input"
+            />
+          </label>
+          <div className="tk-prop-value tk-prop-value--block">
+            <p className="create-attach-hint">PDF, images, Word, Excel — 5 Mo max par fichier</p>
+            {pendingFiles.length > 0 && (
+              <div className="create-attach-list">
+                {pendingFiles.map((file, index) => (
+                  <div key={`${file.name}-${index}`} className="create-attach-item">
+                    <IconPaperclip />
+                    <span className="create-attach-name">{file.name}</span>
+                    <span className="create-attach-size">{formatBytes(file.size)}</span>
+                    <button
+                      type="button"
+                      className="create-attach-remove"
+                      onClick={() => removePendingFile(index)}
+                      aria-label={`Retirer ${file.name}`}
+                    >
+                      <IconX />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </section>
-
-        {/* Client */}
-        <section className="admin-form-card">
-          <h2 className="admin-form-card-title">
-            <IconChat />
-            Client <span className="admin-form-card-optional">optionnel</span>
-          </h2>
-          <div className="form-row">
-            <div className="form-field">
-              <label className="form-label" htmlFor="client_name">
-                Nom du client
-              </label>
-              <input
-                id="client_name"
-                name="client_name"
-                className="form-input"
-                value={form.client_name}
-                onChange={handleChange}
-                placeholder="Ex. Société Dupont"
-              />
-            </div>
-            <div className="form-field">
-              <label className="form-label" htmlFor="client_email">
-                Email du client
-              </label>
-              <input
-                id="client_email"
-                name="client_email"
-                type="email"
-                className="form-input"
-                value={form.client_email}
-                onChange={handleChange}
-                placeholder="contact@client.com"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Pièces jointes */}
-        <section className="admin-form-card">
-          <h2 className="admin-form-card-title">
-            <IconPaperclip />
-            Pièces jointes <span className="admin-form-card-optional">optionnel</span>
-          </h2>
-          <div className="upload-zone">
-            <label className="upload-btn">
-              <IconPaperclip />
-              Ajouter des fichiers
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp"
-                onChange={handleFilesSelected}
-                style={{ display: 'none' }}
-              />
-            </label>
-            <span className="create-attach-hint">PDF, images, Word, Excel — 5 Mo max par fichier</span>
-          </div>
-          {pendingFiles.length > 0 && (
-            <div className="create-attach-list">
-              {pendingFiles.map((file, index) => (
-                <div key={`${file.name}-${index}`} className="create-attach-item">
-                  <IconPaperclip />
-                  <span className="create-attach-name">{file.name}</span>
-                  <span className="create-attach-size">{formatBytes(file.size)}</span>
-                  <button
-                    type="button"
-                    className="create-attach-remove"
-                    onClick={() => removePendingFile(index)}
-                    aria-label={`Retirer ${file.name}`}
-                  >
-                    <IconX />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        </div>
       </div>
 
-      {/* Aperçu + actions (sticky) */}
-      <aside className="admin-form-side">
-        <div className="task-preview">
-          <span className="task-preview-label">Aperçu</span>
-          <h3 className="task-preview-title">{form.title.trim() || 'Sans titre'}</h3>
+      {/* Description */}
+      <div className="tk-desc-block tk-create-desc">
+        <p className="tk-section-label">Description</p>
+        <RichTextEditor
+          value={form.description}
+          onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+          placeholder="Précisez le contexte, les attentes, les livrables… (mise en forme disponible)"
+        />
+      </div>
 
-          {priorityMeta && (
-            <span className={`pill priority-pill priority-pill--${priorityMeta.cls}`}>
-              <span className={`priority-dot priority-dot--${priorityMeta.cls}`} />
-              {priorityMeta.label}
-            </span>
-          )}
-
-          <div className="task-preview-rows">
-            <div className="task-preview-row">
-              <span className="task-preview-row-icon"><IconUser /></span>
-              <span>{assignedNames.length > 0 ? assignedNames.join(', ') : 'Non assignée'}</span>
-            </div>
-            <div className="task-preview-row">
-              <span className="task-preview-row-icon"><IconCalendarWeek /></span>
-              <span>{form.deadline ? `Échéance : ${formatDate(form.deadline)}` : 'Sans échéance'}</span>
-            </div>
-            <div className="task-preview-row">
-              <span className="task-preview-row-icon"><IconFolder /></span>
-              <span>{locationPath.length ? locationPath.join(' › ') : 'Tâche libre'}</span>
-            </div>
-          </div>
-
-          <div className="task-preview-actions">
-            <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? <span className="btn-spinner" /> : <IconCheckCircle />}
-              {submitting ? 'Création…' : 'Créer la tâche'}
-            </button>
-            <button type="button" className="btn-outline" onClick={resetAll} disabled={submitting}>
-              Réinitialiser
-            </button>
-          </div>
-
-          <p className="task-preview-hint">
-            <IconArrowRight />
-            L'employé assigné verra la tâche dans son espace après création.
-          </p>
-        </div>
-      </aside>
+      {/* Pied : actions */}
+      <div className="tk-footer">
+        <button type="button" className="btn-outline" onClick={resetAll} disabled={submitting}>
+          Réinitialiser
+        </button>
+        <button type="submit" className="btn-primary" disabled={!canSubmit}>
+          {submitting ? 'Création…' : 'Créer la tâche'}
+        </button>
+      </div>
     </form>
+  );
+}
+
+// Version fenêtre modale (ouverte par-dessus la page via le pattern « background location »).
+export function CreateTaskModal() {
+  const navigate = useNavigate();
+  const close = () => navigate(-1);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') navigate(-1);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
+
+  return createPortal(
+    <div className="task-modal-overlay" role="presentation" onMouseDown={close}>
+      <div
+        className="task-modal task-modal--create"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Créer une tâche"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button type="button" className="task-modal-close" onClick={close} aria-label="Fermer">
+          <IconX />
+        </button>
+        <div className="task-modal-body">
+          <AdminCreateTask isModal onClose={close} />
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 

@@ -1,0 +1,191 @@
+/* Page « Créer une tâche » — même langage visuel que la fiche détail (grille de propriétés).
+   Réutilise les classes .tk-* (task-detail.css) ; ce fichier n'ajoute que le spécifique création. */
+
+.tk-create {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 26px 30px 22px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+}
+
+/* En-tête : fil d'Ariane + grand titre éditable (comme le titre de la fiche). */
+.tk-create-head {
+  margin-bottom: 4px;
+}
+.tk-create-title {
+  width: 100%;
+  padding: 4px 6px;
+  margin-left: -6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-family);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tk-create-title::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+.tk-create-title:hover {
+  background: var(--glass-overlay);
+}
+.tk-create-title:focus {
+  outline: none;
+  border-color: var(--color-accent-light);
+  background: var(--input-bg);
+}
+
+/* Client : deux champs côte à côte. */
+.tk-create-client {
+  gap: 8px;
+}
+.tk-create-client .tk-date-input {
+  flex: 1;
+  min-width: 150px;
+}
+
+/* Cascade projet : Espace / Dossier / Liste (responsive). */
+.tk-create-cascade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+.tk-cascade-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.tk-cascade-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.tk-cascade-field .form-inline {
+  display: flex;
+  gap: 6px;
+}
+.tk-cascade-field .form-select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Panneau de sélection des assignés (dépliable). */
+.tk-create-assign-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--glass-overlay);
+}
+
+/* Description : un peu d'air au-dessus du bloc. */
+.tk-create-desc {
+  margin-top: 14px;
+}
+
+/* --- Variante MODALE (employé : « Proposer une tâche ») : mêmes .tk-* sans la carte --- */
+.modal-card--task {
+  max-width: 600px;
+}
+.tk-create-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Dans la modale (étroite), une seule colonne pour que chaque propriété respire. */
+.tk-create-modal-form .tk-props {
+  grid-template-columns: 1fr;
+}
+.tk-create-project {
+  width: 100%;
+  max-width: 440px;
+}
+
+/* Liste des pièces jointes en attente (partagée admin + employé, car la modale employé
+   ne charge pas admin.css). Mêmes styles que admin.css. */
+.create-attach-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.create-attach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.create-attach-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+.create-attach-item > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+.create-attach-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.create-attach-size {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.create-attach-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.create-attach-remove:hover {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+}
+.create-attach-remove svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 640px) {
+  .tk-create {
+    padding: 20px 16px 18px;
+  }
+  .tk-create-title {
+    font-size: 20px;
+  }
+}
