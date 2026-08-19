@@ -19,9 +19,11 @@ const notificationRoutes = require('./routes/notifications');
 const pushRoutes = require('./routes/push');
 const announcementRoutes = require('./routes/announcements');
 const dailyRoutes = require('./routes/daily');
+const emailRoutes = require('./routes/emails');
 const db = require('./config/database');
 const env = require('./config/env');
 const mailService = require('./services/mail.service');
+const imapService = require('./services/imap.service');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
 // Construit l'application Express (middlewares + routes), SANS écouter de port ni
@@ -73,6 +75,7 @@ app.get('/health', async (req, res) => {
       db: 'up',
       push: Boolean(env.vapidPublicKey),
       mail: mailService.isEnabled(),
+      inbox: imapService.isEnabled(),
       uptime: process.uptime(),
     });
   } catch (err) {
@@ -107,6 +110,7 @@ app.use('/api', notificationRoutes);
 app.use('/api', pushRoutes);
 app.use('/api', announcementRoutes);
 app.use('/api', dailyRoutes);
+app.use('/api', emailRoutes);
 
 // Fallback SPA : toute route non-API/non-socket renvoie index.html pour que les deep-links du
 // routeur React (ex. /admin/stats rafraîchi) fonctionnent au lieu de renvoyer 404.

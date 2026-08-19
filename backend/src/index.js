@@ -10,6 +10,7 @@ const db = require('./config/database');
 const { initRealtime } = require('./realtime/io');
 const { initObservability, captureError } = require('./config/observability');
 const sessionModel = require('./models/session.model');
+const imapService = require('./services/imap.service');
 
 // Monitoring d'erreurs optionnel (inerte sans SENTRY_DSN — voir config/observability.js).
 initObservability();
@@ -29,6 +30,9 @@ server.listen(env.port, () => {
   console.log(`API démarrée sur http://localhost:${env.port} (REST + WebSocket)`);
 });
 
+// Boîte mail entrante : connexion IMAP + écoute des nouveaux mails (inerte sans IMAP_USER/PASS).
+imapService.start();
+
 // Nettoyage autonome des navigateurs fermés : présence et tâche sont clôturées
 // même si aucun utilisateur ne rouvre l'application et si aucun admin ne consulte la page.
 const presenceCleanupTimer = setInterval(() => {
@@ -47,6 +51,7 @@ function shutdown(signal) {
   shuttingDown = true;
   console.log(`${signal} reçu — arrêt propre en cours…`);
   clearInterval(presenceCleanupTimer);
+  imapService.stop().catch(() => {});
 
   server.close(async () => {
     try {

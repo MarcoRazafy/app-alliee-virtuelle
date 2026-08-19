@@ -47,11 +47,16 @@ function isEnabled() {
 }
 
 // Envoi via l'API HTTP de Brevo (https → contourne le blocage SMTP de Railway).
-async function sendViaBrevo({ to, subject, html, text }) {
+// `headers` (optionnel) : entêtes personnalisés, ex. { 'In-Reply-To': '<id>', 'References': '<id>' }
+// pour rattacher une réponse au fil de discussion. `replyTo` (optionnel) : adresse de réponse.
+async function sendViaBrevo({ to, subject, html, text, headers, replyTo }) {
   const recipients = String(to)
     .split(',')
     .map((e) => ({ email: e.trim() }))
     .filter((r) => r.email);
+  const payload = { sender, to: recipients, subject, htmlContent: html, textContent: text };
+  if (headers && Object.keys(headers).length) payload.headers = headers;
+  if (replyTo) payload.replyTo = { email: replyTo };
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -59,7 +64,7 @@ async function sendViaBrevo({ to, subject, html, text }) {
       'content-type': 'application/json',
       accept: 'application/json',
     },
-    body: JSON.stringify({ sender, to: recipients, subject, htmlContent: html, textContent: text }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const body = await res.text();
@@ -69,13 +74,26 @@ async function sendViaBrevo({ to, subject, html, text }) {
 
 // Envoi bas niveau, best-effort : ne jette JAMAIS (un email raté ne doit pas faire échouer
 // l'action métier — approbation de compte, inscription…). Renvoie true si envoyé.
-async function sendMail({ to, subject, html, text }) {
+async function sendMail({ to, subject, html, text, inReplyTo, references, replyTo }) {
   if (!enabled || !to) return false;
+  // Entêtes de threading (réponse rattachée au fil) partagés entre Brevo et SMTP.
+  const headers = {};
+  if (inReplyTo) headers['In-Reply-To'] = inReplyTo;
+  if (references) headers['References'] = references;
   try {
     if (brevoEnabled) {
-      await sendViaBrevo({ to, subject, html, text });
+      await sendViaBrevo({ to, subject, html, text, headers, replyTo });
     } else {
-      await transporter.sendMail({ from: env.mailFrom, to, subject, html, text });
+      await transporter.sendMail({
+        from: env.mailFrom,
+        to,
+        subject,
+        html,
+        text,
+        replyTo: replyTo || undefined,
+        inReplyTo: inReplyTo || undefined,
+        references: references || undefined,
+      });
     }
     return true;
   } catch (err) {

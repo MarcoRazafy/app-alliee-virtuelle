@@ -41,6 +41,15 @@ module.exports = {
   // API HTTP Brevo (recommandé en prod : contourne le blocage du SMTP sortant de Railway).
   // Si présent, l'email passe par Brevo au lieu du SMTP. L'expéditeur = MAIL_FROM.
   brevoApiKey: process.env.BREVO_API_KEY,
+  // Boîte mail entrante (IMAP) affichée dans l'app (page admin « Boîte mail »).
+  // Inerte sans IMAP_USER/IMAP_PASS. Le mot de passe est un « mot de passe d'application »
+  // Google (2FA requise), à ne mettre QUE dans les variables d'environnement.
+  imapHost: process.env.IMAP_HOST || 'imap.gmail.com',
+  imapPort: Number(process.env.IMAP_PORT) || 993,
+  imapUser: process.env.IMAP_USER,
+  imapPass: process.env.IMAP_PASS,
+  // Nombre de mails récents synchronisés au premier démarrage (rattrapage initial).
+  imapInitialFetch: Math.max(1, Number(process.env.IMAP_INITIAL_FETCH) || 50),
   // Emails supplémentaires (séparés par des virgules) qui reçoivent AUSSI la notification de
   // nouvelle inscription, en plus des admins — sans avoir les droits admin. Ex :
   // REGISTRATION_NOTIFY_EMAILS="rh@exemple.com, direction@exemple.com"
