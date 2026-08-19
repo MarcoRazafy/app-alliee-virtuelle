@@ -286,6 +286,80 @@ async function deleteUserNote(req, res, next) {
   }
 }
 
+// --- Évaluations mensuelles -------------------------------------------------
+
+const EVAL_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const EVAL_RATINGS = ['good', 'bad'];
+const EVAL_MAX_ITEMS = 30; // garde-fou par critère
+
+function cleanComment(value, max) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, max);
+}
+
+// Normalise une liste de remarques d'un critère : [{ rating: 'good'|'bad', comment }].
+// On ignore les entrées sans note valide OU sans commentaire.
+function cleanItems(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((it) => it && EVAL_RATINGS.includes(it.rating))
+    .map((it) => ({ rating: it.rating, comment: cleanComment(it.comment, 2000) }))
+    .filter((it) => it.comment)
+    .slice(0, EVAL_MAX_ITEMS);
+}
+
+// Admin : historique complet des évaluations d'un employé.
+async function listUserEvaluations(req, res, next) {
+  try {
+    const target = await userModel.findById(req.params.id);
+    if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    const evaluations = await userModel.listEvaluations(req.params.id);
+    res.status(200).json(evaluations);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Admin : crée ou met à jour l'évaluation d'un mois (mois = 'YYYY-MM').
+async function upsertUserEvaluation(req, res, next) {
+  try {
+    const { month } = req.params;
+    if (!EVAL_MONTH_RE.test(month)) {
+      return res.status(400).json({ error: 'Mois invalide (format attendu AAAA-MM)' });
+    }
+    const target = await userModel.findById(req.params.id);
+    if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+    const b = req.body || {};
+    const data = {
+      visible_to_employee: Boolean(b.visible_to_employee),
+      global_comment: cleanComment(b.global_comment, 4000),
+      delais_items: cleanItems(b.delais_items),
+      qualite_items: cleanItems(b.qualite_items),
+      autonomie_items: cleanItems(b.autonomie_items),
+      adaptabilite_items: cleanItems(b.adaptabilite_items),
+    };
+
+    const saved = await userModel.upsertEvaluation(req.params.id, month, req.user.id, data);
+    res.status(200).json(saved);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Employé : ses propres évaluations (commentaire global toujours visible ;
+// détail des critères seulement si l'admin l'a rendu visible).
+async function listMyEvaluations(req, res, next) {
+  try {
+    const evaluations = await userModel.listEvaluationsForEmployee(req.user.id);
+    res.status(200).json(evaluations);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listDirectory,
   getUserAvatar,
@@ -300,4 +374,7 @@ module.exports = {
   listUserNotes,
   createUserNote,
   deleteUserNote,
+  listUserEvaluations,
+  upsertUserEvaluation,
+  listMyEvaluations,
 };

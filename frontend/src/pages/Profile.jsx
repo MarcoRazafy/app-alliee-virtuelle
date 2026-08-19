@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import NotificationToggle from '../components/NotificationToggle';
+import MyEvaluations from '../components/employee/MyEvaluations';
 import useAuthStore from '../store/authStore';
 import api from '../services/api';
 import * as statsService from '../services/statsService';
@@ -618,6 +619,10 @@ function Profile() {
               </div>
             </article>
           </div>
+        </div>
+
+        <div className="profile-evaluations">
+          <MyEvaluations />
         </div>
       </section>
     </EmployeeLayout>
