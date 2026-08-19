@@ -45,6 +45,7 @@ const AdminUserProfile = lazy(() => import('./pages/admin/AdminUserProfile'));
 const AdminMessaging = lazy(() => import('./pages/admin/AdminMessaging'));
 const AdminResources = lazy(() => import('./pages/admin/AdminResources'));
 const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
+const AdminMailbox = lazy(() => import('./pages/admin/AdminMailbox'));
 
 function AdminRoute({ children }) {
   return (
@@ -208,6 +209,7 @@ function AppRoutes() {
         <Route path="/admin/users/:id" element={<AdminRoute><AdminUserProfile /></AdminRoute>} />
         <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
         <Route path="/admin/resources" element={<AdminRoute><AdminResources /></AdminRoute>} />
+        <Route path="/admin/mailbox" element={<AdminRoute><AdminMailbox /></AdminRoute>} />
         <Route path="/admin/profile" element={<AdminRoute><AdminProfile /></AdminRoute>} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />

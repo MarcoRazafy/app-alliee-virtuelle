@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
+import * as emailService from '../../services/emailService';
+import { getSocket } from '../../services/socket';
 import * as avatarService from '../../services/avatarService';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
@@ -22,6 +24,7 @@ import {
   IconUser,
   IconUsers,
   IconFolder,
+  IconMail,
   IconLogout,
   IconChevronDown,
   IconSearch,
@@ -58,6 +61,7 @@ const NAV_ITEMS = [
   { to: '/admin/stats', label: 'Statistique', subtitle: "Performance de l'équipe", icon: IconBarChart },
   { to: '/announcements', label: 'Annonce', subtitle: "Communications à l'équipe", icon: IconMegaphone, badgeKey: 'announcements' },
   { to: '/planning', label: 'Mon planning', subtitle: 'Vos disponibilités de la semaine', icon: IconCalendarWeek },
+  { to: '/admin/mailbox', label: 'Boîte mail', subtitle: 'Emails reçus', icon: IconMail, badgeKey: 'mailbox' },
   { to: '/admin/resources', label: 'Ressources', subtitle: 'Documents partagés', icon: IconFolder },
   { to: '/admin/profile', label: 'Admin Profil', subtitle: 'Vos informations', icon: IconUser },
 ];
@@ -90,7 +94,7 @@ function AdminLayout({ children }) {
   const logout = useAuthStore((state) => state.logout);
   const { unread: announcementUnread } = useAnnouncementUnread();
 
-  const [badges, setBadges] = useState({ toValidate: 0, taskRequests: 0 });
+  const [badges, setBadges] = useState({ toValidate: 0, taskRequests: 0, mailbox: 0 });
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -123,10 +127,20 @@ function AdminLayout({ children }) {
       taskService.getExtraTaskRequests('PENDING').then((reqs) => {
         setBadges((prev) => ({ ...prev, taskRequests: reqs.length }));
       });
+      emailService.getUnreadCount().then((d) => {
+        setBadges((prev) => ({ ...prev, mailbox: d.unread || 0 }));
+      }).catch(() => {});
     }
     loadBadges();
     const poll = setInterval(loadBadges, 15000);
-    return () => clearInterval(poll);
+    // Nouvel email en temps réel → rafraîchit le compteur non-lus tout de suite.
+    const socket = getSocket();
+    const onMail = () => loadBadges();
+    socket.on('mail:new', onMail);
+    return () => {
+      clearInterval(poll);
+      socket.off('mail:new', onMail);
+    };
   }, []);
 
   useEffect(() => {

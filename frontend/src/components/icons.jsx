@@ -221,6 +221,38 @@ export const IconBell = (props) =>
     props
   );
 
+// Flèches circulaires : actualiser / recharger.
+export const IconRefresh = (props) =>
+  base(
+    <>
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 3v5h-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 21v-5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
+// Flèche de réponse (répondre à un email).
+export const IconReply = (props) =>
+  base(
+    <>
+      <path d="M9 17H7a4 4 0 0 1 0-8h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m12 6-3 3 3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
+// Enveloppe : icône de la boîte mail.
+export const IconMail = (props) =>
+  base(
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
 // Mégaphone : icône des annonces (distincte de la cloche des notifications).
 export const IconMegaphone = (props) =>
   base(
