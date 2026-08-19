@@ -80,15 +80,247 @@
   min-width: 0;
 }
 
-/* Panneau de sélection des assignés (dépliable). */
+/* ============================================================================
+   Sélecteur d'assignés (people picker) : recherche + cartes avec avatar.
+   ============================================================================ */
+
+/* Avatar réutilisable : photo ou initiales sur fond dégradé. */
+.tk-person-avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light, #5b8cff));
+}
+.tk-person-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tk-person-initials {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: 0.3px;
+}
+.tk-person-avatar--sm {
+  width: 24px;
+  height: 24px;
+}
+.tk-person-avatar--sm .tk-person-initials {
+  font-size: 10px;
+}
+
+/* Conteneur du panneau : en-tête (recherche + compteur) au-dessus de la grille. */
+.tk-assign-box {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--glass-overlay);
+  overflow: hidden;
+}
+.tk-assign-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+.tk-assign-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+}
+.tk-assign-search > svg {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+.tk-assign-search input {
+  width: 100%;
+  height: 40px;
+  padding: 0 34px 0 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--input-bg, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: 14px;
+}
+.tk-assign-search input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+.tk-assign-search-clear {
+  position: absolute;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.tk-assign-search-clear:hover {
+  background: var(--glass-overlay);
+  color: var(--color-text-primary);
+}
+.tk-assign-search-clear svg {
+  width: 13px;
+  height: 13px;
+}
+.tk-assign-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.tk-assign-clear {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-lighter, var(--color-accent));
+  cursor: pointer;
+}
+.tk-assign-clear:hover {
+  text-decoration: underline;
+}
+
+/* Grille des cartes. */
 .tk-create-assign-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--color-border);
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* Carte sélectionnable : avatar + nom + poste + coche. */
+.tk-person-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  min-height: 56px;
+  text-align: left;
+  border: 1.5px solid var(--color-border);
   border-radius: 12px;
-  background: var(--glass-overlay);
+  background: var(--input-bg, var(--color-bg-secondary));
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+.tk-person-card:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  transform: translateY(-1px);
+}
+.tk-person-card:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.tk-person-card--on {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--input-bg, var(--color-bg-secondary)));
+}
+.tk-person-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.tk-person-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tk-person-role {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Coche : discrète (cercle vide) au repos, pleine et accent quand sélectionnée. */
+.tk-person-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--color-border);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.tk-person-check svg {
+  width: 22px;
+  height: 22px;
+}
+.tk-person-card:hover .tk-person-check {
+  color: color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
+}
+.tk-person-card--on .tk-person-check {
+  color: var(--color-accent);
+  transform: scale(1.06);
+}
+
+/* Puces sélectionnées (au-dessus du panneau) : pastilles retirables.
+   Le :has() ne cible que les puces du formulaire de création (elles ont un bouton retirer). */
+.tk-assignee-chip:has(.tk-assignee-remove) {
+  gap: 7px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 26%, transparent);
+}
+.tk-assignee-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tk-assignee-remove:hover {
+  background: color-mix(in srgb, var(--color-error) 18%, transparent);
+  color: var(--color-error);
+}
+.tk-assignee-remove svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* Description : un peu d'air au-dessus du bloc. */
