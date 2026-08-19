@@ -53,6 +53,7 @@ function AdminListView() {
     if (!list) return;
     navigate('/admin/create-task', {
       state: {
+        backgroundLocation: location,
         prefill: {
           placement: { spaceId: list.spaceId, folderId: list.folderId, listId: list.id },
         },

@@ -532,12 +532,25 @@ button.tk-date-part:hover {
 /* Dans la modale, la carte principale est aplatie : la modale EST la surface blanche
    (pas de carte-dans-carte). La page pleine, elle, garde sa carte. */
 .task-modal .tk-card,
-.task-modal .tk-rail-card {
+.task-modal .tk-rail-card,
+.task-modal .tk-create {
   background: none;
   border: none;
   box-shadow: none;
   border-radius: 0;
   padding: 0;
+}
+/* La modale « Créer une tâche » : la carte est la modale (pas de double carte), largeur adaptée. */
+.task-modal .tk-create {
+  max-width: none;
+  margin: 0;
+}
+.task-modal--create {
+  max-width: 840px;
+}
+/* Laisse la place au bouton fermer (le titre ne passe pas dessous). */
+.task-modal .tk-create-head {
+  padding-right: 40px;
 }
 /* Dans la modale, le rail commentaires est séparé du détail par un filet vertical (façon panneau). */
 .task-modal .tk-rail {

@@ -385,7 +385,7 @@ function AdminTasksToValidate() {
             {lateCount > 0 && <span className="atv-tab-badge">{lateCount}</span>}
           </button>
         </div>
-        <Link to="/admin/create-task" className="btn-primary atv-create-btn">
+        <Link to="/admin/create-task" state={{ backgroundLocation: location }} className="btn-primary atv-create-btn">
           <IconPlus /> Créer une tâche
         </Link>
       </div>

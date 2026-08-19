@@ -31,6 +31,7 @@ const EmployeeAssistant = lazy(() => import('./pages/EmployeeAssistant'));
 const Announcements = lazy(() => import('./pages/Announcements'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminCreateTask = lazy(() => import('./pages/admin/AdminCreateTask'));
+const CreateTaskModal = lazy(() => import('./pages/admin/AdminCreateTask').then((m) => ({ default: m.CreateTaskModal })));
 const AdminListView = lazy(() => import('./pages/admin/AdminListView'));
 const AdminTasksToValidate = lazy(() => import('./pages/admin/AdminTasksToValidate'));
 const AdminDaily = lazy(() => import('./pages/admin/AdminDaily'));
@@ -220,6 +221,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <TaskDetailModal />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/create-task"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <CreateTaskModal />
               </ProtectedRoute>
             }
           />

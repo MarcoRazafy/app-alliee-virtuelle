@@ -226,6 +226,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     const deadline = task.deadline && String(task.deadline).slice(0, 10) >= today ? String(task.deadline).slice(0, 10) : '';
     navigate('/admin/create-task', {
       state: {
+        backgroundLocation: location.state?.backgroundLocation || location,
         prefill: {
           title: task.title || '',
           description: task.description || '',

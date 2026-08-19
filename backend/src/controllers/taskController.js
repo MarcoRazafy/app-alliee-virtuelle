@@ -15,7 +15,9 @@ function isTaskAssignee(task, userId) {
 
 function canAccessTask(task, user) {
   if (user.role === 'ADMIN') return true;
-  if (task.status === taskModel.TASK_STATUS.DECLARED) return false;
+  // Le propriétaire (proposeur) peut gérer sa proposition DECLAREE — pièces jointes, commentaires…
+  // Les autres employés ne la voient pas (une DECLAREE n'est assignée qu'à son proposeur).
+  // Les actions sensibles (chrono, complétion) restent bloquées par leur propre contrôle de statut.
   return isTaskAssignee(task, user.id);
 }
 
@@ -370,7 +372,7 @@ async function createTask(req, res, next) {
     if (!isTodayOrFuture(deadline)) errors.push("La deadline ne peut pas être dans le passé (aujourd'hui accepté)");
     if (!listId) errors.push('Le projet est requis');
     if (isAdmin && assigneeList.length === 0) errors.push('Au moins une personne à assigner est requise');
-    if (isAdmin && clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
+    if (clientEmail && !isValidEmail(clientEmail)) errors.push('Email du client invalide');
 
     if (errors.length > 0) {
       return res.status(400).json({ errors });
@@ -404,12 +406,13 @@ async function createTask(req, res, next) {
       createdBy: req.user.id,
       priority,
       deadline,
-      startDate: isAdmin ? start_date : null,
-      // Le projet (liste) est optionnel et autorisé aussi pour une proposition d'employé (#4).
+      // start_date et client sont désormais autorisés aussi pour une proposition d'employé
+      // (mêmes champs que l'admin) ; l'admin valide/ajuste la proposition ensuite.
+      startDate: start_date || null,
       listId: listId || null,
       parentTaskId: isAdmin ? parentTaskId : null,
-      clientName: isAdmin ? clientName : null,
-      clientEmail: isAdmin ? clientEmail : null,
+      clientName: clientName || null,
+      clientEmail: clientEmail || null,
       status: initialStatus,
     });
 
