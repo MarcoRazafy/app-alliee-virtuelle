@@ -1121,6 +1121,25 @@
   cursor: not-allowed;
 }
 
+/* Popup natif du <select> aligné sur le thème : sinon la liste d'options s'affiche
+   en clair (fond blanc) par-dessus un modal sombre, comme sur l'ancien rendu.
+   color-scheme force le navigateur à peindre le menu déroulant natif en sombre. */
+[data-theme='dark'] .form-select { color-scheme: dark; }
+[data-theme='light'] .form-select { color-scheme: light; }
+/* Repli explicite pour les navigateurs qui stylent les <option> (couleurs cohérentes). */
+.form-select option {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+.form-select option:disabled {
+  color: var(--color-text-muted);
+}
+/* La ligne « placeholder » (valeur vide) reste discrète tant qu'on n'a rien choisi. */
+.form-select:invalid,
+.form-select:has(option[value=""]:checked) {
+  color: var(--color-text-muted);
+}
+
 /* Le sélecteur de date natif s'aligne sur le thème courant (icône lisible) */
 [data-theme='dark'] .form-input[type='date'] { color-scheme: dark; }
 [data-theme='light'] .form-input[type='date'] { color-scheme: light; }
