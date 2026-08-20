@@ -6,21 +6,76 @@
   margin-bottom: 18px;
 }
 
-/* En-tête : mois courant + navigation */
+/* En-tête : bouton de repli (mois + résumé) à gauche, navigation par mois à droite. */
 .eval-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+}
+/* Bordure seulement quand la section est dépliée (sinon un trait flotte sous l'en-tête). */
+.eval-section--open .eval-section-head {
   padding-bottom: 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+.eval-section-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-family);
+  text-align: left;
+  cursor: pointer;
+}
+.eval-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform 0.18s ease;
+}
+.eval-chevron svg {
+  width: 18px;
+  height: 18px;
+}
+.eval-chevron--open {
+  transform: rotate(180deg);
+}
+.eval-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 .eval-section-title {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
   color: var(--color-text-primary);
+}
+/* Résumé du mois quand la section est repliée. */
+.eval-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.eval-dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-warning, #f59e0b);
+}
+.eval-section-heading .eval-eyebrow {
+  margin: 0;
 }
 .eval-eyebrow {
   margin: 0 0 4px;
@@ -249,6 +304,9 @@
   border-radius: 10px;
   color: #fff;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+  /* La barre s'ajuste à son texte : une remarque courte n'occupe pas toute la largeur. */
+  width: fit-content;
+  max-width: 100%;
 }
 .eval-item--good {
   background: var(--color-success);
@@ -289,19 +347,39 @@
   width: 14px;
   height: 14px;
 }
-/* Champ transparent sur la barre colorée → le texte apparaît blanc sur le fond plein. */
-.eval-item-input {
-  flex: 1;
-  min-width: 0;
-  min-height: 34px;
+/* Auto-dimensionnement : le pseudo-élément reproduit le texte saisi dans la même cellule
+   de grille que la zone de saisie → la cellule prend la taille du contenu (largeur ET
+   hauteur), sans JavaScript. `data-value` est tenu à jour par le composant. */
+.eval-item-sizer {
+  display: inline-grid;
+  align-items: stretch;
+  min-width: 90px;
+  max-width: 100%;
+}
+.eval-item-sizer::after,
+.eval-item-sizer > .eval-item-input {
+  grid-area: 1 / 1;
   padding: 7px 6px;
-  border: none;
-  background: transparent;
-  color: #fff;
   font-family: var(--font-family);
   font-size: 14px;
   line-height: 1.4;
-  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Le miroir invisible dicte la taille (l'espace insécable garde une ligne pleine hauteur). */
+.eval-item-sizer::after {
+  content: attr(data-value) ' ';
+  visibility: hidden;
+}
+/* Champ transparent sur la barre colorée → le texte apparaît blanc sur le fond plein. */
+.eval-item-input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  resize: none;
+  overflow: hidden;
 }
 .eval-item-input::placeholder {
   color: rgba(255, 255, 255, 0.72);
@@ -405,20 +483,36 @@
   margin-top: 18px;
 }
 
-/* Pied de section : visibilité à gauche, bouton d'enregistrement à droite. */
+/* Pied de section : visibilité à gauche, enregistrement à droite. Collant en bas de
+   l'écran pendant la saisie → le bouton reste atteignable sans remonter/descendre. */
 .eval-section-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-top: 18px;
-  padding-top: 16px;
+  margin: 18px -4px -4px;
+  padding: 16px 4px;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  background: var(--color-bg-secondary);
 }
 .eval-section-footer .eval-visibility {
   flex: 1;
   min-width: 260px;
+}
+.eval-save-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.eval-dirty-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-warning, #f59e0b);
+  white-space: nowrap;
 }
 
 /* Sous 680px, les grilles repassent en une seule colonne. */
