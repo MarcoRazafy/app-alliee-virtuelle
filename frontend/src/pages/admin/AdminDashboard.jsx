@@ -108,7 +108,13 @@ function AdminDashboard() {
     load();
     // Le polling n'est plus qu'un secours (le temps réel gère l'instantané) → intervalle allongé.
     const poll = setInterval(load, 30000);
-    return () => clearInterval(poll);
+    // Recharge quand une tâche est créée/supprimée dans l'app (sans actualiser).
+    const onTasksChanged = () => load();
+    window.addEventListener('tasks:changed', onTasksChanged);
+    return () => {
+      clearInterval(poll);
+      window.removeEventListener('tasks:changed', onTasksChanged);
+    };
   }, []);
 
   // Temps réel : rafraîchit le tableau de bord dès qu'une activité (tâches/chrono via

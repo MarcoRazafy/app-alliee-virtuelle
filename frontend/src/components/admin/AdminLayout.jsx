@@ -397,7 +397,7 @@ function AdminLayout({ children }) {
           {children}
         </main>
       </div>
-      <ConnectionChrono />
+      <ConnectionChrono className="connection-chrono--admin" />
     </div>
   );
 }

@@ -23,7 +23,7 @@ function clampPos(x, y, w, h) {
 // (login_at), recalculé localement chaque seconde pour éviter tout polling réseau.
 // Déplaçable (souris + tactile) : pratique en mobile pour le dégager de la zone de saisie
 // des messages. La position choisie est mémorisée (localStorage).
-function ConnectionChrono() {
+function ConnectionChrono({ className = '' }) {
   const [loginAt, setLoginAt] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [pos, setPos] = useState(() => {
@@ -168,7 +168,7 @@ function ConnectionChrono() {
   return (
     <div
       ref={nodeRef}
-      className={`connection-chrono${dragging ? ' connection-chrono--dragging' : ''}`}
+      className={`connection-chrono${className ? ` ${className}` : ''}${dragging ? ' connection-chrono--dragging' : ''}`}
       style={style}
       title="Temps de connexion — glissez pour déplacer"
       onPointerDown={onPointerDown}

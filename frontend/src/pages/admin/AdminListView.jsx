@@ -48,6 +48,17 @@ function AdminListView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
+  // Une tâche créée/supprimée ailleurs (ex. modale « Créer une tâche ») → recharge sans actualiser.
+  useEffect(() => {
+    function onTasksChanged() {
+      setTreeRefreshKey((k) => k + 1);
+      if (selectedListId) loadTasks(selectedListId);
+    }
+    window.addEventListener('tasks:changed', onTasksChanged);
+    return () => window.removeEventListener('tasks:changed', onTasksChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedListId]);
+
   // Ajouter une tâche = ouvrir le formulaire complet avec l'emplacement pré-rempli (modifiable).
   function goToCreateTask(list) {
     if (!list) return;

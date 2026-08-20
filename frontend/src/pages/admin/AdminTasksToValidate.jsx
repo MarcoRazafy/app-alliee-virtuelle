@@ -130,6 +130,11 @@ function AdminTasksToValidate() {
       .getLateTasks()
       .then((late) => setLateCount(late.length))
       .catch(() => setLateCount(0));
+    // Recharge la liste quand une tâche est créée/supprimée ailleurs (sans actualiser).
+    const onTasksChanged = () => load();
+    window.addEventListener('tasks:changed', onTasksChanged);
+    return () => window.removeEventListener('tasks:changed', onTasksChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
