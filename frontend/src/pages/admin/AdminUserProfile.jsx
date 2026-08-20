@@ -411,9 +411,6 @@ function AdminUserProfile() {
       </Link>
 
       {/* En-tête */}
-      {/* Évaluation mensuelle — directement en haut de la fiche (pas de bouton/modale) */}
-      <EvaluationSection userId={user.id} />
-
       <div className="side-card aup-hero">
         <div className="aup-hero-id">
           {avatarUrl ? (
@@ -452,6 +449,9 @@ function AdminUserProfile() {
           )}
         </div>
       </div>
+
+      {/* Évaluation mensuelle — juste sous le bloc identité (pas de bouton/modale) */}
+      <EvaluationSection userId={user.id} />
 
       {/* KPIs */}
       <div className="aup-kpis">
