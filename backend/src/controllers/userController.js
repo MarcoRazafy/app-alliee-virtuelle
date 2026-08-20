@@ -291,6 +291,16 @@ async function deleteUserNote(req, res, next) {
 const EVAL_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const EVAL_RATINGS = ['good', 'bad'];
 const EVAL_MAX_ITEMS = 30; // garde-fou par critère
+// Champs texte libre « développement / carrière » de l'évaluation.
+const EVAL_TEXT_FIELDS = [
+  'forces_actuelles',
+  'competences_ameliorer',
+  'competences_developper',
+  'objectifs_professionnels',
+  'formations_recommandees',
+  'nouvelles_responsabilites',
+  'prochaine_etape',
+];
 
 function cleanComment(value, max) {
   if (typeof value !== 'string') return null;
@@ -341,6 +351,8 @@ async function upsertUserEvaluation(req, res, next) {
       autonomie_items: cleanItems(b.autonomie_items),
       adaptabilite_items: cleanItems(b.adaptabilite_items),
     };
+    // Champs libres « développement / carrière ».
+    for (const f of EVAL_TEXT_FIELDS) data[f] = cleanComment(b[f], 4000);
 
     const saved = await userModel.upsertEvaluation(req.params.id, month, req.user.id, data);
     res.status(200).json(saved);

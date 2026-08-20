@@ -1,44 +1,26 @@
 /* ============================================================================
-   Modale d'évaluation mensuelle (admin) — rendue via portail, donc couleurs
-   posées explicitement (hors conteneur d'app).
+   Section d'évaluation mensuelle (admin) — affichée directement sur la fiche employé.
    ============================================================================ */
 
-.eval-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 40px 16px;
-  overflow-y: auto;
-  background: rgba(4, 12, 28, 0.6);
-  backdrop-filter: blur(3px);
+.eval-section {
+  margin-bottom: 18px;
 }
 
-.eval-modal {
-  width: 100%;
-  max-width: 880px;
-  margin: auto;
+/* En-tête : mois courant + navigation */
+.eval-section-head {
   display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 80px);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  border-radius: 18px;
-  box-shadow: 0 24px 60px rgba(4, 12, 28, 0.45);
-  overflow: hidden;
-}
-
-/* En-tête */
-.eval-head {
-  display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 22px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+.eval-section-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 .eval-eyebrow {
   margin: 0 0 4px;
@@ -48,41 +30,12 @@
   text-transform: uppercase;
   color: var(--color-accent-lighter, var(--color-accent));
 }
-.eval-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-}
-.eval-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 50%;
-  background: var(--glass-overlay);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.eval-close:hover {
-  background: color-mix(in srgb, var(--color-error) 16%, transparent);
-  color: var(--color-error);
-}
-.eval-close svg {
-  width: 16px;
-  height: 16px;
-}
-
 /* Navigation par mois */
 .eval-monthnav {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 14px 22px 10px;
+  gap: 10px;
 }
 .eval-nav-btn {
   display: inline-flex;
@@ -130,7 +83,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 0 22px 14px;
+  padding: 14px 0 0;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
 }
 .eval-history-chip {
@@ -157,8 +110,7 @@
 
 /* Corps défilant : 4 critères en grille 2×2, le reste en pleine largeur. */
 .eval-body {
-  overflow-y: auto;
-  padding: 18px 22px;
+  padding: 18px 0 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
@@ -428,18 +380,51 @@
   color: var(--color-text-muted);
 }
 
-/* Pied */
-.eval-footer {
+/* Développement & évolution : champs libres, 2 par ligne. */
+.eval-dev {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+.eval-dev-field {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 22px;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  flex-direction: column;
+  gap: 5px;
+}
+.eval-dev-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
-/* Sous 680px, la grille 2×2 repasse en une seule colonne. */
+/* Commentaire global : pleine largeur sous les champs de développement. */
+.eval-global {
+  margin-top: 18px;
+}
+
+/* Pied de section : visibilité à gauche, bouton d'enregistrement à droite. */
+.eval-section-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+.eval-section-footer .eval-visibility {
+  flex: 1;
+  min-width: 260px;
+}
+
+/* Sous 680px, les grilles repassent en une seule colonne. */
 @media (max-width: 680px) {
-  .eval-body {
+  .eval-body,
+  .eval-dev {
     grid-template-columns: 1fr;
   }
 }
@@ -552,4 +537,16 @@
 }
 .myeval-remark--bad {
   background: var(--color-error);
+}
+/* Champs de développement (texte libre) côté employé. */
+.myeval-dev-text {
+  margin: 0;
+  padding: 8px 11px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--glass-overlay);
 }
