@@ -140,6 +140,11 @@ function MyTasks() {
 
   useEffect(() => {
     loadTasks();
+    // Recharge la liste après création d'une tâche (sans actualiser la page).
+    const onTasksChanged = () => loadTasks();
+    window.addEventListener('tasks:changed', onTasksChanged);
+    return () => window.removeEventListener('tasks:changed', onTasksChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreateTask(e) {

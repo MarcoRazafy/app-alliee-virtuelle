@@ -820,3 +820,9 @@
     gap: 8px;
   }
 }
+
+/* Chrono de temps de connexion : affiché dans l'espace admin (la base est en display:none
+   dans connection-chrono.css). Sélecteur composé pour l'emporter sur la règle de base. */
+.connection-chrono.connection-chrono--admin {
+  display: inline-flex;
+}

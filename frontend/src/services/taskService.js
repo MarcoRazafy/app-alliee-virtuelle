@@ -20,12 +20,24 @@ export function getSubtasks(id) {
   return api.get(`/api/tasks/${id}/subtasks`).then((res) => res.data);
 }
 
+// Signale aux listes ouvertes qu'une tâche a été créée/supprimée, pour qu'elles se
+// rechargent sans que l'utilisateur ait à actualiser la page.
+function notifyTasksChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('tasks:changed'));
+}
+
 export function createTask(payload) {
-  return api.post('/api/tasks', payload).then((res) => res.data);
+  return api.post('/api/tasks', payload).then((res) => {
+    notifyTasksChanged();
+    return res.data;
+  });
 }
 
 export function deleteTask(id) {
-  return api.delete(`/api/tasks/${id}`).then((res) => res.data);
+  return api.delete(`/api/tasks/${id}`).then((res) => {
+    notifyTasksChanged();
+    return res.data;
+  });
 }
 
 // Modifie une tâche (titre, description, priorité, échéance).
