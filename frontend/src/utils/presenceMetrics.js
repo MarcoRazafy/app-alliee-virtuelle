@@ -180,6 +180,17 @@ export function formatPresenceMinutes(minutes) {
   return `${rest} min`;
 }
 
+// Durée cumulée en heures décimales (« 8,3 h »). À utiliser pour les totaux de retard :
+// le format « 8 h 17 » de formatPresenceMinutes se lit comme une heure d'horloge (8h17 du
+// matin) alors qu'il s'agit d'un cumul.
+export function formatPresenceHours(minutes) {
+  const rounded = Math.max(0, Math.round(minutes));
+  if (rounded < 60) return `${rounded} min`;
+  const hours = rounded / 60;
+  const display = hours < 10 ? Math.round(hours * 10) / 10 : Math.round(hours);
+  return `${String(display).replace('.', ',')} h`;
+}
+
 export function computeDayPresence(day, segments = [], options = {}) {
   const now = options.now || planningNow(options.referenceDate);
   const planned = HAS_SLOTS_STATUSES.includes(day.availability_status)

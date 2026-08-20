@@ -24,7 +24,7 @@ import {
 import EvaluationSection from '../../components/admin/EvaluationSection';
 import WeekCalendarGrid from '../../components/employee/WeekCalendarGrid';
 import * as sessionService from '../../services/sessionService';
-import { computeWeekPresence, formatPresenceMinutes } from '../../utils/presenceMetrics';
+import { computeWeekPresence, formatPresenceMinutes, formatPresenceHours } from '../../utils/presenceMetrics';
 import '../../styles/admin-user-profile.css';
 import '../../styles/planning.css';
 import '../../styles/week-calendar.css';
@@ -135,6 +135,19 @@ function periodRange(period, customStart, customEnd) {
   return null;
 }
 
+// Semaine de planning à afficher par défaut : la plus récente qui RECOUPE la période choisie
+// (la liste est triée du plus récent au plus ancien), sinon la plus récente déclarée.
+// Les dates sont des chaînes 'YYYY-MM-DD' : la comparaison lexicographique est sûre et évite
+// les décalages de fuseau d'un passage par `new Date()`.
+function pickPlanningForRange(list, range) {
+  if (!list.length) return '';
+  if (!range) return list[0].planning_id;
+  const overlapping = list.find(
+    (p) => p.week_start_date <= range.end && (p.week_end_date || p.week_start_date) >= range.start
+  );
+  return (overlapping || list[0]).planning_id;
+}
+
 const ACTION_LABEL = {
   CREATE_TASK: 'Tâche créée',
   UPDATE_TASK: 'Tâche modifiée',
@@ -235,28 +248,40 @@ function AdminUserProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Plage de la période choisie — mémorisée pour être réutilisable dans l'affichage
+  // (libellé de l'état vide) et par le sélecteur de semaine du planning.
+  const currentRange = useMemo(
+    () => periodRange(period, customStart, customEnd),
+    [period, customStart, customEnd]
+  );
+
   // Statistiques de présence sur la période choisie (aujourd'hui / semaine / mois / année / perso).
   useEffect(() => {
-    const range = periodRange(period, customStart, customEnd);
-    if (!range) return; // période perso incomplète → on n'appelle pas
+    if (!currentRange) return; // période perso incomplète → on n'appelle pas
     setAttendance(null);
     planningService
-      .getAdminAttendanceStats(id, range)
+      .getAdminAttendanceStats(id, currentRange)
       .then(setAttendance)
       .catch(() => setAttendance(null));
-  }, [id, period, customStart, customEnd]);
+  }, [id, currentRange]);
 
-  // Plannings (semaines) déclarés par l'employé → on sélectionne le plus récent.
+  // Plannings (semaines) déclarés par l'employé, du plus récent au plus ancien.
   useEffect(() => {
     planningService
       .getAdminPlannings({ user_id: id })
       .then((items) => {
         const sorted = [...(items || [])].sort((a, b) => (a.week_start_date < b.week_start_date ? 1 : -1));
         setPlannings(sorted);
-        setSelectedPlanningId(sorted[0]?.planning_id || '');
       })
       .catch(() => setPlannings([]));
   }, [id]);
+
+  // La semaine affichée suit la période choisie : sans ça, on pouvait lire « aucun jour
+  // planifié en août » juste au-dessus d'un planning de juillet — deux informations
+  // contradictoires à l'écran.
+  useEffect(() => {
+    setSelectedPlanningId(pickPlanningForRange(plannings, currentRange));
+  }, [plannings, currentRange]);
 
   // Détail (jours + créneaux) de la semaine sélectionnée.
   useEffect(() => {
@@ -410,6 +435,19 @@ function AdminUserProfile() {
   const { user, stats } = detail;
   const status = STATUS_META[user.status] || { label: user.status, cls: 'user-refused' };
   const roleLabel = user.role === 'ADMIN' ? 'Administrateur' : 'Employé';
+
+  // Présent / en retard / absent ne sont chiffrables que sur des jours planifiés ; le temps
+  // de connexion, lui, est mesuré sur toute la plage même sans planning déclaré. Afficher
+  // des « 0 » quand rien n'est évaluable se lit comme « il n'est jamais venu », d'où l'état vide.
+  const hasPlannedDays = (attendance?.days?.length || 0) > 0;
+  const periodLabel = PERIODS.find((p) => p.key === period)?.label;
+  const selectedPlanning = plannings.find((p) => p.planning_id === selectedPlanningId) || null;
+  const planningOutsidePeriod = Boolean(
+    selectedPlanning &&
+      currentRange &&
+      (selectedPlanning.week_start_date > currentRange.end ||
+        (selectedPlanning.week_end_date || selectedPlanning.week_start_date) < currentRange.start)
+  );
 
   return (
     <div className="aup-page">
@@ -644,6 +682,28 @@ function AdminUserProfile() {
               </ul>
             )}
           </div>
+
+          {/* Activité récente : dans la colonne de droite, elle comble le vide laissé
+              sous les notes au lieu de s'ajouter à une colonne gauche déjà très longue. */}
+          <div className="side-card">
+            <p className="side-card-title">Activité récente</p>
+            {(detail.recent_activity || []).length === 0 ? (
+              <div className="empty-state">Aucune activité récente.</div>
+            ) : (
+              <ul className="aup-activity">
+                {detail.recent_activity.map((a, i) => (
+                  <li key={i} className="aup-activity-item">
+                    <span className="aup-activity-dot" />
+                    <div className="aup-activity-body">
+                      <span className="aup-activity-action">{ACTION_LABEL[a.action] || a.action}</span>
+                      {a.task_title && <span className="aup-activity-target"> · {a.task_title}</span>}
+                      <span className="aup-activity-time">{formatDateTime(a.timestamp)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </aside>
       </div>
 
@@ -693,36 +753,63 @@ function AdminUserProfile() {
           <div className="empty-state">Chargement de la présence…</div>
         ) : (
           <>
-            <div className="aup-pres-kpis">
+            <div className={`aup-pres-kpis${hasPlannedDays ? '' : ' aup-pres-kpis--solo'}`}>
               <div className="aup-pres-kpi aup-pres-kpi--connect">
                 <strong>{formatMinutes(attendance.summary.total_connected_minutes)}</strong>
                 <span>Temps de connexion</span>
               </div>
-              <div className="aup-pres-kpi aup-pres-kpi--ok">
-                <strong>{attendance.summary.present}</strong>
-                <span>Présent{attendance.summary.present > 1 ? 's' : ''}</span>
-              </div>
-              <div className="aup-pres-kpi aup-pres-kpi--late">
-                <strong>{attendance.summary.late}</strong>
-                <span>En retard</span>
-              </div>
-              <div className="aup-pres-kpi aup-pres-kpi--absent">
-                <strong>{attendance.summary.absent}</strong>
-                <span>Absent{attendance.summary.absent > 1 ? 's' : ''}</span>
-              </div>
-              <div className="aup-pres-kpi">
-                <strong>{formatMinutes(attendance.summary.total_late_minutes)}</strong>
-                <span>
-                  Retard cumulé
-                  {attendance.summary.late ? ` · ${attendance.summary.average_late_minutes} min/j` : ''}
-                </span>
-              </div>
+              {hasPlannedDays && (
+                <>
+                  <div className="aup-pres-kpi aup-pres-kpi--ok">
+                    <strong>{attendance.summary.present}</strong>
+                    <span>Présent{attendance.summary.present > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="aup-pres-kpi aup-pres-kpi--late">
+                    <strong>{attendance.summary.late}</strong>
+                    <span>En retard</span>
+                  </div>
+                  <div className="aup-pres-kpi aup-pres-kpi--absent">
+                    <strong>{attendance.summary.absent}</strong>
+                    <span>Absent{attendance.summary.absent > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="aup-pres-kpi">
+                    <strong>{formatMinutes(attendance.summary.total_late_minutes)}</strong>
+                    <span>
+                      Retard cumulé
+                      {attendance.summary.late ? ` · ${attendance.summary.average_late_minutes} min/j` : ''}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
-            {attendance.days.length === 0 ? (
-              <div className="empty-state">
-                Aucun jour planifié sur cette période. La présence n'est évaluée que sur les jours où
-                l'employé a déclaré un planning.
+            {!hasPlannedDays ? (
+              <div className="empty-state aup-pres-empty">
+                <IconCalendarWeek aria-hidden="true" />
+                <div>
+                  <strong>
+                    Aucun jour planifié sur cette période
+                    {periodLabel ? ` · ${periodLabel}` : ''}
+                    {currentRange ? ` (${formatDate(currentRange.start)} → ${formatDate(currentRange.end)})` : ''}
+                  </strong>
+                  <span>
+                    Présent / en retard / absent ne sont calculés que sur les jours où l'employé a déclaré
+                    un planning. Le temps de connexion ci-dessus reste valable.
+                  </span>
+                  {plannings[0] && (
+                    <button
+                      type="button"
+                      className="btn-outline aup-pres-empty-cta"
+                      onClick={() => {
+                        setCustomStart(plannings[0].week_start_date);
+                        setCustomEnd(plannings[0].week_end_date || plannings[0].week_start_date);
+                        setPeriod('custom');
+                      }}
+                    >
+                      Voir la dernière semaine planifiée ({formatDate(plannings[0].week_start_date)})
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="aup-pres-list">
@@ -752,6 +839,9 @@ function AdminUserProfile() {
       <div className="side-card">
         <div className="aup-tasks-head">
           <p className="side-card-title">Planning &amp; disponibilités</p>
+          {planningOutsidePeriod && (
+            <span className="aup-plan-outside">Hors de la période sélectionnée</span>
+          )}
           {plannings.length > 0 && (
             <select
               className="aup-month-input"
@@ -798,12 +888,17 @@ function AdminUserProfile() {
                   },
                   {
                     icon: <IconTrendingUp />,
+                    // Durée pure en valeur, nombre de jours en sous-titre : « 3 j · 8 h 17 »
+                    // se lisait comme une heure d'horloge.
                     value:
                       presenceSummary.lateDays > 0
-                        ? `${presenceSummary.lateDays} j · ${formatPresenceMinutes(presenceSummary.lateMinutes)}`
+                        ? formatPresenceHours(presenceSummary.lateMinutes)
                         : 'Aucun',
                     label: 'Retards',
-                    hint: 'Tolérance de 10 minutes incluse',
+                    hint:
+                      presenceSummary.lateDays > 0
+                        ? `Sur ${presenceSummary.lateDays} jour${presenceSummary.lateDays > 1 ? 's' : ''} · tolérance 10 min`
+                        : 'Tolérance de 10 minutes incluse',
                   },
                 ].map((card) => (
                   <article className="presence-kpi-card" key={card.label}>
@@ -830,9 +925,8 @@ function AdminUserProfile() {
         )}
       </div>
 
-      {/* Daily du jour + Activité récente */}
-      <div className="aup-grid2">
-        <div className="side-card">
+      {/* Daily du jour — pleine largeur (l'activité récente a rejoint la colonne de droite) */}
+      <div className="side-card">
           <p className="side-card-title">Ma journée · aujourd'hui</p>
           <div className="aup-daily-cols">
             <div>
@@ -864,27 +958,6 @@ function AdminUserProfile() {
               )}
             </div>
           </div>
-        </div>
-
-        <div className="side-card">
-          <p className="side-card-title">Activité récente</p>
-          {(detail.recent_activity || []).length === 0 ? (
-            <div className="empty-state">Aucune activité récente.</div>
-          ) : (
-            <ul className="aup-activity">
-              {detail.recent_activity.map((a, i) => (
-                <li key={i} className="aup-activity-item">
-                  <span className="aup-activity-dot" />
-                  <div className="aup-activity-body">
-                    <span className="aup-activity-action">{ACTION_LABEL[a.action] || a.action}</span>
-                    {a.task_title && <span className="aup-activity-target"> · {a.task_title}</span>}
-                    <span className="aup-activity-time">{formatDateTime(a.timestamp)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </div>
 
     </div>

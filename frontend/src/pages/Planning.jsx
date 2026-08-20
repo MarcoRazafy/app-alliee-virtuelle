@@ -7,7 +7,7 @@ import * as planningService from '../services/planningService';
 import * as sessionService from '../services/sessionService';
 import { notifyError, notifySuccess } from '../utils/toast';
 import { IconAlert, IconCheckCircle, IconCalendarWeek, IconClock, IconTrendingUp } from '../components/icons';
-import { computeWeekPresence, formatPresenceMinutes } from '../utils/presenceMetrics';
+import { computeWeekPresence, formatPresenceMinutes, formatPresenceHours } from '../utils/presenceMetrics';
 import {
   EMPLOYEE_STATUS_OPTIONS,
   EFFECTIVE_STATUS_LABELS,
@@ -47,9 +47,13 @@ function PresenceSummaryCards({ summary, loading }) {
   }
   if (!summary) return null;
 
-  const lateValue = summary.lateDays > 0
-    ? `${summary.lateDays} j · ${formatPresenceMinutes(summary.lateMinutes)}`
-    : 'Aucun';
+  // Durée pure en valeur, nombre de jours en sous-titre : « 3 j · 8 h 17 » se lisait
+  // comme une heure d'horloge. Même formatage que la fiche employé côté admin.
+  const lateValue = summary.lateDays > 0 ? formatPresenceHours(summary.lateMinutes) : 'Aucun';
+  const lateHint =
+    summary.lateDays > 0
+      ? `Sur ${summary.lateDays} jour${summary.lateDays > 1 ? 's' : ''} · tolérance 10 min`
+      : 'Tolérance de 10 minutes incluse';
   const cards = [
     {
       icon: <IconCalendarWeek />,
@@ -73,7 +77,7 @@ function PresenceSummaryCards({ summary, loading }) {
       icon: <IconTrendingUp />,
       value: lateValue,
       label: 'Retards',
-      hint: 'Tolérance de 10 minutes incluse',
+      hint: lateHint,
     },
   ];
 

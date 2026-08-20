@@ -915,3 +915,29 @@
 .cal-medit-add-btn:hover {
   background: var(--color-accent-light, var(--color-accent));
 }
+
+/* Légende des blocs de présence (affichée sous la grille en vue lecture). */
+.cal-legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.cal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+/* Le carré reprend exactement le fond du bloc correspondant (`cal-session-block--*`),
+   d'où la réutilisation de ces classes : la légende ne peut pas diverger du rendu. */
+.cal-legend-swatch {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  position: static;
+}
