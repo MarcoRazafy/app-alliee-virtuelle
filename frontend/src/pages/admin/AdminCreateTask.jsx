@@ -157,8 +157,10 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
   const [showNewList, setShowNewList] = useState(false);
 
   useEffect(() => {
+    // Tous les utilisateurs actifs (employés ET admins) → l'admin peut aussi s'assigner
+    // une tâche à lui-même ou à un autre admin.
     userService
-      .getAllUsers({ role: 'EMPLOYEE', status: 'ACTIF' })
+      .getAllUsers({ status: 'ACTIF' })
       .then(setEmployees)
       .catch(() => setEmployees([]));
     hierarchyService
