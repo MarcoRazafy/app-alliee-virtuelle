@@ -237,53 +237,46 @@
   font-weight: 600;
 }
 
-/* Bloc contact / infos */
-.aup-info {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Contact & infos intégré au bloc identité : pleine largeur sous le nom + les actions,
-   réparti en colonnes puisqu'on dispose de toute la largeur de la carte. */
+/* Contact & infos intégré au bloc identité : pleine largeur sous le nom + les actions.
+   Chaque info est empilée (libellé au-dessus, valeur en dessous) et alignée à gauche :
+   plus de « trou » à traverser entre le libellé et sa valeur, et pas de traits de
+   séparation (le rythme des colonnes suffit à structurer). */
 .aup-hero-info {
   flex-basis: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 0 28px;
-  margin-top: 4px;
-  padding-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px 28px;
+  margin-top: 6px;
+  padding-top: 16px;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
-}
-/* Valeur cliquable (email / téléphone). */
-.aup-info-link {
-  color: var(--color-accent-lighter, var(--color-accent));
-  text-decoration: none;
-}
-.aup-info-link:hover {
-  text-decoration: underline;
 }
 .aup-info-row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 10px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
-}
-.aup-info-row:last-child {
-  border-bottom: none;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 .aup-info-label {
-  flex-shrink: 0;
-  font-size: 12.5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--color-text-muted);
 }
 .aup-info-value {
-  text-align: right;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--color-text-primary);
   word-break: break-word;
+}
+/* Valeur cliquable (email / téléphone). Sélecteur `a.` (0,1,1) pour l'emporter sur
+   `.aup-info-value` (0,1,0) quel que soit l'ordre des règles. */
+a.aup-info-link {
+  color: var(--color-accent-lighter, var(--color-accent));
+  text-decoration: none;
+  font-weight: 500;
+}
+a.aup-info-link:hover {
+  text-decoration: underline;
 }
 
 /* --- Donut répartition des tâches --- */
