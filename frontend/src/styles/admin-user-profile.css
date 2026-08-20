@@ -242,6 +242,27 @@
   display: flex;
   flex-direction: column;
 }
+
+/* Contact & infos intégré au bloc identité : pleine largeur sous le nom + les actions,
+   réparti en colonnes puisqu'on dispose de toute la largeur de la carte. */
+.aup-hero-info {
+  flex-basis: 100%;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0 28px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+/* Valeur cliquable (email / téléphone). */
+.aup-info-link {
+  color: var(--color-accent-lighter, var(--color-accent));
+  text-decoration: none;
+}
+.aup-info-link:hover {
+  text-decoration: underline;
+}
 .aup-info-row {
   display: flex;
   align-items: baseline;
