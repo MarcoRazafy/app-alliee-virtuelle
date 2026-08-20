@@ -182,12 +182,14 @@ export default function EvaluationSection({ userId }) {
   const filledDevFields = TEXT_FIELDS.filter(({ key }) => (form[key] || '').trim()).length;
   const hasContent = remarkCount > 0 || filledDevFields > 0 || (form.global_comment || '').trim();
 
-  // Résumé affiché quand la section est repliée.
+  // Résumé affiché quand la section est repliée : toujours explicite sur le contenu,
+  // même à zéro (« 0 remarque » plutôt qu'un simple « privée » énigmatique).
   const summary = !hasContent
     ? 'Pas encore évaluée'
     : [
-        remarkCount > 0 ? `${remarkCount} remarque${remarkCount > 1 ? 's' : ''}` : null,
-        filledDevFields > 0 ? `${filledDevFields}/7 champs` : null,
+        `${remarkCount} remarque${remarkCount > 1 ? 's' : ''}`,
+        `${filledDevFields}/7 champs`,
+        (form.global_comment || '').trim() ? 'commentaire' : null,
         form.visible_to_employee ? 'partagée' : 'privée',
       ]
         .filter(Boolean)

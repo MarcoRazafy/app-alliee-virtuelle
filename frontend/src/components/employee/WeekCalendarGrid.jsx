@@ -19,11 +19,11 @@ import {
   PRESENCE_VARIANT_LABELS,
 } from '../../utils/presenceMetrics';
 import { notifyError } from '../../utils/toast';
+import { computeHourRange } from '../../utils/calendarRange';
 
-const ROW_HEIGHT = 32; // px par heure
+const ROW_HEIGHT = 40; // px par heure
 const SNAP_MINUTES = 15;
 const MIN_DURATION_MINUTES = 15;
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const STATUS_DOT_CLASS = {
   AVAILABLE: 'cal-status-dot--available',
@@ -37,16 +37,18 @@ function snapMinutes(minutes) {
   return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
 }
 
-function clampMinutes(minutes) {
-  return Math.max(0, Math.min(24 * 60, minutes));
+// Les bornes suivent la plage affichée (et non plus minuit → minuit), sinon un clic en haut
+// de la grille renverrait 00:00 au lieu de l'heure réellement représentée à cet endroit.
+function clampMinutes(minutes, range) {
+  return Math.max(range.startMinutes, Math.min(range.endMinutes, minutes));
 }
 
-function offsetToMinutes(offsetY) {
-  return clampMinutes(snapMinutes((offsetY / ROW_HEIGHT) * 60));
+function offsetToMinutes(offsetY, range) {
+  return clampMinutes(range.startMinutes + snapMinutes((offsetY / ROW_HEIGHT) * 60), range);
 }
 
 // Calcule les bornes (minutes) affichées en temps réel pour le bloc en cours de manipulation.
-function computeLivePreview(drag) {
+function computeLivePreview(drag, range) {
   if (drag.mode === 'create') {
     return { start: Math.min(drag.anchor, drag.current), end: Math.max(drag.anchor, drag.current) };
   }
@@ -57,18 +59,19 @@ function computeLivePreview(drag) {
     return { start: drag.otherEdge, end: Math.max(drag.current, drag.otherEdge + MIN_DURATION_MINUTES) };
   }
   if (drag.mode === 'move') {
-    const start = clampMinutes(Math.min(24 * 60 - drag.duration, drag.current - drag.grabOffset));
+    const start = clampMinutes(Math.min(range.endMinutes - drag.duration, drag.current - drag.grabOffset), range);
     return { start, end: start + drag.duration };
   }
   return null;
 }
 
-function SlotBlock({ day, slot, slotIndex, canEdit, drag, onHandlePointerDown, onBodyPointerDown, onDelete }) {
+function SlotBlock({ day, slot, slotIndex, canEdit, drag, range, onHandlePointerDown, onBodyPointerDown, onDelete }) {
   const isLive = drag && drag.date === day.date && drag.slotIndex === slotIndex && drag.mode !== 'create';
-  const preview = isLive ? computeLivePreview(drag) : null;
+  const preview = isLive ? computeLivePreview(drag, range) : null;
   const startMinutes = preview ? preview.start : timeToMinutes(slot.start_time);
   const endMinutes = preview ? preview.end : timeToMinutes(slot.end_time);
-  const top = (startMinutes / 60) * ROW_HEIGHT;
+  // Origine = début de la plage affichée, pas minuit.
+  const top = ((startMinutes - range.startMinutes) / 60) * ROW_HEIGHT;
   const height = Math.max(6, ((endMinutes - startMinutes) / 60) * ROW_HEIGHT);
   const statusClass = day.availability_status === 'PARTIALLY_AVAILABLE' ? 'cal-slot--partial' : 'cal-slot--available';
 
@@ -108,8 +111,8 @@ function SlotBlock({ day, slot, slotIndex, canEdit, drag, onHandlePointerDown, o
   );
 }
 
-function PresenceBlock({ segment }) {
-  const top = (segment.start / 60) * ROW_HEIGHT;
+function PresenceBlock({ segment, range }) {
+  const top = ((segment.start - range.startMinutes) / 60) * ROW_HEIGHT;
   const height = Math.max(4, ((segment.end - segment.start) / 60) * ROW_HEIGHT);
   const startLabel = minutesToTime(segment.start);
   const endLabel = minutesToTime(segment.end);
@@ -400,6 +403,21 @@ function WeekCalendarGrid({
   const presenceDetailRef = useRef(null);
   const presenceTriggerRef = useRef(null);
   const hasPresenceData = sessionSegmentsByDate !== undefined;
+  // Plage horaire affichée + liste des heures : partagées par la colonne de gauche et les
+  // lignes de fond de chaque jour, qui doivent itérer sur EXACTEMENT le même tableau.
+  const { startHour, endHour } = useMemo(
+    () => computeHourRange(days, sessionSegmentsByDate, canEdit),
+    [days, sessionSegmentsByDate, canEdit]
+  );
+  const hours = useMemo(
+    () => Array.from({ length: endHour - startHour }, (_, i) => startHour + i),
+    [startHour, endHour]
+  );
+  const range = useMemo(
+    () => ({ startMinutes: startHour * 60, endMinutes: endHour * 60 }),
+    [startHour, endHour]
+  );
+
   const presenceWeek = useMemo(
     () => (hasPresenceData ? computeWeekPresence(days, sessionSegmentsByDate || {}) : null),
     [days, hasPresenceData, sessionSegmentsByDate]
@@ -424,9 +442,9 @@ function WeekCalendarGrid({
 
   function minutesFromEvent(date, clientY) {
     const el = columnRefs.current[date];
-    if (!el) return 0;
+    if (!el) return range.startMinutes;
     const rect = el.getBoundingClientRect();
-    return offsetToMinutes(clientY - rect.top);
+    return offsetToMinutes(clientY - rect.top, range);
   }
 
   function handleColumnPointerDown(event, day) {
@@ -488,7 +506,7 @@ function WeekCalendarGrid({
         }
       }
     } else {
-      const preview = computeLivePreview(drag);
+      const preview = computeLivePreview(drag, range);
       const nextSlots = day.time_slots.map((slot, index) =>
         index === drag.slotIndex
           ? { start_time: minutesToTime(preview.start), end_time: minutesToTime(preview.end) }
@@ -529,7 +547,7 @@ function WeekCalendarGrid({
         <div className={`cal-grid${hasPresenceData ? ' cal-grid--presence' : ''}${canEdit ? ' cal-grid--edit' : ''}`}>
         <div className="cal-hour-column">
           <div className="cal-corner" />
-          {HOURS.map((hour) => (
+          {hours.map((hour) => (
             <div key={hour} className="cal-hour-label" style={{ height: `${ROW_HEIGHT}px` }}>
               {String(hour).padStart(2, '0')}:00
             </div>
@@ -609,7 +627,7 @@ function WeekCalendarGrid({
 
               <div
                 className={`cal-day-column${isDrawable ? ' cal-day-column--drawable' : ''}${isBlocked ? ' cal-day-column--blocked' : ''}`}
-                style={{ height: `${ROW_HEIGHT * 24}px` }}
+                style={{ height: `${ROW_HEIGHT * hours.length}px` }}
                 ref={(el) => {
                   columnRefs.current[day.date] = el;
                 }}
@@ -617,7 +635,7 @@ function WeekCalendarGrid({
                 onPointerMove={(event) => handleColumnPointerMove(event, day)}
                 onPointerUp={(event) => handleColumnPointerUp(event, day)}
               >
-                {HOURS.map((hour) => (
+                {hours.map((hour) => (
                   <div key={hour} className="cal-hour-row" style={{ height: `${ROW_HEIGHT}px` }} />
                 ))}
 
@@ -629,11 +647,11 @@ function WeekCalendarGrid({
                 )}
 
                 {presenceSummary?.missingSegments.map((segment, segmentIndex) => (
-                  <PresenceBlock key={`missing-${segmentIndex}`} segment={segment} />
+                  <PresenceBlock key={`missing-${segmentIndex}`} segment={segment} range={range} />
                 ))}
 
                 {presenceSummary?.displaySegments.map((segment, segmentIndex) => (
-                  <PresenceBlock key={`presence-${segmentIndex}`} segment={segment} />
+                  <PresenceBlock key={`presence-${segmentIndex}`} segment={segment} range={range} />
                 ))}
 
                 {day.time_slots.map((slot, slotIndex) => (
@@ -644,6 +662,7 @@ function WeekCalendarGrid({
                     slotIndex={slotIndex}
                     canEdit={canEdit}
                     drag={drag}
+                    range={range}
                     onHandlePointerDown={(event, index, edge) => handleSlotHandlePointerDown(event, day, index, edge)}
                     onBodyPointerDown={(event, index) => handleSlotBodyPointerDown(event, day, index)}
                     onDelete={(index) => handleDeleteSlot(day, index)}
@@ -654,7 +673,7 @@ function WeekCalendarGrid({
                   <div
                     className="cal-slot cal-slot--preview"
                     style={{
-                      top: `${(Math.min(drag.anchor, drag.current) / 60) * ROW_HEIGHT}px`,
+                      top: `${((Math.min(drag.anchor, drag.current) - range.startMinutes) / 60) * ROW_HEIGHT}px`,
                       height: `${Math.max(6, ((Math.max(drag.anchor, drag.current) - Math.min(drag.anchor, drag.current)) / 60) * ROW_HEIGHT)}px`,
                     }}
                   >
@@ -687,6 +706,19 @@ function WeekCalendarGrid({
           </div>
         )}
       </div>
+
+      {/* Légende : sans elle, les bandes hachurées et les nuances de couleur des blocs de
+          présence n'étaient explicités que par une infobulle au survol. */}
+      {hasPresenceData && (
+        <ul className="cal-legend">
+          {['ontime', 'late', 'off', 'missing'].map((variant) => (
+            <li className="cal-legend-item" key={variant}>
+              <span className={`cal-legend-swatch cal-session-block--${variant}`} aria-hidden="true" />
+              {PRESENCE_VARIANT_LABELS[variant]}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {canEdit && isMobile && (
         <MobileDayEditor
