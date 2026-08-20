@@ -70,11 +70,18 @@ function KpiCard({ icon, label, value, tone }) {
   );
 }
 
-function InfoRow({ label, value }) {
+// Ligne d'information. Avec `href`, la valeur devient un lien (mailto: / tel:).
+function InfoRow({ label, value, href }) {
   return (
     <div className="aup-info-row">
       <span className="aup-info-label">{label}</span>
-      <span className="aup-info-value">{value || '—'}</span>
+      {value && href ? (
+        <a className="aup-info-value aup-info-link" href={href}>
+          {value}
+        </a>
+      ) : (
+        <span className="aup-info-value">{value || '—'}</span>
+      )}
     </div>
   );
 }
@@ -448,6 +455,22 @@ function AdminUserProfile() {
             </button>
           )}
         </div>
+
+        {/* Contact & infos, intégré au bloc identité */}
+        <div className="aup-hero-info">
+          <InfoRow label="Email" value={user.email} href={user.email ? `mailto:${user.email}` : null} />
+          <InfoRow
+            label="Téléphone"
+            value={user.phone_number}
+            href={user.phone_number ? `tel:${String(user.phone_number).replace(/[^\d+]/g, '')}` : null}
+          />
+          <InfoRow label="Nom d'utilisateur" value={user.username} />
+          <InfoRow label="Poste" value={user.position} />
+          <InfoRow label="Rôle" value={roleLabel} />
+          <InfoRow label="Date de naissance" value={user.birth_date ? formatDate(user.birth_date) : null} />
+          <InfoRow label="Adresse" value={user.postal_address} />
+          <InfoRow label="Membre depuis" value={user.created_at ? formatDate(user.created_at) : null} />
+        </div>
       </div>
 
       {/* Évaluation mensuelle — juste sous le bloc identité (pas de bouton/modale) */}
@@ -552,20 +575,6 @@ function AdminUserProfile() {
         </div>
 
         <aside className="aup-side">
-          <div className="side-card">
-            <p className="side-card-title">Contact &amp; infos</p>
-            <div className="aup-info">
-              <InfoRow label="Email" value={user.email} />
-              <InfoRow label="Téléphone" value={user.phone_number} />
-              <InfoRow label="Nom d'utilisateur" value={user.username} />
-              <InfoRow label="Poste" value={user.position} />
-              <InfoRow label="Rôle" value={roleLabel} />
-              <InfoRow label="Date de naissance" value={user.birth_date ? formatDate(user.birth_date) : null} />
-              <InfoRow label="Adresse" value={user.postal_address} />
-              <InfoRow label="Membre depuis" value={user.created_at ? formatDate(user.created_at) : null} />
-            </div>
-          </div>
-
           <div className="side-card">
             <p className="side-card-title">Répartition des tâches</p>
             {tasks.length === 0 ? (
