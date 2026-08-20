@@ -10,6 +10,17 @@ const CRITERIA = [
   { key: 'adaptabilite', label: 'Adaptabilité et Évolution' },
 ];
 
+// Champs de développement / carrière (affichés seulement s'ils sont remplis).
+const TEXT_FIELDS = [
+  { key: 'forces_actuelles', label: 'Forces actuelles' },
+  { key: 'competences_ameliorer', label: 'Compétences à améliorer' },
+  { key: 'competences_developper', label: 'Compétences à développer' },
+  { key: 'objectifs_professionnels', label: 'Objectifs professionnels' },
+  { key: 'formations_recommandees', label: 'Formations recommandées' },
+  { key: 'nouvelles_responsabilites', label: 'Nouvelles responsabilités' },
+  { key: 'prochaine_etape', label: 'Prochaine étape possible' },
+];
+
 function monthLabel(key) {
   const [y, m] = String(key).split('-').map(Number);
   const label = new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -84,6 +95,13 @@ export default function MyEvaluations() {
                       </div>
                     );
                   })}
+
+                  {TEXT_FIELDS.filter(({ key }) => ev[key]).map(({ key, label }) => (
+                    <div className="myeval-criterion" key={key}>
+                      <span className="myeval-criterion-label">{label}</span>
+                      <p className="myeval-dev-text">{ev[key]}</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

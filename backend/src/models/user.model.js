@@ -222,7 +222,20 @@ async function deleteNote(noteId, userId) {
 const EVALUATION_COLUMNS = `id, user_id, to_char(period_month, 'YYYY-MM') AS month,
   visible_to_employee, global_comment,
   delais_items, qualite_items, autonomie_items, adaptabilite_items,
+  forces_actuelles, competences_ameliorer, competences_developper, objectifs_professionnels,
+  formations_recommandees, nouvelles_responsabilites, prochaine_etape,
   created_by, created_at, updated_at`;
+
+// Champs texte libre « développement / carrière » de l'évaluation.
+const EVALUATION_TEXT_FIELDS = [
+  'forces_actuelles',
+  'competences_ameliorer',
+  'competences_developper',
+  'objectifs_professionnels',
+  'formations_recommandees',
+  'nouvelles_responsabilites',
+  'prochaine_etape',
+];
 
 // Toutes les évaluations d'un employé, du mois le plus récent au plus ancien (vue admin, complète).
 async function listEvaluations(userId) {
@@ -251,8 +264,12 @@ async function upsertEvaluation(userId, month, createdBy, data) {
     `INSERT INTO employee_evaluations (
        user_id, period_month, visible_to_employee, global_comment,
        delais_items, qualite_items, autonomie_items, adaptabilite_items,
-       created_by, updated_at
-     ) VALUES ($1, to_date($2, 'YYYY-MM'), $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9, now())
+       created_by,
+       forces_actuelles, competences_ameliorer, competences_developper, objectifs_professionnels,
+       formations_recommandees, nouvelles_responsabilites, prochaine_etape,
+       updated_at
+     ) VALUES ($1, to_date($2, 'YYYY-MM'), $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9,
+       $10, $11, $12, $13, $14, $15, $16, now())
      ON CONFLICT (user_id, period_month) DO UPDATE SET
        visible_to_employee = EXCLUDED.visible_to_employee,
        global_comment = EXCLUDED.global_comment,
@@ -260,6 +277,13 @@ async function upsertEvaluation(userId, month, createdBy, data) {
        qualite_items = EXCLUDED.qualite_items,
        autonomie_items = EXCLUDED.autonomie_items,
        adaptabilite_items = EXCLUDED.adaptabilite_items,
+       forces_actuelles = EXCLUDED.forces_actuelles,
+       competences_ameliorer = EXCLUDED.competences_ameliorer,
+       competences_developper = EXCLUDED.competences_developper,
+       objectifs_professionnels = EXCLUDED.objectifs_professionnels,
+       formations_recommandees = EXCLUDED.formations_recommandees,
+       nouvelles_responsabilites = EXCLUDED.nouvelles_responsabilites,
+       prochaine_etape = EXCLUDED.prochaine_etape,
        updated_at = now()
      RETURNING ${EVALUATION_COLUMNS}`,
     [
@@ -272,6 +296,7 @@ async function upsertEvaluation(userId, month, createdBy, data) {
       JSON.stringify(data.autonomie_items || []),
       JSON.stringify(data.adaptabilite_items || []),
       createdBy,
+      ...EVALUATION_TEXT_FIELDS.map((f) => data[f] || null),
     ]
   );
   return result.rows[0];
@@ -292,12 +317,15 @@ async function listEvaluationsForEmployee(userId) {
         updated_at: r.updated_at,
       };
       if (!r.visible_to_employee) return { ...base, criteria_hidden: true };
+      const extra = {};
+      for (const f of EVALUATION_TEXT_FIELDS) extra[f] = r[f];
       return {
         ...base,
         delais_items: r.delais_items,
         qualite_items: r.qualite_items,
         autonomie_items: r.autonomie_items,
         adaptabilite_items: r.adaptabilite_items,
+        ...extra,
       };
     });
 }
