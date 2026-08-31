@@ -464,6 +464,22 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                 </span>
               </PropRow>
 
+              {task.creator_name && (
+                <PropRow icon={<IconUser />} label="Créée par">
+                  <span className="tk-creator">
+                    <span className="tk-assignee-avatar tk-assignee-avatar--initials">
+                      {assigneeInitials(task.creator_name) || '?'}
+                    </span>
+                    <span className="tk-assignee-name">{task.creator_name}</span>
+                    <span
+                      className={`tk-creator-role${task.creator_role === 'ADMIN' ? ' tk-creator-role--admin' : ''}`}
+                    >
+                      {task.creator_role === 'ADMIN' ? 'Admin' : 'Employé'}
+                    </span>
+                  </span>
+                </PropRow>
+              )}
+
               <PropRow icon={<IconAlert />} label="Priorité">
                 {isAdmin ? (
                   <div className="tk-priority-picker">

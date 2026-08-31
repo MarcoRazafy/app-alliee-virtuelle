@@ -105,11 +105,13 @@ async function findById(taskId) {
     `SELECT t.id, t.title, t.description, t.assigned_to, t.created_by, t.priority, t.status,
             t.start_date, t.deadline, t.list_id, t.parent_task_id, t.client_name, t.client_email,
             u.full_name AS assignee_name,
+            c.full_name AS creator_name, c.role AS creator_role,
             COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name,
                         'has_avatar', EXISTS (SELECT 1 FROM user_avatars uav WHERE uav.user_id = au.id)) ORDER BY au.full_name)
                       FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees
      FROM tasks t
      LEFT JOIN users u ON u.id = t.assigned_to
+     LEFT JOIN users c ON c.id = t.created_by
      WHERE t.id = $1`,
     [taskId]
   );
