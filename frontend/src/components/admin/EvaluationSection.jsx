@@ -73,6 +73,21 @@ function monthLabel(key) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+// Date d'enregistrement de l'évaluation. `formatDateTime` (utilitaire partagé) omet
+// l'année : sur une fiche qui remonte plusieurs mois en arrière, elle est indispensable.
+function formatSavedAt(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function emptyForm() {
   const f = {
     visible_to_employee: false,
@@ -123,6 +138,7 @@ export default function EvaluationSection({ userId }) {
   const currentEvaluation = useMemo(() => history.find((h) => h.month === month), [history, month]);
   // Auteur de chaque champ libre, tel qu'enregistré (vide tant que rien n'a été sauvegardé).
   const fieldAuthors = currentEvaluation?.field_author_names || {};
+  const savedAtLabel = formatSavedAt(currentEvaluation?.updated_at);
 
   // Toute modification passe par ici → marque la saisie comme non enregistrée.
   const updateForm = useCallback((updater) => {
@@ -218,8 +234,13 @@ export default function EvaluationSection({ userId }) {
           </span>
           <span className="eval-summary">
             {/* Qui a rempli ce mois : utile dès qu'il y a plusieurs administrateurs. */}
-            {currentEvaluation?.updated_by_name && (
-              <span className="eval-author">Évaluée par {currentEvaluation.updated_by_name}</span>
+            {(currentEvaluation?.updated_by_name || currentEvaluation?.updated_at) && (
+              <span className="eval-author">
+                {currentEvaluation.updated_by_name
+                  ? `Évaluée par ${currentEvaluation.updated_by_name}`
+                  : 'Évaluée'}
+                {savedAtLabel ? ` · le ${savedAtLabel}` : ''}
+              </span>
             )}
             {summary}
             {dirty && <span className="eval-dirty-dot" title="Modifications non enregistrées" />}
