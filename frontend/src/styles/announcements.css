@@ -503,3 +503,28 @@
   .ann-search { flex: 1 1 100%; min-width: 0; }
   .ann-grid { grid-template-columns: 1fr; }
 }
+
+/* L'activité récente est devenue cliquable (ouvre l'annonce) : le <li> est maintenant un
+   <button>, d'où la neutralisation des styles natifs et un état de survol explicite. */
+button.ann-activity-item {
+  width: 100%;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  font-family: var(--font-family);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+button.ann-activity-item:hover {
+  background: var(--glass-overlay);
+}
+button.ann-activity-item:hover .ann-activity-copy span {
+  color: var(--color-text-secondary);
+}
+button.ann-activity-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
