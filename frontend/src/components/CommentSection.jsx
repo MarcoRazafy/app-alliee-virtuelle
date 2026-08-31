@@ -1,10 +1,29 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as avatarService from '../services/avatarService';
+import * as userService from '../services/userService';
 import { formatDateTime, formatBytes } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconPaperclip, IconX, IconFileText, IconDownload } from './icons';
+
+// Les mentions sont stockées dans le contenu sous la forme `@[Nom](uuid)`. On les
+// reconstruit à l'affichage en fragments texte/mention : le message reste lisible tel quel
+// si le format évolue, et un ancien commentaire sans balise traverse sans traitement.
+const MENTION_RE = /@\[([^\]]+)\]\(([0-9a-fA-F-]{36})\)/g;
+
+function parseMentions(content) {
+  const parts = [];
+  let last = 0;
+  for (const m of String(content || '').matchAll(MENTION_RE)) {
+    if (m.index > last) parts.push({ type: 'text', value: content.slice(last, m.index) });
+    parts.push({ type: 'mention', name: m[1], userId: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < (content || '').length) parts.push({ type: 'text', value: content.slice(last) });
+  return parts;
+}
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // aligné sur la limite serveur (config/upload.js)
 
@@ -28,7 +47,8 @@ function SendIcon() {
 }
 
 // Panneau d'activité (commentaires + notes internes admin), façon ClickUp.
-function CommentSection({ taskId }) {
+function CommentSection({ taskId, focusCommentId = null }) {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'ADMIN';
 
@@ -39,6 +59,9 @@ function CommentSection({ taskId }) {
   const [sending, setSending] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [avatarUrls, setAvatarUrls] = useState({}); // author_id → objectURL de la photo
+  const [people, setPeople] = useState([]); // annuaire, pour les mentions
+  const [mentionQuery, setMentionQuery] = useState(null); // texte tapé après « @ » (null = fermé)
+  const inputRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -124,6 +147,59 @@ function CommentSection({ taskId }) {
     }
   }
 
+  // Arrivée depuis une notification de mention : on amène le commentaire à l'écran et on le
+  // souligne brièvement, sinon on atterrit sur la tâche sans savoir lequel est concerné.
+  const focusedRef = useRef(null);
+  useEffect(() => {
+    if (!focusCommentId || items.length === 0) return;
+    const el = focusedRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('cmt-item--focus');
+    const timer = setTimeout(() => el.classList.remove('cmt-item--focus'), 2600);
+    return () => clearTimeout(timer);
+  }, [focusCommentId, items.length]);
+
+  // Annuaire chargé une fois : sert à proposer les personnes après « @ ».
+  useEffect(() => {
+    userService
+      .getUsers()
+      .then((list) => setPeople(Array.isArray(list) ? list : []))
+      .catch(() => setPeople([]));
+  }, []);
+
+  // Détecte un « @ » en cours de frappe (mot courant, jusqu'à l'emplacement du curseur).
+  function handleContentChange(event) {
+    const value = event.target.value;
+    setContent(value);
+    const upToCaret = value.slice(0, event.target.selectionStart ?? value.length);
+    const match = /(?:^|\s)@([\p{L}\p{M}'\- ]{0,40})$/u.exec(upToCaret);
+    setMentionQuery(match ? match[1] : null);
+  }
+
+  const mentionMatches = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.trim().toLowerCase();
+    return people.filter((p) => !q || (p.full_name || '').toLowerCase().includes(q)).slice(0, 6);
+  }, [mentionQuery, people]);
+
+  // Remplace le « @… » en cours par la balise complète `@[Nom](uuid)`.
+  function insertMention(person) {
+    const el = inputRef.current;
+    const caret = el?.selectionStart ?? content.length;
+    const before = content.slice(0, caret);
+    const after = content.slice(caret);
+    const replaced = before.replace(/(^|\s)@[\p{L}\p{M}'\- ]{0,40}$/u, `$1@[${person.full_name}](${person.id}) `);
+    const next = replaced + after;
+    setContent(next);
+    setMentionQuery(null);
+    requestAnimationFrame(() => {
+      el?.focus();
+      const pos = replaced.length;
+      el?.setSelectionRange(pos, pos);
+    });
+  }
+
   function pickFile(event) {
     const file = event.target.files?.[0];
     event.target.value = ''; // permet de re-choisir le même fichier après un retrait
@@ -156,7 +232,11 @@ function CommentSection({ taskId }) {
           <div className="cmt-empty">Aucun commentaire pour le moment.</div>
         ) : (
           items.map((it) => (
-            <div key={`${it.kind}-${it.id}`} className={`cmt-item${it.kind === 'note' ? ' cmt-item--note' : ''}`}>
+            <div
+              key={`${it.kind}-${it.id}`}
+              ref={it.id === focusCommentId ? focusedRef : undefined}
+              className={`cmt-item${it.kind === 'note' ? ' cmt-item--note' : ''}`}
+            >
               <span className="cmt-avatar">
                 {avatarUrls[it.author_id] ? (
                   <img src={avatarUrls[it.author_id]} alt="" className="cmt-avatar-img" />
@@ -170,7 +250,27 @@ function CommentSection({ taskId }) {
                   {it.kind === 'note' && <span className="cmt-tag">Interne</span>}
                   <span className="cmt-time">{formatDateTime(it.created_at)}</span>
                 </div>
-                <p className="cmt-content">{it.content}</p>
+                <p className="cmt-content">
+                  {parseMentions(it.content).map((part, i) =>
+                    part.type === 'mention' ? (
+                      <button
+                        type="button"
+                        key={i}
+                        className={`cmt-mention${part.userId === user?.id ? ' cmt-mention--me' : ''}`}
+                        onClick={() =>
+                          navigate(isAdmin ? '/admin/messaging' : '/messaging', {
+                            state: { employeeId: part.userId },
+                          })
+                        }
+                        title={`Écrire à ${part.name}`}
+                      >
+                        @{part.name}
+                      </button>
+                    ) : (
+                      <span key={i}>{part.value}</span>
+                    )
+                  )}
+                </p>
                 {(it.attachments || []).length > 0 && (
                   <div className="cmt-files">
                     {it.attachments.map((att) => (
@@ -202,13 +302,39 @@ function CommentSection({ taskId }) {
           submit();
         }}
       >
+        {mentionMatches.length > 0 && (
+          <ul className="cmt-mention-list">
+            {mentionMatches.map((p) => (
+              <li key={p.id}>
+                <button type="button" className="cmt-mention-option" onMouseDown={(e) => e.preventDefault()} onClick={() => insertMention(p)}>
+                  <span className="cmt-mention-avatar">{initialsOf(p.full_name)}</span>
+                  <span className="cmt-mention-name">{p.full_name}</span>
+                  {p.role === 'ADMIN' && <span className="cmt-mention-role">Admin</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <textarea
+          ref={inputRef}
           className="cmt-input"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={handleContentChange}
+          onBlur={() => setTimeout(() => setMentionQuery(null), 150)}
           placeholder={isAdmin && asNote ? 'Écrire une note interne…' : 'Écrivez un commentaire…'}
           rows={2}
           onKeyDown={(e) => {
+            // Le sélecteur de mention est ouvert : Entrée choisit la 1re personne au lieu d'envoyer.
+            if (e.key === 'Enter' && !e.shiftKey && mentionMatches.length > 0) {
+              e.preventDefault();
+              insertMention(mentionMatches[0]);
+              return;
+            }
+            if (e.key === 'Escape' && mentionQuery !== null) {
+              setMentionQuery(null);
+              return;
+            }
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               submit();

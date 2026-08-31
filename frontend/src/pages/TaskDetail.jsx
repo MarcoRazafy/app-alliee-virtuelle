@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as userService from '../services/userService';
 import * as avatarService from '../services/avatarService';
@@ -94,6 +94,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const params = useParams();
   const id = taskId || params.id;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // ?comment=<id> : cible d'une notification de mention
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'ADMIN';
   const Layout = isAdmin ? AdminLayout : EmployeeLayout;
@@ -818,7 +819,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
             <p className="side-card-title" style={{ marginBottom: '16px' }}>
               Commentaires
             </p>
-            <CommentSection taskId={id} />
+            <CommentSection taskId={id} focusCommentId={searchParams.get('comment')} />
           </div>
         </aside>
       </div>

@@ -883,6 +883,44 @@ async function getComments(req, res, next) {
   }
 }
 
+// Les mentions sont écrites dans le contenu sous la forme `@[Nom](uuid)` : le message reste
+// la seule source de vérité (pas de table annexe à garder synchronisée) et l'affichage sait
+// reconstruire le lien. Un ancien commentaire sans balise passe simplement au travers.
+const MENTION_RE = /@\[[^\]]+\]\(([0-9a-fA-F-]{36})\)/g;
+
+function extractMentionIds(content) {
+  const ids = new Set();
+  for (const match of String(content || '').matchAll(MENTION_RE)) ids.add(match[1]);
+  return [...ids];
+}
+
+// Une entrée d'audit par personne citée : c'est ce qui alimente son centre de notifications
+// (`details.target_user_id` est la clé de visibilité côté employé).
+async function notifyMentions({ content, taskId, taskTitle, commentId, authorId, adminsOnly = false }) {
+  const ids = extractMentionIds(content).filter((uid) => uid !== authorId);
+  if (ids.length === 0) return;
+  await Promise.all(
+    ids.map(async (uid) => {
+      try {
+        const mentioned = await userModel.findById(uid);
+        if (!mentioned) return; // citation d'un compte supprimé
+        // Une note interne n'est pas visible des employés : notifier un employé qu'il y est
+        // cité révélerait son existence (et le lien mènerait à un contenu masqué).
+        if (adminsOnly && mentioned.role !== 'ADMIN') return;
+        await taskModel.recordAudit({
+          userId: authorId,
+          action: 'MENTION_IN_COMMENT',
+          entityType: 'task_comment',
+          entityId: commentId,
+          details: { task_id: taskId, task_title: taskTitle, target_user_id: uid, comment_id: commentId },
+        });
+      } catch (err) {
+        console.error('Notification de mention échouée :', err.message);
+      }
+    })
+  );
+}
+
 async function createComment(req, res, next) {
   try {
     const { id } = req.params;
@@ -906,6 +944,15 @@ async function createComment(req, res, next) {
       content,
       type: 'COMMENT',
       isVisibleToEmployee: true,
+    });
+
+    // Best-effort : une notification ratée ne doit pas faire échouer le commentaire publié.
+    await notifyMentions({
+      content,
+      taskId: id,
+      taskTitle: task.title,
+      commentId: comment.id,
+      authorId: req.user.id,
     });
 
     res.status(201).json(comment);
@@ -950,6 +997,15 @@ async function createNote(req, res, next) {
       content,
       type: 'NOTE',
       isVisibleToEmployee: false,
+    });
+
+    await notifyMentions({
+      content,
+      taskId: id,
+      taskTitle: task.title,
+      commentId: note.id,
+      authorId: req.user.id,
+      adminsOnly: true, // la note n'est visible que des admins
     });
 
     res.status(201).json(note);
