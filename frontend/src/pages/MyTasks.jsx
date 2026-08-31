@@ -6,7 +6,7 @@ import EmployeeLayout from '../components/employee/EmployeeLayout';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import { formatDurationShort, formatBytes } from '../utils/formatters';
-import { STATUS_PILL, priorityPillClass, formatRelativeDeadline } from '../utils/taskStatus';
+import { STATUS_PILL, priorityPillClass, formatRelativeDeadline, displayStatusOf } from '../utils/taskStatus';
 import { IconExternalLink, IconChecklist, IconX, IconAlert, IconCalendarWeek, IconFolder, IconChat, IconPaperclip } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
 import { htmlToText } from '../utils/sanitizeHtml';
@@ -115,19 +115,18 @@ function MyTasks() {
   async function loadTasks() {
     try {
       const data = await taskService.getTasks();
+      // Le statut affiché vient désormais de `has_active_session`, fourni par l'API : plus
+      // besoin d'un appel par tâche pour savoir si le chrono tourne (et l'admin lit la
+      // même information, donc les deux côtés affichent le même statut).
       const enriched = await Promise.all(
         data.map(async (task) => {
+          const displayStatus = displayStatusOf(task);
           if (task.status === 'TERMINEE' || task.status === 'CONFIRMEE') {
             const history = await taskService.getTimelogHistory(task.id);
             const total = history.reduce((sum, s) => sum + (s.duration_seconds || 0), 0);
-            return { ...task, totalDuration: total, displayStatus: task.status };
+            return { ...task, totalDuration: total, displayStatus };
           }
-          if (task.status === 'EN_COURS') {
-            const history = await taskService.getTimelogHistory(task.id);
-            const hasActiveSession = history.some((s) => !s.end_time);
-            return { ...task, displayStatus: hasActiveSession ? 'EN_COURS' : 'A_REPRENDRE' };
-          }
-          return { ...task, displayStatus: task.status };
+          return { ...task, displayStatus };
         })
       );
       setTasks(enriched);

@@ -5,7 +5,7 @@ import * as avatarService from '../../services/avatarService';
 import * as planningService from '../../services/planningService';
 import * as dailyService from '../../services/dailyService';
 import { formatDate, formatDateTime, formatDurationShort } from '../../utils/formatters';
-import { STATUS_PILL, priorityPillClass } from '../../utils/taskStatus';
+import { STATUS_PILL, priorityPillClass, displayStatusOf } from '../../utils/taskStatus';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { PageSkeleton } from '../../components/Skeleton';
 import Pagination from '../../components/Pagination';
@@ -667,8 +667,8 @@ function AdminUserProfile() {
                             )}
                           </td>
                           <td>
-                            <span className={`pill ${STATUS_PILL[task.status]?.className || ''}`}>
-                              {STATUS_PILL[task.status]?.label || task.status}
+                            <span className={`pill ${STATUS_PILL[displayStatusOf(task)]?.className || ''}`}>
+                              {STATUS_PILL[displayStatusOf(task)]?.label || task.status}
                             </span>
                           </td>
                           <td>
