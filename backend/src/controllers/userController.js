@@ -362,6 +362,18 @@ async function upsertUserEvaluation(req, res, next) {
     // Champs libres « développement / carrière ».
     for (const f of EVAL_TEXT_FIELDS) data[f] = cleanComment(b[f], 4000);
 
+    // Auteur des champs libres : on ne réattribue QUE ceux dont le texte a changé. Relire
+    // et réenregistrer une fiche ne doit pas s'approprier ce qu'un collègue a écrit.
+    const previous = await userModel.getEvaluation(req.params.id, month);
+    const fieldAuthors = { ...(previous?.field_authors || {}) };
+    for (const field of [...EVAL_TEXT_FIELDS, 'global_comment']) {
+      const before = previous ? previous[field] || null : null;
+      const after = data[field] || null;
+      if (after === null) delete fieldAuthors[field]; // champ vidé → plus d'auteur
+      else if (after !== before) fieldAuthors[field] = req.user.id;
+    }
+    data.field_authors = fieldAuthors;
+
     const saved = await userModel.upsertEvaluation(req.params.id, month, req.user.id, data);
     res.status(200).json(saved);
   } catch (err) {

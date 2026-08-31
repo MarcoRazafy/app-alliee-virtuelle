@@ -121,6 +121,8 @@ export default function EvaluationSection({ userId }) {
 
   const evaluatedMonths = useMemo(() => new Set(history.map((h) => h.month)), [history]);
   const currentEvaluation = useMemo(() => history.find((h) => h.month === month), [history, month]);
+  // Auteur de chaque champ libre, tel qu'enregistré (vide tant que rien n'a été sauvegardé).
+  const fieldAuthors = currentEvaluation?.field_author_names || {};
 
   // Toute modification passe par ici → marque la saisie comme non enregistrée.
   const updateForm = useCallback((updater) => {
@@ -357,6 +359,7 @@ export default function EvaluationSection({ userId }) {
                   <div className="eval-dev-field" key={key}>
                     <label className="eval-dev-label" htmlFor={`eval-${key}`}>
                       {label}
+                      {fieldAuthors[key] && <span className="eval-field-author">par {fieldAuthors[key]}</span>}
                     </label>
                     <textarea
                       id={`eval-${key}`}
@@ -374,6 +377,9 @@ export default function EvaluationSection({ userId }) {
               <div className="eval-global">
                 <label className="eval-global-label" htmlFor="eval-global">
                   Commentaire global <span className="eval-global-hint">(toujours visible par l'employé)</span>
+                  {fieldAuthors.global_comment && (
+                    <span className="eval-field-author">par {fieldAuthors.global_comment}</span>
+                  )}
                 </label>
                 <textarea
                   id="eval-global"
