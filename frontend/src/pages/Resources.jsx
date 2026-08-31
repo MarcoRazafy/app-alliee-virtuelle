@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import * as resourceService from '../services/resourceService';
 import { formatBytes } from '../utils/formatters';
-import { notifyError } from '../utils/toast';
+import { notifyError, notifySuccess } from '../utils/toast';
+import useAuthStore from '../store/authStore';
 import ResourceViewer from '../components/resources/ResourceViewer';
-import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil } from '../components/icons';
+import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil, IconPaperclip, IconTrash } from '../components/icons';
 import '../styles/resources.css';
 
 const TABS = [
@@ -21,6 +22,8 @@ function Resources() {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [search, setSearch] = useState('');
   const [viewerFile, setViewerFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     setSelectedFolder(null);
@@ -33,6 +36,44 @@ function Resources() {
       .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
       .finally(() => setLoadingFolders(false));
   }, [tab]);
+
+  // Recharge la liste du dossier courant (après un ajout ou un retrait).
+  async function reloadFiles(folderId) {
+    try {
+      setFiles(await resourceService.getFolderFiles(folderId));
+    } catch {
+      /* la notification d'erreur est déjà remontée par l'action appelante */
+    }
+  }
+
+  // Dépôt d'un fichier dans le dossier ouvert. L'auteur est enregistré côté serveur :
+  // c'est ce qui permet ensuite de ne proposer la suppression qu'à celui qui a déposé.
+  async function handleUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // permet de re-sélectionner le même fichier après une erreur
+    if (!file || !selectedFolder) return;
+    setUploading(true);
+    try {
+      await resourceService.uploadFile(selectedFolder.id, file);
+      await reloadFiles(selectedFolder.id);
+      notifySuccess(`« ${file.name} » ajouté`);
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Impossible d'ajouter ce fichier");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteFile(file) {
+    if (!window.confirm(`Retirer « ${file.file_name} » ?\n\nLe fichier part à la corbeille : un administrateur peut le restaurer.`)) return;
+    try {
+      await resourceService.deleteFile(file.id);
+      await reloadFiles(selectedFolder.id);
+      notifySuccess('Fichier retiré');
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Suppression impossible');
+    }
+  }
 
   async function openFolder(folder) {
     setSelectedFolder(folder);
@@ -117,6 +158,13 @@ function Resources() {
           <div className="side-card resources-files-panel">
             <div className="side-card-header">
               <p className="side-card-title">{selectedFolder ? selectedFolder.name : 'Fichiers'}</p>
+              {selectedFolder && (
+                <label className={`btn-outline resources-upload-btn${uploading ? ' resources-upload-btn--busy' : ''}`}>
+                  <IconPaperclip />
+                  {uploading ? 'Envoi…' : 'Ajouter un fichier'}
+                  <input type="file" onChange={handleUpload} disabled={uploading} hidden />
+                </label>
+              )}
             </div>
 
             {!selectedFolder && (
@@ -183,6 +231,18 @@ function Resources() {
                               >
                                 <IconArrowRight />
                               </button>
+                              {/* Retrait réservé à l'auteur du dépôt (le serveur le revérifie). */}
+                              {file.created_by === user?.id && (
+                                <button
+                                  type="button"
+                                  className="icon-link-btn icon-link-btn--danger"
+                                  onClick={() => handleDeleteFile(file)}
+                                  aria-label="Retirer ce fichier"
+                                  title="Retirer ce fichier"
+                                >
+                                  <IconTrash />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
