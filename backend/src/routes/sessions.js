@@ -8,6 +8,10 @@ router.use(authMiddleware);
 
 // Route admin déclarée avant /sessions/week pour rester lisible (pas de conflit de matching ici).
 router.get('/sessions/admin/week', authMiddleware.requireRole('ADMIN'), sessionController.getUserSessionsForWeekAdmin);
+// Correction du temps de connexion (déconnexion oubliée). Admin uniquement.
+router.get('/sessions/admin/list', authMiddleware.requireRole('ADMIN'), sessionController.listUserSessionsAdmin);
+router.patch('/sessions/admin/:sessionId', authMiddleware.requireRole('ADMIN'), sessionController.updateUserSessionAdmin);
+router.delete('/sessions/admin/:sessionId', authMiddleware.requireRole('ADMIN'), sessionController.deleteUserSessionAdmin);
 router.get('/sessions/week', sessionController.getMySessionsForWeek);
 router.get('/sessions/current', sessionController.getMyCurrentSession);
 router.post('/sessions/heartbeat', sessionController.heartbeatMySession);

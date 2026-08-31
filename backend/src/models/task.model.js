@@ -395,9 +395,34 @@ async function addManualTimelog(taskId, employeeId, startTime, endTime, client =
   return result.rows[0];
 }
 
+async function findTimelogById(entryId) {
+  const result = await db.query('SELECT * FROM timelog WHERE id = $1', [entryId]);
+  return result.rows[0] || null;
+}
+
+// Corrige une session chronométrée. La durée est TOUJOURS recalculée à partir des bornes :
+// la laisser à la main du client ferait diverger le total affiché de l'intervalle réel.
+async function updateTimelogEntry(entryId, startTime, endTime) {
+  const result = await db.query(
+    `UPDATE timelog
+        SET start_time = $2,
+            end_time = $3,
+            duration_seconds = EXTRACT(EPOCH FROM ($3::timestamp - $2::timestamp))::int
+      WHERE id = $1
+      RETURNING id, task_id, employee_id, start_time, end_time, duration_seconds`,
+    [entryId, startTime, endTime]
+  );
+  return result.rows[0] || null;
+}
+
+async function deleteTimelogEntry(entryId) {
+  const result = await db.query('DELETE FROM timelog WHERE id = $1 RETURNING id', [entryId]);
+  return result.rows[0] || null;
+}
+
 async function findTimelogHistory(taskId) {
   const result = await db.query(
-    `SELECT tl.start_time, tl.end_time, tl.duration_seconds, tl.employee_id,
+    `SELECT tl.id, tl.start_time, tl.end_time, tl.duration_seconds, tl.employee_id,
             u.full_name AS employee_name
        FROM timelog tl
        JOIN users u ON u.id = tl.employee_id
@@ -760,6 +785,9 @@ module.exports = {
   findActiveSessionForTask,
   startSession,
   stopSession,
+  findTimelogById,
+  updateTimelogEntry,
+  deleteTimelogEntry,
   findTimelogHistory,
   findDailySelection,
   validateDailySelection,

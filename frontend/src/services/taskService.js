@@ -97,6 +97,15 @@ export function stopTimelog(taskId) {
   });
 }
 
+// Correction d'une session chronométrée (admin) : chrono oublié, doublon.
+export function updateTimelogEntry(entryId, payload) {
+  return api.patch(`/api/timelog/entry/${entryId}`, payload).then((res) => res.data);
+}
+
+export function deleteTimelogEntry(entryId) {
+  return api.delete(`/api/timelog/entry/${entryId}`).then((res) => res.data);
+}
+
 export function addManualTimelog(taskId, payload) {
   return api.post(`/api/timelog/${taskId}/manual`, payload).then((res) => res.data);
 }

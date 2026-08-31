@@ -30,6 +30,10 @@ router.get('/timelog/active', taskController.getActiveTask);
 router.get('/timelog/:taskId', taskController.getTimelogHistory);
 // Ajout manuel d'un temps (admin) : chrono oublié, saisi a posteriori.
 router.post('/timelog/:taskId/manual', authMiddleware.requireRole('ADMIN'), taskController.addManualTimelog);
+// Correction d'une session chronométrée (chrono oublié, doublon). Admin uniquement.
+// « entry » en préfixe pour ne pas entrer en conflit avec /timelog/:taskId.
+router.patch('/timelog/entry/:entryId', authMiddleware.requireRole('ADMIN'), taskController.updateTimelogEntry);
+router.delete('/timelog/entry/:entryId', authMiddleware.requireRole('ADMIN'), taskController.deleteTimelogEntry);
 
 router.get('/my-day', taskController.getMyDay);
 router.post('/my-day', taskController.setMyDay);
