@@ -19,6 +19,7 @@ import {
   IconTrash,
   IconRestore,
   IconUser,
+  IconChat,
   IconClock,
   IconCalendarWeek,
   IconAlert,
@@ -466,17 +467,45 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
               {task.creator_name && (
                 <PropRow icon={<IconUser />} label="Créée par">
-                  <span className="tk-creator">
-                    <span className="tk-assignee-avatar tk-assignee-avatar--initials">
-                      {assigneeInitials(task.creator_name) || '?'}
-                    </span>
-                    <span className="tk-assignee-name">{task.creator_name}</span>
-                    <span
-                      className={`tk-creator-role${task.creator_role === 'ADMIN' ? ' tk-creator-role--admin' : ''}`}
+                  {/* Cliquable pour ouvrir une conversation avec la personne qui a assigné la
+                      tâche : c'est à elle qu'on demande une précision. Inutile si c'est soi-même. */}
+                  {task.created_by && task.created_by !== user?.id ? (
+                    <button
+                      type="button"
+                      className="tk-creator tk-creator--link"
+                      onClick={() =>
+                        navigate(isAdmin ? '/admin/messaging' : '/messaging', {
+                          state: { employeeId: task.created_by },
+                        })
+                      }
+                      title={`Poser une question à ${task.creator_name}`}
                     >
-                      {task.creator_role === 'ADMIN' ? 'Admin' : 'Employé'}
+                      <span className="tk-assignee-avatar tk-assignee-avatar--initials">
+                        {assigneeInitials(task.creator_name) || '?'}
+                      </span>
+                      <span className="tk-assignee-name">{task.creator_name}</span>
+                      <span
+                        className={`tk-creator-role${task.creator_role === 'ADMIN' ? ' tk-creator-role--admin' : ''}`}
+                      >
+                        {task.creator_role === 'ADMIN' ? 'Admin' : 'Employé'}
+                      </span>
+                      <span className="tk-creator-ask">
+                        <IconChat /> Poser une question
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="tk-creator">
+                      <span className="tk-assignee-avatar tk-assignee-avatar--initials">
+                        {assigneeInitials(task.creator_name) || '?'}
+                      </span>
+                      <span className="tk-assignee-name">{task.creator_name}</span>
+                      <span
+                        className={`tk-creator-role${task.creator_role === 'ADMIN' ? ' tk-creator-role--admin' : ''}`}
+                      >
+                        {task.creator_role === 'ADMIN' ? 'Admin' : 'Employé'}
+                      </span>
                     </span>
-                  </span>
+                  )}
                 </PropRow>
               )}
 
