@@ -603,3 +603,48 @@ button.tk-date-part:hover {
   color: var(--color-accent-lighter, var(--color-accent));
   border-color: color-mix(in srgb, var(--color-accent) 32%, transparent);
 }
+
+/* « Créée par » cliquable : ouvre une conversation avec la personne qui a assigné la tâche,
+   pour lui demander une précision sans quitter le fil de la tâche. */
+button.tk-creator--link {
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+button.tk-creator--link:hover {
+  background: var(--glass-overlay);
+}
+button.tk-creator--link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+/* L'invitation à écrire reste discrète, et ne se révèle qu'à l'interaction. */
+.tk-creator-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-lighter, var(--color-accent));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.tk-creator-ask svg {
+  width: 13px;
+  height: 13px;
+}
+button.tk-creator--link:hover .tk-creator-ask,
+button.tk-creator--link:focus-visible .tk-creator-ask {
+  opacity: 1;
+}
+/* Sur écran tactile (pas de survol), l'invitation reste toujours visible. */
+@media (hover: none) {
+  .tk-creator-ask {
+    opacity: 1;
+  }
+}
