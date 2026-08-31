@@ -8,6 +8,7 @@ import { formatDate, formatDateTime, formatDurationShort } from '../../utils/for
 import { STATUS_PILL, priorityPillClass } from '../../utils/taskStatus';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { PageSkeleton } from '../../components/Skeleton';
+import Pagination from '../../components/Pagination';
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -214,6 +215,8 @@ function AdminUserProfile() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [taskTab, setTaskTab] = useState('all');
+  const [page, setPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [busy, setBusy] = useState(false);
   // Phase 2 : présence (filtrable par période), daily du jour.
   const [period, setPeriod] = useState('month');
@@ -399,6 +402,17 @@ function AdminUserProfile() {
     return tasks;
   }, [tasks, taskTab, todayYMD]);
 
+  const paginatedTasks = useMemo(
+    () => visibleTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage),
+    [visibleTasks, page, itemsPerPage]
+  );
+
+  // Changer d'onglet (ou d'employé) peut laisser sur une page qui n'existe plus dans le
+  // nouveau filtre : on revient au début plutôt que d'afficher un tableau vide.
+  useEffect(() => {
+    setPage(1);
+  }, [taskTab, id]);
+
   const statusSegments = useMemo(
     () => STATUS_SEG.map((s) => ({ ...s, value: tasks.filter((t) => t.status === s.key).length })),
     [tasks]
@@ -562,7 +576,7 @@ function AdminUserProfile() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleTasks.map((task) => {
+                    {paginatedTasks.map((task) => {
                       const late = isLate(task, todayYMD);
                       return (
                         <tr
@@ -608,6 +622,17 @@ function AdminUserProfile() {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {visibleTasks.length > 0 && (
+              <Pagination
+                page={page}
+                totalItems={visibleTasks.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setPage}
+                onItemsPerPageChange={setItemsPerPage}
+                options={[10, 25, 50, { value: Number.MAX_SAFE_INTEGER, label: 'Toutes' }]}
+              />
             )}
           </div>
         </div>
