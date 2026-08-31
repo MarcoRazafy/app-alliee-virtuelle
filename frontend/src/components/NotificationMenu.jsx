@@ -8,6 +8,7 @@ import {
   IconBell,
   IconCalendarWeek,
   IconCheckCircle,
+  IconChat,
   IconClock,
   IconFolder,
   IconMegaphone,
@@ -69,11 +70,13 @@ const ACTION_LABELS = {
   SET_ATTENDANCE_OVERRIDE: 'a corrigé une présence',
   RESET_ATTENDANCE_OVERRIDE: 'a rétabli le calcul automatique de présence',
   PUBLISH_ANNOUNCEMENT: 'a publié une annonce',
+  MENTION_IN_COMMENT: 'vous a mentionné dans un commentaire',
 };
 
 function getEventIcon(item) {
   if (item.entity_type === 'announcement') return IconMegaphone;
   if (item.action.includes('TIMELOG')) return IconClock;
+  if (item.entity_type === 'task_comment') return IconChat;
   if (item.entity_type === 'task') return IconCheckCircle;
   if (item.entity_type === 'weekly_planning' || item.entity_type === 'attendance_override') return IconCalendarWeek;
   if (item.entity_type.startsWith('resources_')) return IconFolder;
@@ -86,7 +89,7 @@ function getEventIcon(item) {
 function eventText(item) {
   const actor = item.actor_name || 'Le système';
   const action = ACTION_LABELS[item.action] || 'a effectué une action';
-  const subject = item.entity_name || item.details?.title || item.details?.file_name;
+  const subject = item.entity_name || item.details?.title || item.details?.task_title || item.details?.file_name;
   return {
     title: `${actor} ${action}`,
     subject: subject ? `« ${subject} »` : null,
@@ -102,6 +105,8 @@ function resolveLink(item, isAdmin) {
   if (type === 'announcement') return `/announcements?open=${id}`; // ouvre l'annonce directement
   if (type === 'task') return `/tasks/${id}`;
   if (type === 'task_attachment' && details?.task_id) return `/tasks/${details.task_id}`;
+  // Mention : on ouvre la tâche ET on cible le commentaire concerné.
+  if (type === 'task_comment' && details?.task_id) return `/tasks/${details.task_id}?comment=${id}`;
   if (type === 'extra_task_requests') return isAdmin ? '/admin/task-requests' : '/tasks';
   if (type === 'weekly_planning' || type === 'attendance_override') {
     return isAdmin ? '/admin/planning' : '/planning';

@@ -2652,3 +2652,108 @@
   flex-shrink: 0;
   color: var(--color-text-muted);
 }
+
+/* --- Mentions dans les commentaires --- */
+
+/* Mention rendue dans un message : cliquable pour écrire à la personne. */
+.cmt-mention {
+  padding: 1px 5px;
+  border: none;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-lighter, var(--color-accent));
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cmt-mention:hover {
+  background: color-mix(in srgb, var(--color-accent) 26%, transparent);
+}
+/* Quand c'est soi qui est cité, la mention doit sauter aux yeux. */
+.cmt-mention--me {
+  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+}
+
+/* Liste des personnes proposées après « @ ». */
+.cmt-mention-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 4px;
+  max-height: 210px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-secondary);
+  box-shadow: var(--shadow-sm);
+}
+.cmt-mention-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.cmt-mention-option:hover {
+  background: var(--glass-overlay);
+}
+.cmt-mention-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.cmt-mention-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmt-mention-role {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-lighter, var(--color-accent));
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+/* Commentaire ciblé par une notification : mise en évidence transitoire. */
+.cmt-item--focus {
+  border-radius: 10px;
+  animation: cmt-focus-pulse 2.6s ease-out;
+}
+@keyframes cmt-focus-pulse {
+  0%, 60% {
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmt-item--focus {
+    animation: none;
+    background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  }
+}
