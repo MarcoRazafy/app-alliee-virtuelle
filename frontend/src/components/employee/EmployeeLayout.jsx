@@ -363,7 +363,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
         </main>
       </div>
 
-      <ConnectionChrono />
+      <ConnectionChrono className="connection-chrono--visible" />
     </div>
   );
 }

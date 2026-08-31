@@ -821,8 +821,9 @@
   }
 }
 
-/* Chrono de temps de connexion : affiché dans l'espace admin (la base est en display:none
-   dans connection-chrono.css). Sélecteur composé pour l'emporter sur la règle de base. */
-.connection-chrono.connection-chrono--admin {
+/* Chrono de temps de connexion : affiché dans les deux espaces (employé et admin). La règle
+   de base, dans connection-chrono.css, est en display:none ; ce sélecteur composé l'emporte
+   sur elle sans avoir à modifier ce fichier. */
+.connection-chrono.connection-chrono--visible {
   display: inline-flex;
 }
