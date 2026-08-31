@@ -376,6 +376,10 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
         ? [{ id: task.assigned_to, full_name: task.assignee_name || 'Employé' }]
         : [];
   const canTime = ['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status);
+  // L'employé assigné dépose ses livrables lui-même : le serveur l'autorise déjà, seule
+  // l'interface le lui refusait. Il ne pourra retirer que ses propres envois.
+  const isAssignee = assignees.some((a) => a.id === user?.id);
+  const canAttach = isAdmin || isAssignee;
 
   const content = (
     <>
@@ -627,7 +631,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               )}
 
               <div className="tk-prop tk-prop--full">
-                {isAdmin ? (
+                {canAttach ? (
                   <label className="tk-prop-label tk-attach-trigger" htmlFor="tk-attach-input" title="Cliquer pour joindre un fichier">
                     <IconPaperclip />
                     Pièces jointes
@@ -639,7 +643,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                   </span>
                 )}
                 <div className="tk-prop-value tk-prop-value--block">
-                  <AttachmentUpload taskId={id} canUpload={isAdmin} inputId="tk-attach-input" hideTrigger />
+                  <AttachmentUpload taskId={id} canUpload={canAttach} inputId="tk-attach-input" hideTrigger />
                 </div>
               </div>
             </div>

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import * as taskService from '../services/taskService';
 import { formatBytes, formatDateTime } from '../utils/formatters';
 import { notifySuccess, notifyError } from '../utils/toast';
+import useAuthStore from '../store/authStore';
 import { IconFileText, IconEye, IconDownload, IconTrash, IconPaperclip } from './icons';
 
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -10,6 +11,10 @@ const MAX_SIZE = 5 * 1024 * 1024;
 // (caché) est déclenché par un <label htmlFor={inputId}> rendu ailleurs (ex. le libellé
 // « Pièces jointes » de la fiche détail).
 function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
+  const currentUser = useAuthStore((state) => state.user);
+  // Un admin gère tout ; un employé ne retire que ses propres envois (le serveur le revérifie).
+  const canDelete = (attachment) =>
+    canUpload && (currentUser?.role === 'ADMIN' || attachment.uploaded_by === currentUser?.id);
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
 
@@ -149,7 +154,7 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
             >
               <IconDownload />
             </button>
-            {canUpload && (
+            {canDelete(attachment) && (
               <button
                 className="icon-link-btn"
                 onClick={() => handleDelete(attachment)}
