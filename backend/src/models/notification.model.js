@@ -5,6 +5,50 @@ const MESSAGE_FILTER = `
   AND a.action NOT ILIKE '%MESSAGE%'
 `;
 
+// Seules ces actions produisent une notification. Le centre de notifications ne doit contenir
+// que ce qui APPELLE UNE ACTION ou informe directement la personne — sinon il se remplit de
+// télémétrie (démarrages de chrono, modifications de tâche, validations de journée) et le
+// badge devient un bruit qu'on cesse de lire.
+//
+// Le journal d'audit, lui, reste COMPLET : il assure la traçabilité et alimente
+// « Activité récente » de la fiche employé. On filtre uniquement l'affichage.
+const NOTIFIABLE_ACTIONS = [
+  // --- Une décision est attendue ---
+  'CREATE_TASK', // tâche assignée, ou proposition d'employé à valider
+  'REQUEST_EXTRA_TASK',
+  'APPROVE_EXTRA_TASK',
+  'REJECT_EXTRA_TASK',
+  'COMPLETE_TASK', // travail terminé, à confirmer
+  'SUBMIT_WEEKLY_PLANNING',
+  'REGISTER_USER',
+
+  // --- Le sort de mon travail ---
+  'VALIDATE_TASK',
+  'CONFIRM_TASK',
+  'REJECT_TASK', // renvoyée : je dois la reprendre
+  'UPDATE_TASK_STATUS',
+  'REASSIGN_TASK', // une tâche m'est confiée
+  'DELETE_TASK',
+  'MENTION_IN_COMMENT',
+
+  // --- Mon compte / mon temps (corrections faites par un admin) ---
+  'APPROVE_USER',
+  'REJECT_USER',
+  'SUSPEND_USER',
+  'ACTIVATE_USER',
+  'PROMOTE_USER',
+  'ADMIN_UPDATE_WEEKLY_PLANNING',
+  'SET_ATTENDANCE_OVERRIDE',
+  'UPDATE_TIMELOG',
+  'DELETE_TIMELOG',
+  'UPDATE_USER_SESSION',
+  'DELETE_USER_SESSION',
+
+  // --- Diffusion / partage ---
+  'PUBLISH_ANNOUNCEMENT',
+  'SHARE_FOLDER',
+];
+
 function visibilityClause(role) {
   if (role === 'ADMIN') return 'TRUE';
 
@@ -71,10 +115,11 @@ async function findForUser({ userId, role, limit = 30 }) {
      WHERE ${MESSAGE_FILTER}
        -- On ne notifie jamais quelqu'un de ses propres actions (bruit + badge gonflé).
        AND a.user_id IS DISTINCT FROM $1
+       AND a.action = ANY($3)
        AND ${visibilityClause(role)}
      ORDER BY a.timestamp DESC
      LIMIT $2`,
-    [userId, safeLimit]
+    [userId, safeLimit, NOTIFIABLE_ACTIONS]
   );
 
   return {
