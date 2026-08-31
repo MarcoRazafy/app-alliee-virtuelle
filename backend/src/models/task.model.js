@@ -40,7 +40,9 @@ async function findAssignedTasks(userId, { status, priority, deadline, listId } 
   const result = await db.query(
     `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.list_id, t.parent_task_id,
             t.client_name, t.client_email, tl.name AS list_name,
-            tf.name AS folder_name, ts.name AS space_name
+            tf.name AS folder_name, ts.name AS space_name,
+            EXISTS (SELECT 1 FROM timelog tlog WHERE tlog.task_id = t.id AND tlog.end_time IS NULL)
+              AS has_active_session
      FROM tasks t
      LEFT JOIN task_lists tl ON tl.id = t.list_id
      LEFT JOIN task_folders tf ON tf.id = tl.folder_id
@@ -87,7 +89,11 @@ async function findAllTasks({ status, priority, deadline, listId, activeOnly = f
             tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name, ts.id AS space_id, ts.name AS space_name,
             COALESCE((SELECT json_agg(json_build_object('id', au.id, 'full_name', au.full_name,
                         'has_avatar', EXISTS (SELECT 1 FROM user_avatars uav WHERE uav.user_id = au.id)) ORDER BY au.full_name)
-                      FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees
+                      FROM task_assignees ta JOIN users au ON au.id = ta.user_id WHERE ta.task_id = t.id), '[]') AS assignees,
+            -- Chrono en cours : sert au statut affiché « À reprendre » (EN_COURS sans chrono).
+            -- Exposé ici pour que l'admin et l'employé lisent la MÊME source.
+            EXISTS (SELECT 1 FROM timelog tlog WHERE tlog.task_id = t.id AND tlog.end_time IS NULL)
+              AS has_active_session
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
      LEFT JOIN task_lists tl ON tl.id = t.list_id
@@ -580,7 +586,9 @@ async function findLateTasks() {
 async function findTasksForEmployee(userId) {
   const result = await db.query(
     `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.list_id,
-            tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name, ts.id AS space_id, ts.name AS space_name
+            tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name, ts.id AS space_id, ts.name AS space_name,
+            EXISTS (SELECT 1 FROM timelog tlog WHERE tlog.task_id = t.id AND tlog.end_time IS NULL)
+              AS has_active_session
      FROM tasks t
      LEFT JOIN task_lists tl ON tl.id = t.list_id
      LEFT JOIN task_folders tf ON tf.id = tl.folder_id

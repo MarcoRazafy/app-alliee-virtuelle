@@ -45,3 +45,14 @@ export function formatRelativeDeadline(deadline) {
   if (diffDays === -1) return 'Hier';
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
+
+// Statut AFFICHÉ d'une tâche. « À reprendre » n'existe pas en base : c'est une tâche
+// commencée (EN_COURS) dont le chrono n'est plus lancé. Ce calcul doit être partagé par
+// l'employé ET l'admin — sinon la même tâche s'affiche « À reprendre » d'un côté et
+// « En cours » de l'autre, ce qui laisse croire à deux états différents.
+// `has_active_session` est fourni par l'API des listes de tâches.
+export function displayStatusOf(task) {
+  if (!task) return null;
+  if (task.status === 'EN_COURS' && !task.has_active_session) return 'A_REPRENDRE';
+  return task.status;
+}

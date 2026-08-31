@@ -6,11 +6,15 @@ import * as avatarService from '../../services/avatarService';
 import { formatDurationShort, formatDateTime, formatDate } from '../../utils/formatters';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { IconX, IconChat, IconCheckCircle, IconClock, IconLayers } from '../icons';
+import { displayStatusOf } from '../../utils/taskStatus';
 
 const STATUS_PILL = {
   DECLAREE: { label: 'Déclarée', cls: 'declared' },
   VALIDEE: { label: 'À faire', cls: 'todo' },
   EN_COURS: { label: 'En cours', cls: 'progress' },
+  // Statut affiché (pas en base) : commencée mais chrono à l'arrêt. Même libellé que
+  // côté employé, sinon la même tâche paraît dans deux états différents.
+  A_REPRENDRE: { label: 'À reprendre', cls: 'paused' },
   EN_PAUSE: { label: 'En pause', cls: 'paused' },
   TERMINEE: { label: 'Terminée', cls: 'done' },
   CONFIRMEE: { label: 'Confirmée', cls: 'confirmed' },
@@ -241,7 +245,7 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
                     )}
                     <div className="emp-drawer-tasks">
                       {shownTasks.map((task) => {
-                  const meta = STATUS_PILL[task.status] || { label: task.status, cls: 'declared' };
+                  const meta = STATUS_PILL[displayStatusOf(task)] || { label: task.status, cls: 'declared' };
                   const canReview = task.status === 'TERMINEE';
                   return (
                     <div

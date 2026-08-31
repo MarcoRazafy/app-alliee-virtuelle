@@ -10,6 +10,7 @@ import Pagination from '../../components/Pagination';
 import AdminLateTasks from './AdminLateTasks';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
+import { displayStatusOf } from '../../utils/taskStatus';
 import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus, IconTrash, IconLayers } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
@@ -556,7 +557,12 @@ function AdminTasksToValidate() {
                     >
                       {task.title}
                     </button>
-                    <StatusDropdown taskId={task.id} status={task.status} onChanged={load} />
+                    <StatusDropdown
+                      taskId={task.id}
+                      status={task.status}
+                      displayStatus={displayStatusOf(task)}
+                      onChanged={load}
+                    />
                     <Link
                       to={`/tasks/${task.id}`}
                       state={{ backgroundLocation: location }}
