@@ -307,12 +307,6 @@ async function deleteFile(req, res, next) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
 
-    // La route est ouverte aux employés pour qu'ils puissent retirer un dépôt erroné :
-    // on vérifie donc ici qu'un non-admin ne supprime que SES propres fichiers.
-    if (req.user.role !== 'ADMIN' && file.created_by !== req.user.id) {
-      return res.status(403).json({ error: 'Vous ne pouvez supprimer que les fichiers que vous avez ajoutés.' });
-    }
-
     const deleted = await resourceModel.deleteFile(id, req.user.id);
     if (!deleted) {
       return res.status(409).json({ error: 'Ce fichier se trouve déjà dans la corbeille' });

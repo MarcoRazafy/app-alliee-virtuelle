@@ -869,20 +869,3 @@ button.icon-link-btn {
     flex: 1;
   }
 }
-
-/* Dépôt de fichier côté employé : <label> stylé en bouton, l'input de fichier étant masqué. */
-.resources-upload-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.resources-upload-btn svg {
-  width: 15px;
-  height: 15px;
-}
-.resources-upload-btn--busy {
-  opacity: 0.6;
-  cursor: progress;
-}

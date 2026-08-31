@@ -26,13 +26,10 @@ router.delete('/resources/trash/files/:id', requireAdmin, resourceController.per
 router.post('/resources/folders', requireAdmin, resourceController.createFolder);
 router.put('/resources/folders/:id', requireAdmin, resourceController.renameFolder);
 router.delete('/resources/folders/:id', requireAdmin, resourceController.deleteFolder);
-// Dépôt de fichier : ouvert à tout utilisateur connecté (demande des employés). L'auteur est
-// enregistré (created_by), ce qui permet de limiter la suppression à ses propres dépôts.
-router.post('/resources/folders/:id/files', handleSingleUpload, resourceController.uploadFile);
+router.post('/resources/folders/:id/files', requireAdmin, handleSingleUpload, resourceController.uploadFile);
 router.post('/resources/folders/:id/documents', requireAdmin, resourceController.createDocument);
 router.put('/resources/files/:id', requireAdmin, resourceController.updateDocument);
-// Suppression : le contrôleur autorise l'admin OU l'auteur du fichier uniquement.
-router.delete('/resources/files/:id', resourceController.deleteFile);
+router.delete('/resources/files/:id', requireAdmin, resourceController.deleteFile);
 router.post('/resources/folders/:id/share', requireAdmin, resourceController.shareFolder);
 router.get('/resources/folders/:id/shares', requireAdmin, resourceController.getFolderShares);
 router.delete('/resources/shares/:id', requireAdmin, resourceController.revokeShare);
