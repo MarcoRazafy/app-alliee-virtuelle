@@ -178,16 +178,30 @@ function Announcements() {
     [load]
   );
 
-  // Ouverture directe depuis le popup (?open=<id>).
+  // Ouverture directe depuis une notification (?open=<id>). L'effet SUIT le paramètre :
+  // avec des dépendances vides, cliquer une notification d'annonce alors qu'on se trouve
+  // déjà sur la page ne rouvrait rien (même route → pas de remontage → effet jamais rejoué).
+  // Le garde-fou évite de retraiter le même id, tout en se réarmant dès que le paramètre
+  // disparaît (on peut donc rouvrir la même annonce plus tard).
+  const openParam = searchParams.get('open');
+  const handledOpenRef = useRef(null);
   useEffect(() => {
-    const openId = searchParams.get('open');
-    if (openId) {
-      openDetail(openId);
-      searchParams.delete('open');
-      setSearchParams(searchParams, { replace: true });
+    if (!openParam) {
+      handledOpenRef.current = null;
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (handledOpenRef.current === openParam) return;
+    handledOpenRef.current = openParam;
+    openDetail(openParam);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('open');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [openParam, openDetail, setSearchParams]);
 
   async function handleMarkRead(id) {
     try {
