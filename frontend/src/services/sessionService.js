@@ -36,3 +36,19 @@ export function signalSessionDisconnect() {
     keepalive: true,
   }).catch(() => {});
 }
+
+// --- Correction administrative du temps de connexion (déconnexion oubliée) ---
+
+export function getUserSessionsAdmin(userId, range) {
+  return api
+    .get('/api/sessions/admin/list', { params: { user_id: userId, start: range.start, end: range.end } })
+    .then((res) => res.data);
+}
+
+export function updateUserSessionAdmin(sessionId, payload) {
+  return api.patch(`/api/sessions/admin/${sessionId}`, payload).then((res) => res.data);
+}
+
+export function deleteUserSessionAdmin(sessionId) {
+  return api.delete(`/api/sessions/admin/${sessionId}`).then((res) => res.data);
+}

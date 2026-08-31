@@ -256,7 +256,58 @@ async function findOpenSession(userId) {
   return result.rows[0] || null;
 }
 
+// --- Correction administrative des sessions de connexion -------------------
+// Cas d'usage : l'employé a oublié de se déconnecter, sa session couvre la nuit entière
+// et gonfle son temps de connexion.
+
+// Sessions brutes (avec leur id) sur une plage de dates locales 'YYYY-MM-DD' inclusive.
+async function findSessionsForUserRange(userId, startDate, endDate) {
+  const result = await db.query(
+    `SELECT id, login_at, logout_at, last_seen_at,
+            EXTRACT(EPOCH FROM (COALESCE(logout_at, now()) - login_at))::int AS duration_seconds,
+            (logout_at IS NULL) AS is_open
+       FROM user_sessions
+      WHERE user_id = $1
+        AND login_at < ($3::date + 1)
+        AND COALESCE(logout_at, now()) >= $2::date
+      ORDER BY login_at DESC`,
+    [userId, startDate, endDate]
+  );
+  return result.rows;
+}
+
+async function findSessionById(sessionId) {
+  const result = await db.query('SELECT * FROM user_sessions WHERE id = $1', [sessionId]);
+  return result.rows[0] || null;
+}
+
+// Corrige les bornes d'une session. `last_seen_at` est aligné sur la déconnexion pour que
+// la session ne soit pas considérée « encore vivante » par le calcul de présence.
+async function updateSessionTimes(sessionId, loginAt, logoutAt) {
+  const result = await db.query(
+    `UPDATE user_sessions
+        SET login_at = $2,
+            logout_at = $3,
+            last_seen_at = GREATEST($2::timestamptz, COALESCE($3::timestamptz, last_seen_at)),
+            disconnect_requested_at = NULL
+      WHERE id = $1
+      RETURNING id, login_at, logout_at,
+                EXTRACT(EPOCH FROM (COALESCE(logout_at, now()) - login_at))::int AS duration_seconds`,
+    [sessionId, loginAt, logoutAt]
+  );
+  return result.rows[0] || null;
+}
+
+async function deleteSession(sessionId) {
+  const result = await db.query('DELETE FROM user_sessions WHERE id = $1 RETURNING id', [sessionId]);
+  return result.rows[0] || null;
+}
+
 module.exports = {
+  findSessionsForUserRange,
+  findSessionById,
+  updateSessionTimes,
+  deleteSession,
   startSession,
   heartbeatSession,
   extendSession,

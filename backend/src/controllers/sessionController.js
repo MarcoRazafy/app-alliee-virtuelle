@@ -1,3 +1,4 @@
+const taskModel = require('../models/task.model');
 const sessionModel = require('../models/session.model');
 const planningDates = require('../utils/planningDates');
 
@@ -106,7 +107,94 @@ async function getMyCurrentSession(req, res, next) {
   }
 }
 
+// --- Correction administrative des sessions de connexion -------------------
+
+async function listUserSessionsAdmin(req, res, next) {
+  try {
+    const { user_id: userId, start, end } = req.query;
+    if (!userId || !start || !end) {
+      return res.status(400).json({ error: 'Les paramètres user_id, start et end sont requis.' });
+    }
+    const sessions = await sessionModel.findSessionsForUserRange(userId, start, end);
+    res.status(200).json(sessions);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateUserSessionAdmin(req, res, next) {
+  try {
+    const { sessionId } = req.params;
+    const { login_at: loginAt, logout_at: logoutAt } = req.body;
+
+    const session = await sessionModel.findSessionById(sessionId);
+    if (!session) return res.status(404).json({ error: 'Session introuvable' });
+
+    if (!loginAt) return res.status(400).json({ error: "L'heure de connexion est requise" });
+    const start = new Date(loginAt);
+    if (Number.isNaN(start.getTime())) return res.status(400).json({ error: 'Date de connexion invalide' });
+
+    // Une déconnexion vide laisse la session ouverte (l'employé est encore connecté).
+    let end = null;
+    if (logoutAt) {
+      end = new Date(logoutAt);
+      if (Number.isNaN(end.getTime())) return res.status(400).json({ error: 'Date de déconnexion invalide' });
+      if (end <= start) {
+        return res.status(400).json({ error: "La déconnexion doit être après la connexion" });
+      }
+    }
+
+    const updated = await sessionModel.updateSessionTimes(sessionId, loginAt, logoutAt || null);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'UPDATE_USER_SESSION',
+      entityType: 'user',
+      entityId: session.user_id,
+      details: {
+        session_id: sessionId,
+        target_user_id: session.user_id,
+        before: { login_at: session.login_at, logout_at: session.logout_at },
+        after: { login_at: updated.login_at, logout_at: updated.logout_at },
+      },
+    });
+
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteUserSessionAdmin(req, res, next) {
+  try {
+    const { sessionId } = req.params;
+    const session = await sessionModel.findSessionById(sessionId);
+    if (!session) return res.status(404).json({ error: 'Session introuvable' });
+
+    await sessionModel.deleteSession(sessionId);
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'DELETE_USER_SESSION',
+      entityType: 'user',
+      entityId: session.user_id,
+      details: {
+        session_id: sessionId,
+        target_user_id: session.user_id,
+        login_at: session.login_at,
+        logout_at: session.logout_at,
+      },
+    });
+
+    res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  listUserSessionsAdmin,
+  updateUserSessionAdmin,
+  deleteUserSessionAdmin,
   getMySessionsForWeek,
   getUserSessionsForWeekAdmin,
   closeMySession,

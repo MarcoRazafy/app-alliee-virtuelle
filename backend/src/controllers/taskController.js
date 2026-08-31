@@ -1164,6 +1164,76 @@ async function deleteTask(req, res, next) {
 
 // Ajout manuel d'un temps de travail par l'admin (chrono oublié par l'employé). On enregistre
 // une plage début→fin déjà terminée, attribuée à l'employé assigné à la tâche.
+// Corriger une session chronométrée : cas typique du chrono resté ouvert toute la nuit
+// parce que l'employé a oublié de l'arrêter. Admin uniquement.
+async function updateTimelogEntry(req, res, next) {
+  try {
+    const { entryId } = req.params;
+    const { start_time: startTime, end_time: endTime } = req.body;
+
+    const entry = await taskModel.findTimelogById(entryId);
+    if (!entry) return res.status(404).json({ error: 'Session introuvable' });
+
+    if (!startTime || !endTime) {
+      return res.status(400).json({ error: 'Le début et la fin sont requis' });
+    }
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Dates invalides' });
+    }
+    if (end <= start) {
+      return res.status(400).json({ error: "L'heure de fin doit être après l'heure de début" });
+    }
+
+    const updated = await taskModel.updateTimelogEntry(entryId, startTime, endTime);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'UPDATE_TIMELOG',
+      entityType: 'task',
+      entityId: entry.task_id,
+      details: {
+        timelog_id: entryId,
+        before: { start_time: entry.start_time, end_time: entry.end_time, duration_seconds: entry.duration_seconds },
+        after: { start_time: updated.start_time, end_time: updated.end_time, duration_seconds: updated.duration_seconds },
+      },
+    });
+
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Supprimer une session erronée (doublon, chrono lancé par erreur). Admin uniquement.
+async function deleteTimelogEntry(req, res, next) {
+  try {
+    const { entryId } = req.params;
+    const entry = await taskModel.findTimelogById(entryId);
+    if (!entry) return res.status(404).json({ error: 'Session introuvable' });
+
+    await taskModel.deleteTimelogEntry(entryId);
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'DELETE_TIMELOG',
+      entityType: 'task',
+      entityId: entry.task_id,
+      details: {
+        timelog_id: entryId,
+        start_time: entry.start_time,
+        end_time: entry.end_time,
+        duration_seconds: entry.duration_seconds,
+      },
+    });
+
+    res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function addManualTimelog(req, res, next) {
   try {
     const { id } = req.params;
@@ -1360,6 +1430,8 @@ module.exports = {
   reassignTask,
   addTaskAssignee,
   removeTaskAssignee,
+  updateTimelogEntry,
+  deleteTimelogEntry,
   addManualTimelog,
   getActiveTask,
 };

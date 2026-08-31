@@ -17,6 +17,7 @@ import {
   IconCheckCircle,
   IconArrowLeft,
   IconTrash,
+  IconPencil,
   IconRestore,
   IconUser,
   IconChat,
@@ -106,6 +107,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const [notFound, setNotFound] = useState(false);
   const [breadcrumbData, setBreadcrumbData] = useState(null);
   const [manualTime, setManualTime] = useState({ start: '', end: '' });
+  const [editingSession, setEditingSession] = useState(null); // correction d'une session de chrono
   const [employees, setEmployees] = useState([]);
   const [pickAssignee, setPickAssignee] = useState('');
   // Édition inline (admin) : titre, description, gestion des assignés.
@@ -207,6 +209,51 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
       await loadData();
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de marquer la tâche comme terminée');
+    }
+  }
+
+  // Passe une date ISO au format attendu par <input type="datetime-local">, en heure LOCALE
+  // (toISOString donnerait de l'UTC, décalant l'heure affichée de plusieurs heures).
+  function toDatetimeLocal(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function startEditSession(session) {
+    setEditingSession({
+      id: session.id,
+      start: toDatetimeLocal(session.start_time),
+      end: toDatetimeLocal(session.end_time),
+    });
+  }
+
+  async function handleSaveSession(e) {
+    e.preventDefault();
+    if (!editingSession) return;
+    try {
+      await taskService.updateTimelogEntry(editingSession.id, {
+        start_time: editingSession.start,
+        end_time: editingSession.end,
+      });
+      setEditingSession(null);
+      notifySuccess('Session corrigée');
+      await loadData();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Correction impossible');
+    }
+  }
+
+  async function handleDeleteSession(session) {
+    if (!window.confirm('Supprimer cette session de chrono ?\n\nLe temps correspondant sera retiré du total.')) return;
+    try {
+      await taskService.deleteTimelogEntry(session.id);
+      notifySuccess('Session supprimée');
+      await loadData();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Suppression impossible');
     }
   }
 
@@ -759,20 +806,79 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                         <th>Début</th>
                         <th>Fin</th>
                         <th>Durée</th>
+                        {isAdmin && <th className="tk-session-actions-col" />}
                       </tr>
                     </thead>
                     <tbody>
                       {visibleHistory.map((session, index) => (
-                        <tr key={index}>
+                        <tr key={session.id || index}>
                           <td>{session.employee_name || '—'}</td>
                           <td>{formatDateTime(session.start_time)}</td>
                           <td>{session.end_time ? formatDateTime(session.end_time) : 'en cours'}</td>
                           <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
+                          {isAdmin && (
+                            <td className="tk-session-actions-col">
+                              {/* Une session encore en cours n'a pas de fin à corriger :
+                                  on l'arrête d'abord depuis le chrono. */}
+                              {session.end_time && session.id && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="icon-link-btn"
+                                    onClick={() => startEditSession(session)}
+                                    aria-label="Corriger cette session"
+                                    title="Corriger les heures"
+                                  >
+                                    <IconPencil />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="icon-link-btn icon-link-btn--danger"
+                                    onClick={() => handleDeleteSession(session)}
+                                    aria-label="Supprimer cette session"
+                                    title="Supprimer la session"
+                                  >
+                                    <IconTrash />
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {editingSession && (
+                  <form className="manual-time-form tk-session-edit" onSubmit={handleSaveSession}>
+                    <p className="manual-time-hint">Corriger les heures de cette session :</p>
+                    <label>
+                      Début
+                      <input
+                        type="datetime-local"
+                        value={editingSession.start}
+                        onChange={(e) => setEditingSession((c) => ({ ...c, start: e.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Fin
+                      <input
+                        type="datetime-local"
+                        value={editingSession.end}
+                        onChange={(e) => setEditingSession((c) => ({ ...c, end: e.target.value }))}
+                        required
+                      />
+                    </label>
+                    <div className="tk-session-edit-actions">
+                      <button type="button" className="btn-outline" onClick={() => setEditingSession(null)}>
+                        Annuler
+                      </button>
+                      <button type="submit" className="btn-primary">Enregistrer</button>
+                    </div>
+                  </form>
+                )}
+
                 {sortedHistory.length > HISTORY_PREVIEW && (
                   <button
                     type="button"

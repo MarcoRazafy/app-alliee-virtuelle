@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import * as userService from '../../services/userService';
 import * as avatarService from '../../services/avatarService';
@@ -20,6 +20,7 @@ import {
   IconExternalLink,
   IconCalendarWeek,
   IconTrash,
+  IconPencil,
   IconTrendingUp,
 } from '../../components/icons';
 import EvaluationSection from '../../components/admin/EvaluationSection';
@@ -224,6 +225,8 @@ function AdminUserProfile() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [attendance, setAttendance] = useState(null);
+  const [sessions, setSessions] = useState([]); // sessions brutes, pour correction admin
+  const [editingSession, setEditingSession] = useState(null);
   const [dailyToday, setDailyToday] = useState(null);
   // Planning / disponibilités déclarées.
   const [plannings, setPlannings] = useState([]);
@@ -268,6 +271,19 @@ function AdminUserProfile() {
       .then(setAttendance)
       .catch(() => setAttendance(null));
   }, [id, currentRange]);
+
+  // Sessions brutes de la période : permettent de corriger une déconnexion oubliée.
+  const loadSessions = useCallback(() => {
+    if (!currentRange) return;
+    sessionService
+      .getUserSessionsAdmin(id, currentRange)
+      .then((data) => setSessions(Array.isArray(data) ? data : []))
+      .catch(() => setSessions([]));
+  }, [id, currentRange]);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   // Plannings (semaines) déclarés par l'employé, du plus récent au plus ancien.
   useEffect(() => {
@@ -402,6 +418,49 @@ function AdminUserProfile() {
     if (taskTab === 'done') return tasks.filter((t) => t.status === 'TERMINEE' || t.status === 'CONFIRMEE');
     return tasks;
   }, [tasks, taskTab, todayYMD]);
+
+  // --- Correction du temps de connexion (déconnexion oubliée) ---
+  function toDatetimeLocal(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  async function saveSession(e) {
+    e.preventDefault();
+    if (!editingSession) return;
+    try {
+      await sessionService.updateUserSessionAdmin(editingSession.id, {
+        login_at: new Date(editingSession.login).toISOString(),
+        logout_at: editingSession.logout ? new Date(editingSession.logout).toISOString() : null,
+      });
+      setEditingSession(null);
+      notifySuccess('Session corrigée');
+      loadSessions();
+      // Le temps de connexion affiché plus haut est recalculé côté serveur : on le recharge.
+      if (currentRange) {
+        planningService.getAdminAttendanceStats(id, currentRange).then(setAttendance).catch(() => {});
+      }
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Correction impossible');
+    }
+  }
+
+  async function removeSession(session) {
+    if (!window.confirm('Supprimer cette session de connexion ?\n\nElle sera retirée du temps de connexion.')) return;
+    try {
+      await sessionService.deleteUserSessionAdmin(session.id);
+      notifySuccess('Session supprimée');
+      loadSessions();
+      if (currentRange) {
+        planningService.getAdminAttendanceStats(id, currentRange).then(setAttendance).catch(() => {});
+      }
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Suppression impossible');
+    }
+  }
 
   const paginatedTasks = useMemo(
     () => visibleTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage),
@@ -895,6 +954,92 @@ function AdminUserProfile() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Sessions de connexion : corrigeables, car un employé oublie parfois de se
+                déconnecter et sa session couvre alors la nuit entière. */}
+            {sessions.length > 0 && (
+              <div className="aup-sessions">
+                <p className="aup-sessions-title">Sessions de connexion</p>
+                <div className="task-table-wrap">
+                  <table className="task-table">
+                    <thead>
+                      <tr>
+                        <th>Connexion</th>
+                        <th>Déconnexion</th>
+                        <th>Durée</th>
+                        <th className="aup-sessions-actions" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessions.map((sess) => (
+                        <tr key={sess.id}>
+                          <td>{formatDateTime(sess.login_at)}</td>
+                          <td>{sess.logout_at ? formatDateTime(sess.logout_at) : 'en cours'}</td>
+                          <td>{formatMinutes(Math.round((sess.duration_seconds || 0) / 60))}</td>
+                          <td className="aup-sessions-actions">
+                            <button
+                              type="button"
+                              className="icon-link-btn"
+                              onClick={() =>
+                                setEditingSession({
+                                  id: sess.id,
+                                  login: toDatetimeLocal(sess.login_at),
+                                  logout: toDatetimeLocal(sess.logout_at),
+                                })
+                              }
+                              aria-label="Corriger cette session"
+                              title="Corriger les heures"
+                            >
+                              <IconPencil />
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-link-btn icon-link-btn--danger"
+                              onClick={() => removeSession(sess)}
+                              aria-label="Supprimer cette session"
+                              title="Supprimer la session"
+                            >
+                              <IconTrash />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {editingSession && (
+                  <form className="aup-session-edit" onSubmit={saveSession}>
+                    <label>
+                      Connexion
+                      <input
+                        type="datetime-local"
+                        className="aup-month-input"
+                        value={editingSession.login}
+                        onChange={(e) => setEditingSession((c) => ({ ...c, login: e.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Déconnexion
+                      <input
+                        type="datetime-local"
+                        className="aup-month-input"
+                        value={editingSession.logout}
+                        onChange={(e) => setEditingSession((c) => ({ ...c, logout: e.target.value }))}
+                      />
+                      <small>Laisser vide si la session est encore ouverte.</small>
+                    </label>
+                    <div className="aup-session-edit-actions">
+                      <button type="button" className="btn-outline" onClick={() => setEditingSession(null)}>
+                        Annuler
+                      </button>
+                      <button type="submit" className="btn-primary">Enregistrer</button>
+                    </div>
+                  </form>
+                )}
               </div>
             )}
           </>
