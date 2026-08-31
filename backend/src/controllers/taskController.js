@@ -999,6 +999,17 @@ async function uploadAttachment(req, res, next) {
       return res.status(400).json({ error: 'Fichier requis' });
     }
 
+    // Pièce jointe postée depuis un commentaire : on rattache le fichier à ce commentaire,
+    // après avoir vérifié qu'il appartient bien à CETTE tâche (sinon un fichier pourrait être
+    // greffé sur la discussion d'une autre tâche).
+    let commentId = req.body?.comment_id || null;
+    if (commentId) {
+      const comment = await taskModel.findCommentById(commentId);
+      if (!comment || comment.task_id !== id) {
+        return res.status(400).json({ error: 'Commentaire introuvable pour cette tâche' });
+      }
+    }
+
     const attachment = await taskModel.createAttachment({
       taskId: id,
       fileName: req.file.originalname,
@@ -1006,6 +1017,7 @@ async function uploadAttachment(req, res, next) {
       fileSize: req.file.size,
       fileType: req.file.mimetype,
       uploadedBy: req.user.id,
+      commentId,
     });
 
     res.status(201).json(attachment);

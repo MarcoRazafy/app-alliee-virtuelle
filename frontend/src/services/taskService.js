@@ -159,9 +159,12 @@ export function getAttachments(taskId) {
   return api.get(`/api/tasks/${taskId}/attachments`).then((res) => res.data);
 }
 
-export function uploadAttachment(taskId, file) {
+// `commentId` (optionnel) rattache le fichier à un commentaire : il s'affiche alors dans la
+// bulle du message, en plus de rester listé dans les pièces jointes de la tâche.
+export function uploadAttachment(taskId, file, commentId = null) {
   const formData = new FormData();
   formData.append('file', file);
+  if (commentId) formData.append('comment_id', commentId);
   return api
     .post(`/api/tasks/${taskId}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
     .then((res) => res.data);

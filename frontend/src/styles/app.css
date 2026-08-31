@@ -2540,3 +2540,115 @@
   flex-wrap: wrap;
   gap: 2px 6px;
 }
+
+/* --- Pièces jointes dans les commentaires de tâche --- */
+
+/* Bouton trombone du composeur (input fichier masqué derrière le label). */
+.cmt-attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--input-bg, var(--color-bg-secondary));
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.cmt-attach:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.cmt-attach svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Fichier choisi, en attente d'envoi avec le message. */
+.cmt-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+  font-size: 12.5px;
+  color: var(--color-text-primary);
+}
+.cmt-pending > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+.cmt-pending-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.cmt-pending-remove:hover {
+  background: color-mix(in srgb, var(--color-error) 16%, transparent);
+  color: var(--color-error);
+}
+.cmt-pending-remove svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Fichiers affichés dans la bulle d'un message (cliquables pour télécharger). */
+.cmt-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.cmt-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--glass-overlay);
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.cmt-file:hover {
+  border-color: var(--color-accent);
+}
+.cmt-file > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+.cmt-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmt-file-size {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
