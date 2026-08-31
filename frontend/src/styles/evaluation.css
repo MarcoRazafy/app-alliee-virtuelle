@@ -644,3 +644,64 @@
   border-radius: 8px;
   background: var(--glass-overlay);
 }
+
+/* En-tête devenu statique : les 4 critères ne se replient plus. */
+.eval-section-toggle--static {
+  cursor: default;
+}
+/* Qui a rempli l'évaluation du mois affiché. */
+.eval-author {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent-lighter, var(--color-accent));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Repli du bloc « Développement & évolution » (les critères restent visibles). */
+.eval-dev-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 2px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: 12px;
+  background: var(--glass-overlay);
+  font-family: var(--font-family);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.eval-dev-toggle:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+.eval-dev-toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.eval-dev-toggle-summary {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Auteur d'une remarque, sur la barre colorée : lisible sans voler la vedette au texte. */
+.eval-item-author {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
