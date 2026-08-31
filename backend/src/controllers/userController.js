@@ -217,7 +217,9 @@ async function getUserDetail(req, res, next) {
     const [stats, tasks, recentActivity, avatar, dailySelection] = await Promise.all([
       taskModel.computeEmployeeStats(id),
       taskModel.findTasksForEmployee(id),
-      taskModel.findRecentAuditForUser(id, 10),
+      // 60 entrées : de quoi parcourir un vrai historique dans la fiche (affiché par pages
+      // de 10), sans alourdir la réponse — chaque ligne est courte.
+      taskModel.findRecentAuditForUser(id, 60),
       avatarModel.findByUserId(id),
       taskModel.findDailySelection(id, today),
     ]);
