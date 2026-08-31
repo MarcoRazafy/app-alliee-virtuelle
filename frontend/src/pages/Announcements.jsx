@@ -93,6 +93,7 @@ function Announcements() {
   const [tab, setTab] = useState('all'); // all | unread | important | pinned
   const [sort, setSort] = useState('recent'); // recent | old
   const [search, setSearch] = useState('');
+  const listRef = useRef(null); // cible de « Voir toute l'activité »
 
   const [detailId, setDetailId] = useState(null);
   const [readers, setReaders] = useState({});
@@ -254,6 +255,19 @@ function Announcements() {
   const filePreview = useMemo(() => (form.file ? URL.createObjectURL(form.file) : null), [form.file]);
   useEffect(() => () => filePreview && URL.revokeObjectURL(filePreview), [filePreview]);
 
+  // « Voir toute l'activité » : la liste complète est sur cette même page, mais elle peut
+  // être masquée par un onglet ou une recherche en cours — on remet donc la vue à plat,
+  // puis on y ramène l'utilisateur (sinon le clic paraissait sans effet).
+  function showAllActivity() {
+    setTab('all');
+    setSearch('');
+    setSort('recent');
+    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    });
+  }
+
   function openCreate() {
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -382,7 +396,7 @@ function Announcements() {
         </div>
 
         <div className="ann-layout">
-          <div className="ann-main">
+          <div className="ann-main" ref={listRef}>
             {loading && <div className="ann-empty">Chargement…</div>}
             {!loading && filtered.length === 0 && (
               <div className="ann-empty">
@@ -505,19 +519,27 @@ function Announcements() {
               <ul className="ann-activity">
                 {recentActivity.length === 0 && <li className="ann-activity-empty">Aucune activité.</li>}
                 {recentActivity.map((item) => (
-                  <li key={item.id} className="ann-activity-item">
-                    <span className="ann-activity-bullet" />
-                    <Avatar name={item.author_name} size="sm" src={authorAvatars[item.author_id]} />
-                    <div className="ann-activity-copy">
-                      <strong>{item.author_name || 'Admin'}</strong> a publié
-                      <span>{item.title}</span>
-                    </div>
-                    <time>{timeOnly(item.created_at)}</time>
+                  <li key={item.id}>
+                    {/* Chaque activité ouvre le détail de l'annonce concernée. */}
+                    <button
+                      type="button"
+                      className="ann-activity-item"
+                      onClick={() => openDetail(item.id)}
+                      title={`Ouvrir « ${item.title} »`}
+                    >
+                      <span className="ann-activity-bullet" />
+                      <Avatar name={item.author_name} size="sm" src={authorAvatars[item.author_id]} />
+                      <div className="ann-activity-copy">
+                        <strong>{item.author_name || 'Admin'}</strong> a publié
+                        <span>{item.title}</span>
+                      </div>
+                      <time>{timeOnly(item.created_at)}</time>
+                    </button>
                   </li>
                 ))}
               </ul>
               {recentActivity.length > 0 && (
-                <button type="button" className="ann-activity-all" onClick={() => setTab('all')}>
+                <button type="button" className="ann-activity-all" onClick={showAllActivity}>
                   Voir toute l'activité <IconArrowRight />
                 </button>
               )}
