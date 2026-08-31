@@ -746,3 +746,21 @@ a.aup-info-link:hover {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Navigation de l'activité récente : compacte, pour tenir dans la colonne de 340 px
+   (les boutons numérotés du composant Pagination partagé y déborderaient). */
+.aup-activity-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+.aup-activity-count {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}

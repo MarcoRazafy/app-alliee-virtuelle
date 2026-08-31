@@ -217,6 +217,7 @@ function AdminUserProfile() {
   const [taskTab, setTaskTab] = useState('all');
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [activityPage, setActivityPage] = useState(1);
   const [busy, setBusy] = useState(false);
   // Phase 2 : présence (filtrable par période), daily du jour.
   const [period, setPeriod] = useState('month');
@@ -412,6 +413,20 @@ function AdminUserProfile() {
   useEffect(() => {
     setPage(1);
   }, [taskTab, id]);
+
+  // Activité récente : paginée par 10 dans la colonne latérale. Contrôles volontairement
+  // compacts (précédent / suivant) — les boutons numérotés du composant partagé
+  // déborderaient d'une colonne de 340 px dès qu'il y a plusieurs pages.
+  const ACTIVITY_PER_PAGE = 10;
+  const activity = detail?.recent_activity || []; // `detail` est encore null pendant le chargement
+  const activityPages = Math.max(1, Math.ceil(activity.length / ACTIVITY_PER_PAGE));
+  const pagedActivity = activity.slice(
+    (activityPage - 1) * ACTIVITY_PER_PAGE,
+    activityPage * ACTIVITY_PER_PAGE
+  );
+  useEffect(() => {
+    setActivityPage(1);
+  }, [id]);
 
   const statusSegments = useMemo(
     () => STATUS_SEG.map((s) => ({ ...s, value: tasks.filter((t) => t.status === s.key).length })),
@@ -712,21 +727,47 @@ function AdminUserProfile() {
               sous les notes au lieu de s'ajouter à une colonne gauche déjà très longue. */}
           <div className="side-card">
             <p className="side-card-title">Activité récente</p>
-            {(detail.recent_activity || []).length === 0 ? (
+            {activity.length === 0 ? (
               <div className="empty-state">Aucune activité récente.</div>
             ) : (
-              <ul className="aup-activity">
-                {detail.recent_activity.map((a, i) => (
-                  <li key={i} className="aup-activity-item">
-                    <span className="aup-activity-dot" />
-                    <div className="aup-activity-body">
-                      <span className="aup-activity-action">{ACTION_LABEL[a.action] || a.action}</span>
-                      {a.task_title && <span className="aup-activity-target"> · {a.task_title}</span>}
-                      <span className="aup-activity-time">{formatDateTime(a.timestamp)}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="aup-activity">
+                  {pagedActivity.map((a, i) => (
+                    <li key={(activityPage - 1) * ACTIVITY_PER_PAGE + i} className="aup-activity-item">
+                      <span className="aup-activity-dot" />
+                      <div className="aup-activity-body">
+                        <span className="aup-activity-action">{ACTION_LABEL[a.action] || a.action}</span>
+                        {a.task_title && <span className="aup-activity-target"> · {a.task_title}</span>}
+                        <span className="aup-activity-time">{formatDateTime(a.timestamp)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {activityPages > 1 && (
+                  <div className="aup-activity-nav">
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                      disabled={activityPage === 1}
+                    >
+                      Précédent
+                    </button>
+                    <span className="aup-activity-count">
+                      {activityPage} / {activityPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setActivityPage((p) => Math.min(activityPages, p + 1))}
+                      disabled={activityPage === activityPages}
+                    >
+                      Suivant
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </aside>
