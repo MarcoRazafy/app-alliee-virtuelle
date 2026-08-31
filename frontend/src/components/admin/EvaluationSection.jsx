@@ -92,8 +92,15 @@ function formFromEvaluation(ev) {
   f.visible_to_employee = Boolean(ev.visible_to_employee);
   f.global_comment = ev.global_comment || '';
   for (const itemsKey of ITEM_KEYS) {
+    // On conserve l'auteur : le serveur ne réattribue que les remarques qui n'en ont pas,
+    // donc perdre le champ ici ferait basculer la paternité sur le dernier éditeur.
     f[itemsKey] = Array.isArray(ev[itemsKey])
-      ? ev[itemsKey].map((it) => ({ rating: it.rating, comment: it.comment || '' }))
+      ? ev[itemsKey].map((it) => ({
+          rating: it.rating,
+          comment: it.comment || '',
+          author_id: it.author_id || null,
+          author_name: it.author_name || null,
+        }))
       : [];
   }
   for (const { key } of TEXT_FIELDS) f[key] = ev[key] || '';
@@ -109,10 +116,11 @@ export default function EvaluationSection({ userId }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [devOpen, setDevOpen] = useState(false); // seul le bloc « développement » se replie
   const [dirty, setDirty] = useState(false);
 
   const evaluatedMonths = useMemo(() => new Set(history.map((h) => h.month)), [history]);
+  const currentEvaluation = useMemo(() => history.find((h) => h.month === month), [history, month]);
 
   // Toute modification passe par ici → marque la saisie comme non enregistrée.
   const updateForm = useCallback((updater) => {
@@ -199,26 +207,22 @@ export default function EvaluationSection({ userId }) {
   const showHistory = history.length > 1 || (history.length === 1 && history[0].month !== month);
 
   return (
-    <section className={`side-card eval-section${open ? ' eval-section--open' : ''}`}>
+    <section className="side-card eval-section eval-section--open">
       <div className="eval-section-head">
-        <button
-          type="button"
-          className="eval-section-toggle"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-        >
-          <span className={`eval-chevron${open ? ' eval-chevron--open' : ''}`}>
-            <IconChevronDown />
-          </span>
+        <div className="eval-section-toggle eval-section-toggle--static">
           <span className="eval-section-heading">
             <span className="eval-eyebrow">Évaluation mensuelle</span>
             <span className="eval-section-title">{monthLabel(month)}</span>
           </span>
           <span className="eval-summary">
+            {/* Qui a rempli ce mois : utile dès qu'il y a plusieurs administrateurs. */}
+            {currentEvaluation?.updated_by_name && (
+              <span className="eval-author">Évaluée par {currentEvaluation.updated_by_name}</span>
+            )}
             {summary}
             {dirty && <span className="eval-dirty-dot" title="Modifications non enregistrées" />}
           </span>
-        </button>
+        </div>
 
         <div className="eval-monthnav">
           <button
@@ -242,8 +246,7 @@ export default function EvaluationSection({ userId }) {
         </div>
       </div>
 
-      {open && (
-        <>
+      <>
           {showHistory && (
             <div className="eval-history">
               {history.map((h) => (
@@ -304,6 +307,11 @@ export default function EvaluationSection({ userId }) {
                                 rows={1}
                               />
                             </span>
+                            {item.author_name && (
+                              <span className="eval-item-author" title={`Écrit par ${item.author_name}`}>
+                                {item.author_name}
+                              </span>
+                            )}
                             <button
                               type="button"
                               className="eval-item-remove"
@@ -324,7 +332,26 @@ export default function EvaluationSection({ userId }) {
                 })}
               </div>
 
-              {/* Développement & évolution */}
+              {/* Développement & évolution : repliable, contrairement aux 4 critères
+                  ci-dessus qui restent toujours à l'écran. */}
+              <button
+                type="button"
+                className="eval-dev-toggle"
+                onClick={() => setDevOpen((v) => !v)}
+                aria-expanded={devOpen}
+              >
+                <span className={`eval-chevron${devOpen ? ' eval-chevron--open' : ''}`}>
+                  <IconChevronDown />
+                </span>
+                <span className="eval-dev-toggle-label">Développement &amp; évolution</span>
+                <span className="eval-dev-toggle-summary">
+                  {filledDevFields}/7 champs
+                  {(form.global_comment || '').trim() ? ' · commentaire global' : ''}
+                </span>
+              </button>
+
+              {devOpen && (
+                <>
               <div className="eval-dev">
                 {TEXT_FIELDS.map(({ key, label, placeholder }) => (
                   <div className="eval-dev-field" key={key}>
@@ -358,6 +385,9 @@ export default function EvaluationSection({ userId }) {
                 />
               </div>
 
+                </>
+              )}
+
               <div className="eval-section-footer">
                 <label className="eval-visibility">
                   <input
@@ -380,7 +410,6 @@ export default function EvaluationSection({ userId }) {
             </>
           )}
         </>
-      )}
     </section>
   );
 }

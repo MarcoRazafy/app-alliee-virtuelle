@@ -224,7 +224,7 @@ const EVALUATION_COLUMNS = `id, user_id, to_char(period_month, 'YYYY-MM') AS mon
   delais_items, qualite_items, autonomie_items, adaptabilite_items,
   forces_actuelles, competences_ameliorer, competences_developper, objectifs_professionnels,
   formations_recommandees, nouvelles_responsabilites, prochaine_etape,
-  created_by, created_at, updated_at`;
+  created_by, created_at, updated_at, updated_by`;
 
 // Champs texte libre « développement / carrière » de l'évaluation.
 const EVALUATION_TEXT_FIELDS = [
@@ -237,6 +237,36 @@ const EVALUATION_TEXT_FIELDS = [
   'prochaine_etape',
 ];
 
+const EVALUATION_ITEM_KEYS = ['delais_items', 'qualite_items', 'autonomie_items', 'adaptabilite_items'];
+
+// Les remarques portent l'id de leur auteur (dans le JSONB) : on résout les noms en une seule
+// requête, plutôt que de figer le nom au moment de l'écriture (il suivrait alors mal un
+// changement d'identité) ou d'imposer un appel par remarque côté client.
+async function attachAuthorNames(rows) {
+  const ids = new Set();
+  rows.forEach((row) => {
+    EVALUATION_ITEM_KEYS.forEach((key) => {
+      (row[key] || []).forEach((item) => item?.author_id && ids.add(item.author_id));
+    });
+    if (row.updated_by) ids.add(row.updated_by);
+  });
+  if (ids.size === 0) return rows;
+
+  const names = await db.query('SELECT id, full_name FROM users WHERE id = ANY($1::uuid[])', [[...ids]]);
+  const byId = new Map(names.rows.map((u) => [u.id, u.full_name]));
+
+  return rows.map((row) => {
+    const next = { ...row, updated_by_name: byId.get(row.updated_by) || null };
+    EVALUATION_ITEM_KEYS.forEach((key) => {
+      next[key] = (row[key] || []).map((item) => ({
+        ...item,
+        author_name: item?.author_id ? byId.get(item.author_id) || null : null,
+      }));
+    });
+    return next;
+  });
+}
+
 // Toutes les évaluations d'un employé, du mois le plus récent au plus ancien (vue admin, complète).
 async function listEvaluations(userId) {
   const result = await db.query(
@@ -244,7 +274,7 @@ async function listEvaluations(userId) {
       WHERE user_id = $1 ORDER BY period_month DESC`,
     [userId]
   );
-  return result.rows;
+  return attachAuthorNames(result.rows);
 }
 
 // Une évaluation précise (mois = 'YYYY-MM'), ou null.
@@ -264,11 +294,11 @@ async function upsertEvaluation(userId, month, createdBy, data) {
     `INSERT INTO employee_evaluations (
        user_id, period_month, visible_to_employee, global_comment,
        delais_items, qualite_items, autonomie_items, adaptabilite_items,
-       created_by,
+       created_by, updated_by,
        forces_actuelles, competences_ameliorer, competences_developper, objectifs_professionnels,
        formations_recommandees, nouvelles_responsabilites, prochaine_etape,
        updated_at
-     ) VALUES ($1, to_date($2, 'YYYY-MM'), $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9,
+     ) VALUES ($1, to_date($2, 'YYYY-MM'), $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9, $9,
        $10, $11, $12, $13, $14, $15, $16, now())
      ON CONFLICT (user_id, period_month) DO UPDATE SET
        visible_to_employee = EXCLUDED.visible_to_employee,
@@ -277,6 +307,7 @@ async function upsertEvaluation(userId, month, createdBy, data) {
        qualite_items = EXCLUDED.qualite_items,
        autonomie_items = EXCLUDED.autonomie_items,
        adaptabilite_items = EXCLUDED.adaptabilite_items,
+       updated_by = EXCLUDED.updated_by,
        forces_actuelles = EXCLUDED.forces_actuelles,
        competences_ameliorer = EXCLUDED.competences_ameliorer,
        competences_developper = EXCLUDED.competences_developper,
@@ -315,6 +346,7 @@ async function listEvaluationsForEmployee(userId) {
         global_comment: r.global_comment,
         visible_to_employee: r.visible_to_employee,
         updated_at: r.updated_at,
+        updated_by_name: r.updated_by_name || null,
       };
       if (!r.visible_to_employee) return { ...base, criteria_hidden: true };
       const extra = {};

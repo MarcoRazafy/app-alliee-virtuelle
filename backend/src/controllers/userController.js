@@ -291,6 +291,7 @@ async function deleteUserNote(req, res, next) {
 const EVAL_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const EVAL_RATINGS = ['good', 'bad'];
 const EVAL_MAX_ITEMS = 30; // garde-fou par critère
+const UUID_RE = /^[0-9a-fA-F-]{36}$/;
 // Champs texte libre « développement / carrière » de l'évaluation.
 const EVAL_TEXT_FIELDS = [
   'forces_actuelles',
@@ -311,11 +312,18 @@ function cleanComment(value, max) {
 
 // Normalise une liste de remarques d'un critère : [{ rating: 'good'|'bad', comment }].
 // On ignore les entrées sans note valide OU sans commentaire.
-function cleanItems(value) {
+// `authorId` = rédacteur courant. Une remarque déjà enregistrée conserve son auteur d'origine ;
+// seules les nouvelles lui sont attribuées, sinon un simple ré-enregistrement réécrirait la
+// paternité de tout le mois au nom du dernier admin passé dessus.
+function cleanItems(value, authorId) {
   if (!Array.isArray(value)) return [];
   return value
     .filter((it) => it && EVAL_RATINGS.includes(it.rating))
-    .map((it) => ({ rating: it.rating, comment: cleanComment(it.comment, 2000) }))
+    .map((it) => ({
+      rating: it.rating,
+      comment: cleanComment(it.comment, 2000),
+      author_id: UUID_RE.test(it.author_id || '') ? it.author_id : authorId,
+    }))
     .filter((it) => it.comment)
     .slice(0, EVAL_MAX_ITEMS);
 }
@@ -346,10 +354,10 @@ async function upsertUserEvaluation(req, res, next) {
     const data = {
       visible_to_employee: Boolean(b.visible_to_employee),
       global_comment: cleanComment(b.global_comment, 4000),
-      delais_items: cleanItems(b.delais_items),
-      qualite_items: cleanItems(b.qualite_items),
-      autonomie_items: cleanItems(b.autonomie_items),
-      adaptabilite_items: cleanItems(b.adaptabilite_items),
+      delais_items: cleanItems(b.delais_items, req.user.id),
+      qualite_items: cleanItems(b.qualite_items, req.user.id),
+      autonomie_items: cleanItems(b.autonomie_items, req.user.id),
+      adaptabilite_items: cleanItems(b.adaptabilite_items, req.user.id),
     };
     // Champs libres « développement / carrière ».
     for (const f of EVAL_TEXT_FIELDS) data[f] = cleanComment(b[f], 4000);
