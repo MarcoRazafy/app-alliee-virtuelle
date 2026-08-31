@@ -414,10 +414,10 @@ function AdminUserProfile() {
     setPage(1);
   }, [taskTab, id]);
 
-  // Activité récente : paginée par 10 dans la colonne latérale. Contrôles volontairement
+  // Activité récente : paginée par 5 dans la colonne latérale. Contrôles volontairement
   // compacts (précédent / suivant) — les boutons numérotés du composant partagé
   // déborderaient d'une colonne de 340 px dès qu'il y a plusieurs pages.
-  const ACTIVITY_PER_PAGE = 10;
+  const ACTIVITY_PER_PAGE = 5;
   const activity = detail?.recent_activity || []; // `detail` est encore null pendant le chargement
   const activityPages = Math.max(1, Math.ceil(activity.length / ACTIVITY_PER_PAGE));
   const pagedActivity = activity.slice(
