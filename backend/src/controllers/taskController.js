@@ -1045,6 +1045,11 @@ async function deleteAttachment(req, res, next) {
     if (!task || !canAccessTask(task, req.user)) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
+    // Les employés assignés peuvent déposer des livrables : on s'assure qu'ils ne retirent
+    // que les leurs, pour qu'un fichier déposé par un collègue ou l'admin reste intact.
+    if (req.user.role !== 'ADMIN' && attachment.uploaded_by !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez supprimer que les fichiers que vous avez envoyés.' });
+    }
 
     await taskModel.deleteAttachment(fileId);
     fs.unlink(attachment.file_path, () => {});
