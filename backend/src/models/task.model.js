@@ -467,7 +467,10 @@ async function findComments(taskId, { onlyType } = {}) {
 
   const result = await db.query(
     `SELECT c.id, c.content, c.type, c.is_visible_to_employee, c.created_at, c.author_id, u.full_name AS author_name,
-            EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = c.author_id) AS has_avatar
+            EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = c.author_id) AS has_avatar,
+            COALESCE((SELECT json_agg(json_build_object('id', a.id, 'file_name', a.file_name,
+                        'file_size', a.file_size, 'file_type', a.file_type) ORDER BY a.created_at)
+                      FROM task_attachments a WHERE a.comment_id = c.id), '[]') AS attachments
      FROM task_comments c
      JOIN users u ON u.id = c.author_id
      WHERE ${conditions.join(' AND ')}
@@ -506,12 +509,18 @@ async function findAttachmentById(attachmentId) {
   return result.rows[0] || null;
 }
 
-async function createAttachment({ taskId, fileName, filePath, fileSize, fileType, uploadedBy }) {
+// Utilisé pour vérifier qu'un commentaire cible appartient bien à la tâche visée.
+async function findCommentById(commentId) {
+  const result = await db.query('SELECT id, task_id, author_id FROM task_comments WHERE id = $1', [commentId]);
+  return result.rows[0] || null;
+}
+
+async function createAttachment({ taskId, fileName, filePath, fileSize, fileType, uploadedBy, commentId = null }) {
   const result = await db.query(
-    `INSERT INTO task_attachments (task_id, file_name, file_path, file_size, file_type, uploaded_by)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, file_name, file_size, file_type, created_at, uploaded_by`,
-    [taskId, fileName, filePath, fileSize, fileType, uploadedBy]
+    `INSERT INTO task_attachments (task_id, file_name, file_path, file_size, file_type, uploaded_by, comment_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id, file_name, file_size, file_type, created_at, uploaded_by, comment_id`,
+    [taskId, fileName, filePath, fileSize, fileType, uploadedBy, commentId]
   );
   return result.rows[0];
 }
@@ -757,6 +766,7 @@ module.exports = {
   replaceDailySelection,
   findComments,
   createComment,
+  findCommentById,
   findAttachments,
   findAttachmentById,
   createAttachment,

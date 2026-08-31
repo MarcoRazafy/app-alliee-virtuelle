@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import * as taskService from '../services/taskService';
 import * as avatarService from '../services/avatarService';
-import { formatDateTime } from '../utils/formatters';
+import { formatDateTime, formatBytes } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
+import { IconPaperclip, IconX, IconFileText, IconDownload } from './icons';
+
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // aligné sur la limite serveur (config/upload.js)
 
 function initialsOf(name) {
   return (
@@ -34,6 +37,7 @@ function CommentSection({ taskId }) {
   const [content, setContent] = useState('');
   const [asNote, setAsNote] = useState(false);
   const [sending, setSending] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
   const [avatarUrls, setAvatarUrls] = useState({}); // author_id → objectURL de la photo
 
   const load = useCallback(async () => {
@@ -91,18 +95,57 @@ function CommentSection({ taskId }) {
   }, [items]);
 
   async function submit() {
-    if (!content.trim() || sending) return;
+    // Un fichier seul (sans texte) est un envoi valide : on ne bloque plus sur le contenu.
+    if ((!content.trim() && !pendingFile) || sending) return;
     setSending(true);
     try {
-      if (isAdmin && asNote) await taskService.createNote(taskId, content);
-      else await taskService.createComment(taskId, content);
+      const created =
+        isAdmin && asNote
+          ? await taskService.createNote(taskId, content || pendingFile.name)
+          : await taskService.createComment(taskId, content || pendingFile.name);
+
+      // La pièce jointe part APRÈS : elle doit référencer l'identifiant du message.
+      if (pendingFile) {
+        try {
+          await taskService.uploadAttachment(taskId, pendingFile, created?.id);
+        } catch (err) {
+          notifyError(err.response?.data?.error || "Le message est envoyé, mais pas le fichier.");
+        }
+      }
+
       setContent('');
       setAsNote(false);
+      setPendingFile(null);
       await load();
     } catch (err) {
       notifyError(err.response?.data?.error || "Impossible d'envoyer le message");
     } finally {
       setSending(false);
+    }
+  }
+
+  function pickFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // permet de re-choisir le même fichier après un retrait
+    if (!file) return;
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      notifyError('Fichier trop volumineux (5 Mo maximum).');
+      return;
+    }
+    setPendingFile(file);
+  }
+
+  async function downloadAttachment(attachment) {
+    try {
+      const blob = await taskService.downloadAttachment(attachment.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.file_name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      notifyError('Téléchargement impossible');
     }
   }
 
@@ -128,6 +171,24 @@ function CommentSection({ taskId }) {
                   <span className="cmt-time">{formatDateTime(it.created_at)}</span>
                 </div>
                 <p className="cmt-content">{it.content}</p>
+                {(it.attachments || []).length > 0 && (
+                  <div className="cmt-files">
+                    {it.attachments.map((att) => (
+                      <button
+                        type="button"
+                        key={att.id}
+                        className="cmt-file"
+                        onClick={() => downloadAttachment(att)}
+                        title={`Télécharger ${att.file_name}`}
+                      >
+                        <IconFileText />
+                        <span className="cmt-file-name">{att.file_name}</span>
+                        {att.file_size ? <span className="cmt-file-size">{formatBytes(att.file_size)}</span> : null}
+                        <IconDownload />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -154,14 +215,34 @@ function CommentSection({ taskId }) {
             }
           }}
         />
+        {pendingFile && (
+          <div className="cmt-pending">
+            <IconFileText />
+            <span className="cmt-file-name">{pendingFile.name}</span>
+            <span className="cmt-file-size">{formatBytes(pendingFile.size)}</span>
+            <button
+              type="button"
+              className="cmt-pending-remove"
+              onClick={() => setPendingFile(null)}
+              aria-label="Retirer le fichier"
+            >
+              <IconX />
+            </button>
+          </div>
+        )}
+
         <div className="cmt-composer-foot">
+          <label className="cmt-attach" title="Joindre un fichier (5 Mo max)">
+            <IconPaperclip />
+            <input type="file" onChange={pickFile} hidden />
+          </label>
           {isAdmin && (
             <label className={`cmt-note-toggle${asNote ? ' cmt-note-toggle--on' : ''}`} title="Visible uniquement par les admins">
               <input type="checkbox" checked={asNote} onChange={(e) => setAsNote(e.target.checked)} />
               Note interne
             </label>
           )}
-          <button type="submit" className="cmt-send" disabled={sending || !content.trim()}>
+          <button type="submit" className="cmt-send" disabled={sending || (!content.trim() && !pendingFile)}>
             <SendIcon />
             <span>{sending ? 'Envoi…' : 'Envoyer'}</span>
           </button>
