@@ -63,6 +63,15 @@ module.exports = {
   // Le frontend envoie un heartbeat toutes les 20 secondes. Après ce délai, une session
   // ouverte sans activité récente n'est plus considérée en ligne ni prolongée indéfiniment.
   presenceHeartbeatTimeoutSeconds: Math.max(45, Number(process.env.PRESENCE_HEARTBEAT_TIMEOUT_SECONDS) || 60),
+  // Délai avant de considérer une session comme ABANDONNÉE (et donc de clôturer le temps
+  // de connexion). Volontairement très supérieur au heartbeat : ce dernier ne sert qu'à
+  // dire « en ligne maintenant ». Les deux étaient confondus à 60 s, ce qui coupait le
+  // temps d'employés bel et bien au travail dès que leur onglet passait en arrière-plan
+  // (les navigateurs y brident les minuteries à 1/minute).
+  sessionAbandonTimeoutSeconds: Math.max(
+    300,
+    Number(process.env.SESSION_ABANDON_TIMEOUT_SECONDS) || 8 * 3600
+  ),
   // pagehide est aussi émis lors d'un simple rechargement. Cette courte tolérance laisse
   // le nouveau document annuler la demande avant de clôturer réellement présence + tâche.
   presenceDisconnectGraceSeconds: Math.max(20, Number(process.env.PRESENCE_DISCONNECT_GRACE_SECONDS) || 30),

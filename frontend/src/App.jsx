@@ -68,10 +68,28 @@ function App() {
     }
     heartbeat();
     const interval = window.setInterval(heartbeat, 20000);
-    window.addEventListener('pagehide', signalSessionDisconnect);
+    // Les navigateurs BRIDENT les minuteries des onglets en arrière-plan (jusqu'à 1/minute) :
+    // le heartbeat de 20 s peut donc s'espacer sans que l'employé ait rien fait. On en renvoie
+    // un immédiatement dès que l'onglet redevient visible, pour rattraper la période bridée.
+    function onVisible() {
+      if (document.visibilityState === 'visible') heartbeat();
+    }
+    // pagehide se déclenche aussi bien à la fermeture qu'au simple passage en arrière-plan
+    // (mobile, changement d'application) : dans ce cas persisted vaut true, la page est mise
+    // en cache et peut revenir telle quelle. Signaler une déconnexion là coupait le temps de
+    // connexion d'un employé qui consultait juste une autre application.
+    function onPageHide(event) {
+      if (event.persisted) return;
+      signalSessionDisconnect();
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener('pagehide', onPageHide);
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener('pagehide', signalSessionDisconnect);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.removeEventListener('pagehide', onPageHide);
     };
   }, []);
 
