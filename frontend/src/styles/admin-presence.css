@@ -101,6 +101,25 @@
 [data-theme='dark'] .pres-date input { color-scheme: dark; }
 [data-theme='light'] .pres-date input { color-scheme: light; }
 
+/* Correction administrative : le menu déroulant natif et le sélecteur de nombre héritaient
+   du thème clair de l'OS, donc des options illisibles (texte sombre sur fond sombre) par-dessus
+   une modale sombre. color-scheme fait peindre ces contrôles natifs dans le bon thème. */
+[data-theme='dark'] .pres-correction-form select,
+[data-theme='dark'] .pres-correction-form input,
+[data-theme='dark'] .pres-correction-form textarea {
+  color-scheme: dark;
+}
+[data-theme='light'] .pres-correction-form select,
+[data-theme='light'] .pres-correction-form input,
+[data-theme='light'] .pres-correction-form textarea {
+  color-scheme: light;
+}
+/* Repli explicite pour les navigateurs qui stylent les <option>. */
+.pres-correction-form select option {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
 /* --- KPIs --- */
 
 .pres-kpi-grid {
