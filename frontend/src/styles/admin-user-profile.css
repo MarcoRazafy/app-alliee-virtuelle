@@ -801,6 +801,29 @@ a.aup-info-link:hover {
   font-weight: 600;
   color: var(--color-text-secondary);
 }
+.aup-session-edit input {
+  min-width: 210px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--input-bg, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: 13.5px;
+}
+.aup-session-edit input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+/* Sélecteur de date natif accordé au thème (sinon rendu clair sur fond sombre). */
+[data-theme='dark'] .aup-session-edit input { color-scheme: dark; }
+[data-theme='light'] .aup-session-edit input { color-scheme: light; }
+/* Actions groupées et compactes sur la ligne. */
+.aup-sessions-actions .icon-link-btn {
+  width: 34px;
+  height: 34px;
+}
 .aup-session-edit small {
   font-weight: 400;
   font-size: 11.5px;

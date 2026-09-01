@@ -852,6 +852,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                 {editingSession && (
                   <form className="manual-time-form tk-session-edit" onSubmit={handleSaveSession}>
                     <p className="manual-time-hint">Corriger les heures de cette session :</p>
+                    <div className="tk-session-edit-fields">
                     <label>
                       Début
                       <input
@@ -870,6 +871,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                         required
                       />
                     </label>
+                    </div>
                     <div className="tk-session-edit-actions">
                       <button type="button" className="btn-outline" onClick={() => setEditingSession(null)}>
                         Annuler
