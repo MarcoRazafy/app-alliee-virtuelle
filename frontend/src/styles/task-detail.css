@@ -655,16 +655,60 @@ button.tk-creator--link:focus-visible .tk-creator-ask {
   white-space: nowrap;
   text-align: right;
 }
+/* Les deux actions restent groupées et alignées à droite de la ligne. */
+.tk-session-actions-col .icon-link-btn {
+  width: 34px;
+  height: 34px;
+}
+.tk-session-actions-col .icon-link-btn + .icon-link-btn {
+  margin-left: 2px;
+}
+
 .tk-session-edit {
   margin-top: 12px;
   border: 1px solid color-mix(in srgb, var(--color-accent) 40%, var(--color-border));
   border-radius: 12px;
-  padding: 14px;
+  padding: 16px;
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
 }
+/* Champs côte à côte, libellé AU-DESSUS de son champ : sans ça les libellés se collaient
+   à l'horizontale contre les champs (« Début[…] Fin[…] »), illisible. */
+.tk-session-edit-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.tk-session-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.tk-session-edit input {
+  min-width: 210px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--input-bg, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: 13.5px;
+}
+.tk-session-edit input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+/* Le sélecteur de date natif (et son icône) suit le thème, sinon il s'affiche en clair
+   sur fond sombre — même correctif que pour les autres champs de date de l'app. */
+[data-theme='dark'] .tk-session-edit input { color-scheme: dark; }
+[data-theme='light'] .tk-session-edit input { color-scheme: light; }
+
 .tk-session-edit-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 14px;
 }
