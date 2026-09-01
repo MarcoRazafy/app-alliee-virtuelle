@@ -2,7 +2,11 @@ const db = require('../config/database');
 const env = require('../config/env');
 const realtime = require('../realtime/io');
 
+// « En ligne maintenant » (pastille verte) : court, c'est un état instantané.
 const STALE_AFTER_SECONDS = env.presenceHeartbeatTimeoutSeconds;
+// Clôture d'une session abandonnée : long. Confondre les deux coupait le temps de connexion
+// d'employés au travail dès que leur onglet passait en arrière-plan.
+const ABANDON_AFTER_SECONDS = env.sessionAbandonTimeoutSeconds;
 const DISCONNECT_GRACE_SECONDS = env.presenceDisconnectGraceSeconds;
 
 // Chrono de connexion (présence) : indépendant du chrono de tâche (table timelog).
@@ -92,47 +96,14 @@ async function expireStaleSessions({ userId = null } = {}) {
        FROM candidates
        WHERE session.id = candidates.id
        RETURNING session.user_id, session.logout_at`,
-      [STALE_AFTER_SECONDS, DISCONNECT_GRACE_SECONDS, userId]
+      [ABANDON_AFTER_SECONDS, DISCONNECT_GRACE_SECONDS, userId]
     );
 
-    let timelogsClosed = 0;
-    for (const expired of expiredResult.rows) {
-      const stoppedResult = await client.query(
-        `UPDATE timelog
-         SET end_time = GREATEST(
-               start_time,
-               $2::timestamptz AT TIME ZONE current_setting('TIMEZONE')
-             ),
-             duration_seconds = GREATEST(
-               0,
-               EXTRACT(EPOCH FROM (
-                 ($2::timestamptz AT TIME ZONE current_setting('TIMEZONE')) - start_time
-               ))::INTEGER
-             )
-         WHERE employee_id = $1 AND end_time IS NULL
-         RETURNING id, task_id, duration_seconds`,
-        [expired.user_id, expired.logout_at]
-      );
-
-      timelogsClosed += stoppedResult.rowCount;
-      for (const stopped of stoppedResult.rows) {
-        await client.query(
-          `INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
-           VALUES ($1, 'AUTO_STOP_TIMELOG_DISCONNECT', 'task', $2, $3::jsonb)`,
-          [
-            expired.user_id,
-            stopped.task_id,
-            JSON.stringify({
-              sessionId: stopped.id,
-              durationSeconds: stopped.duration_seconds,
-              reason: 'presence_heartbeat_expired',
-            }),
-          ]
-        );
-      }
-    }
-
-    return { sessionsClosed: expiredResult.rowCount, timelogsClosed };
+    // NOTE : on n'arrête PLUS le chrono de tâche ici. Le faire punissait un employé au
+    // travail dès qu'un heartbeat manquait, et lui faisait perdre le temps écoulé depuis.
+    // Un chrono ne s'arrête donc que sur action explicite (bouton, ou déconnexion), et un
+    // oubli se corrige depuis « Suivi du temps » de la tâche (admin).
+    return { sessionsClosed: expiredResult.rowCount, timelogsClosed: 0 };
   });
 
   // Des présences se sont réellement fermées (heartbeat expiré / grâce écoulée) →
@@ -171,7 +142,7 @@ async function findSessionsOverlappingRange(userId, rangeStartIso, rangeEndIso) 
             ) AS effective_logout_at,
             (logout_at IS NULL
              AND disconnect_requested_at IS NULL
-             AND COALESCE(last_seen_at, login_at) >= now() - make_interval(secs => $4)) AS is_live
+             AND COALESCE(last_seen_at, login_at) >= now() - make_interval(secs => $5)) AS is_live
      FROM user_sessions
      WHERE user_id = $1
        AND login_at < $3
@@ -184,7 +155,7 @@ async function findSessionsOverlappingRange(userId, rangeStartIso, rangeEndIso) 
              now()
            ) > $2
      ORDER BY login_at ASC`,
-    [userId, rangeStartIso, rangeEndIso, STALE_AFTER_SECONDS]
+    [userId, rangeStartIso, rangeEndIso, ABANDON_AFTER_SECONDS, STALE_AFTER_SECONDS]
   );
   return result.rows;
 }
@@ -204,7 +175,7 @@ async function findSessionsForUsersOverlapping(userIds, rangeStartIso, rangeEndI
             ) AS effective_logout_at,
             (logout_at IS NULL
              AND disconnect_requested_at IS NULL
-             AND COALESCE(last_seen_at, login_at) >= now() - make_interval(secs => $4)) AS is_live
+             AND COALESCE(last_seen_at, login_at) >= now() - make_interval(secs => $5)) AS is_live
      FROM user_sessions
      WHERE user_id = ANY($1::uuid[])
        AND login_at < $3
@@ -217,7 +188,7 @@ async function findSessionsForUsersOverlapping(userIds, rangeStartIso, rangeEndI
              now()
            ) > $2
      ORDER BY login_at ASC`,
-    [userIds, rangeStartIso, rangeEndIso, STALE_AFTER_SECONDS]
+    [userIds, rangeStartIso, rangeEndIso, ABANDON_AFTER_SECONDS, STALE_AFTER_SECONDS]
   );
   return result.rows;
 }
