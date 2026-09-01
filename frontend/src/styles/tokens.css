@@ -160,6 +160,18 @@
   background: transparent;
 }
 
+/* Thème des contrôles NATIFS du navigateur (menus déroulants, sélecteurs de date, cases à
+   cocher, ascenseurs internes). Sans cette déclaration, le navigateur les peint selon le
+   thème du système : en mode sombre, un <select> ouvert affichait des options sombres sur
+   fond clair — illisibles. Posée à la racine, elle vaut pour toute l'application, au lieu
+   d'être rattrapée composant par composant. */
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
 /* Fond global : html + body + #root portent le fond de l'app (selon le thème), pour qu'AUCUNE
    zone blanche du navigateur n'apparaisse quand une page dépasse la hauteur d'écran (modals,
    panneaux latéraux) ou lors du léger rebond de défilement. */
