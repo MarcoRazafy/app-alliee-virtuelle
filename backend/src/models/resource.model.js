@@ -116,7 +116,11 @@ async function updateDocument(id, { fileName, content }) {
 
 async function findFileById(id) {
   const result = await db.query(
-    `SELECT f.*, folder.deleted_at AS folder_deleted_at, u.full_name AS created_by_name
+    // folder.type est indispensable au contrôle d'accès : les routes de lecture sont
+    // ouvertes à tout utilisateur connecté, c'est donc ici qu'on saura si le fichier
+    // appartient à l'espace réservé aux administrateurs.
+    `SELECT f.*, folder.deleted_at AS folder_deleted_at, folder.type AS folder_type,
+            u.full_name AS created_by_name
      FROM resources_files f
      JOIN resources_folders folder ON folder.id = f.folder_id
      JOIN users u ON u.id = f.created_by

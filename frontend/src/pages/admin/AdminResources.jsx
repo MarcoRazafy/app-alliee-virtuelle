@@ -23,6 +23,10 @@ import '../../styles/resources.css';
 const TABS = [
   { value: 'INTERNE', label: 'Interne' },
   { value: 'CLIENT', label: 'Client' },
+  // Espace réservé à l'équipe d'administration : le serveur refuse ce type à un employé
+  // (dossiers, listes de fichiers, aperçu et téléchargement), et la page employé ne
+  // propose pas l'onglet. L'onglet n'existe donc QUE dans cette page admin.
+  { value: 'ADMIN', label: 'Admin' },
 ];
 
 function AdminResources() {

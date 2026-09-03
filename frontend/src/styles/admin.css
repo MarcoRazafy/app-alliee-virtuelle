@@ -1398,6 +1398,30 @@
 .lists-panel--tree {
   position: sticky;
   top: 20px;
+  /* « sticky » ne colle à rien tant que le panneau est plus haut que l'écran : avec beaucoup
+     d'espaces, l'arborescence s'étirait vers le bas et il fallait dérouler toute la page pour
+     atteindre les derniers projets. On borne donc le panneau à la hauteur visible et c'est
+     l'arbre qui défile à l'intérieur. */
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* min-height: 0 est indispensable — sans lui, un enfant flex refuse de rétrécir sous la
+   taille de son contenu et le défilement interne ne s'active jamais. */
+.lists-panel--tree .lists-tree {
+  overflow-y: auto;
+  min-height: 0;
+  /* La barre de défilement se colle au bord du panneau plutôt qu'au texte. */
+  margin-right: -8px;
+  padding-right: 8px;
+}
+
+/* « + Nouvel espace » reste atteignable quelle que soit la position dans l'arbre. */
+.lists-panel--tree .tree-add-root {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .lists-panel-header {
@@ -2977,4 +3001,31 @@
 .create-attach-remove svg {
   width: 14px;
   height: 14px;
+}
+
+/* Photo + nom de l'en-tête du panneau employé : lien vers la fiche complète. Reprend
+   la mise en page de .emp-drawer-head, le lien prenant la place de ses deux premiers
+   enfants — sinon l'avatar et l'identité s'empileraient. */
+.emp-drawer-idlink {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.emp-drawer-idlink:hover {
+  background: var(--glass-overlay);
+}
+.emp-drawer-idlink:hover h2 {
+  color: var(--color-accent-lighter);
+}
+.emp-drawer-idlink:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
 }

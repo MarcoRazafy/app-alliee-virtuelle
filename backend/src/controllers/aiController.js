@@ -6,6 +6,7 @@ const aiModel = require('../models/ai.model');
 const userModel = require('../models/user.model');
 const planningModel = require('../models/planning.model');
 const planningDates = require('../utils/planningDates');
+const { businessDayNow, businessDayShifted } = require('../utils/businessDay');
 const mistral = require('../config/mistral');
 
 const TASK_STATUSES = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
@@ -18,10 +19,7 @@ function weekdayFr(dateString) {
 }
 
 function defaultRange() {
-  const to = new Date().toISOString().slice(0, 10);
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - 30);
-  return { from: fromDate.toISOString().slice(0, 10), to };
+  return { from: businessDayShifted(-30), to: businessDayNow() };
 }
 
 // Agrège les tâches par employé et par statut (comptes compacts, pas de dump brut).

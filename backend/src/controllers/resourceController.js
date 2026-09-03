@@ -6,7 +6,18 @@ const resourceModel = require('../models/resource.model');
 const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
 
-const FOLDER_TYPES = ['INTERNE', 'CLIENT'];
+const FOLDER_TYPES = ['INTERNE', 'CLIENT', 'ADMIN'];
+
+// Espace « Admin » : ressources internes à l'équipe d'administration, qu'un employé ne doit
+// jamais voir. Attention, les routes de LECTURE des ressources sont ouvertes à tout
+// utilisateur connecté (seule l'écriture exige requireAdmin) : la confidentialité repose
+// donc entièrement sur ce filtre, appliqué au dossier ET à chaque fichier servi.
+const ADMIN_ONLY_FOLDER_TYPES = new Set(['ADMIN']);
+
+function canReadFolderType(type, user) {
+  if (!ADMIN_ONLY_FOLDER_TYPES.has(type)) return true;
+  return user?.role === 'ADMIN';
+}
 const PERMISSION_TYPES = ['LECTURE_SEULE', 'LECTURE_ECRITURE'];
 
 // Étiquette courte lisible (ex: "PDF", "PNG") dérivée de l'extension du fichier uploadé.
@@ -32,7 +43,10 @@ async function getFolders(req, res, next) {
   try {
     const { type } = req.query;
     if (!FOLDER_TYPES.includes(type)) {
-      return res.status(400).json({ error: 'Le paramètre type doit être INTERNE ou CLIENT' });
+      return res.status(400).json({ error: 'Le paramètre type doit être INTERNE, CLIENT ou ADMIN' });
+    }
+    if (!canReadFolderType(type, req.user)) {
+      return res.status(403).json({ error: 'Cet espace de ressources est réservé aux administrateurs' });
     }
 
     const folders = await resourceModel.findFolders(type);
@@ -48,6 +62,11 @@ async function getFolderFiles(req, res, next) {
 
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
+      return res.status(404).json({ error: 'Dossier introuvable' });
+    }
+    // 404 plutôt que 403 : pour un employé, un dossier de l'espace admin ne doit pas même
+    // exister — un 403 confirmerait son existence.
+    if (!canReadFolderType(folder.type, req.user)) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
 
@@ -255,6 +274,9 @@ async function getFile(req, res, next) {
     if (!file || file.deleted_at || file.folder_deleted_at) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
+    if (!canReadFolderType(file.folder_type, req.user)) {
+      return res.status(404).json({ error: 'Fichier introuvable' });
+    }
     // On n'expose jamais le chemin disque au client.
     const { file_path: _filePath, ...safe } = file;
     res.status(200).json(safe);
@@ -273,7 +295,10 @@ async function serveFile(req, res, next, { disposition }) {
       file.deleted_at ||
       file.folder_deleted_at ||
       file.kind !== 'FILE' ||
-      !file.file_path
+      !file.file_path ||
+      // Aperçu et téléchargement servent le binaire : sans ce filtre, connaître l'id d'un
+      // fichier de l'espace admin aurait suffi à le récupérer.
+      !canReadFolderType(file.folder_type, req.user)
     ) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
@@ -469,6 +494,13 @@ async function shareFolder(req, res, next) {
     const folder = await resourceModel.findFolderById(id);
     if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
+    }
+    // Partager un dossier de l'espace admin promettrait un accès que la lecture refuse
+    // ensuite : mieux vaut le refuser franchement ici.
+    if (ADMIN_ONLY_FOLDER_TYPES.has(folder.type)) {
+      return res.status(400).json({
+        error: "Un dossier de l'espace Admin ne peut pas être partagé : il est réservé aux administrateurs",
+      });
     }
 
     const existingIds = await userModel.findExistingIds(userIds);

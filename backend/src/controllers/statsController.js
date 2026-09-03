@@ -1,11 +1,10 @@
 const statsModel = require('../models/stats.model');
+const { businessDayNow, businessDayShifted } = require('../utils/businessDay');
 
+// Plage exprimée en journées de TRAVAIL (voir utils/businessDay), comme le regroupement
+// des statistiques : sinon les bornes et les données ne parleraient pas du même « jour ».
 function defaultDateRange() {
-  const to = new Date().toISOString().slice(0, 10);
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - 30);
-  const from = fromDate.toISOString().slice(0, 10);
-  return { from, to };
+  return { from: businessDayShifted(-30), to: businessDayNow() };
 }
 
 async function getTeamStats(req, res, next) {

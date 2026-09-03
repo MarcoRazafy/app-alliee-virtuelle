@@ -2000,3 +2000,55 @@
 .message-bubble--own .msgr-poll-bar { background: rgba(255, 255, 255, 0.22); }
 .message-bubble--own .msgr-poll-opt--mine .msgr-poll-bar { background: rgba(255, 255, 255, 0.34); }
 .message-bubble--own .msgr-poll-check { color: #fff; }
+
+/* --- Accès à la fiche complète depuis une conversation -------------------------
+   L'avatar et le nom d'un correspondant mènent à sa fiche (admin uniquement : le
+   lien n'est pas rendu pour un employé). Ces règles ne font que reprendre la mise
+   en page des conteneurs d'origine, le lien s'insérant comme enfant flex à leur
+   place — sans quoi l'avatar et le nom s'empileraient. */
+.msgr-head-idlink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  margin: -5px -8px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.msgr-head-idlink:hover {
+  background: var(--glass-overlay);
+}
+.msgr-head-idlink:hover h2 {
+  color: var(--color-accent-lighter);
+}
+.msgr-head-idlink:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+
+/* Même principe dans le panneau d'informations, où la pile est verticale. */
+.msgr-profile-idlink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.msgr-profile-idlink:hover {
+  background: var(--glass-overlay);
+}
+.msgr-profile-idlink:hover h3 {
+  color: var(--color-accent-lighter);
+}
+.msgr-profile-idlink:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}

@@ -20,10 +20,11 @@ import {
   IconX,
   IconArrowRight,
 } from '../components/icons';
+import { businessDayNow } from '../utils/businessDay';
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
+// Même journée de travail que côté serveur (fin à 2 h du matin) : sinon, passé minuit, le
+// compteur du jour repartait de zéro en plein poste de nuit.
+const todayDateString = businessDayNow;
 
 function Workspace() {
   const [dayTasks, setDayTasks] = useState([]);

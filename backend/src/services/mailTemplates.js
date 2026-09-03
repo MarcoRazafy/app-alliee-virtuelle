@@ -168,6 +168,51 @@ function newTaskRequest({ requesterName, taskTitle, message }) {
   };
 }
 
+// Le corps d'une annonce est saisi dans l'éditeur riche : du HTML. On n'en met PAS le balisage
+// dans l'email — les clients de messagerie le rendent de façon imprévisible, et l'email n'est
+// qu'un rappel. On en extrait un aperçu en texte, le bouton renvoyant à l'annonce complète.
+function htmlExcerpt(html, maxLength = 320) {
+  const text = String(html || '')
+    .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).replace(/\s+\S*$/, '')}…`;
+}
+
+// Nouvelle annonce publiée → prévenir toute l'équipe par email, « pour ne rien manquer ».
+function newAnnouncement({ id, title, body, authorName, isImportant }) {
+  // ?open=<id> ouvre directement le détail de l'annonce (déjà géré par la page Annonces).
+  const url = `${env.appUrl}/announcements?open=${encodeURIComponent(id)}`;
+  const safeTitle = title || 'Nouvelle annonce';
+  const author = authorName || "L'équipe";
+  const excerpt = htmlExcerpt(body);
+  const importantTag = isImportant ? '[Important] ' : '';
+  return {
+    subject: `${importantTag}Nouvelle annonce : ${safeTitle} — ${BRAND}`,
+    text:
+      `${author} a publié une annonce : ${safeTitle}` +
+      (excerpt ? `\n\n${excerpt}` : '') +
+      `\n\nLire l'annonce : ${url}`,
+    html: layout({
+      title: isImportant ? `Annonce importante : ${safeTitle}` : `Nouvelle annonce : ${safeTitle}`,
+      intro: `<strong>${esc(author)}</strong> vient de publier une annonce.`,
+      bodyHtml: excerpt
+        ? `<tr><td style="padding:0 0 16px;font-size:14px;color:#3a4a63;line-height:1.6;">${esc(excerpt)}</td></tr>`
+        : '',
+      buttonLabel: "Lire l'annonce",
+      buttonUrl: url,
+    }),
+  };
+}
+
 module.exports = {
   accountApproved,
   accountRejected,
@@ -175,4 +220,6 @@ module.exports = {
   newRegistration,
   newTaskProposal,
   newTaskRequest,
+  newAnnouncement,
+  htmlExcerpt,
 };

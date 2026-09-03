@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   IconChat,
   IconSearch,
@@ -94,6 +95,18 @@ function ProfileAvatar({ name, avatarUrl, className = '' }) {
     >
       {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{initials || '?'}</span>}
     </span>
+  );
+}
+
+// Avatar + nom d'une conversation, rendus dans un lien vers la fiche complète de la personne
+// quand c'est permis, et tels quels sinon. La fiche vit sous /admin/users/:id : un employé y
+// serait refoulé, donc pour lui l'en-tête reste volontairement inerte.
+function PeerIdentityLink({ href, label, className, children }) {
+  if (!href) return children;
+  return (
+    <Link to={href} className={className} title={`Voir la fiche de ${label}`}>
+      {children}
+    </Link>
   );
 }
 
@@ -478,6 +491,13 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     if (!query) return visibleMessages;
     return visibleMessages.filter((m) => (m.content || '').toLowerCase().includes(query));
   }, [visibleMessages, panelSearch]);
+
+  // Fiche complète du correspondant, pour l'en-tête et le panneau d'informations. Réservée
+  // à l'admin (la route l'est) et aux conversations privées : un groupe n'a pas de fiche.
+  const peerProfileHref =
+    isAdmin && activeChannel === 'private' && openConversation?.other_user_id
+      ? `/admin/users/${openConversation.other_user_id}`
+      : null;
 
   const activeTitle =
     activeChannel === 'global'
@@ -1082,14 +1102,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           <IconX />
         </button>
         <div className="msgr-profile-hero">
-          {activeChannel === 'group' ? (
-            groupAvatarNode(openGroup, 'conversation-avatar msgr-profile-avatar')
-          ) : activeChannel === 'global' ? (
-            <span className="conversation-avatar conversation-avatar--team msgr-profile-avatar"><UsersIcon /></span>
-          ) : (
-            <ProfileAvatar name={activeTitle} avatarUrl={avatarUrls[openConversation?.other_user_id]} className="msgr-profile-avatar" />
-          )}
-          <h3>{activeTitle}</h3>
+          <PeerIdentityLink href={peerProfileHref} label={activeTitle} className="msgr-profile-idlink">
+            {activeChannel === 'group' ? (
+              groupAvatarNode(openGroup, 'conversation-avatar msgr-profile-avatar')
+            ) : activeChannel === 'global' ? (
+              <span className="conversation-avatar conversation-avatar--team msgr-profile-avatar"><UsersIcon /></span>
+            ) : (
+              <ProfileAvatar name={activeTitle} avatarUrl={avatarUrls[openConversation?.other_user_id]} className="msgr-profile-avatar" />
+            )}
+            <h3>{activeTitle}</h3>
+          </PeerIdentityLink>
           {activeChannel === 'private' && openConversation && (
             <>
               <span className={`msgr-role-badge msgr-role-badge--${openConversation.other_user_role === 'ADMIN' ? 'admin' : 'employee'}`}>
@@ -1457,27 +1479,29 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           <button type="button" className="msgr-back" onClick={() => setMobilePanel('list')} aria-label="Retour aux conversations">
             <BackIcon />
           </button>
-          {activeChannel === 'global' ? (
-            <span className="conversation-avatar conversation-avatar--team">
-              <LottieIcon
-                src="/icone/group-messege.json"
-                loop
-                color="currentColor"
-                style={{ width: 24, height: 24 }}
-                fallback={<UsersIcon />}
-              />
-            </span>
-          ) : activeChannel === 'group' ? (
-            groupAvatarNode(openGroup)
-          ) : (
-            <span className={`msgr-avatar-wrap${otherOnline ? ' msgr-avatar-wrap--online' : ''}`}>
-              <ProfileAvatar name={activeTitle} avatarUrl={avatarUrls[openConversation?.other_user_id]} className="conversation-avatar" />
-            </span>
-          )}
-          <div className="msgr-chat-head-copy">
-            <h2>{activeTitle}</h2>
-            <p className={otherOnline ? 'msgr-head-online' : ''}>{activeSubtitle}</p>
-          </div>
+          <PeerIdentityLink href={peerProfileHref} label={activeTitle} className="msgr-head-idlink">
+            {activeChannel === 'global' ? (
+              <span className="conversation-avatar conversation-avatar--team">
+                <LottieIcon
+                  src="/icone/group-messege.json"
+                  loop
+                  color="currentColor"
+                  style={{ width: 24, height: 24 }}
+                  fallback={<UsersIcon />}
+                />
+              </span>
+            ) : activeChannel === 'group' ? (
+              groupAvatarNode(openGroup)
+            ) : (
+              <span className={`msgr-avatar-wrap${otherOnline ? ' msgr-avatar-wrap--online' : ''}`}>
+                <ProfileAvatar name={activeTitle} avatarUrl={avatarUrls[openConversation?.other_user_id]} className="conversation-avatar" />
+              </span>
+            )}
+            <div className="msgr-chat-head-copy">
+              <h2>{activeTitle}</h2>
+              <p className={otherOnline ? 'msgr-head-online' : ''}>{activeSubtitle}</p>
+            </div>
+          </PeerIdentityLink>
           <div className="msgr-chat-head-actions">
             <button type="button" onClick={() => { setRightPanelOpen(true); }} title="Rechercher" aria-label="Rechercher"><IconSearch /></button>
             <button

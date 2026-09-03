@@ -1,4 +1,10 @@
 const db = require('../config/database');
+
+// Journée de TRAVAIL, terminée à 2 h du matin et non à minuit (voir utils/businessDay) :
+// regrouper par `::date` coupait en deux le poste d'un employé de nuit, et CURRENT_DATE
+// dépendait du fuseau de la session PostgreSQL — différent en local et sur Railway.
+const { sqlBusinessDay: DAY, sqlToday } = require('../utils/businessDay');
+const TODAY = sqlToday();
 const sessionModel = require('./session.model');
 const realtime = require('../realtime/io');
 const { computeCompletionRate } = require('../utils/kpi');
@@ -573,10 +579,10 @@ async function findLateTasks() {
   const result = await db.query(
     `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.assigned_to,
             u.full_name AS assigned_to_name,
-            (CURRENT_DATE - t.deadline) AS days_late
+            (${TODAY} - t.deadline) AS days_late
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
-     WHERE t.deadline < CURRENT_DATE AND t.status != 'CONFIRMEE'
+     WHERE t.deadline < ${TODAY} AND t.status != 'CONFIRMEE'
      ORDER BY t.deadline ASC`
   );
   return result.rows;
@@ -605,7 +611,7 @@ async function computeEmployeeStats(userId) {
     `SELECT
        COUNT(*) FILTER (WHERE status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
        COUNT(*)::INTEGER AS tasks_assigned,
-       COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'CONFIRMEE')::INTEGER AS tasks_late
+       COUNT(*) FILTER (WHERE deadline < ${TODAY} AND status != 'CONFIRMEE')::INTEGER AS tasks_late
      FROM tasks WHERE assigned_to = $1`,
     [userId]
   );
@@ -651,7 +657,7 @@ async function computeRealtimeDashboard() {
     SELECT
       (SELECT COUNT(*) FROM tasks t WHERE t.status = 'EN_COURS'
        AND EXISTS (SELECT 1 FROM timelog tl WHERE tl.task_id = t.id AND tl.end_time IS NULL))::INTEGER AS tasks_in_progress,
-      (SELECT COUNT(*) FROM tasks WHERE deadline < CURRENT_DATE AND status != 'CONFIRMEE')::INTEGER AS tasks_late
+      (SELECT COUNT(*) FROM tasks WHERE deadline < ${TODAY} AND status != 'CONFIRMEE')::INTEGER AS tasks_late
   `);
 
   // 3 requêtes groupées sur tous les employés plutôt que 3 requêtes par employé (N+1)
@@ -663,7 +669,7 @@ async function computeRealtimeDashboard() {
       `SELECT id, assigned_to, title, priority FROM tasks
        WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE'
          AND EXISTS (SELECT 1 FROM user_daily_selection uds
-                     WHERE uds.task_id = tasks.id AND uds.user_id = tasks.assigned_to AND uds.date = CURRENT_DATE)
+                     WHERE uds.task_id = tasks.id AND uds.user_id = tasks.assigned_to AND uds.date = ${TODAY})
        ORDER BY deadline ASC`,
       [employeeIds]
     ),
@@ -675,7 +681,7 @@ async function computeRealtimeDashboard() {
        LEFT JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
        WHERE t.assigned_to = ANY($1::uuid[]) AND t.status = 'EN_COURS'
          AND EXISTS (SELECT 1 FROM user_daily_selection uds
-                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = CURRENT_DATE)`,
+                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = ${TODAY})`,
       [employeeIds]
     ),
     db.query(
@@ -684,7 +690,7 @@ async function computeRealtimeDashboard() {
        FROM tasks t
        WHERE t.assigned_to = ANY($1::uuid[]) AND t.status IN ('TERMINEE', 'CONFIRMEE')
          AND EXISTS (SELECT 1 FROM user_daily_selection uds
-                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = CURRENT_DATE)`,
+                     WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = ${TODAY})`,
       [employeeIds]
     ),
     // "Actif" = réellement en ligne (définition partagée : session ouverte, pas de
