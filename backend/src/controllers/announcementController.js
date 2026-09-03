@@ -2,6 +2,8 @@ const fs = require('fs');
 const announcementModel = require('../models/announcement.model');
 const taskModel = require('../models/task.model');
 const realtime = require('../realtime/io');
+const userModel = require('../models/user.model');
+const mailService = require('../services/mail.service');
 const { sendFileOr404 } = require('../utils/sendFile');
 
 function safeUnlink(filePath) {
@@ -43,6 +45,28 @@ async function getAnnouncement(req, res, next) {
   }
 }
 
+// Prévient l'équipe par email d'une nouvelle annonce. L'auteur est exclu : il vient de
+// l'écrire. Seuls les comptes ACTIFS sont concernés (findActiveExcept).
+async function notifyTeamByEmail(announcement, author) {
+  const [recipients, fullAuthor] = await Promise.all([
+    userModel.findActiveExcept(author.id),
+    // Le jeton ne porte que id/email/username/role : le nom complet se lit en base.
+    userModel.findById(author.id),
+  ]);
+  const emails = recipients.map((u) => u.email).filter(Boolean);
+  if (emails.length === 0) return;
+  await mailService.sendAnnouncementToTeam(
+    {
+      id: announcement.id,
+      title: announcement.title,
+      body: announcement.body,
+      authorName: fullAuthor?.full_name || author.username || null,
+      isImportant: Boolean(announcement.is_important),
+    },
+    emails
+  );
+}
+
 async function createAnnouncement(req, res, next) {
   try {
     const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
@@ -82,6 +106,15 @@ async function createAnnouncement(req, res, next) {
       // eslint-disable-next-line no-console
       console.error('recordAudit(PUBLISH_ANNOUNCEMENT) a échoué:', auditErr);
     }
+
+    // Email à toute l'équipe : la pastille et la popup ne touchent que les personnes déjà
+    // connectées ; l'email est ce qui rattrape celles qui ne le sont pas. Best-effort et
+    // détaché de la réponse — un envoi lent ou en échec ne doit pas retarder la publication.
+    notifyTeamByEmail(created, req.user).catch((mailErr) => {
+      // eslint-disable-next-line no-console
+      console.error("Email d'annonce : envoi échoué —", mailErr.message);
+    });
+
     res.status(201).json(created);
   } catch (err) {
     next(err);

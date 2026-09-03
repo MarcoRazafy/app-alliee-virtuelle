@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import * as userService from '../../services/userService';
 import * as taskService from '../../services/taskService';
 import * as avatarService from '../../services/avatarService';
@@ -147,15 +147,23 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
         ) : (
           <>
             <header className="emp-drawer-head">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={detail.user.full_name} className="emp-drawer-avatar emp-drawer-avatar--img" />
-              ) : (
-                <Initials name={detail.user.full_name} />
-              )}
-              <div className="emp-drawer-identity">
-                <h2>{detail.user.full_name}</h2>
-                <p>{detail.user.email}</p>
-              </div>
+              {/* Photo et nom mènent à la fiche complète : ce panneau n'est qu'un aperçu,
+                  et c'est là qu'on cherche naturellement à cliquer pour aller plus loin. */}
+              <Link
+                to={`/admin/users/${detail.user.id}`}
+                className="emp-drawer-idlink"
+                title={`Voir la fiche de ${detail.user.full_name}`}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={detail.user.full_name} className="emp-drawer-avatar emp-drawer-avatar--img" />
+                ) : (
+                  <Initials name={detail.user.full_name} />
+                )}
+                <div className="emp-drawer-identity">
+                  <h2>{detail.user.full_name}</h2>
+                  <p>{detail.user.email}</p>
+                </div>
+              </Link>
               <span className={`pill ${detail.user.status === 'ACTIF' ? 'pill--confirmed' : 'pill--paused'}`}>
                 {detail.user.status}
               </span>

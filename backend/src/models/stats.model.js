@@ -1,6 +1,15 @@
 const db = require('../config/database');
 const { computeCompletionRate } = require('../utils/kpi');
 
+// Journée de TRAVAIL, terminée à 2 h du matin et non à minuit (voir utils/businessDay) :
+// regrouper par `::date` coupait en deux le poste d'un employé de nuit, et CURRENT_DATE
+// dépendait du fuseau de la session PostgreSQL — différent en local et sur Railway.
+const { sqlBusinessDay: DAY, sqlToday } = require('../utils/businessDay');
+// Les colonnes DATE remontent de `pg` construites avec les getters LOCAUX : les relire avec
+// toISOString() décalait l'étiquette du jour quand le fuseau du serveur n'est pas UTC.
+const { formatDbDate } = require('../utils/planningDates');
+const TODAY = sqlToday();
+
 const STATUS_LIST = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
 
 // Toutes les métriques respectent la même plage [from, to] :
@@ -30,7 +39,7 @@ async function computeTeamStats(from, to) {
   const timeResult = await db.query(
     `SELECT COALESCE(SUM(duration_seconds), 0)::BIGINT AS total_seconds,
             COUNT(DISTINCT task_id)::INTEGER AS tasks_with_time
-     FROM timelog WHERE start_time::date BETWEEN $1 AND $2`,
+     FROM timelog WHERE ${DAY('start_time')} BETWEEN $1 AND $2`,
     [from, to]
   );
 
@@ -46,39 +55,39 @@ async function computeTeamStats(from, to) {
   };
 
   const confirmedByDayResult = await db.query(
-    `SELECT updated_at::date AS date, COUNT(*)::INTEGER AS tasks_confirmed
-     FROM tasks WHERE status = 'CONFIRMEE' AND updated_at::date BETWEEN $1 AND $2
-     GROUP BY updated_at::date`,
+    `SELECT ${DAY('updated_at')} AS date, COUNT(*)::INTEGER AS tasks_confirmed
+     FROM tasks WHERE status = 'CONFIRMEE' AND ${DAY('updated_at')} BETWEEN $1 AND $2
+     GROUP BY ${DAY('updated_at')}`,
     [from, to]
   );
   const hoursByDayResult = await db.query(
-    `SELECT start_time::date AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
-     FROM timelog WHERE start_time::date BETWEEN $1 AND $2
-     GROUP BY start_time::date`,
+    `SELECT ${DAY('start_time')} AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
+     FROM timelog WHERE ${DAY('start_time')} BETWEEN $1 AND $2
+     GROUP BY ${DAY('start_time')}`,
     [from, to]
   );
   // Temps de connexion (présence) agrégé par jour, indépendant du chrono de tâche.
   const connectedByDayResult = await db.query(
-    `SELECT login_at::date AS date,
+    `SELECT ${DAY('login_at')} AS date,
             COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(logout_at, now()) - login_at))), 0)::BIGINT AS connected_seconds
-     FROM user_sessions WHERE login_at::date BETWEEN $1 AND $2
-     GROUP BY login_at::date`,
+     FROM user_sessions WHERE ${DAY('login_at')} BETWEEN $1 AND $2
+     GROUP BY ${DAY('login_at')}`,
     [from, to]
   );
 
   const byDayMap = {};
   const emptyDay = (date) => ({ date, tasks_confirmed: 0, hours_worked_seconds: 0, connected_seconds: 0 });
   confirmedByDayResult.rows.forEach((row) => {
-    const date = row.date.toISOString().slice(0, 10);
+    const date = formatDbDate(row.date);
     byDayMap[date] = { ...emptyDay(date), tasks_confirmed: row.tasks_confirmed };
   });
   hoursByDayResult.rows.forEach((row) => {
-    const date = row.date.toISOString().slice(0, 10);
+    const date = formatDbDate(row.date);
     if (!byDayMap[date]) byDayMap[date] = emptyDay(date);
     byDayMap[date].hours_worked_seconds = Number(row.hours_worked_seconds);
   });
   connectedByDayResult.rows.forEach((row) => {
-    const date = row.date.toISOString().slice(0, 10);
+    const date = formatDbDate(row.date);
     if (!byDayMap[date]) byDayMap[date] = emptyDay(date);
     byDayMap[date].connected_seconds = Number(row.connected_seconds);
   });
@@ -95,7 +104,7 @@ async function computeTeamStats(from, to) {
               COUNT(*)::INTEGER AS total_tasks,
               COUNT(*) FILTER (WHERE t.status = 'CONFIRMEE')::INTEGER AS confirmed,
               COUNT(*) FILTER (WHERE t.status = 'EN_COURS')::INTEGER AS in_progress,
-              COUNT(*) FILTER (WHERE t.deadline < CURRENT_DATE AND t.status != 'CONFIRMEE')::INTEGER AS late
+              COUNT(*) FILTER (WHERE t.deadline < ${TODAY} AND t.status != 'CONFIRMEE')::INTEGER AS late
        FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
        WHERE t.deadline BETWEEN $1 AND $2
        GROUP BY ta.user_id`,
@@ -103,7 +112,7 @@ async function computeTeamStats(from, to) {
     ),
     db.query(
       `SELECT employee_id, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
-       FROM timelog WHERE start_time::date BETWEEN $1 AND $2
+       FROM timelog WHERE ${DAY('start_time')} BETWEEN $1 AND $2
        GROUP BY employee_id`,
       [from, to]
     ),
@@ -112,9 +121,9 @@ async function computeTeamStats(from, to) {
       `SELECT user_id,
               COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(logout_at, now()) - login_at))), 0)::BIGINT AS connected_seconds,
               COUNT(*)::INTEGER AS sessions_count,
-              COUNT(DISTINCT login_at::date)::INTEGER AS days_present,
+              COUNT(DISTINCT ${DAY('login_at')})::INTEGER AS days_present,
               MAX(login_at) AS last_login
-       FROM user_sessions WHERE login_at::date BETWEEN $1 AND $2
+       FROM user_sessions WHERE ${DAY('login_at')} BETWEEN $1 AND $2
        GROUP BY user_id`,
       [from, to]
     ),
@@ -169,14 +178,14 @@ async function computeEmployeeStats(employeeId, from, to) {
        COUNT(*) FILTER (WHERE t.status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
        COUNT(*)::INTEGER AS total_tasks
      FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
-     WHERE ta.user_id = $1 AND t.updated_at::date BETWEEN $2 AND $3`,
+     WHERE ta.user_id = $1 AND ${DAY('t.updated_at')} BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
   const timeResult = await db.query(
     `SELECT COALESCE(SUM(duration_seconds), 0)::BIGINT AS total_seconds,
             COUNT(DISTINCT task_id)::INTEGER AS tasks_with_time
-     FROM timelog WHERE employee_id = $1 AND start_time::date BETWEEN $2 AND $3`,
+     FROM timelog WHERE employee_id = $1 AND ${DAY('start_time')} BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
@@ -184,7 +193,7 @@ async function computeEmployeeStats(employeeId, from, to) {
   // simplification que timeResult (filtre sur la date de début de la session).
   const connectedResult = await db.query(
     `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(logout_at, now()) - login_at))), 0)::BIGINT AS total_seconds
-     FROM user_sessions WHERE user_id = $1 AND login_at::date BETWEEN $2 AND $3`,
+     FROM user_sessions WHERE user_id = $1 AND ${DAY('login_at')} BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
@@ -202,26 +211,26 @@ async function computeEmployeeStats(employeeId, from, to) {
   };
 
   const confirmedByDayResult = await db.query(
-    `SELECT t.updated_at::date AS date, COUNT(*)::INTEGER AS tasks_confirmed
+    `SELECT ${DAY('t.updated_at')} AS date, COUNT(*)::INTEGER AS tasks_confirmed
      FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
-     WHERE ta.user_id = $1 AND t.status = 'CONFIRMEE' AND t.updated_at::date BETWEEN $2 AND $3
-     GROUP BY t.updated_at::date`,
+     WHERE ta.user_id = $1 AND t.status = 'CONFIRMEE' AND ${DAY('t.updated_at')} BETWEEN $2 AND $3
+     GROUP BY ${DAY('t.updated_at')}`,
     [employeeId, from, to]
   );
   const hoursByDayResult = await db.query(
-    `SELECT start_time::date AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
-     FROM timelog WHERE employee_id = $1 AND start_time::date BETWEEN $2 AND $3
-     GROUP BY start_time::date`,
+    `SELECT ${DAY('start_time')} AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
+     FROM timelog WHERE employee_id = $1 AND ${DAY('start_time')} BETWEEN $2 AND $3
+     GROUP BY ${DAY('start_time')}`,
     [employeeId, from, to]
   );
 
   const byDayMap = {};
   confirmedByDayResult.rows.forEach((row) => {
-    const date = row.date.toISOString().slice(0, 10);
+    const date = formatDbDate(row.date);
     byDayMap[date] = { date, tasks_confirmed: row.tasks_confirmed, hours_worked_seconds: 0 };
   });
   hoursByDayResult.rows.forEach((row) => {
-    const date = row.date.toISOString().slice(0, 10);
+    const date = formatDbDate(row.date);
     if (!byDayMap[date]) byDayMap[date] = { date, tasks_confirmed: 0, hours_worked_seconds: 0 };
     byDayMap[date].hours_worked_seconds = Number(row.hours_worked_seconds);
   });

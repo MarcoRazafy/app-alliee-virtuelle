@@ -49,12 +49,20 @@ function isEnabled() {
 // Envoi via l'API HTTP de Brevo (https → contourne le blocage SMTP de Railway).
 // `headers` (optionnel) : entêtes personnalisés, ex. { 'In-Reply-To': '<id>', 'References': '<id>' }
 // pour rattacher une réponse au fil de discussion. `replyTo` (optionnel) : adresse de réponse.
-async function sendViaBrevo({ to, subject, html, text, headers, replyTo }) {
-  const recipients = String(to)
+function toBrevoRecipients(list) {
+  return String(list || '')
     .split(',')
     .map((e) => ({ email: e.trim() }))
     .filter((r) => r.email);
+}
+
+async function sendViaBrevo({ to, bcc, subject, html, text, headers, replyTo }) {
+  const recipients = toBrevoRecipients(to);
   const payload = { sender, to: recipients, subject, htmlContent: html, textContent: text };
+  // Copie cachée : indispensable pour un envoi collectif, sinon chaque destinataire
+  // découvrirait l'adresse de tous les autres.
+  const hidden = toBrevoRecipients(bcc);
+  if (hidden.length) payload.bcc = hidden;
   if (headers && Object.keys(headers).length) payload.headers = headers;
   if (replyTo) payload.replyTo = { email: replyTo };
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -74,19 +82,20 @@ async function sendViaBrevo({ to, subject, html, text, headers, replyTo }) {
 
 // Envoi bas niveau, best-effort : ne jette JAMAIS (un email raté ne doit pas faire échouer
 // l'action métier — approbation de compte, inscription…). Renvoie true si envoyé.
-async function sendMail({ to, subject, html, text, inReplyTo, references, replyTo }) {
-  if (!enabled || !to) return false;
+async function sendMail({ to, bcc, subject, html, text, inReplyTo, references, replyTo }) {
+  if (!enabled || (!to && !bcc)) return false;
   // Entêtes de threading (réponse rattachée au fil) partagés entre Brevo et SMTP.
   const headers = {};
   if (inReplyTo) headers['In-Reply-To'] = inReplyTo;
   if (references) headers['References'] = references;
   try {
     if (brevoEnabled) {
-      await sendViaBrevo({ to, subject, html, text, headers, replyTo });
+      await sendViaBrevo({ to, bcc, subject, html, text, headers, replyTo });
     } else {
       await transporter.sendMail({
         from: env.mailFrom,
         to,
+        bcc: bcc || undefined,
         subject,
         html,
         text,
@@ -137,6 +146,16 @@ function sendNewTaskProposalToAdmins(task, proposerName, adminEmails) {
 }
 
 // Un employé a demandé une tâche supplémentaire → prévenir les admins.
+// Nouvelle annonce → toute l'équipe, « pour ne rien manquer ». Les destinataires passent en
+// COPIE CACHÉE : un envoi groupé en clair exposerait l'adresse de chacun à tous les autres.
+function sendAnnouncementToTeam(announcement, recipientEmails) {
+  const recipients = (recipientEmails || []).map((e) => (e || '').trim()).filter(Boolean);
+  if (recipients.length === 0) return Promise.resolve();
+  const { subject, html, text } = templates.newAnnouncement(announcement);
+  // Destinataire visible = l'expéditeur lui-même ; l'équipe est en copie cachée.
+  return sendMail({ to: env.mailFrom, bcc: recipients.join(', '), subject, html, text });
+}
+
 function sendNewTaskRequestToAdmins(payload, adminEmails) {
   const recipients = [...new Set((adminEmails || []).filter(Boolean))];
   if (recipients.length === 0) return Promise.resolve(false);
@@ -153,4 +172,5 @@ module.exports = {
   sendNewRegistrationToAdmins,
   sendNewTaskProposalToAdmins,
   sendNewTaskRequestToAdmins,
+  sendAnnouncementToTeam,
 };

@@ -28,10 +28,11 @@ import {
   IconLayers,
   IconMegaphone,
 } from '../components/icons';
+import { businessDayNow } from '../utils/businessDay';
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
+// « Aujourd'hui » au sens de la journée de travail (fin à 2 h du matin), comme le serveur :
+// à 1 h, un employé de nuit doit voir le temps de la journée qu'il est en train de finir.
+const todayDateString = businessDayNow;
 
 const QUICK_LINKS = [
   { to: '/workspace', label: 'Mon espace', icon: IconWorkspace },

@@ -1,10 +1,11 @@
 const dailyModel = require('../models/daily.model');
 const taskModel = require('../models/task.model');
 const db = require('../config/database');
+const { businessDayNow } = require('../utils/businessDay');
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
+// « Aujourd'hui » au sens de la journée de TRAVAIL (voir utils/businessDay) : un employé
+// de nuit qui enregistre sa journée à 1 h du matin la rattache bien à la veille.
+const todayDateString = businessDayNow;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

@@ -4,6 +4,7 @@ const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
 const mailService = require('../services/mail.service');
 const { sendFileOr404 } = require('../utils/sendFile');
+const { businessDayNow } = require('../utils/businessDay');
 
 // Annuaire minimal, ouvert à tout utilisateur connecté (nécessaire pour démarrer une conversation)
 async function listDirectory(req, res, next) {
@@ -213,7 +214,7 @@ async function getUserDetail(req, res, next) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessDayNow();
     const [stats, tasks, recentActivity, avatar, dailySelection] = await Promise.all([
       taskModel.computeEmployeeStats(id),
       taskModel.findTasksForEmployee(id),

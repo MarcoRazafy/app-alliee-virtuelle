@@ -60,6 +60,16 @@ module.exports = {
   // URL publique de l'app, pour les liens dans les emails (connexion, page admin).
   appUrl: (process.env.APP_URL || 'https://app.lalliee-virtuelle.com').replace(/\/+$/, ''),
   planningTimezone: process.env.PLANNING_TIMEZONE || 'Indian/Antananarivo',
+  // Heure à laquelle la journée de TRAVAIL se termine (et où la suivante commence), dans
+  // PLANNING_TIMEZONE. Des employés travaillent la nuit et peuvent finir à 1 h du matin :
+  // à minuit, leur « Ma journée » se vidait et leurs heures se coupaient en deux au milieu
+  // de leur poste. Avec 2, la journée va de 02:00 à 02:00 le lendemain, donc tout ce qui est
+  // fait à 1 h compte sur la journée commencée la veille. Mettre 0 rétablit l'ancien
+  // découpage à minuit.
+  businessDayCutoffHour: Math.min(
+    12,
+    Math.max(0, Math.trunc(Number(process.env.BUSINESS_DAY_CUTOFF_HOUR ?? 2)) || 0)
+  ),
   // Le frontend envoie un heartbeat toutes les 20 secondes. Après ce délai, une session
   // ouverte sans activité récente n'est plus considérée en ligne ni prolongée indéfiniment.
   presenceHeartbeatTimeoutSeconds: Math.max(45, Number(process.env.PRESENCE_HEARTBEAT_TIMEOUT_SECONDS) || 60),

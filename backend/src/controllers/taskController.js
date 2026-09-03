@@ -5,6 +5,7 @@ const userModel = require('../models/user.model');
 const extraTaskRequestModel = require('../models/extraTaskRequest.model');
 const mailService = require('../services/mail.service');
 const { isValidTitle, isValidPriority, isTodayOrFuture, isValidEmail } = require('../utils/validators');
+const { businessDayNow } = require('../utils/businessDay');
 
 // L'utilisateur est-il l'un des assignés de la tâche ? (task issu de findById → contient `assignees`)
 // Repli sur assigned_to si la liste n'est pas chargée, pour ne jamais être moins permissif qu'avant.
@@ -22,9 +23,9 @@ function canAccessTask(task, user) {
   return isTaskAssignee(task, user.id);
 }
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
+// Journée de TRAVAIL, qui se termine à 2 h du matin (voir utils/businessDay) : le travail
+// d'un poste de nuit reste rattaché à la journée où il a commencé.
+const todayDateString = businessDayNow;
 
 async function listTasks(req, res, next) {
   try {

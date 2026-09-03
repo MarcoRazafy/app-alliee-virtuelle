@@ -8,6 +8,7 @@ import * as statsService from '../services/statsService';
 import { notifyError, notifySuccess } from '../utils/toast';
 import { formatDurationShort } from '../utils/formatters';
 import '../styles/profile-page.css';
+import { businessDayNow, businessDayShifted } from '../utils/businessDay';
 
 function Icon({ type }) {
   const common = {
@@ -162,10 +163,8 @@ function Profile() {
     try {
       const [profileResponse, statsResponse] = await Promise.allSettled([
         api.get('/api/auth/me'),
-        statsService.getMyStats(
-          new Date(new Date().setDate(new Date().getDate() - 29)).toISOString().slice(0, 10),
-          new Date().toISOString().slice(0, 10)
-        ),
+        // Journées de TRAVAIL (fin à 2 h du matin), comme le regroupement côté serveur.
+        statsService.getMyStats(businessDayShifted(-29), businessDayNow()),
       ]);
 
       if (profileResponse.status !== 'fulfilled') {
