@@ -701,7 +701,8 @@
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-  max-width: 140px;
+  /* Assez large pour « Prénom Nom · 3 sept. à 17:36 » sans tronquer dans le cas courant. */
+  max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -716,4 +717,68 @@
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Date de dernière modification, accolée au nom dans les deux pastilles ci-dessus : en
+   retrait, pour que le nom reste ce qu'on lit en premier. */
+.eval-stamp-date {
+  font-weight: 500;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Éditeur riche dans l'évaluation -------------------------------------------
+   Les champs sont nombreux (7 en deux colonnes) : la hauteur par défaut de
+   l'éditeur (130px) rendrait le bloc interminable. Sélecteurs descendants plutôt
+   qu'une classe de variante, pour l'emporter sur rich-text-editor.css quel que
+   soit l'ordre de chargement des feuilles de style. */
+.eval-dev .rte-surface {
+  min-height: 68px;
+  max-height: 220px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+}
+/* Le commentaire global est le message de synthèse : un peu plus de place. */
+.eval-global .rte-surface {
+  min-height: 96px;
+  font-size: 13.5px;
+}
+/* Barre d'outils compacte, pour ne pas manger la hauteur du champ lui-même. */
+.eval-dev .rte-toolbar,
+.eval-global .rte-toolbar {
+  padding: 3px 5px;
+}
+.eval-dev .rte-tool,
+.eval-global .rte-tool {
+  min-width: 27px;
+  height: 27px;
+  padding: 0 6px;
+  font-size: 13px;
+}
+.eval-dev .rte-tool svg,
+.eval-global .rte-tool svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Mise en forme restituée côté employé (contenu riche nettoyé). Sans ces règles, une
+   liste s'afficherait sans puce ni retrait, le navigateur n'en héritant pas ici. */
+.myeval-global :where(ul, ol),
+.myeval-dev-text :where(ul, ol) {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.myeval-global :where(p),
+.myeval-dev-text :where(p) {
+  margin: 0 0 6px;
+}
+.myeval-global :where(p:last-child),
+.myeval-dev-text :where(p:last-child) {
+  margin-bottom: 0;
+}
+.myeval-global :where(a),
+.myeval-dev-text :where(a) {
+  color: var(--color-accent-lighter, var(--color-accent));
+  text-decoration: underline;
 }

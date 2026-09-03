@@ -305,6 +305,11 @@ const EVAL_TEXT_FIELDS = [
   'prochaine_etape',
 ];
 
+// Les champs libres de l'évaluation portent du HTML de mise en forme (gras, listes) : le
+// balisage compte dans la limite, d'où un plafond plus haut que pour du texte brut. Il reste
+// une borne de sécurité, pas une contrainte de rédaction.
+const EVAL_RICH_MAX = 12000;
+
 function cleanComment(value, max) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -312,20 +317,33 @@ function cleanComment(value, max) {
   return trimmed.slice(0, max);
 }
 
-// Normalise une liste de remarques d'un critère : [{ rating: 'good'|'bad', comment }].
+// Normalise une liste de remarques d'un critère : [{ rating, comment, author_id, updated_at }].
 // On ignore les entrées sans note valide OU sans commentaire.
-// `authorId` = rédacteur courant. Une remarque déjà enregistrée conserve son auteur d'origine ;
-// seules les nouvelles lui sont attribuées, sinon un simple ré-enregistrement réécrirait la
-// paternité de tout le mois au nom du dernier admin passé dessus.
-function cleanItems(value, authorId) {
+//
+// Auteur ET date répondent à la même question — « qui a touché cette remarque, et quand » — et
+// suivent donc la même règle que les champs libres (migration 035) : on les conserve tant que la
+// remarque est INCHANGÉE, et on les réattribue à l'éditeur courant dès que son texte ou sa note
+// change. Sans ça, un simple ré-enregistrement de la fiche daterait tout le mois d'aujourd'hui.
+// La signature note+texte sert de repère : l'index de la liste ne survit pas à une suppression.
+function cleanItems(value, authorId, previousItems, nowIso) {
   if (!Array.isArray(value)) return [];
+  const previousBySignature = new Map();
+  (previousItems || []).forEach((prev) => {
+    if (prev?.comment) previousBySignature.set(`${prev.rating}|${prev.comment}`, prev);
+  });
+
   return value
     .filter((it) => it && EVAL_RATINGS.includes(it.rating))
-    .map((it) => ({
-      rating: it.rating,
-      comment: cleanComment(it.comment, 2000),
-      author_id: UUID_RE.test(it.author_id || '') ? it.author_id : authorId,
-    }))
+    .map((it) => {
+      const comment = cleanComment(it.comment, 2000);
+      const unchanged = comment ? previousBySignature.get(`${it.rating}|${comment}`) : null;
+      return {
+        rating: it.rating,
+        comment,
+        author_id: unchanged && UUID_RE.test(unchanged.author_id || '') ? unchanged.author_id : authorId,
+        updated_at: unchanged?.updated_at || nowIso,
+      };
+    })
     .filter((it) => it.comment)
     .slice(0, EVAL_MAX_ITEMS);
 }
@@ -352,29 +370,42 @@ async function upsertUserEvaluation(req, res, next) {
     const target = await userModel.findById(req.params.id);
     if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
 
+    // La version enregistrée sert de référence à toute la traçabilité ci-dessous : sans elle,
+    // impossible de distinguer une vraie modification d'un simple ré-enregistrement.
+    const previous = await userModel.getEvaluation(req.params.id, month);
+    const nowIso = new Date().toISOString();
+
     const b = req.body || {};
     const data = {
       visible_to_employee: Boolean(b.visible_to_employee),
-      global_comment: cleanComment(b.global_comment, 4000),
-      delais_items: cleanItems(b.delais_items, req.user.id),
-      qualite_items: cleanItems(b.qualite_items, req.user.id),
-      autonomie_items: cleanItems(b.autonomie_items, req.user.id),
-      adaptabilite_items: cleanItems(b.adaptabilite_items, req.user.id),
+      global_comment: cleanComment(b.global_comment, EVAL_RICH_MAX),
+      delais_items: cleanItems(b.delais_items, req.user.id, previous?.delais_items, nowIso),
+      qualite_items: cleanItems(b.qualite_items, req.user.id, previous?.qualite_items, nowIso),
+      autonomie_items: cleanItems(b.autonomie_items, req.user.id, previous?.autonomie_items, nowIso),
+      adaptabilite_items: cleanItems(b.adaptabilite_items, req.user.id, previous?.adaptabilite_items, nowIso),
     };
     // Champs libres « développement / carrière ».
-    for (const f of EVAL_TEXT_FIELDS) data[f] = cleanComment(b[f], 4000);
+    for (const f of EVAL_TEXT_FIELDS) data[f] = cleanComment(b[f], EVAL_RICH_MAX);
 
-    // Auteur des champs libres : on ne réattribue QUE ceux dont le texte a changé. Relire
-    // et réenregistrer une fiche ne doit pas s'approprier ce qu'un collègue a écrit.
-    const previous = await userModel.getEvaluation(req.params.id, month);
+    // Auteur ET date de chaque champ libre : on ne les réattribue QUE si le texte a changé.
+    // Relire et réenregistrer une fiche ne doit pas s'approprier ce qu'un collègue a écrit,
+    // ni faire croire que la remarque du mois dernier vient d'être revue.
     const fieldAuthors = { ...(previous?.field_authors || {}) };
+    const fieldUpdatedAt = { ...(previous?.field_updated_at || {}) };
     for (const field of [...EVAL_TEXT_FIELDS, 'global_comment']) {
       const before = previous ? previous[field] || null : null;
       const after = data[field] || null;
-      if (after === null) delete fieldAuthors[field]; // champ vidé → plus d'auteur
-      else if (after !== before) fieldAuthors[field] = req.user.id;
+      if (after === null) {
+        // Champ vidé → plus d'auteur ni de date à afficher.
+        delete fieldAuthors[field];
+        delete fieldUpdatedAt[field];
+      } else if (after !== before) {
+        fieldAuthors[field] = req.user.id;
+        fieldUpdatedAt[field] = nowIso;
+      }
     }
     data.field_authors = fieldAuthors;
+    data.field_updated_at = fieldUpdatedAt;
 
     const saved = await userModel.upsertEvaluation(req.params.id, month, req.user.id, data);
     res.status(200).json(saved);

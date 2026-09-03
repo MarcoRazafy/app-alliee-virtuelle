@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as evaluationService from '../../services/evaluationService';
 import { notifySuccess, notifyError } from '../../utils/toast';
+import RichTextEditor from '../RichTextEditor';
+import { htmlToText } from '../../utils/sanitizeHtml';
 import {
   IconX,
   IconArrowLeft,
@@ -88,6 +90,60 @@ function formatSavedAt(value) {
   });
 }
 
+// Date ET heure affichées à côté d'un nom, dans une pastille : « 3 sept. à 17:36 ». Le mois
+// est abrégé et l'année n'apparaît que si ce n'est pas l'année en cours, pour que l'heure
+// tienne sans faire déborder la pastille (une fiche peut remonter loin en arrière).
+function formatShortDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    ...(d.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }),
+  });
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return `${day} à ${time}`;
+}
+
+// Pastille « qui a touché ce contenu, et quand ». Partagée par les remarques (sur le fond
+// coloré du critère) et par les champs libres (à côté du libellé) : seule la classe change,
+// pour que les deux ne divergent jamais dans leur formulation. La date reste courte, le
+// survol donne le jour et l'heure exacts.
+function AuthorStamp({ className, name, at, prefix = '' }) {
+  const short = formatShortDate(at);
+  if (!name && !short) return null;
+  const full = formatSavedAt(at);
+  const title = [name ? `Modifié par ${name}` : 'Modifié', full ? `le ${full}` : null]
+    .filter(Boolean)
+    .join(' ');
+  return (
+    <span className={className} title={title}>
+      {name ? `${prefix}${name}` : null}
+      {short && <span className="eval-stamp-date">{name ? ` · ${short}` : short}</span>}
+    </span>
+  );
+}
+
+// Un champ riche « vidé » garde du balisage résiduel (`<br>`, `<div><br></div>`) : la chaîne
+// n'est pas vide alors que le champ l'est à l'écran. On juge donc le vide sur le TEXTE, sinon
+// un champ effacé compterait comme rempli et se verrait attribuer un auteur et une date.
+function isFilled(html) {
+  return Boolean(htmlToText(html || '').trim());
+}
+
+// Champs riches de l'évaluation : les 7 champs de développement + le commentaire global.
+const RICH_FIELD_KEYS = [...TEXT_FIELDS.map((f) => f.key), 'global_comment'];
+
+// Les évaluations saisies AVANT l'éditeur riche contiennent du texte brut. Le charger tel
+// quel dans l'éditeur écraserait ses retours à la ligne (en HTML, ce ne sont que des espaces)
+// et interpréterait un « < » comme une balise. On le convertit donc une fois, à l'ouverture.
+function toRichValue(value) {
+  const text = value || '';
+  if (!text || /<[a-z][\s\S]*>/i.test(text)) return text; // déjà du HTML
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+}
+
 function emptyForm() {
   const f = {
     visible_to_employee: false,
@@ -105,20 +161,21 @@ function formFromEvaluation(ev) {
   if (!ev) return emptyForm();
   const f = emptyForm();
   f.visible_to_employee = Boolean(ev.visible_to_employee);
-  f.global_comment = ev.global_comment || '';
+  f.global_comment = toRichValue(ev.global_comment);
   for (const itemsKey of ITEM_KEYS) {
-    // On conserve l'auteur : le serveur ne réattribue que les remarques qui n'en ont pas,
-    // donc perdre le champ ici ferait basculer la paternité sur le dernier éditeur.
+    // On conserve auteur ET date : le serveur ne les réattribue qu'aux remarques dont le
+    // texte ou la note a changé, mais il les affiche depuis ce qu'on lui renvoie.
     f[itemsKey] = Array.isArray(ev[itemsKey])
       ? ev[itemsKey].map((it) => ({
           rating: it.rating,
           comment: it.comment || '',
           author_id: it.author_id || null,
           author_name: it.author_name || null,
+          updated_at: it.updated_at || null,
         }))
       : [];
   }
-  for (const { key } of TEXT_FIELDS) f[key] = ev[key] || '';
+  for (const { key } of TEXT_FIELDS) f[key] = toRichValue(ev[key]);
   return f;
 }
 
@@ -136,8 +193,11 @@ export default function EvaluationSection({ userId }) {
 
   const evaluatedMonths = useMemo(() => new Set(history.map((h) => h.month)), [history]);
   const currentEvaluation = useMemo(() => history.find((h) => h.month === month), [history, month]);
-  // Auteur de chaque champ libre, tel qu'enregistré (vide tant que rien n'a été sauvegardé).
+  // Auteur et date de chaque champ libre, tels qu'enregistrés (vides tant que rien n'a été
+  // sauvegardé — les fiches antérieures à la migration 036 n'ont pas de date, on n'affiche
+  // alors que le nom).
   const fieldAuthors = currentEvaluation?.field_author_names || {};
+  const fieldDates = currentEvaluation?.field_updated_at || {};
   const savedAtLabel = formatSavedAt(currentEvaluation?.updated_at);
 
   // Toute modification passe par ici → marque la saisie comme non enregistrée.
@@ -192,7 +252,13 @@ export default function EvaluationSection({ userId }) {
   async function handleSave() {
     setSaving(true);
     try {
-      await evaluationService.saveUserEvaluation(userId, month, form);
+      // On envoie une chaîne vide pour un champ riche vidé de son texte : le serveur y voit
+      // alors un champ effacé et retire son auteur et sa date, au lieu de conserver un `<br>`.
+      const payload = { ...form };
+      for (const key of RICH_FIELD_KEYS) {
+        if (!isFilled(payload[key])) payload[key] = '';
+      }
+      await evaluationService.saveUserEvaluation(userId, month, payload);
       await loadHistory();
       setDirty(false);
       notifySuccess(`Évaluation enregistrée — ${monthLabel(month)}`);
@@ -205,8 +271,8 @@ export default function EvaluationSection({ userId }) {
 
   const canGoNext = month < CURRENT_MONTH;
   const remarkCount = ITEM_KEYS.reduce((n, k) => n + (form[k]?.length || 0), 0);
-  const filledDevFields = TEXT_FIELDS.filter(({ key }) => (form[key] || '').trim()).length;
-  const hasContent = remarkCount > 0 || filledDevFields > 0 || (form.global_comment || '').trim();
+  const filledDevFields = TEXT_FIELDS.filter(({ key }) => isFilled(form[key])).length;
+  const hasContent = remarkCount > 0 || filledDevFields > 0 || isFilled(form.global_comment);
 
   // Résumé affiché quand la section est repliée : toujours explicite sur le contenu,
   // même à zéro (« 0 remarque » plutôt qu'un simple « privée » énigmatique).
@@ -215,7 +281,7 @@ export default function EvaluationSection({ userId }) {
     : [
         `${remarkCount} remarque${remarkCount > 1 ? 's' : ''}`,
         `${filledDevFields}/7 champs`,
-        (form.global_comment || '').trim() ? 'commentaire' : null,
+        isFilled(form.global_comment) ? 'commentaire' : null,
         form.visible_to_employee ? 'partagée' : 'privée',
       ]
         .filter(Boolean)
@@ -330,11 +396,11 @@ export default function EvaluationSection({ userId }) {
                                 rows={1}
                               />
                             </span>
-                            {item.author_name && (
-                              <span className="eval-item-author" title={`Écrit par ${item.author_name}`}>
-                                {item.author_name}
-                              </span>
-                            )}
+                            <AuthorStamp
+                              className="eval-item-author"
+                              name={item.author_name}
+                              at={item.updated_at}
+                            />
                             <button
                               type="button"
                               className="eval-item-remove"
@@ -369,7 +435,7 @@ export default function EvaluationSection({ userId }) {
                 <span className="eval-dev-toggle-label">Développement &amp; évolution</span>
                 <span className="eval-dev-toggle-summary">
                   {filledDevFields}/7 champs
-                  {(form.global_comment || '').trim() ? ' · commentaire global' : ''}
+                  {isFilled(form.global_comment) ? ' · commentaire global' : ''}
                 </span>
               </button>
 
@@ -378,17 +444,22 @@ export default function EvaluationSection({ userId }) {
               <div className="eval-dev">
                 {TEXT_FIELDS.map(({ key, label, placeholder }) => (
                   <div className="eval-dev-field" key={key}>
-                    <label className="eval-dev-label" htmlFor={`eval-${key}`}>
+                    {/* Plus un <label for> : la zone de saisie est un div[role=textbox]
+                        (éditeur riche), que l'attribut for ne peut pas désigner. */}
+                    <span className="eval-dev-label">
                       {label}
-                      {fieldAuthors[key] && <span className="eval-field-author">par {fieldAuthors[key]}</span>}
-                    </label>
-                    <textarea
-                      id={`eval-${key}`}
-                      className="eval-comment"
+                      <AuthorStamp
+                        className="eval-field-author"
+                        name={fieldAuthors[key]}
+                        at={fieldDates[key]}
+                        prefix="par "
+                      />
+                    </span>
+                    <RichTextEditor
                       value={form[key]}
-                      onChange={(e) => updateForm((c) => ({ ...c, [key]: e.target.value }))}
-                      rows={2}
+                      onChange={(html) => updateForm((c) => ({ ...c, [key]: html }))}
                       placeholder={placeholder}
+                      ariaLabel={label}
                     />
                   </div>
                 ))}
@@ -396,19 +467,20 @@ export default function EvaluationSection({ userId }) {
 
               {/* Commentaire global — toujours visible par l'employé */}
               <div className="eval-global">
-                <label className="eval-global-label" htmlFor="eval-global">
+                <span className="eval-global-label">
                   Commentaire global <span className="eval-global-hint">(toujours visible par l'employé)</span>
-                  {fieldAuthors.global_comment && (
-                    <span className="eval-field-author">par {fieldAuthors.global_comment}</span>
-                  )}
-                </label>
-                <textarea
-                  id="eval-global"
-                  className="eval-comment"
-                  placeholder="Message de synthèse adressé à l'employé…"
+                  <AuthorStamp
+                    className="eval-field-author"
+                    name={fieldAuthors.global_comment}
+                    at={fieldDates.global_comment}
+                    prefix="par "
+                  />
+                </span>
+                <RichTextEditor
                   value={form.global_comment}
-                  onChange={(e) => updateForm((c) => ({ ...c, global_comment: e.target.value }))}
-                  rows={3}
+                  onChange={(html) => updateForm((c) => ({ ...c, global_comment: html }))}
+                  placeholder="Message de synthèse adressé à l'employé…"
+                  ariaLabel="Commentaire global"
                 />
               </div>
 

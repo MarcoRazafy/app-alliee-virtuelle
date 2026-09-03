@@ -224,7 +224,7 @@ const EVALUATION_COLUMNS = `id, user_id, to_char(period_month, 'YYYY-MM') AS mon
   delais_items, qualite_items, autonomie_items, adaptabilite_items,
   forces_actuelles, competences_ameliorer, competences_developper, objectifs_professionnels,
   formations_recommandees, nouvelles_responsabilites, prochaine_etape,
-  created_by, created_at, updated_at, updated_by, field_authors`;
+  created_by, created_at, updated_at, updated_by, field_authors, field_updated_at`;
 
 // Champs texte libre « développement / carrière » de l'évaluation.
 const EVALUATION_TEXT_FIELDS = [
@@ -306,9 +306,9 @@ async function upsertEvaluation(userId, month, createdBy, data) {
        created_by, updated_by,
        forces_actuelles, competences_ameliorer, competences_developper, objectifs_professionnels,
        formations_recommandees, nouvelles_responsabilites, prochaine_etape,
-       field_authors, updated_at
+       field_authors, field_updated_at, updated_at
      ) VALUES ($1, to_date($2, 'YYYY-MM'), $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, $9, $9,
-       $10, $11, $12, $13, $14, $15, $16, $17::jsonb, now())
+       $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18::jsonb, now())
      ON CONFLICT (user_id, period_month) DO UPDATE SET
        visible_to_employee = EXCLUDED.visible_to_employee,
        global_comment = EXCLUDED.global_comment,
@@ -325,6 +325,7 @@ async function upsertEvaluation(userId, month, createdBy, data) {
        nouvelles_responsabilites = EXCLUDED.nouvelles_responsabilites,
        prochaine_etape = EXCLUDED.prochaine_etape,
        field_authors = EXCLUDED.field_authors,
+       field_updated_at = EXCLUDED.field_updated_at,
        updated_at = now()
      RETURNING ${EVALUATION_COLUMNS}`,
     [
@@ -339,6 +340,7 @@ async function upsertEvaluation(userId, month, createdBy, data) {
       createdBy,
       ...EVALUATION_TEXT_FIELDS.map((f) => data[f] || null),
       JSON.stringify(data.field_authors || {}),
+      JSON.stringify(data.field_updated_at || {}),
     ]
   );
   return result.rows[0];
