@@ -19,7 +19,9 @@ const ICON_TOOLS = [
   { cmd: 'insertOrderedList', title: 'Liste numérotée', Icon: IconListOl },
 ];
 
-export default function RichTextEditor({ value, onChange, placeholder = '' }) {
+// `ariaLabel` : la surface d'édition est un div[role=textbox], qu'un <label for> ne peut pas
+// désigner. Là où le libellé visible n'est pas un vrai label (évaluations), il se passe ici.
+export default function RichTextEditor({ value, onChange, placeholder = '', ariaLabel }) {
   const ref = useRef(null);
 
   // Synchronise le HTML externe (ex. ouverture en édition) sans perturber la frappe.
@@ -90,6 +92,7 @@ export default function RichTextEditor({ value, onChange, placeholder = '' }) {
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"
+        aria-label={ariaLabel}
         data-placeholder={placeholder}
         onInput={() => onChange(ref.current?.innerHTML || '')}
       />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as evaluationService from '../../services/evaluationService';
 import { IconCheckCircle, IconAlert, IconChecklist } from '../icons';
+import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import '../../styles/evaluation.css';
 
 const CRITERIA = [
@@ -72,7 +73,14 @@ export default function MyEvaluations() {
                 <span className="myeval-month">{monthLabel(ev.month)}</span>
               </div>
 
-              {ev.global_comment && <p className="myeval-global">{ev.global_comment}</p>}
+              {/* Contenu riche saisi par l'admin (gras, listes) : nettoyé avant affichage,
+                  et rendu dans un <div> car un <p> ne peut pas contenir de <ul>. */}
+              {ev.global_comment && (
+                <div
+                  className="myeval-global"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(ev.global_comment) }}
+                />
+              )}
 
               {ev.criteria_hidden ? (
                 <p className="myeval-hidden">Le détail par critère n'a pas été partagé pour ce mois.</p>
@@ -99,7 +107,10 @@ export default function MyEvaluations() {
                   {TEXT_FIELDS.filter(({ key }) => ev[key]).map(({ key, label }) => (
                     <div className="myeval-criterion" key={key}>
                       <span className="myeval-criterion-label">{label}</span>
-                      <p className="myeval-dev-text">{ev[key]}</p>
+                      <div
+                        className="myeval-dev-text"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(ev[key]) }}
+                      />
                     </div>
                   ))}
                 </div>
