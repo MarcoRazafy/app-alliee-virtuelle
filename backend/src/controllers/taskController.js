@@ -70,6 +70,7 @@ async function getTask(req, res, next) {
       // Qui a créé la tâche : un admin l'a assignée, un employé l'a proposée.
       created_by: task.created_by,
       creator_name: task.creator_name,
+      creator_has_avatar: task.creator_has_avatar,
       creator_role: task.creator_role,
       client_name: task.client_name,
       client_email: task.client_email,
