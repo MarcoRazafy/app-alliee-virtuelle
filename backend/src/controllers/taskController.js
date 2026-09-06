@@ -963,6 +963,86 @@ async function createComment(req, res, next) {
 }
 
 // Notes internes : admin seul, jamais visibles à l'employé (DECISIONS.md - arbitrage 3)
+// PATCH /tasks/:id/comments/:commentId — SEUL L'AUTEUR modifie son message, y compris pour un
+// admin. Corriger les mots de quelqu'un d'autre alors qu'ils restent signés à son nom serait
+// trompeur ; la modération passe par la suppression, qui elle est ouverte aux admins.
+async function updateComment(req, res, next) {
+  try {
+    const { id, commentId } = req.params;
+    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+    if (!content) {
+      return res.status(400).json({ error: 'Le commentaire ne peut pas être vide' });
+    }
+
+    const comment = await taskModel.findCommentById(commentId);
+    if (!comment || comment.task_id !== id) {
+      return res.status(404).json({ error: 'Commentaire introuvable' });
+    }
+
+    const task = await taskModel.findById(id);
+    if (!task || !canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+    // Une note interne n'existe pas pour un employé : 404 plutôt que 403, un refus explicite
+    // lui confirmerait qu'une note est attachée à cette tâche.
+    if (comment.type === 'NOTE' && req.user.role !== 'ADMIN') {
+      return res.status(404).json({ error: 'Commentaire introuvable' });
+    }
+    if (comment.author_id !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez modifier que vos propres commentaires.' });
+    }
+
+    const updated = await taskModel.updateCommentContent(commentId, content);
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /tasks/:id/comments/:commentId — l'auteur retire son message, un admin peut retirer
+// n'importe lequel (modération). Les fichiers joints partent avec.
+async function deleteComment(req, res, next) {
+  try {
+    const { id, commentId } = req.params;
+    const comment = await taskModel.findCommentById(commentId);
+    if (!comment || comment.task_id !== id) {
+      return res.status(404).json({ error: 'Commentaire introuvable' });
+    }
+
+    const task = await taskModel.findById(id);
+    if (!task || !canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+
+    const isAdmin = req.user.role === 'ADMIN';
+    // Une note interne n'existe pas pour un employé : 404 plutôt que 403, un refus explicite
+    // lui confirmerait qu'une note est attachée à cette tâche.
+    if (comment.type === 'NOTE' && !isAdmin) {
+      return res.status(404).json({ error: 'Commentaire introuvable' });
+    }
+    if (!isAdmin && comment.author_id !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres commentaires.' });
+    }
+
+    // Chemins relevés AVANT la suppression : après, la ligne n'existe plus.
+    const attachments = await taskModel.findAttachmentsByComment(commentId);
+    await taskModel.deleteComment(commentId);
+    attachments.forEach((a) => fs.unlink(a.file_path, () => {}));
+
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'DELETE_TASK_COMMENT',
+      entityType: 'task',
+      entityId: id,
+      details: { comment_id: commentId, removed_files: attachments.length },
+    });
+
+    res.status(200).json({ id: commentId });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getNotes(req, res, next) {
   try {
     const { id } = req.params;
@@ -1420,6 +1500,8 @@ module.exports = {
   createComment,
   getNotes,
   createNote,
+  updateComment,
+  deleteComment,
   getLateTasks,
   getAttachments,
   uploadAttachment,

@@ -45,6 +45,10 @@ router.get('/tasks/:id/subtasks', taskController.getSubtasks);
 
 router.get('/tasks/:id/comments', taskController.getComments);
 router.post('/tasks/:id/comments', taskController.createComment);
+// Modification : l'auteur uniquement (on ne réécrit pas les mots d'autrui sous sa signature).
+router.patch('/tasks/:id/comments/:commentId', taskController.updateComment);
+// Retrait d'un message : l'auteur pour le sien, l'admin pour n'importe lequel.
+router.delete('/tasks/:id/comments/:commentId', taskController.deleteComment);
 
 router.get('/tasks/:id/attachments', taskController.getAttachments);
 router.post('/tasks/:id/attachments', handleSingleUpload, taskController.uploadAttachment);

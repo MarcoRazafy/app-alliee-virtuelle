@@ -249,21 +249,9 @@
   opacity: 1;
 }
 
-button.icon-link-btn {
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.icon-link-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.icon-link-btn--danger:hover {
-  color: var(--color-error);
-  background: color-mix(in srgb, var(--color-error) 12%, transparent);
-}
+/* La remise à zéro du style natif des <button> vit désormais dans app.css, pour TOUTES les
+   pages : ici, elle ne corrigeait que les Ressources — d'où des boutons soignés sur cette
+   page et des boutons gris du navigateur dans le suivi du temps d'une tâche. */
 
 /* Formulaire d'ajout de fichier */
 .resources-file-form {
