@@ -1,0 +1,54 @@
+/* Barre de mise en forme d'un textarea Markdown (commentaires de tâche).
+   Discrète par défaut : elle ne doit pas concurrencer le bouton d'envoi. */
+
+.md-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.md-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.md-tool:hover:not(:disabled) {
+  background: var(--glass-overlay);
+  color: var(--color-text-primary);
+}
+
+.md-tool:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+
+.md-tool:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.md-tool svg {
+  width: 15px;
+  height: 15px;
+}
+
+.md-tool-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--color-border);
+}
