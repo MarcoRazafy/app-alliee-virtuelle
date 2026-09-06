@@ -7,23 +7,12 @@ import { formatDateTime, formatBytes } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconPaperclip, IconX, IconFileText, IconDownload } from './icons';
+import Markdown from './Markdown';
+import MarkdownToolbar from './MarkdownToolbar';
 
-// Les mentions sont stockées dans le contenu sous la forme `@[Nom](uuid)`. On les
-// reconstruit à l'affichage en fragments texte/mention : le message reste lisible tel quel
-// si le format évolue, et un ancien commentaire sans balise traverse sans traitement.
-const MENTION_RE = /@\[([^\]]+)\]\(([0-9a-fA-F-]{36})\)/g;
-
-function parseMentions(content) {
-  const parts = [];
-  let last = 0;
-  for (const m of String(content || '').matchAll(MENTION_RE)) {
-    if (m.index > last) parts.push({ type: 'text', value: content.slice(last, m.index) });
-    parts.push({ type: 'mention', name: m[1], userId: m[2] });
-    last = m.index + m[0].length;
-  }
-  if (last < (content || '').length) parts.push({ type: 'text', value: content.slice(last) });
-  return parts;
-}
+// Les mentions restent stockées dans le contenu sous la forme `@[Nom](uuid)`, en texte brut.
+// Leur découpage à l'affichage est désormais assuré par <Markdown/> (prop renderMention),
+// pour qu'une mention placée dans une puce ou en gras reste dans son bloc.
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // aligné sur la limite serveur (config/upload.js)
 
@@ -250,27 +239,28 @@ function CommentSection({ taskId, focusCommentId = null }) {
                   {it.kind === 'note' && <span className="cmt-tag">Interne</span>}
                   <span className="cmt-time">{formatDateTime(it.created_at)}</span>
                 </div>
-                <p className="cmt-content">
-                  {parseMentions(it.content).map((part, i) =>
-                    part.type === 'mention' ? (
-                      <button
-                        type="button"
-                        key={i}
-                        className={`cmt-mention${part.userId === user?.id ? ' cmt-mention--me' : ''}`}
-                        onClick={() =>
-                          navigate(isAdmin ? '/admin/messaging' : '/messaging', {
-                            state: { employeeId: part.userId },
-                          })
-                        }
-                        title={`Écrire à ${part.name}`}
-                      >
-                        @{part.name}
-                      </button>
-                    ) : (
-                      <span key={i}>{part.value}</span>
-                    )
+                {/* Le contenu est du texte brut : <Markdown/> en fait le rendu (gras, listes,
+                    liens) et lui confie aussi les mentions, pour qu'une mention placée dans
+                    une puce reste une mention au lieu de couper le bloc en deux. */}
+                <Markdown
+                  className="cmt-content"
+                  text={it.content}
+                  renderMention={(name, userId, key) => (
+                    <button
+                      type="button"
+                      key={key}
+                      className={`cmt-mention${userId === user?.id ? ' cmt-mention--me' : ''}`}
+                      onClick={() =>
+                        navigate(isAdmin ? '/admin/messaging' : '/messaging', {
+                          state: { employeeId: userId },
+                        })
+                      }
+                      title={`Écrire à ${name}`}
+                    >
+                      @{name}
+                    </button>
                   )}
-                </p>
+                />
                 {(it.attachments || []).length > 0 && (
                   <div className="cmt-files">
                     {it.attachments.map((att) => (
@@ -358,10 +348,25 @@ function CommentSection({ taskId, focusCommentId = null }) {
         )}
 
         <div className="cmt-composer-foot">
-          <label className="cmt-attach" title="Joindre un fichier (5 Mo max)">
-            <IconPaperclip />
-            <input type="file" onChange={pickFile} hidden />
-          </label>
+          {/* Mise en forme et pièce jointe sur la même ligne : deux rangées d'icônes
+              mangeraient de la hauteur dans une fenêtre déjà étroite. */}
+          <div className="cmt-tools-row">
+            <MarkdownToolbar
+              targetRef={inputRef}
+              value={content}
+              onChange={(next) => {
+                setContent(next);
+                // Une insertion de mise en forme n'est pas une frappe : le sélecteur de
+                // mention resterait ouvert sur une recherche devenue caduque.
+                setMentionQuery(null);
+              }}
+              disabled={sending}
+            />
+            <label className="cmt-attach" title="Joindre un fichier (5 Mo max)">
+              <IconPaperclip />
+              <input type="file" onChange={pickFile} hidden />
+            </label>
+          </div>
           {isAdmin && (
             <label className={`cmt-note-toggle${asNote ? ' cmt-note-toggle--on' : ''}`} title="Visible uniquement par les admins">
               <input type="checkbox" checked={asNote} onChange={(e) => setAsNote(e.target.checked)} />

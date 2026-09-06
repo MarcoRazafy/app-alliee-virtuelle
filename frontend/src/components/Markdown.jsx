@@ -3,26 +3,44 @@ import { Fragment } from 'react';
 /* Rendu Markdown léger (l'assistant renvoie du markdown : **gras**, *italique*,
    `code`, listes à puces / numérotées). Partagé par les assistants IA admin et employé. */
 
-function parseInline(text) {
+// L'ORDRE des alternatives compte : une mention `@[Nom](uuid)` ressemble à s'y méprendre à
+// un lien `[texte](url)`. Elle est donc reconnue en premier, et un lien exige un http(s)://
+// — sans quoi un identifiant serait pris pour une adresse (et un `javascript:` pourrait
+// passer, puisque l'URL finit dans un href).
+const INLINE_RE =
+  /(@\[([^\]]+)\]\(([0-9a-fA-F-]{36})\)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+?)\*\*|__([^_]+?)__|~~([^~]+?)~~|`([^`]+?)`|\*([^*]+?)\*|_([^_]+?)_)/g;
+
+// `renderMention(name, userId, key)` : fourni par les commentaires de tâche, où une mention
+// est un bouton cliquable. Sans lui (assistants IA), une mention retombe sur « @Nom ».
+function parseInline(text, renderMention) {
   const nodes = [];
-  const re = /(\*\*([^*]+?)\*\*|__([^_]+?)__|`([^`]+?)`|\*([^*]+?)\*|_([^_]+?)_)/g;
+  const re = new RegExp(INLINE_RE.source, 'g');
   let last = 0;
   let m;
   let k = 0;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
-    if (m[2] != null) nodes.push(<strong key={k++}>{m[2]}</strong>);
-    else if (m[3] != null) nodes.push(<strong key={k++}>{m[3]}</strong>);
-    else if (m[4] != null) nodes.push(<code key={k++}>{m[4]}</code>);
-    else if (m[5] != null) nodes.push(<em key={k++}>{m[5]}</em>);
-    else if (m[6] != null) nodes.push(<em key={k++}>{m[6]}</em>);
+    if (m[2] != null) {
+      nodes.push(renderMention ? renderMention(m[2], m[3], k++) : `@${m[2]}`);
+    } else if (m[4] != null) {
+      nodes.push(
+        <a key={k++} href={m[5]} target="_blank" rel="noopener noreferrer">
+          {m[4]}
+        </a>
+      );
+    } else if (m[6] != null) nodes.push(<strong key={k++}>{m[6]}</strong>);
+    else if (m[7] != null) nodes.push(<strong key={k++}>{m[7]}</strong>);
+    else if (m[8] != null) nodes.push(<s key={k++}>{m[8]}</s>);
+    else if (m[9] != null) nodes.push(<code key={k++}>{m[9]}</code>);
+    else if (m[10] != null) nodes.push(<em key={k++}>{m[10]}</em>);
+    else if (m[11] != null) nodes.push(<em key={k++}>{m[11]}</em>);
     last = m.index + m[0].length;
   }
   if (last < text.length) nodes.push(text.slice(last));
   return nodes;
 }
 
-function Markdown({ text, className = 'ai-md' }) {
+function Markdown({ text, className = 'ai-md', renderMention }) {
   const lines = (text || '').split('\n');
   const blocks = [];
   let list = null;
@@ -72,7 +90,7 @@ function Markdown({ text, className = 'ai-md' }) {
               {blk.lines.map((l, j) => (
                 <Fragment key={j}>
                   {j > 0 && <br />}
-                  {parseInline(l)}
+                  {parseInline(l, renderMention)}
                 </Fragment>
               ))}
             </p>
@@ -82,7 +100,7 @@ function Markdown({ text, className = 'ai-md' }) {
           return (
             <ul key={i} className="ai-md-list">
               {blk.items.map((it, j) => (
-                <li key={j}>{parseInline(it)}</li>
+                <li key={j}>{parseInline(it, renderMention)}</li>
               ))}
             </ul>
           );
@@ -90,7 +108,7 @@ function Markdown({ text, className = 'ai-md' }) {
         return (
           <ol key={i} className="ai-md-list">
             {blk.items.map((it, j) => (
-              <li key={j}>{parseInline(it)}</li>
+              <li key={j}>{parseInline(it, renderMention)}</li>
             ))}
           </ol>
         );
