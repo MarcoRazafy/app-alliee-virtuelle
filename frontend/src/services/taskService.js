@@ -187,6 +187,18 @@ export function deleteAttachment(taskId, fileId) {
   return api.delete(`/api/tasks/${taskId}/attachments/${fileId}`).then((res) => res.data);
 }
 
+// Modification : l'auteur uniquement, y compris pour un admin — on ne réécrit pas les mots
+// d'autrui sous sa signature. La modération passe par la suppression.
+export function updateComment(taskId, commentId, content) {
+  return api.patch(`/api/tasks/${taskId}/comments/${commentId}`, { content }).then((res) => res.data);
+}
+
+// Retrait d'un message : l'auteur pour le sien, l'admin pour n'importe lequel (le serveur
+// tranche ; l'interface se contente de ne pas proposer le bouton là où il serait refusé).
+export function deleteComment(taskId, commentId) {
+  return api.delete(`/api/tasks/${taskId}/comments/${commentId}`).then((res) => res.data);
+}
+
 export function getNotes(taskId) {
   return api.get(`/api/tasks/${taskId}/notes`).then((res) => res.data);
 }

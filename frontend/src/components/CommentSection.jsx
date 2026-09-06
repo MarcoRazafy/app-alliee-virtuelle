@@ -4,9 +4,9 @@ import * as taskService from '../services/taskService';
 import * as avatarService from '../services/avatarService';
 import * as userService from '../services/userService';
 import { formatDateTime, formatBytes } from '../utils/formatters';
-import { notifyError } from '../utils/toast';
+import { notifyError, notifySuccess } from '../utils/toast';
 import useAuthStore from '../store/authStore';
-import { IconPaperclip, IconX, IconFileText, IconDownload } from './icons';
+import { IconPaperclip, IconX, IconFileText, IconDownload, IconTrash, IconPencil } from './icons';
 import Markdown from './Markdown';
 import MarkdownToolbar from './MarkdownToolbar';
 
@@ -84,27 +84,71 @@ function CommentSection({ taskId, focusCommentId = null }) {
   }, [avatarUrls]);
   useEffect(() => () => Object.values(urlsRef.current).forEach((u) => u && URL.revokeObjectURL(u)), []);
 
+  // Le drapeau « monté » vaut pour le COMPOSANT, pas pour une exécution d'effet. Avec un
+  // drapeau par exécution, la photo n'apparaissait jamais en développement : StrictMode
+  // lance l'effet, le nettoie (drapeau à false), puis le relance — mais fetchedRef avait
+  // déjà mémorisé l'auteur, donc la seconde exécution ne redemandait rien et la réponse de
+  // la première était jetée. Restaient les initiales.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     const need = [...new Set(items.filter((it) => it.has_avatar && it.author_id).map((it) => it.author_id))].filter(
       (id) => !fetchedRef.current.has(id)
     );
-    if (need.length === 0) return undefined;
+    if (need.length === 0) return;
     need.forEach((id) => fetchedRef.current.add(id));
-    let alive = true;
     need.forEach(async (id) => {
       try {
         const blob = await avatarService.getUserAvatarBlob(id);
         const url = URL.createObjectURL(blob);
-        if (alive) setAvatarUrls((cur) => ({ ...cur, [id]: url }));
+        if (mountedRef.current) setAvatarUrls((cur) => ({ ...cur, [id]: url }));
         else URL.revokeObjectURL(url);
       } catch {
         fetchedRef.current.delete(id); // autorise une nouvelle tentative
       }
     });
-    return () => {
-      alive = false;
-    };
   }, [items]);
+
+  // Édition en place : { id, content }. Un seul message à la fois, pour ne pas semer des
+  // brouillons non enregistrés dans tout le fil.
+  const [editing, setEditing] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const editRef = useRef(null);
+
+  async function saveEdit() {
+    if (!editing || !editing.content.trim() || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      await taskService.updateComment(taskId, editing.id, editing.content.trim());
+      setEditing(null);
+      await load();
+      notifySuccess('Commentaire modifié');
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Modification impossible');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function removeComment(item) {
+    const label = item.kind === 'note' ? 'cette note interne' : 'ce commentaire';
+    if (!window.confirm(`Supprimer ${label} ? Les fichiers joints seront également retirés.`)) return;
+    try {
+      await taskService.deleteComment(taskId, item.id);
+      // Rechargement plutôt que retrait local : le fil mélange commentaires et notes, qui
+      // proviennent de deux appels distincts.
+      await load();
+      notifySuccess('Commentaire supprimé');
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Suppression impossible');
+    }
+  }
 
   async function submit() {
     // Un fichier seul (sans texte) est un envoi valide : on ne bloque plus sur le contenu.
@@ -238,11 +282,82 @@ function CommentSection({ taskId, focusCommentId = null }) {
                   <span className="cmt-author">{it.author_name}</span>
                   {it.kind === 'note' && <span className="cmt-tag">Interne</span>}
                   <span className="cmt-time">{formatDateTime(it.created_at)}</span>
+                  {it.edited_at && (
+                    <span className="cmt-edited" title={`Modifié le ${formatDateTime(it.edited_at)}`}>
+                      modifié
+                    </span>
+                  )}
+                  {/* Le serveur reste l'autorité : on n'affiche chaque bouton que là où il
+                      aboutirait, pour ne pas proposer une action qui serait refusée.
+                      Modifier = l'auteur seul ; supprimer = l'auteur ou un admin. */}
+                  <span className="cmt-actions">
+                    {it.author_id === user?.id && !editing && (
+                      <button
+                        type="button"
+                        className="icon-link-btn cmt-action"
+                        onClick={() => setEditing({ id: it.id, content: it.content })}
+                        aria-label="Modifier ce commentaire"
+                        title="Modifier"
+                      >
+                        <IconPencil />
+                      </button>
+                    )}
+                    {(isAdmin || it.author_id === user?.id) && (
+                      <button
+                        type="button"
+                        className="icon-link-btn icon-link-btn--danger cmt-action"
+                        onClick={() => removeComment(it)}
+                        aria-label="Supprimer ce commentaire"
+                        title="Supprimer"
+                      >
+                        <IconTrash />
+                      </button>
+                    )}
+                  </span>
                 </div>
                 {/* Le contenu est du texte brut : <Markdown/> en fait le rendu (gras, listes,
                     liens) et lui confie aussi les mentions, pour qu'une mention placée dans
                     une puce reste une mention au lieu de couper le bloc en deux. */}
-                <Markdown
+                {editing?.id === it.id ? (
+                  <div className="cmt-edit">
+                    <textarea
+                      ref={editRef}
+                      className="cmt-input cmt-edit-input"
+                      value={editing.content}
+                      onChange={(e) => setEditing({ ...editing, content: e.target.value })}
+                      rows={3}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setEditing(null);
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          saveEdit();
+                        }
+                      }}
+                    />
+                    <div className="cmt-edit-foot">
+                      <MarkdownToolbar
+                        targetRef={editRef}
+                        value={editing.content}
+                        onChange={(next) => setEditing((cur) => (cur ? { ...cur, content: next } : cur))}
+                        disabled={savingEdit}
+                      />
+                      <div className="cmt-edit-buttons">
+                        <button type="button" className="cmt-edit-cancel" onClick={() => setEditing(null)}>
+                          Annuler
+                        </button>
+                        <button
+                          type="button"
+                          className="cmt-send cmt-edit-save"
+                          onClick={saveEdit}
+                          disabled={savingEdit || !editing.content.trim()}
+                        >
+                          {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Markdown
                   className="cmt-content"
                   text={it.content}
                   renderMention={(name, userId, key) => (
@@ -261,6 +376,7 @@ function CommentSection({ taskId, focusCommentId = null }) {
                     </button>
                   )}
                 />
+                )}
                 {(it.attachments || []).length > 0 && (
                   <div className="cmt-files">
                     {it.attachments.map((att) => (

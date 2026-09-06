@@ -503,7 +503,7 @@ async function findComments(taskId, { onlyType } = {}) {
   }
 
   const result = await db.query(
-    `SELECT c.id, c.content, c.type, c.is_visible_to_employee, c.created_at, c.author_id, u.full_name AS author_name,
+    `SELECT c.id, c.content, c.type, c.is_visible_to_employee, c.created_at, c.edited_at, c.author_id, u.full_name AS author_name,
             EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = c.author_id) AS has_avatar,
             COALESCE((SELECT json_agg(json_build_object('id', a.id, 'file_name', a.file_name,
                         'file_size', a.file_size, 'file_type', a.file_type) ORDER BY a.created_at)
@@ -548,8 +548,41 @@ async function findAttachmentById(attachmentId) {
 
 // Utilisé pour vérifier qu'un commentaire cible appartient bien à la tâche visée.
 async function findCommentById(commentId) {
-  const result = await db.query('SELECT id, task_id, author_id FROM task_comments WHERE id = $1', [commentId]);
+  // `type` remonte aussi : une NOTE est réservée aux admins, l'appelant doit pouvoir le voir.
+  const result = await db.query(
+    'SELECT id, task_id, author_id, type FROM task_comments WHERE id = $1',
+    [commentId]
+  );
   return result.rows[0] || null;
+}
+
+// Fichiers portés par un commentaire. La colonne comment_id est ON DELETE SET NULL : sans
+// cette liste, supprimer un commentaire laisserait ses fichiers orphelins sur le disque ET
+// dans les pièces jointes de la tâche, comme s'ils n'avaient jamais appartenu au message.
+async function findAttachmentsByComment(commentId) {
+  const result = await db.query(
+    'SELECT id, file_path FROM task_attachments WHERE comment_id = $1',
+    [commentId]
+  );
+  return result.rows;
+}
+
+// edited_at reste NULL tant que le message n'a pas été corrigé : c'est ce qui permet
+// d'afficher la mention « modifié » sans la coller à tous les commentaires.
+async function updateCommentContent(commentId, content) {
+  const result = await db.query(
+    `UPDATE task_comments
+     SET content = $2, edited_at = now(), updated_at = now()
+     WHERE id = $1
+     RETURNING id, content, edited_at`,
+    [commentId, content]
+  );
+  return result.rows[0] || null;
+}
+
+async function deleteComment(commentId) {
+  await db.query('DELETE FROM task_attachments WHERE comment_id = $1', [commentId]);
+  await db.query('DELETE FROM task_comments WHERE id = $1', [commentId]);
 }
 
 async function createAttachment({ taskId, fileName, filePath, fileSize, fileType, uploadedBy, commentId = null }) {
@@ -809,6 +842,9 @@ module.exports = {
   findComments,
   createComment,
   findCommentById,
+  findAttachmentsByComment,
+  updateCommentContent,
+  deleteComment,
   findAttachments,
   findAttachmentById,
   createAttachment,
