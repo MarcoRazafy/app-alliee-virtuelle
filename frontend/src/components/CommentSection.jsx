@@ -97,10 +97,10 @@ function CommentSection({ taskId, focusCommentId = null }) {
     };
   }, []);
 
-  useEffect(() => {
-    const need = [...new Set(items.filter((it) => it.has_avatar && it.author_id).map((it) => it.author_id))].filter(
-      (id) => !fetchedRef.current.has(id)
-    );
+  // Téléchargement partagé : le cache fetchedRef garantit une seule requête par personne,
+  // quelle que soit la source (auteur d'un message, ou personne proposée après « @ »).
+  const loadAvatars = useCallback((ids) => {
+    const need = [...new Set(ids)].filter((id) => id && !fetchedRef.current.has(id));
     if (need.length === 0) return;
     need.forEach((id) => fetchedRef.current.add(id));
     need.forEach(async (id) => {
@@ -113,7 +113,11 @@ function CommentSection({ taskId, focusCommentId = null }) {
         fetchedRef.current.delete(id); // autorise une nouvelle tentative
       }
     });
-  }, [items]);
+  }, []);
+
+  useEffect(() => {
+    loadAvatars(items.filter((it) => it.has_avatar).map((it) => it.author_id));
+  }, [items, loadAvatars]);
 
   // Édition en place : { id, content }. Un seul message à la fois, pour ne pas semer des
   // brouillons non enregistrés dans tout le fil.
@@ -215,6 +219,12 @@ function CommentSection({ taskId, focusCommentId = null }) {
     const q = mentionQuery.trim().toLowerCase();
     return people.filter((p) => !q || (p.full_name || '').toLowerCase().includes(q)).slice(0, 6);
   }, [mentionQuery, people]);
+
+  // Photos des personnes proposées après « @ » : seulement celles réellement affichées
+  // (6 au plus), et non tout l'annuaire.
+  useEffect(() => {
+    loadAvatars(mentionMatches.filter((p) => p.has_avatar).map((p) => p.id));
+  }, [mentionMatches, loadAvatars]);
 
   // Remplace le « @… » en cours par la balise complète `@[Nom](uuid)`.
   function insertMention(person) {
@@ -413,7 +423,13 @@ function CommentSection({ taskId, focusCommentId = null }) {
             {mentionMatches.map((p) => (
               <li key={p.id}>
                 <button type="button" className="cmt-mention-option" onMouseDown={(e) => e.preventDefault()} onClick={() => insertMention(p)}>
-                  <span className="cmt-mention-avatar">{initialsOf(p.full_name)}</span>
+                  <span className="cmt-mention-avatar">
+                    {avatarUrls[p.id] ? (
+                      <img src={avatarUrls[p.id]} alt="" className="cmt-avatar-img" />
+                    ) : (
+                      initialsOf(p.full_name)
+                    )}
+                  </span>
                   <span className="cmt-mention-name">{p.full_name}</span>
                   {p.role === 'ADMIN' && <span className="cmt-mention-role">Admin</span>}
                 </button>

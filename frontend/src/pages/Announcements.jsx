@@ -22,6 +22,7 @@ import {
   IconX,
   IconPlus,
   IconArrowRight,
+  IconChevronDown,
 } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
 import { sanitizeHtml, htmlToText } from '../utils/sanitizeHtml';
@@ -97,6 +98,12 @@ function Announcements() {
 
   const [detailId, setDetailId] = useState(null);
   const [readers, setReaders] = useState({});
+  // Détail nominatif des lecteurs : replié par défaut, et remis à l'état replié à chaque
+  // changement d'annonce — sinon la suivante s'ouvrirait déjà déroulée.
+  const [readersOpen, setReadersOpen] = useState(false);
+  useEffect(() => {
+    setReadersOpen(false);
+  }, [detailId]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -569,19 +576,42 @@ function Announcements() {
             )}
             <div className="ann-modal-body ann-rich" dangerouslySetInnerHTML={{ __html: sanitizeHtml(detailItem.body) }} />
 
+            {/* Le nombre de lecteurs suffit la plupart du temps ; le détail nominatif, lui,
+                repoussait le contenu de l'annonce hors de l'écran dès que l'équipe grandit.
+                Il est donc replié par défaut, et se déroule à la demande. */}
             <div className="ann-readers">
-              <p className="ann-readers-title"><IconCheckCircle /> Lu par {(readers[detailItem.id] || []).length}</p>
               {(readers[detailItem.id] || []).length === 0 ? (
-                <span className="ann-readers-empty">Personne n'a encore lu cette annonce.</span>
+                <>
+                  <p className="ann-readers-title"><IconCheckCircle /> Lu par 0</p>
+                  <span className="ann-readers-empty">Personne n'a encore lu cette annonce.</span>
+                </>
               ) : (
-                <ul className="ann-readers-list">
-                  {(readers[detailItem.id] || []).map((reader) => (
-                    <li key={reader.id}>
-                      <span>{reader.full_name}</span>
-                      <time>{formatDateTime(reader.read_at)}</time>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <button
+                    type="button"
+                    className="ann-readers-toggle"
+                    onClick={() => setReadersOpen((v) => !v)}
+                    aria-expanded={readersOpen}
+                    aria-controls="ann-readers-list"
+                  >
+                    <span className="ann-readers-title">
+                      <IconCheckCircle /> Lu par {(readers[detailItem.id] || []).length}
+                    </span>
+                    <span className={`ann-readers-chevron${readersOpen ? ' ann-readers-chevron--open' : ''}`}>
+                      <IconChevronDown />
+                    </span>
+                  </button>
+                  {readersOpen && (
+                    <ul className="ann-readers-list" id="ann-readers-list">
+                      {(readers[detailItem.id] || []).map((reader) => (
+                        <li key={reader.id}>
+                          <span>{reader.full_name}</span>
+                          <time>{formatDateTime(reader.read_at)}</time>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </div>
 

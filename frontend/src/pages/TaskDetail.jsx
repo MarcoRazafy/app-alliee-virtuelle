@@ -532,9 +532,15 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                       }
                       title={`Poser une question à ${task.creator_name}`}
                     >
-                      <span className="tk-assignee-avatar tk-assignee-avatar--initials">
-                        {assigneeInitials(task.creator_name) || '?'}
-                      </span>
+                      {/* Même pastille que pour les assignés : photo si la personne en a une,
+                          initiales sinon. Elle était figée sur les initiales ici. */}
+                      <AssigneeAvatar
+                        user={{
+                          id: task.created_by,
+                          full_name: task.creator_name,
+                          has_avatar: task.creator_has_avatar,
+                        }}
+                      />
                       <span className="tk-assignee-name">{task.creator_name}</span>
                       <span
                         className={`tk-creator-role${task.creator_role === 'ADMIN' ? ' tk-creator-role--admin' : ''}`}
@@ -547,9 +553,13 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                     </button>
                   ) : (
                     <span className="tk-creator">
-                      <span className="tk-assignee-avatar tk-assignee-avatar--initials">
-                        {assigneeInitials(task.creator_name) || '?'}
-                      </span>
+                      <AssigneeAvatar
+                        user={{
+                          id: task.created_by,
+                          full_name: task.creator_name,
+                          has_avatar: task.creator_has_avatar,
+                        }}
+                      />
                       <span className="tk-assignee-name">{task.creator_name}</span>
                       <span
                         className={`tk-creator-role${task.creator_role === 'ADMIN' ? ' tk-creator-role--admin' : ''}`}
