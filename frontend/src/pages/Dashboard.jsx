@@ -320,7 +320,10 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="side-card">
+      {/* dashboard-activity porte l'écart avec le bloc précédent. La classe .workspace-grid
+          qui le précède est partagée avec la page Espace de travail : lui ajouter une marge
+          aurait déplacé cette autre page sans raison. */}
+      <div className="side-card dashboard-activity">
         <div className="side-card-header">
           <p className="side-card-title">Activité récente</p>
         </div>
