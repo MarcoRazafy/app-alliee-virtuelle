@@ -834,3 +834,56 @@ a.aup-info-link:hover {
   gap: 10px;
   margin-left: auto;
 }
+
+
+/* --- Section repliable (tableau des tâches) ---------------------------------------
+   Le titre lui-même sert de bouton : sur un employé chargé, la liste occupait tout
+   l'écran et la suite de la fiche devenait inatteignable sans dérouler longuement. */
+.aup-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.aup-collapse-toggle:hover {
+  background: var(--glass-overlay);
+}
+.aup-collapse-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+.aup-collapse-toggle .side-card-title {
+  margin: 0;
+}
+
+.aup-collapse-chevron {
+  display: inline-flex;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+.aup-collapse-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+.aup-collapse-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Le compte reste lisible une fois replié : c'est le résumé de ce qui est caché. */
+.aup-collapse-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}

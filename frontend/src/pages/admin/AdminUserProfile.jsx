@@ -20,6 +20,7 @@ import {
   IconExternalLink,
   IconCalendarWeek,
   IconTrash,
+  IconChevronDown,
   IconPencil,
   IconTrendingUp,
 } from '../../components/icons';
@@ -150,18 +151,6 @@ function pickPlanningForRange(list, range) {
   return (overlapping || list[0]).planning_id;
 }
 
-const ACTION_LABEL = {
-  CREATE_TASK: 'Tâche créée',
-  UPDATE_TASK: 'Tâche modifiée',
-  UPDATE_TASK_STATUS: 'Statut changé',
-  DELETE_TASK: 'Tâche supprimée',
-  CONFIRM_TASK: 'Tâche confirmée',
-  VALIDATE_TASK: 'Tâche validée',
-  REJECT_TASK: 'Tâche renvoyée',
-  START_TIMELOG: 'Chrono démarré',
-  STOP_TIMELOG: 'Chrono arrêté',
-};
-
 function formatMinutes(min) {
   const m = Number(min) || 0;
   if (m < 60) return `${m} min`;
@@ -216,9 +205,12 @@ function AdminUserProfile() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [taskTab, setTaskTab] = useState('all');
+  // Tableau des tâches dépliable, REPLIÉ par défaut : la fiche s'ouvre alors sur une vue
+  // d'ensemble courte (indicateurs, présence, planning), et la liste se déroule à la demande.
+  // Le nombre de tâches reste affiché dans le titre, ce qui suffit le plus souvent.
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [activityPage, setActivityPage] = useState(1);
   const [busy, setBusy] = useState(false);
   // Phase 2 : présence (filtrable par période), daily du jour.
   const [period, setPeriod] = useState('month');
@@ -233,10 +225,6 @@ function AdminUserProfile() {
   const [selectedPlanningId, setSelectedPlanningId] = useState('');
   const [planningDetail, setPlanningDetail] = useState(null);
   const [weekSegments, setWeekSegments] = useState({}); // sessions de connexion de la semaine, par date
-  // Phase 3 : notes internes admin.
-  const [notes, setNotes] = useState([]);
-  const [noteDraft, setNoteDraft] = useState('');
-  const [savingNote, setSavingNote] = useState(false);
 
   async function load() {
     try {
@@ -351,36 +339,6 @@ function AdminUserProfile() {
       .catch(() => setDailyToday(null));
   }, [id]);
 
-  // Notes internes admin.
-  useEffect(() => {
-    userService.getUserNotes(id).then(setNotes).catch(() => setNotes([]));
-  }, [id]);
-
-  async function addNote() {
-    const content = noteDraft.trim();
-    if (!content || savingNote) return;
-    setSavingNote(true);
-    try {
-      await userService.createUserNote(id, content);
-      setNoteDraft('');
-      setNotes(await userService.getUserNotes(id));
-    } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'ajouter la note");
-    } finally {
-      setSavingNote(false);
-    }
-  }
-
-  async function removeNote(noteId) {
-    if (!window.confirm('Supprimer cette note ?')) return;
-    try {
-      await userService.deleteUserNote(id, noteId);
-      setNotes((cur) => cur.filter((n) => n.id !== noteId));
-    } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de supprimer la note');
-    }
-  }
-
   // Photo de profil (blob → objectURL), libérée au démontage.
   useEffect(() => {
     let obj;
@@ -472,20 +430,6 @@ function AdminUserProfile() {
   useEffect(() => {
     setPage(1);
   }, [taskTab, id]);
-
-  // Activité récente : paginée par 5 dans la colonne latérale. Contrôles volontairement
-  // compacts (précédent / suivant) — les boutons numérotés du composant partagé
-  // déborderaient d'une colonne de 340 px dès qu'il y a plusieurs pages.
-  const ACTIVITY_PER_PAGE = 5;
-  const activity = detail?.recent_activity || []; // `detail` est encore null pendant le chargement
-  const activityPages = Math.max(1, Math.ceil(activity.length / ACTIVITY_PER_PAGE));
-  const pagedActivity = activity.slice(
-    (activityPage - 1) * ACTIVITY_PER_PAGE,
-    activityPage * ACTIVITY_PER_PAGE
-  );
-  useEffect(() => {
-    setActivityPage(1);
-  }, [id]);
 
   const statusSegments = useMemo(
     () => STATUS_SEG.map((s) => ({ ...s, value: tasks.filter((t) => t.status === s.key).length })),
@@ -617,24 +561,42 @@ function AdminUserProfile() {
         <div className="aup-main">
           <div className="side-card">
             <div className="aup-tasks-head">
-              <p className="side-card-title">Tâches</p>
-              <div className="aup-tabs">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    className={`aup-tab${taskTab === tab.key ? ' aup-tab--active' : ''}`}
-                    onClick={() => setTaskTab(tab.key)}
-                  >
-                    {tab.label}
-                    {tab.key !== 'all' && counts[tab.key] > 0 && (
-                      <span className="aup-tab-badge">{counts[tab.key]}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
+              {/* Le titre plie le tableau : sur un employé chargé, la liste occupe tout
+                  l'écran et le reste de la fiche devient inatteignable sans dérouler. */}
+              <button
+                type="button"
+                className="aup-collapse-toggle"
+                onClick={() => setTasksOpen((v) => !v)}
+                aria-expanded={tasksOpen}
+                aria-controls="aup-tasks-panel"
+              >
+                <span className={`aup-collapse-chevron${tasksOpen ? ' aup-collapse-chevron--open' : ''}`}>
+                  <IconChevronDown />
+                </span>
+                <span className="side-card-title">Tâches</span>
+                <span className="aup-collapse-count">{visibleTasks.length}</span>
+              </button>
+              {/* Les onglets ne servent à rien tant que le tableau est replié. */}
+              {tasksOpen && (
+                <div className="aup-tabs">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      className={`aup-tab${taskTab === tab.key ? ' aup-tab--active' : ''}`}
+                      onClick={() => setTaskTab(tab.key)}
+                    >
+                      {tab.label}
+                      {tab.key !== 'all' && counts[tab.key] > 0 && (
+                        <span className="aup-tab-badge">{counts[tab.key]}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
+            <div id="aup-tasks-panel" hidden={!tasksOpen}>
             {visibleTasks.length === 0 ? (
               <div className="empty-state">Aucune tâche dans cette catégorie.</div>
             ) : (
@@ -708,6 +670,7 @@ function AdminUserProfile() {
                 options={[10, 25, 50, { value: Number.MAX_SAFE_INTEGER, label: 'Toutes' }]}
               />
             )}
+            </div>
           </div>
         </div>
 
@@ -734,101 +697,6 @@ function AdminUserProfile() {
             )}
           </div>
 
-          <div className="side-card">
-            <p className="side-card-title">
-              Notes internes <span className="aup-notes-tag">admin</span>
-            </p>
-            <div className="aup-note-form">
-              <textarea
-                className="aup-note-input"
-                rows={3}
-                maxLength={2000}
-                placeholder="Observation, suivi, rappel… (visible des admins uniquement)"
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-              />
-              <button
-                type="button"
-                className="btn-primary aup-note-add"
-                onClick={addNote}
-                disabled={savingNote || !noteDraft.trim()}
-              >
-                {savingNote ? 'Ajout…' : 'Ajouter la note'}
-              </button>
-            </div>
-            {notes.length === 0 ? (
-              <p className="aup-daily-empty">Aucune note pour le moment.</p>
-            ) : (
-              <ul className="aup-notes">
-                {notes.map((n) => (
-                  <li key={n.id} className="aup-note">
-                    <div className="aup-note-head">
-                      <span className="aup-note-author">{n.author_name || 'Admin'}</span>
-                      <span className="aup-note-date">{formatDateTime(n.created_at)}</span>
-                      <button
-                        type="button"
-                        className="aup-note-del"
-                        onClick={() => removeNote(n.id)}
-                        aria-label="Supprimer la note"
-                        title="Supprimer"
-                      >
-                        <IconTrash />
-                      </button>
-                    </div>
-                    <p className="aup-note-content">{n.content}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Activité récente : dans la colonne de droite, elle comble le vide laissé
-              sous les notes au lieu de s'ajouter à une colonne gauche déjà très longue. */}
-          <div className="side-card">
-            <p className="side-card-title">Activité récente</p>
-            {activity.length === 0 ? (
-              <div className="empty-state">Aucune activité récente.</div>
-            ) : (
-              <>
-                <ul className="aup-activity">
-                  {pagedActivity.map((a, i) => (
-                    <li key={(activityPage - 1) * ACTIVITY_PER_PAGE + i} className="aup-activity-item">
-                      <span className="aup-activity-dot" />
-                      <div className="aup-activity-body">
-                        <span className="aup-activity-action">{ACTION_LABEL[a.action] || a.action}</span>
-                        {a.task_title && <span className="aup-activity-target"> · {a.task_title}</span>}
-                        <span className="aup-activity-time">{formatDateTime(a.timestamp)}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-
-                {activityPages > 1 && (
-                  <div className="aup-activity-nav">
-                    <button
-                      type="button"
-                      className="pagination-btn"
-                      onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
-                      disabled={activityPage === 1}
-                    >
-                      Précédent
-                    </button>
-                    <span className="aup-activity-count">
-                      {activityPage} / {activityPages}
-                    </span>
-                    <button
-                      type="button"
-                      className="pagination-btn"
-                      onClick={() => setActivityPage((p) => Math.min(activityPages, p + 1))}
-                      disabled={activityPage === activityPages}
-                    >
-                      Suivant
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
         </aside>
       </div>
 
