@@ -1517,27 +1517,52 @@
 
 /* --- Activité récente --- */
 
+/* Même respiration que .dashboard-top-grid au-dessus : sans cette marge, la carte venait
+   se coller au bloc « Tâches urgentes / Accès rapides » qui la précède. */
+.dashboard-activity {
+  margin-top: 24px;
+}
+
+/* Activité récente (tableau de bord employé).
+   La carte occupe toute la largeur : des lignes de 10 px y paraissaient écrasées, et
+   l'horodatage, seul à l'extrémité droite, semblait détaché de sa ligne. D'où des lignes
+   plus aérées, alignées verticalement au centre, et une colonne de temps de largeur fixe
+   qui les aligne les uns sous les autres. */
 .activity-item {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 0;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 10px;
+  margin: 0 -10px;
+  border-radius: var(--radius-sm);
   border-bottom: 1px solid var(--color-border);
+  transition: background var(--transition-fast);
+}
+
+.activity-item:hover {
+  background: var(--glass-overlay);
 }
 
 .activity-item:last-child {
   border-bottom: none;
-  padding-bottom: 0;
 }
 
 .activity-icon {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  /* Fond discret : sans lui, l'icône flottait dans le vide en tête de ligne. */
+  background: var(--input-bg);
   color: var(--color-text-secondary);
+}
+
+.activity-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* Seul « success » garde une couleur sémantique (vert) ; le reste est neutre. */
@@ -1548,15 +1573,21 @@
 .activity-text {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
 }
 
 .activity-time {
   flex-shrink: 0;
-  font-size: 11.5px;
+  /* Largeur fixe : les horodatages s'alignent en colonne au lieu de se décaler
+     selon la longueur de chacun (« il y a 3 h » / « il y a 12 min »). */
+  width: 96px;
+  text-align: right;
+  font-size: 12px;
   color: var(--color-text-muted);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- Barre de filtres (Mes tâches) --- */
