@@ -5,6 +5,8 @@ import * as statsService from '../services/statsService';
 import { formatDurationShort } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
 import '../styles/my-stats.css';
+import WeeklyTimesheet from '../components/WeeklyTimesheet';
+import WeeklyConnectionsTable from '../components/WeeklyConnectionsTable';
 
 const PRESETS = [
   { id: 'day', label: "Aujourd'hui" },
@@ -256,6 +258,8 @@ function StatCard({ icon, label, value, format, helper, variant }) {
 function MyStats() {
   const initialRange = computeRange('month');
   const [preset, setPreset] = useState('month');
+  // Relevé d'une personne ouvert depuis la grille de l'équipe : { employee, week }.
+  const [selectedPerson, setSelectedPerson] = useState(null);
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
   const [stats, setStats] = useState(null);
@@ -525,63 +529,24 @@ function MyStats() {
               </aside>
             </div>
 
-            <article className="employee-stats-panel employee-stats-table-panel">
-              <header className="employee-stats-panel-header employee-stats-table-header">
-                <div>
-                  <p className="employee-stats-panel-eyebrow">Historique</p>
-                  <h2>Détail par jour</h2>
-                  <p>{stats.by_day.length} journée(s) avec des données sur la période.</p>
-                </div>
-              </header>
-
-              {stats.by_day.length === 0 ? (
-                <div className="employee-stats-empty-table">
-                  <span className="employee-stats-empty-icon"><Icon type="calendar" /></span>
-                  <h3>Aucune donnée quotidienne</h3>
-                  <p>Essayez une autre période ou commencez à chronométrer vos tâches.</p>
-                </div>
-              ) : (
-                <div className="employee-stats-table-scroll">
-                  <table className="employee-stats-table">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Tâches confirmées</th>
-                        <th>Temps travaillé</th>
-                        <th>Répartition du temps</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...stats.by_day].reverse().map((day) => {
-                        const maxDailySeconds = Math.max(
-                          1,
-                          ...stats.by_day.map((row) => Number(row.hours_worked_seconds || 0))
-                        );
-                        const progress = Math.round((Number(day.hours_worked_seconds || 0) / maxDailySeconds) * 100);
-
-                        return (
-                          <tr key={day.date}>
-                            <td>
-                              <strong>{formatLongDate(day.date)}</strong>
-                            </td>
-                            <td>
-                              <span className="employee-stats-table-count">{day.tasks_confirmed}</span>
-                            </td>
-                            <td>{formatDurationShort(day.hours_worked_seconds)}</td>
-                            <td>
-                              <div className="employee-stats-time-progress" aria-label={`${progress}% du jour le plus travaillé`}>
-                                <span style={{ width: `${progress}%`, '--progress-scale': progress / 100 }} />
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </article>
           </>
+        )}
+
+        {/* Même parcours que côté admin — la grille de l'équipe, puis le relevé d'une
+            personne — mais en LECTURE SEULE : un employé consulte, il ne corrige pas. Une
+            erreur se signale à un admin, qui a les outils pour la reprendre. */}
+        {selectedPerson ? (
+          <WeeklyTimesheet
+            employee={selectedPerson.employee}
+            initialWeek={selectedPerson.week}
+            onBack={() => setSelectedPerson(null)}
+            readOnly
+          />
+        ) : (
+          <WeeklyConnectionsTable
+            readOnly
+            onOpenEmployee={(employee, week) => setSelectedPerson({ employee, week })}
+          />
         )}
       </section>
     </EmployeeLayout>

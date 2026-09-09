@@ -132,6 +132,13 @@ export const IconSearch = (props) =>
 export const IconChevronDown = (props) =>
   base(<path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
 
+// Chevrons horizontaux : navigation de semaine en semaine (feuille de temps).
+export const IconChevronLeft = (props) =>
+  base(<path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
+
+export const IconChevronRight = (props) =>
+  base(<path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
+
 export const IconExternalLink = (props) =>
   base(
     <>

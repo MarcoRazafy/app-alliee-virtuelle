@@ -450,11 +450,17 @@ async function findTimelogHistory(taskId) {
 
 async function findDailySelection(userId, date) {
   const result = await db.query(
+    // Le regroupement de « Ma journée » affiche l'emplacement complet (espace › dossier ›
+    // liste) : le seul nom de liste ne suffit pas à situer une tâche quand deux dossiers
+    // ont une liste homonyme.
     `SELECT s.task_id, s.selected_order, s.validated_at,
-            t.title, t.description, t.priority, t.status, t.deadline, t.list_id, tl.name AS list_name
+            t.title, t.description, t.priority, t.status, t.deadline, t.list_id,
+            tl.name AS list_name, tf.name AS folder_name, ts.name AS space_name
      FROM user_daily_selection s
      JOIN tasks t ON t.id = s.task_id
      LEFT JOIN task_lists tl ON tl.id = t.list_id
+     LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+     LEFT JOIN task_spaces ts ON ts.id = tf.space_id
      WHERE s.user_id = $1 AND s.date = $2
      ORDER BY s.selected_order ASC`,
     [userId, date]

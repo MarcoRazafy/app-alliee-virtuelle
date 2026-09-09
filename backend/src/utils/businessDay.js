@@ -71,9 +71,47 @@ function sqlBusinessDay(column) {
   return `(((${column}) AT TIME ZONE '${TIMEZONE}') - interval '${CUTOFF_HOUR} hours')::date`;
 }
 
+// Variante pour les colonnes TIMESTAMP **SANS** fuseau (timelog.start_time, tasks.updated_at).
+// Sur ce type, `AT TIME ZONE` fait l'INVERSE de ce qu'on veut : au lieu de convertir un instant
+// vers l'heure locale, il interprète une heure locale comme appartenant à ce fuseau et rend un
+// timestamptz — dont la conversion en date dépend ensuite du fuseau de la session PostgreSQL.
+// En local (session à Antananarivo) l'aller-retour s'annulait et masquait le problème ; sur
+// Railway (session en UTC), une entrée de 4 h du matin basculait sur la veille.
+// Ces colonnes contenant déjà une heure locale, il n'y a rien à convertir : on retire
+// simplement la coupure.
+function sqlBusinessDayNaive(column) {
+  return `(((${column}) - interval '${CUTOFF_HOUR} hours')::date)`;
+}
+
 // Journée de travail en cours (remplace `CURRENT_DATE`).
 function sqlToday() {
   return sqlBusinessDay('now()');
+}
+
+// Répartit une période [start, end[ sur les journées de TRAVAIL qu'elle traverse, en
+// secondes. Une connexion de 22 h à 1 h ne se coupe donc PAS à minuit : elle compte
+// entièrement sur la journée commencée la veille, comme le reste de l'application.
+// Renvoie { 'YYYY-MM-DD': secondes }, sans les journées à zéro.
+function splitSecondsByBusinessDay(start, end) {
+  const from = start instanceof Date ? DateTime.fromJSDate(start, { zone: TIMEZONE }) : DateTime.fromISO(String(start), { zone: TIMEZONE });
+  const to = end instanceof Date ? DateTime.fromJSDate(end, { zone: TIMEZONE }) : DateTime.fromISO(String(end), { zone: TIMEZONE });
+  const buckets = {};
+  if (!from.isValid || !to.isValid || to <= from) return buckets;
+
+  let cursor = from;
+  // Garde-fou : une session aberrante (date corrompue) ne doit pas faire tourner la boucle
+  // indéfiniment. 400 journées couvrent très largement tout cas légitime.
+  let guard = 0;
+  while (cursor < to && guard < 400) {
+    const day = businessDayOf(cursor.toISO());
+    const nextCutoff = businessDayStart(day).plus({ days: 1 });
+    const segmentEnd = to < nextCutoff ? to : nextCutoff;
+    const seconds = Math.max(0, Math.round(segmentEnd.diff(cursor, 'seconds').seconds));
+    if (seconds > 0) buckets[day] = (buckets[day] || 0) + seconds;
+    cursor = segmentEnd;
+    guard += 1;
+  }
+  return buckets;
 }
 
 module.exports = {
@@ -83,6 +121,8 @@ module.exports = {
   businessDayNow,
   businessDayShifted,
   businessDayStart,
+  splitSecondsByBusinessDay,
   sqlBusinessDay,
+  sqlBusinessDayNaive,
   sqlToday,
 };
