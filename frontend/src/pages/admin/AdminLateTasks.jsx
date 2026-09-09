@@ -1,19 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import { notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
 import { IconAlert, IconSearch, IconExternalLink, IconChevronDown } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
+import StatusDropdown from '../../components/StatusDropdown';
+import { displayStatusOf } from '../../utils/taskStatus';
 import '../../styles/admin.css';
-
-const STATUS_META = {
-  DECLAREE: { label: 'Déclarée', pill: 'declared' },
-  VALIDEE: { label: 'À faire', pill: 'todo' },
-  EN_COURS: { label: 'En cours', pill: 'progress' },
-  TERMINEE: { label: 'Terminée', pill: 'done' },
-  CONFIRMEE: { label: 'Confirmée', pill: 'confirmed' },
-};
 
 const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAIBLE: 'faible' };
 
@@ -31,13 +25,19 @@ function AdminLateTasks() {
   const [query, setQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
 
+  const load = useCallback(
+    () =>
+      taskService
+        .getLateTasks()
+        .then(setTasks)
+        .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches en retard'))
+        .finally(() => setLoading(false)),
+    []
+  );
+
   useEffect(() => {
-    taskService
-      .getLateTasks()
-      .then(setTasks)
-      .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches en retard'))
-      .finally(() => setLoading(false));
-  }, []);
+    load();
+  }, [load]);
 
   function toggleSort() {
     setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
@@ -141,7 +141,6 @@ function AdminLateTasks() {
             </thead>
             <tbody>
               {visibleTasks.map((task) => {
-                const meta = STATUS_META[task.status] || { label: task.status, pill: 'declared' };
                 return (
                   <tr key={task.id}>
                     <td>
@@ -157,7 +156,15 @@ function AdminLateTasks() {
                       </span>
                     </td>
                     <td>
-                      <span className={`pill pill--${meta.pill}`}>{meta.label}</span>
+                      {/* Modifiable sur place : une tâche en retard se règle le plus souvent
+                          en changeant son statut, sans avoir à ouvrir la fiche. Le rechargement
+                          fait disparaître de la liste ce qui passe en Confirmée. */}
+                      <StatusDropdown
+                        taskId={task.id}
+                        status={task.status}
+                        displayStatus={displayStatusOf(task)}
+                        onChanged={load}
+                      />
                     </td>
                     <td>{task.deadline ? formatDate(task.deadline) : '—'}</td>
                     <td>
