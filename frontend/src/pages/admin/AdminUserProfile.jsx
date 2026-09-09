@@ -370,11 +370,22 @@ function AdminUserProfile() {
     [tasks, todayYMD]
   );
 
+  // Ce qui est terminé ou confirmé passe EN DERNIER : ces tâches n'appellent plus d'action,
+  // et triées par échéance elles occupaient le haut du tableau — l'admin devait dérouler pour
+  // trouver ce qui reste à faire. Le tri de JavaScript étant stable, l'ordre par échéance est
+  // conservé à l'intérieur de chaque bloc.
+  const isFinished = (task) => task.status === 'TERMINEE' || task.status === 'CONFIRMEE';
+
   const visibleTasks = useMemo(() => {
-    if (taskTab === 'progress') return tasks.filter((t) => t.status === 'EN_COURS');
-    if (taskTab === 'late') return tasks.filter((t) => isLate(t, todayYMD));
-    if (taskTab === 'done') return tasks.filter((t) => t.status === 'TERMINEE' || t.status === 'CONFIRMEE');
-    return tasks;
+    const filtered =
+      taskTab === 'progress'
+        ? tasks.filter((t) => t.status === 'EN_COURS')
+        : taskTab === 'late'
+          ? tasks.filter((t) => isLate(t, todayYMD))
+          : taskTab === 'done'
+            ? tasks.filter(isFinished)
+            : tasks;
+    return [...filtered].sort((a, b) => Number(isFinished(a)) - Number(isFinished(b)));
   }, [tasks, taskTab, todayYMD]);
 
   // --- Correction du temps de connexion (déconnexion oubliée) ---
