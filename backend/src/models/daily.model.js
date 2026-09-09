@@ -46,10 +46,13 @@ async function getDailyOverview(date) {
 
   const todos = (
     await db.query(
-      `SELECT s.user_id, t.id AS task_id, t.title, tl.name AS list_name, s.validated_at
+      `SELECT s.user_id, t.id AS task_id, t.title, t.priority, s.validated_at,
+              tl.name AS list_name, tf.name AS folder_name, ts.name AS space_name
        FROM user_daily_selection s
        JOIN tasks t ON t.id = s.task_id
        LEFT JOIN task_lists tl ON tl.id = t.list_id
+       LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+       LEFT JOIN task_spaces ts ON ts.id = tf.space_id
        WHERE s.date = $1 AND s.validated_at IS NOT NULL
        ORDER BY s.selected_order ASC`,
       [date]
@@ -58,10 +61,13 @@ async function getDailyOverview(date) {
 
   const dailies = (
     await db.query(
-      `SELECT d.user_id, t.id AS task_id, t.title, tl.name AS list_name, d.created_at
+      `SELECT d.user_id, t.id AS task_id, t.title, t.priority, d.created_at,
+              tl.name AS list_name, tf.name AS folder_name, ts.name AS space_name
        FROM user_daily_done d
        JOIN tasks t ON t.id = d.task_id
        LEFT JOIN task_lists tl ON tl.id = t.list_id
+       LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+       LEFT JOIN task_spaces ts ON ts.id = tf.space_id
        WHERE d.date = $1
        ORDER BY d.selected_order ASC`,
       [date]
@@ -74,13 +80,27 @@ async function getDailyOverview(date) {
   for (const r of todos) {
     const u = byUser.get(r.user_id);
     if (!u) continue;
-    u.todo.push({ task_id: r.task_id, title: r.title, list_name: r.list_name });
+    u.todo.push({
+      task_id: r.task_id,
+      title: r.title,
+      priority: r.priority,
+      list_name: r.list_name,
+      folder_name: r.folder_name,
+      space_name: r.space_name,
+    });
     if (r.validated_at && (!u.todo_submitted_at || r.validated_at > u.todo_submitted_at)) u.todo_submitted_at = r.validated_at;
   }
   for (const r of dailies) {
     const u = byUser.get(r.user_id);
     if (!u) continue;
-    u.daily.push({ task_id: r.task_id, title: r.title, list_name: r.list_name });
+    u.daily.push({
+      task_id: r.task_id,
+      title: r.title,
+      priority: r.priority,
+      list_name: r.list_name,
+      folder_name: r.folder_name,
+      space_name: r.space_name,
+    });
     if (r.created_at && (!u.daily_submitted_at || r.created_at > u.daily_submitted_at)) u.daily_submitted_at = r.created_at;
   }
 

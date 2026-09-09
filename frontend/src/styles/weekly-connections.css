@@ -1,0 +1,668 @@
+/* Feuille de temps hebdomadaire (temps de connexion par employé et par jour).
+   Grille dense : la colonne des noms reste visible pendant le défilement horizontal,
+   sinon on ne sait plus à qui appartient la ligne qu'on lit. */
+
+.wkc-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.wkc-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wkc-head h2 {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* --- Navigation de semaine --- */
+
+.wkc-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wkc-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+.wkc-nav-btn:hover {
+  color: var(--color-accent-lighter);
+  border-color: var(--color-accent-light);
+  background: var(--glass-overlay);
+}
+.wkc-nav-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+.wkc-nav-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.wkc-nav-label {
+  min-width: 132px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wkc-jump input {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.wkc-jump input:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+
+.wkc-today-btn {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.wkc-today-btn:hover:not(:disabled) {
+  color: var(--color-accent-lighter);
+  border-color: var(--color-accent-light);
+}
+.wkc-today-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* --- Grille --- */
+
+.wkc-scroll {
+  overflow-x: auto;
+}
+
+.wkc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wkc-table th,
+.wkc-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.wkc-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-bg-secondary);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+/* Colonne des noms figée à gauche : sans elle, le défilement horizontal fait perdre
+   de vue à qui appartient la ligne. */
+.wkc-th-name,
+.wkc-td-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 220px;
+  text-align: left;
+  background: var(--color-bg-secondary);
+}
+.wkc-table thead .wkc-th-name {
+  z-index: 3;
+}
+
+.wkc-td-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.wkc-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.wkc-avatar--img {
+  object-fit: cover;
+  background: transparent;
+}
+
+.wkc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wkc-th-day {
+  min-width: 92px;
+}
+.wkc-th-weekday,
+.wkc-th-date {
+  display: block;
+  line-height: 1.35;
+}
+.wkc-th-date {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.wkc-th-day--today {
+  color: var(--color-accent-lighter);
+}
+
+.wkc-cell {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Une cellule remplie se repère d'un coup d'œil, sans avoir à lire les chiffres. */
+.wkc-cell--filled {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.wkc-cell--today {
+  box-shadow: inset 1px 0 0 var(--color-accent-light), inset -1px 0 0 var(--color-accent-light);
+}
+
+.wkc-zero {
+  color: var(--color-text-muted);
+}
+
+.wkc-cell--total {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  border-left: 1px solid var(--color-border);
+}
+
+.wkc-empty {
+  padding: 28px 12px;
+  color: var(--color-text-muted);
+}
+
+/* --- Pied : total de l'équipe --- */
+
+.wkc-table tfoot th,
+.wkc-table tfoot td {
+  border-bottom: none;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.wkc-foot-label {
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+.wkc-foot-label svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 900px) {
+  .wkc-th-name,
+  .wkc-td-name {
+    min-width: 160px;
+  }
+}
+
+/* --- Nom cliquable : ouvre le relevé de temps de la personne ----------------------- */
+.wkc-person-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 3px 6px;
+  margin: -3px -6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.wkc-person-btn:hover {
+  background: var(--glass-overlay);
+  color: var(--color-accent-lighter);
+}
+.wkc-person-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+
+/* --- Relevé de temps d'une personne ------------------------------------------------ */
+
+.wkc-head--detail {
+  align-items: center;
+}
+
+.wkc-detail-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wkc-week-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 30px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-text-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.wkc-week-total svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-accent-lighter);
+}
+
+.wkc-sheet {
+  padding: 6px 0 4px;
+}
+
+.wkc-day + .wkc-day {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Toute la ligne du jour est cliquable, pas seulement le chevron. */
+.wkc-day-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.wkc-day-head:hover {
+  background: var(--glass-overlay);
+}
+.wkc-day-head:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+
+.wkc-day-chevron {
+  display: inline-flex;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+}
+.wkc-day-chevron svg {
+  width: 15px;
+  height: 15px;
+}
+.wkc-day-chevron--open {
+  transform: rotate(180deg);
+}
+
+.wkc-day-label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.wkc-day-label--today {
+  color: var(--color-accent-lighter);
+}
+
+.wkc-day-count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Le total de la journée est l'information qu'on cherche en premier : poussé à droite. */
+.wkc-day-total {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wkc-day-empty {
+  margin: 0;
+  padding: 4px 20px 14px 45px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.wkc-sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.wkc-sheet-table thead th {
+  padding: 6px 16px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wkc-sheet-th-task {
+  text-align: left !important;
+  padding-left: 45px !important;
+}
+.wkc-sheet-table td {
+  padding: 8px 16px;
+  border-top: 1px solid var(--color-border);
+  text-align: right;
+  vertical-align: middle;
+}
+
+.wkc-sheet-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.wkc-sheet-row:hover {
+  background: var(--glass-overlay);
+}
+
+.wkc-sheet-task {
+  text-align: left !important;
+  padding-left: 45px !important;
+}
+.wkc-sheet-title {
+  display: block;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.wkc-sheet-path {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.wkc-sheet-time,
+.wkc-sheet-duration {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+.wkc-sheet-duration {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.wkc-running {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+/* --- Correction d'une entrée de temps ---------------------------------------------- */
+
+.wkc-sheet-th-actions {
+  width: 78px;
+}
+
+/* Discrètes au repos : le relevé se lit d'abord, il ne se corrige qu'exceptionnellement. */
+.wkc-sheet-actions {
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.wkc-sheet-row:hover .wkc-sheet-actions,
+.wkc-sheet-actions:focus-within {
+  opacity: 1;
+}
+@media (hover: none) {
+  .wkc-sheet-actions {
+    opacity: 1;
+  }
+}
+.wkc-sheet-action {
+  width: 28px;
+  height: 28px;
+}
+.wkc-sheet-action svg {
+  width: 14px;
+  height: 14px;
+}
+
+.wkc-sheet-edit-row td {
+  padding: 0 !important;
+  background: var(--glass-overlay);
+}
+
+.wkc-sheet-edit {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px 12px 45px;
+}
+.wkc-sheet-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.wkc-sheet-edit input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.wkc-sheet-edit input:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+.wkc-sheet-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.wkc-sheet-edit-actions .btn-primary {
+  width: auto;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 12.5px;
+}
+
+/* --- Correction du temps de connexion d'une cellule -------------------------------- */
+
+/* La cellule entière est cliquable : viser un chiffre de trois caractères serait pénible. */
+.wkc-cell-btn {
+  width: 100%;
+  padding: 4px 2px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: box-shadow var(--transition-fast);
+}
+.wkc-cell-btn:hover {
+  box-shadow: inset 0 0 0 1px var(--color-accent-light);
+}
+.wkc-cell-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+
+.wkc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--glass-dark);
+  backdrop-filter: blur(3px);
+}
+
+.wkc-modal {
+  width: min(620px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-secondary);
+  box-shadow: var(--shadow-lg);
+}
+
+.wkc-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.wkc-modal-head h3 {
+  margin: 2px 0 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.wkc-modal-hint {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.wkc-session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wkc-session {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.wkc-session:hover {
+  background: var(--glass-overlay);
+  border-color: var(--color-border);
+}
+
+.wkc-session-range {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wkc-session-duration {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wkc-session-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* Dans la modale, le formulaire occupe toute la ligne de la session éditée. */
+.wkc-session .wkc-sheet-edit {
+  width: 100%;
+  padding: 0;
+}
+
+
+/* Temps de connexion du jour, en regard du temps passé sur les tâches. */
+.wkc-day-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.wkc-day-connection svg {
+  width: 13px;
+  height: 13px;
+}
+/* Le total des tâches n'est plus le premier élément poussé à droite. */
+.wkc-day-connection + .wkc-day-total {
+  margin-left: 16px;
+}

@@ -1,6 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as statsService from '../../services/statsService';
-import * as taskService from '../../services/taskService';
 import { formatDurationShort } from '../../utils/formatters';
 import { notifyError, notifyInfo } from '../../utils/toast';
 import '../../styles/admin-stats.css';
@@ -8,6 +7,8 @@ import { PageSkeleton } from '../../components/Skeleton';
 import AnimatedNumber from '../../components/AnimatedNumber';
 import { PRESETS, LEADERBOARD_METRICS, computeRange, formatShortDate, downloadCsv } from './adminStatsHelpers';
 import { Icon, CompletionRing, ActivityChart, StatusDonut } from './AdminStatsCharts';
+import WeeklyConnectionsTable from '../../components/WeeklyConnectionsTable';
+import WeeklyTimesheet from '../../components/WeeklyTimesheet';
 
 function AdminStatistics() {
   const initial = computeRange('month');
@@ -18,14 +19,11 @@ function AdminStatistics() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [view, setView] = useState('tasks'); // 'tasks' | 'presence'
+  // Relevé de temps d'une personne ouvert depuis la feuille d'équipe : { employee, week }.
+  const [selectedPerson, setSelectedPerson] = useState(null);
 
   const [chartMetric, setChartMetric] = useState('hours_worked_seconds');
   const [boardMetric, setBoardMetric] = useState('hours_worked_seconds');
-  const [sortKey, setSortKey] = useState('full_name');
-  const [sortDir, setSortDir] = useState('asc');
-  const [expandedId, setExpandedId] = useState(null);
-  const [employeeTasks, setEmployeeTasks] = useState([]);
-  const tasksCacheRef = useRef({});
 
   useEffect(() => {
     if (preset === 'custom') return;
@@ -65,17 +63,12 @@ function AdminStatistics() {
     return { totalHours, activeEmployees, employeeCount: stats.by_employee.length };
   }, [stats]);
 
+  // Ne sert plus qu'à l'export CSV depuis que le tableau par employé a laissé place à la
+  // feuille de temps hebdomadaire : un ordre alphabétique stable suffit.
   const sortedByEmployee = useMemo(() => {
     if (!stats) return [];
-    const rows = [...stats.by_employee];
-    rows.sort((a, b) => {
-      const va = a[sortKey];
-      const vb = b[sortKey];
-      if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-      return sortDir === 'asc' ? va - vb : vb - va;
-    });
-    return rows;
-  }, [stats, sortKey, sortDir]);
+    return [...stats.by_employee].sort((a, b) => a.full_name.localeCompare(b.full_name));
+  }, [stats]);
 
   const leaderboard = useMemo(() => {
     if (!stats) return [];
@@ -96,34 +89,6 @@ function AdminStatistics() {
     () => presenceRows.filter((e) => Number(e.connected_seconds || 0) > 0).slice(0, 8),
     [presenceRows]
   );
-
-  function toggleSort(key) {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortKey(key);
-      setSortDir(key === 'full_name' ? 'asc' : 'desc');
-    }
-  }
-
-  async function toggleExpand(employeeId) {
-    if (expandedId === employeeId) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(employeeId);
-    try {
-      let allTasks = tasksCacheRef.current.all;
-      if (!allTasks) {
-        allTasks = await taskService.getTasks();
-        tasksCacheRef.current.all = allTasks;
-      }
-      setEmployeeTasks(
-        allTasks.filter((t) => t.assigned_to === employeeId && t.deadline >= from && t.deadline <= to)
-      );
-    } catch (err) {
-      notifyError(err.response?.data?.error || 'Impossible de charger le détail des tâches');
-    }
-  }
 
   function handleExportCsv() {
     if (!stats) return;
@@ -163,15 +128,6 @@ function AdminStatistics() {
   const boardFormat = LEADERBOARD_METRICS.find((m) => m.id === boardMetric)?.format || String;
   const periodLabel = `${formatShortDate(from)} – ${formatShortDate(to)}`;
 
-  const SORT_COLS = [
-    { key: 'full_name', label: 'Employé', align: 'left' },
-    { key: 'total_tasks', label: 'Total' },
-    { key: 'confirmed', label: 'Complétées' },
-    { key: 'in_progress', label: 'En cours' },
-    { key: 'late', label: 'En retard' },
-    { key: 'completion_rate', label: '% complétion' },
-    { key: 'hours_worked_seconds', label: 'Heures' },
-  ];
 
   if (loading && !stats) return <PageSkeleton variant="stats" />;
 
@@ -391,83 +347,20 @@ function AdminStatistics() {
             )}
           </section>
 
-          <section className="astat-panel astat-table-panel">
-            <header className="astat-panel-head">
-              <div>
-                <p className="astat-panel-eyebrow">Détail</p>
-                <h2>Par employé</h2>
-              </div>
-              <span className="astat-table-hint">Cliquez une ligne pour voir ses tâches</span>
-            </header>
-
-            <div className="task-table-wrap">
-              <table className="task-table astat-table">
-                <thead>
-                  <tr>
-                    {SORT_COLS.map((col) => (
-                      <th
-                        key={col.key}
-                        className={`astat-th${col.align === 'left' ? ' astat-th--left' : ''}${
-                          sortKey === col.key ? ' astat-th--active' : ''
-                        }`}
-                        onClick={() => toggleSort(col.key)}
-                      >
-                        {col.label}
-                        <span className="astat-th-arrow">
-                          {sortKey === col.key ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedByEmployee.map((e) => (
-                    <Fragment key={e.user_id}>
-                      <tr className="astat-row" onClick={() => toggleExpand(e.user_id)}>
-                        <td className="astat-td-name">{e.full_name}</td>
-                        <td>{e.total_tasks}</td>
-                        <td>{e.confirmed}</td>
-                        <td>{e.in_progress}</td>
-                        <td className={e.late > 0 ? 'astat-td-late' : ''}>{e.late}</td>
-                        <td>
-                          <span className="astat-completion">
-                            <span className="astat-completion-track">
-                              <span
-                                className="astat-completion-fill"
-                                style={{ width: `${e.completion_rate}%` }}
-                              />
-                            </span>
-                            {e.completion_rate}%
-                          </span>
-                        </td>
-                        <td>{formatDurationShort(e.hours_worked_seconds)}</td>
-                      </tr>
-                      {expandedId === e.user_id && (
-                        <tr className="astat-expand-row">
-                          <td colSpan={7}>
-                            {employeeTasks.length === 0 ? (
-                              <p className="astat-expand-empty">Aucune tâche sur cette période.</p>
-                            ) : (
-                              <ul className="astat-expand-list">
-                                {employeeTasks.map((t) => (
-                                  <li key={t.id}>
-                                    <span className="astat-expand-title">{t.title}</span>
-                                    <span className="astat-expand-meta">
-                                      {t.priority} · {t.status} · {t.deadline ? formatShortDate(t.deadline.slice(0, 10)) : '—'}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          {/* Une personne sélectionnée remplace la feuille d'équipe par son relevé détaillé,
+              comme un « écran suivant » : garder les deux à l'écran doublerait la hauteur
+              d'une page déjà longue. */}
+          {selectedPerson ? (
+            <WeeklyTimesheet
+              employee={selectedPerson.employee}
+              initialWeek={selectedPerson.week}
+              onBack={() => setSelectedPerson(null)}
+            />
+          ) : (
+            <WeeklyConnectionsTable
+              onOpenEmployee={(employee, week) => setSelectedPerson({ employee, week })}
+            />
+          )}
         </>
       )}
 

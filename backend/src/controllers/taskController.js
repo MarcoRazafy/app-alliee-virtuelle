@@ -639,6 +639,8 @@ async function getMyDay(req, res, next) {
           deadline: row.deadline,
           list_id: row.list_id,
           list_name: row.list_name,
+          folder_name: row.folder_name,
+          space_name: row.space_name,
         },
       }))
     );
@@ -680,6 +682,8 @@ async function setMyDay(req, res, next) {
           deadline: row.deadline,
           list_id: row.list_id,
           list_name: row.list_name,
+          folder_name: row.folder_name,
+          space_name: row.space_name,
         },
       }))
     );

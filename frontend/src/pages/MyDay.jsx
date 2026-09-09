@@ -10,6 +10,7 @@ import { IconX } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
 import { htmlToText } from '../utils/sanitizeHtml';
 import '../styles/daily.css';
+import { groupByProject } from '../utils/dailyGrouping';
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -19,18 +20,6 @@ const today = new Date().toLocaleDateString('fr-FR', {
 });
 const todayShort = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 
-// Regroupe des tâches par projet (nom de liste) → [{ project, tasks }] trié par projet.
-function groupByProject(tasks) {
-  const map = new Map();
-  for (const t of tasks) {
-    const project = t.list_name || 'Sans projet';
-    if (!map.has(project)) map.set(project, []);
-    map.get(project).push(t);
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0], 'fr'))
-    .map(([project, list]) => ({ project, tasks: list }));
-}
 
 // Date + heure d'envoi (validation), ex. « 13/08/2026 à 16:45 ».
 function formatSubmit(ts) {
@@ -82,6 +71,8 @@ function MyDay() {
         priority: item.task_data.priority,
         deadline: item.task_data.deadline,
         list_name: item.task_data.list_name,
+        folder_name: item.task_data.folder_name,
+        space_name: item.task_data.space_name,
         validated_at: item.validated_at,
       }))
     );

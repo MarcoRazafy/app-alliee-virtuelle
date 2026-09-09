@@ -55,3 +55,57 @@ test('l’expression SQL cible bien le fuseau de l’organisation et la coupure'
   assert.match(sql, /interval '2 hours'/);
   assert.match(sql, /::date$/);
 });
+
+// --- Répartition d'une connexion sur les journées de travail ------------------------
+const SPLIT = businessDay.splitSecondsByBusinessDay;
+
+test('une journée ordinaire tombe entièrement sur son jour', () => {
+  assert.deepEqual(SPLIT('2026-09-07T09:00:00+03:00', '2026-09-07T17:00:00+03:00'), {
+    '2026-09-07': 8 * 3600,
+  });
+});
+
+test('un poste de nuit de 22 h à 1 h compte en entier sur la veille', () => {
+  assert.deepEqual(SPLIT('2026-09-07T22:00:00+03:00', '2026-09-08T01:00:00+03:00'), {
+    '2026-09-07': 3 * 3600,
+  });
+});
+
+test('une connexion qui franchit 2 h du matin se partage sur les deux journées', () => {
+  assert.deepEqual(SPLIT('2026-09-07T22:00:00+03:00', '2026-09-08T03:00:00+03:00'), {
+    '2026-09-07': 4 * 3600,
+    '2026-09-08': 1 * 3600,
+  });
+});
+
+test('une connexion de plusieurs jours remplit chaque journée intermédiaire', () => {
+  const parts = SPLIT('2026-09-07T09:00:00+03:00', '2026-09-09T09:00:00+03:00');
+  assert.equal(parts['2026-09-08'], 24 * 3600);
+  assert.equal(Object.values(parts).reduce((a, b) => a + b, 0), 48 * 3600);
+});
+
+test('une période vide ou inversée ne produit aucune journée', () => {
+  assert.deepEqual(SPLIT('2026-09-07T10:00:00+03:00', '2026-09-07T10:00:00+03:00'), {});
+  assert.deepEqual(SPLIT('2026-09-07T10:00:00+03:00', '2026-09-07T09:00:00+03:00'), {});
+  assert.deepEqual(SPLIT('pas une date', '2026-09-07T09:00:00+03:00'), {});
+});
+
+test('le total réparti égale toujours la durée réelle de la connexion', () => {
+  const parts = SPLIT('2026-09-07T23:12:00+03:00', '2026-09-08T06:47:00+03:00');
+  const total = Object.values(parts).reduce((a, b) => a + b, 0);
+  assert.equal(total, (7 * 60 + 35) * 60);
+});
+
+test('les deux variantes SQL traitent différemment les colonnes avec et sans fuseau', () => {
+  // TIMESTAMPTZ : on convertit d'abord vers l'heure de l'organisation.
+  const tz = businessDay.sqlBusinessDay('login_at');
+  assert.match(tz, /AT TIME ZONE 'Indian\/Antananarivo'/);
+
+  // TIMESTAMP sans fuseau : la valeur EST déjà une heure locale. Y appliquer AT TIME ZONE
+  // ferait dépendre le résultat du fuseau de la session PostgreSQL — différent en local
+  // et sur Railway, où une entrée de 4 h du matin basculait sur la veille.
+  const naive = businessDay.sqlBusinessDayNaive('start_time');
+  assert.doesNotMatch(naive, /AT TIME ZONE/);
+  assert.match(naive, /interval '2 hours'/);
+  assert.match(naive, /::date/);
+});

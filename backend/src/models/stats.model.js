@@ -4,10 +4,16 @@ const { computeCompletionRate } = require('../utils/kpi');
 // Journée de TRAVAIL, terminée à 2 h du matin et non à minuit (voir utils/businessDay) :
 // regrouper par `::date` coupait en deux le poste d'un employé de nuit, et CURRENT_DATE
 // dépendait du fuseau de la session PostgreSQL — différent en local et sur Railway.
-const { sqlBusinessDay: DAY, sqlToday } = require('../utils/businessDay');
+// DAY  : colonnes TIMESTAMPTZ (user_sessions.login_at)
+// DAYN : colonnes TIMESTAMP sans fuseau (timelog.start_time, tasks.updated_at) — voir
+//        utils/businessDay, où le piège de AT TIME ZONE sur ce type est expliqué.
+const { sqlBusinessDay: DAY, sqlBusinessDayNaive: DAYN, sqlToday } = require('../utils/businessDay');
 // Les colonnes DATE remontent de `pg` construites avec les getters LOCAUX : les relire avec
 // toISOString() décalait l'étiquette du jour quand le fuseau du serveur n'est pas UTC.
 const { formatDbDate } = require('../utils/planningDates');
+const planningDates = require('../utils/planningDates');
+const businessDay = require('../utils/businessDay');
+const sessionModel = require('./session.model');
 const TODAY = sqlToday();
 
 const STATUS_LIST = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
@@ -39,7 +45,7 @@ async function computeTeamStats(from, to) {
   const timeResult = await db.query(
     `SELECT COALESCE(SUM(duration_seconds), 0)::BIGINT AS total_seconds,
             COUNT(DISTINCT task_id)::INTEGER AS tasks_with_time
-     FROM timelog WHERE ${DAY('start_time')} BETWEEN $1 AND $2`,
+     FROM timelog WHERE ${DAYN('start_time')} BETWEEN $1 AND $2`,
     [from, to]
   );
 
@@ -55,15 +61,15 @@ async function computeTeamStats(from, to) {
   };
 
   const confirmedByDayResult = await db.query(
-    `SELECT ${DAY('updated_at')} AS date, COUNT(*)::INTEGER AS tasks_confirmed
-     FROM tasks WHERE status = 'CONFIRMEE' AND ${DAY('updated_at')} BETWEEN $1 AND $2
-     GROUP BY ${DAY('updated_at')}`,
+    `SELECT ${DAYN('updated_at')} AS date, COUNT(*)::INTEGER AS tasks_confirmed
+     FROM tasks WHERE status = 'CONFIRMEE' AND ${DAYN('updated_at')} BETWEEN $1 AND $2
+     GROUP BY ${DAYN('updated_at')}`,
     [from, to]
   );
   const hoursByDayResult = await db.query(
-    `SELECT ${DAY('start_time')} AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
-     FROM timelog WHERE ${DAY('start_time')} BETWEEN $1 AND $2
-     GROUP BY ${DAY('start_time')}`,
+    `SELECT ${DAYN('start_time')} AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
+     FROM timelog WHERE ${DAYN('start_time')} BETWEEN $1 AND $2
+     GROUP BY ${DAYN('start_time')}`,
     [from, to]
   );
   // Temps de connexion (présence) agrégé par jour, indépendant du chrono de tâche.
@@ -112,7 +118,7 @@ async function computeTeamStats(from, to) {
     ),
     db.query(
       `SELECT employee_id, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
-       FROM timelog WHERE ${DAY('start_time')} BETWEEN $1 AND $2
+       FROM timelog WHERE ${DAYN('start_time')} BETWEEN $1 AND $2
        GROUP BY employee_id`,
       [from, to]
     ),
@@ -178,14 +184,14 @@ async function computeEmployeeStats(employeeId, from, to) {
        COUNT(*) FILTER (WHERE t.status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
        COUNT(*)::INTEGER AS total_tasks
      FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
-     WHERE ta.user_id = $1 AND ${DAY('t.updated_at')} BETWEEN $2 AND $3`,
+     WHERE ta.user_id = $1 AND ${DAYN('t.updated_at')} BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
   const timeResult = await db.query(
     `SELECT COALESCE(SUM(duration_seconds), 0)::BIGINT AS total_seconds,
             COUNT(DISTINCT task_id)::INTEGER AS tasks_with_time
-     FROM timelog WHERE employee_id = $1 AND ${DAY('start_time')} BETWEEN $2 AND $3`,
+     FROM timelog WHERE employee_id = $1 AND ${DAYN('start_time')} BETWEEN $2 AND $3`,
     [employeeId, from, to]
   );
 
@@ -211,16 +217,16 @@ async function computeEmployeeStats(employeeId, from, to) {
   };
 
   const confirmedByDayResult = await db.query(
-    `SELECT ${DAY('t.updated_at')} AS date, COUNT(*)::INTEGER AS tasks_confirmed
+    `SELECT ${DAYN('t.updated_at')} AS date, COUNT(*)::INTEGER AS tasks_confirmed
      FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
-     WHERE ta.user_id = $1 AND t.status = 'CONFIRMEE' AND ${DAY('t.updated_at')} BETWEEN $2 AND $3
-     GROUP BY ${DAY('t.updated_at')}`,
+     WHERE ta.user_id = $1 AND t.status = 'CONFIRMEE' AND ${DAYN('t.updated_at')} BETWEEN $2 AND $3
+     GROUP BY ${DAYN('t.updated_at')}`,
     [employeeId, from, to]
   );
   const hoursByDayResult = await db.query(
-    `SELECT ${DAY('start_time')} AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
-     FROM timelog WHERE employee_id = $1 AND ${DAY('start_time')} BETWEEN $2 AND $3
-     GROUP BY ${DAY('start_time')}`,
+    `SELECT ${DAYN('start_time')} AS date, COALESCE(SUM(duration_seconds), 0)::BIGINT AS hours_worked_seconds
+     FROM timelog WHERE employee_id = $1 AND ${DAYN('start_time')} BETWEEN $2 AND $3
+     GROUP BY ${DAYN('start_time')}`,
     [employeeId, from, to]
   );
 
@@ -243,4 +249,170 @@ async function computeEmployeeStats(employeeId, from, to) {
   };
 }
 
-module.exports = { computeTeamStats, computeEmployeeStats };
+// --- Temps de connexion par employé et par jour, sur une semaine -------------------------
+//
+// Vue « feuille de temps » : une ligne par employé, une colonne par jour de la semaine.
+// L'agrégation se fait en JS et non en SQL parce qu'une connexion doit être RÉPARTIE sur
+// les journées qu'elle traverse (une session de 22 h à 3 h appartient pour partie à deux
+// journées), ce qu'un simple GROUP BY sur la date de début ne saurait pas faire. Le volume
+// concerné — une vingtaine de personnes sur sept jours — rend ce choix sans conséquence.
+// `onlyUserId` : restreint la grille à une seule personne (espace employé). Le filtre est
+// posé ICI, dans la requête, et non à l'affichage : filtrer côté navigateur enverrait quand
+// même les heures de toute l'équipe dans la réponse.
+async function computeWeeklyConnections(weekStartDate, { onlyUserId = null } = {}) {
+  const days = planningDates.getWeekDates(weekStartDate);
+  const rangeStart = businessDay.businessDayStart(days[0]);
+  const rangeEnd = businessDay.businessDayStart(days[days.length - 1]).plus({ days: 1 });
+
+  const employeesResult = await db.query(
+    `SELECT u.id, u.full_name, (a.id IS NOT NULL) AS has_avatar
+     FROM users u
+     LEFT JOIN user_avatars a ON a.user_id = u.id
+     WHERE u.status = 'ACTIF'
+       AND ($1::uuid IS NULL OR u.id = $1)
+       -- Sans restriction, la grille liste les employés. Restreinte à une personne, elle
+       -- doit aussi fonctionner pour un admin qui consulte son propre temps.
+       AND ($1::uuid IS NOT NULL OR u.role = 'EMPLOYEE')
+     ORDER BY u.full_name ASC`,
+    [onlyUserId]
+  );
+  const employees = employeesResult.rows;
+  if (employees.length === 0) return { week_start_date: days[0], days, employees: [] };
+
+  const sessions = await sessionModel.findSessionsForUsersOverlapping(
+    employees.map((e) => e.id),
+    rangeStart.toISO(),
+    rangeEnd.toISO()
+  );
+
+  const byUser = new Map(employees.map((e) => [e.id, {}]));
+  sessions.forEach((session) => {
+    const buckets = businessDay.splitSecondsByBusinessDay(session.login_at, session.effective_logout_at);
+    const target = byUser.get(session.user_id);
+    if (!target) return;
+    Object.entries(buckets).forEach(([day, seconds]) => {
+      // La requête ne borne les sessions qu'aux extrémités : une connexion qui déborde de
+      // la semaine apporterait sinon des journées hors de la grille affichée.
+      if (!days.includes(day)) return;
+      target[day] = (target[day] || 0) + seconds;
+    });
+  });
+
+  return {
+    week_start_date: days[0],
+    days,
+    employees: employees.map((e) => {
+      const byDay = byUser.get(e.id) || {};
+      return {
+        id: e.id,
+        full_name: e.full_name,
+        has_avatar: e.has_avatar,
+        by_day: byDay,
+        total_seconds: Object.values(byDay).reduce((sum, n) => sum + n, 0),
+      };
+    }),
+  };
+}
+
+// --- Relevé de temps d'un employé sur une semaine ----------------------------------------
+//
+// Toutes ses entrées de chrono, groupées par journée de travail, avec le fil d'Ariane de la
+// tâche (espace › dossier › liste). Les bornes sont comparées en heure locale : start_time
+// est un TIMESTAMP sans fuseau, il contient déjà l'heure telle qu'affichée.
+async function computeWeeklyTimelog(userId, weekStartDate) {
+  const days = planningDates.getWeekDates(weekStartDate);
+  const rangeStart = businessDay.businessDayStart(days[0]);
+  const rangeEnd = businessDay.businessDayStart(days[days.length - 1]).plus({ days: 1 });
+
+  const userResult = await db.query(
+    `SELECT u.id, u.full_name, (a.id IS NOT NULL) AS has_avatar
+     FROM users u LEFT JOIN user_avatars a ON a.user_id = u.id
+     WHERE u.id = $1`,
+    [userId]
+  );
+  const user = userResult.rows[0] || null;
+  if (!user) return null;
+
+  const entriesResult = await db.query(
+    `SELECT tle.id, tle.task_id, tle.start_time, tle.end_time, tle.duration_seconds,
+            t.title AS task_title, t.status AS task_status,
+            tl.name AS list_name, tf.name AS folder_name, ts.name AS space_name,
+            ${DAYN('tle.start_time')} AS business_day
+     FROM timelog tle
+     JOIN tasks t ON t.id = tle.task_id
+     LEFT JOIN task_lists tl ON tl.id = t.list_id
+     LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+     LEFT JOIN task_spaces ts ON ts.id = tf.space_id
+     WHERE tle.employee_id = $1
+       AND tle.start_time >= $2 AND tle.start_time < $3
+     ORDER BY tle.start_time ASC`,
+    [userId, rangeStart.toFormat("yyyy-MM-dd HH:mm:ss"), rangeEnd.toFormat("yyyy-MM-dd HH:mm:ss")]
+  );
+
+  const byDay = {};
+  days.forEach((day) => {
+    byDay[day] = [];
+  });
+  entriesResult.rows.forEach((row) => {
+    const day = formatDbDate(row.business_day);
+    if (!byDay[day]) return; // sécurité : une entrée hors semaine ne doit pas créer de colonne
+    byDay[day].push({
+      id: row.id,
+      task_id: row.task_id,
+      task_title: row.task_title,
+      task_status: row.task_status,
+      path: [row.space_name, row.folder_name, row.list_name].filter(Boolean),
+      start_time: row.start_time,
+      end_time: row.end_time,
+      // Un chrono encore actif n'a pas de durée enregistrée : on la calcule à la volée
+      // plutôt que d'afficher un vide qui ferait croire à une entrée perdue.
+      duration_seconds:
+        row.duration_seconds != null
+          ? Number(row.duration_seconds)
+          : Math.max(0, Math.round((Date.now() - new Date(row.start_time).getTime()) / 1000)),
+      running: row.end_time == null,
+    });
+  });
+
+  const totalsByDay = {};
+  days.forEach((day) => {
+    totalsByDay[day] = byDay[day].reduce((sum, e) => sum + e.duration_seconds, 0);
+  });
+
+  // Temps de CONNEXION du même employé, réparti par journée de travail. Il complète le temps
+  // passé sur les tâches : l'écart entre les deux est justement ce qu'on cherche à lire.
+  const sessions = await sessionModel.findSessionsForUsersOverlapping(
+    [userId],
+    rangeStart.toISO(),
+    rangeEnd.toISO()
+  );
+  const connectionByDay = {};
+  days.forEach((day) => {
+    connectionByDay[day] = 0;
+  });
+  sessions.forEach((session) => {
+    const buckets = businessDay.splitSecondsByBusinessDay(session.login_at, session.effective_logout_at);
+    Object.entries(buckets).forEach(([day, seconds]) => {
+      if (connectionByDay[day] === undefined) return;
+      connectionByDay[day] += seconds;
+    });
+  });
+
+  return {
+    week_start_date: days[0],
+    days,
+    user,
+    entries_by_day: byDay,
+    totals_by_day: totalsByDay,
+    total_seconds: Object.values(totalsByDay).reduce((sum, n) => sum + n, 0),
+    connection_by_day: connectionByDay,
+    connection_total_seconds: Object.values(connectionByDay).reduce((sum, n) => sum + n, 0),
+  };
+}
+
+module.exports = {
+  computeTeamStats,
+  computeEmployeeStats,
+  computeWeeklyConnections,
+  computeWeeklyTimelog,
+};

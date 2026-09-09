@@ -3,6 +3,7 @@ import * as dailyService from '../../services/dailyService';
 import * as avatarService from '../../services/avatarService';
 import { notifyError } from '../../utils/toast';
 import '../../styles/daily.css';
+import { groupByProject } from '../../utils/dailyGrouping';
 
 // YYYY-MM-DD depuis les composantes LOCALES (toISOString = UTC → décale d'un jour en UTC+, ex. Madagascar).
 function toYMD(d) {
@@ -23,17 +24,6 @@ function shiftDate(dateStr, days) {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + days);
   return toYMD(d);
-}
-function groupByProject(tasks) {
-  const map = new Map();
-  for (const t of tasks) {
-    const project = t.list_name || 'Sans projet';
-    if (!map.has(project)) map.set(project, []);
-    map.get(project).push(t);
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0], 'fr'))
-    .map(([project, list]) => ({ project, tasks: list }));
 }
 function initialsOf(name) {
   return (name || '')
