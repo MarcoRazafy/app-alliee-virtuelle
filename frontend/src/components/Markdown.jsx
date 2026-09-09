@@ -7,8 +7,11 @@ import { Fragment } from 'react';
 // un lien `[texte](url)`. Elle est donc reconnue en premier, et un lien exige un http(s)://
 // — sans quoi un identifiant serait pris pour une adresse (et un `javascript:` pourrait
 // passer, puisque l'URL finit dans un href).
+// La dernière alternative attrape une adresse écrite telle quelle : personne n'écrit du
+// Markdown pour qu'un lien collé devienne cliquable. Elle vient en DERNIER, après la forme
+// [texte](url), sinon celle-ci ne serait jamais reconnue.
 const INLINE_RE =
-  /(@\[([^\]]+)\]\(([0-9a-fA-F-]{36})\)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+?)\*\*|__([^_]+?)__|~~([^~]+?)~~|`([^`]+?)`|\*([^*]+?)\*|_([^_]+?)_)/g;
+  /(@\[([^\]]+)\]\(([0-9a-fA-F-]{36})\)|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+?)\*\*|__([^_]+?)__|~~([^~]+?)~~|`([^`]+?)`|\*([^*]+?)\*|_([^_]+?)_|(https?:\/\/[^\s<]+))/g;
 
 // `renderMention(name, userId, key)` : fourni par les commentaires de tâche, où une mention
 // est un bouton cliquable. Sans lui (assistants IA), une mention retombe sur « @Nom ».
@@ -34,6 +37,18 @@ function parseInline(text, renderMention) {
     else if (m[9] != null) nodes.push(<code key={k++}>{m[9]}</code>);
     else if (m[10] != null) nodes.push(<em key={k++}>{m[10]}</em>);
     else if (m[11] != null) nodes.push(<em key={k++}>{m[11]}</em>);
+    else if (m[12] != null) {
+      // La ponctuation finale appartient à la phrase, pas à l'adresse : « voir https://x. »
+      // ne doit pas produire un lien qui se termine par un point.
+      const trailing = (m[12].match(/[.,;:!?)\]]+$/) || [''])[0];
+      const url = trailing ? m[12].slice(0, -trailing.length) : m[12];
+      nodes.push(
+        <a key={k++} href={url} target="_blank" rel="noopener noreferrer" className="auto-link">
+          {url}
+        </a>
+      );
+      if (trailing) nodes.push(trailing);
+    }
     last = m.index + m[0].length;
   }
   if (last < text.length) nodes.push(text.slice(last));

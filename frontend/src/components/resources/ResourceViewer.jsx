@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as resourceService from '../../services/resourceService';
 import { notifyError } from '../../utils/toast';
 import { IconX, IconDownload, IconPencil } from '../icons';
+import { linkifyHtml } from '../../utils/sanitizeHtml';
 
 function saveBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -122,7 +123,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
                 ref={docRef}
                 className="resource-doc-render"
                 // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: docContent || '<p><em>Document vide.</em></p>' }}
+                dangerouslySetInnerHTML={{ __html: linkifyHtml(docContent || '<p><em>Document vide.</em></p>') }}
               />
             </div>
           )}

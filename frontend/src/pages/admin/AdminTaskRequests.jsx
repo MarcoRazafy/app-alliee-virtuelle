@@ -4,7 +4,7 @@ import * as avatarService from '../../services/avatarService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { IconBell, IconCheckCircle, IconX, IconClock } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
-import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { sanitizeHtml, linkifyHtml } from '../../utils/sanitizeHtml';
 import '../../styles/admin.css';
 
 const PRIORITY_LABEL = { URGENT: 'Urgent', HAUTE: 'Haute', NORMALE: 'Normale', FAIBLE: 'Faible' };
@@ -163,7 +163,7 @@ function AdminTaskRequests() {
                   {r.message && (
                     <div
                       className="atr-message rich-text"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(r.message) }}
+                      dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(r.message)) }}
                     />
                   )}
 

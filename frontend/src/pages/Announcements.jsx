@@ -25,7 +25,7 @@ import {
   IconChevronDown,
 } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
-import { sanitizeHtml, htmlToText } from '../utils/sanitizeHtml';
+import { sanitizeHtml, htmlToText, linkifyHtml } from '../utils/sanitizeHtml';
 import '../styles/announcements.css';
 
 function initialsOf(name) {
@@ -574,7 +574,7 @@ function Announcements() {
                 <img src={imageSrcOf(detailItem)} alt="" />
               </div>
             )}
-            <div className="ann-modal-body ann-rich" dangerouslySetInnerHTML={{ __html: sanitizeHtml(detailItem.body) }} />
+            <div className="ann-modal-body ann-rich" dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(detailItem.body)) }} />
 
             {/* Le nombre de lecteurs suffit la plupart du temps ; le détail nominatif, lui,
                 repoussait le contenu de l'annonce hors de l'écran dès que l'équipe grandit.
