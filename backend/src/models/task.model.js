@@ -617,8 +617,12 @@ async function deleteTask(taskId, client = db) {
 // Tâches en retard : deadline dépassée ET pas confirmée (une CONFIRMEE n'est jamais en retard - DECISIONS.md)
 async function findLateTasks() {
   const result = await db.query(
+    // has_active_session : indispensable pour distinguer « En cours » de « À reprendre ».
+    // Sans lui, displayStatusOf afficherait « À reprendre » sur TOUTE tâche en cours.
     `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.assigned_to,
             u.full_name AS assigned_to_name,
+            EXISTS (SELECT 1 FROM timelog tlog WHERE tlog.task_id = t.id AND tlog.end_time IS NULL)
+              AS has_active_session,
             (${TODAY} - t.deadline) AS days_late
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
