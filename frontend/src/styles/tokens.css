@@ -246,3 +246,22 @@ textarea {
 .zoom-control-value {
   line-height: 1;
 }
+
+
+/* --- Liens détectés automatiquement -----------------------------------------------
+   Une adresse écrite telle quelle dans un message, un commentaire, une annonce, une
+   description de tâche, une évaluation ou un document devient cliquable. La classe est
+   posée par linkifyHtml() et par le rendu Markdown ; elle vit ici, dans les tokens, pour
+   valoir partout sans dépendre de la feuille de style chargée par la page.
+   (La messagerie garde .msgr-link, pour rester lisible sur ses bulles colorées.) */
+.auto-link {
+  color: var(--color-accent-lighter);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  /* Une longue adresse ne doit pas élargir son conteneur ni déborder de la page. */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.auto-link:hover {
+  color: var(--color-accent-light);
+}

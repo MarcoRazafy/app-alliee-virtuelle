@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import * as evaluationService from '../../services/evaluationService';
 import { IconCheckCircle, IconAlert, IconChecklist } from '../icons';
-import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { sanitizeHtml, linkifyHtml } from '../../utils/sanitizeHtml';
+import Linkify from '../Linkify';
 import '../../styles/evaluation.css';
 
 const CRITERIA = [
@@ -33,7 +34,8 @@ function RemarkItem({ item }) {
   return (
     <li className={`myeval-remark myeval-remark--${good ? 'good' : 'bad'}`}>
       <span className="myeval-remark-icon">{good ? <IconCheckCircle /> : <IconAlert />}</span>
-      <span className="myeval-remark-text">{item.comment}</span>
+      {/* Texte brut, mais une adresse écrite dedans doit rester cliquable. */}
+      <span className="myeval-remark-text"><Linkify text={item.comment} /></span>
     </li>
   );
 }
@@ -78,7 +80,7 @@ export default function MyEvaluations() {
               {ev.global_comment && (
                 <div
                   className="myeval-global"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(ev.global_comment) }}
+                  dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(ev.global_comment)) }}
                 />
               )}
 
@@ -109,7 +111,7 @@ export default function MyEvaluations() {
                       <span className="myeval-criterion-label">{label}</span>
                       <div
                         className="myeval-dev-text"
-                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(ev[key]) }}
+                        dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(ev[key])) }}
                       />
                     </div>
                   ))}

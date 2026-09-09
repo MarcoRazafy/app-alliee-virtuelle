@@ -1067,7 +1067,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                         message.content && (
                           <div
                             className="msgr-msg-text rich-text"
-                            dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(message.content)) }}
+                            dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(message.content), 'msgr-link') }}
                           />
                         )
                       )}

@@ -70,8 +70,13 @@ export function sanitizeHtml(dirty) {
 }
 
 // Transforme les URLs des nœuds texte d'un HTML (déjà nettoyé) en liens cliquables.
-// Utilisé pour l'affichage des messages (contenu riche + liens auto-détectés).
-export function linkifyHtml(html) {
+// Appliqué à TOUT contenu écrit par une personne (message, commentaire, annonce, description
+// de tâche, évaluation, document…) : on ne peut pas demander à chacun d'écrire du HTML pour
+// qu'une adresse collée devienne cliquable.
+//
+// `className` permet à la messagerie de garder son propre style de lien dans les bulles
+// colorées ; partout ailleurs, la classe générique .auto-link suffit.
+export function linkifyHtml(html, className = 'auto-link') {
   const template = document.createElement('template');
   template.innerHTML = html || '';
   const hasUrl = /https?:\/\//i;
@@ -93,7 +98,7 @@ export function linkifyHtml(html) {
           a.href = url;
           a.target = '_blank';
           a.rel = 'noopener noreferrer';
-          a.className = 'msgr-link';
+          a.className = className;
           a.textContent = url;
           frag.appendChild(a);
           if (trail) frag.appendChild(document.createTextNode(trail));

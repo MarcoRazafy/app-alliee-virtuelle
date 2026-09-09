@@ -14,7 +14,7 @@ import { displayStatusOf } from '../../utils/taskStatus';
 import { IconCheckCircle, IconX, IconSearch, IconArrowRight, IconExternalLink, IconPlus, IconTrash, IconLayers } from '../../components/icons';
 import '../../styles/admin.css';
 import { PageSkeleton } from '../../components/Skeleton';
-import { sanitizeHtml, htmlToText } from '../../utils/sanitizeHtml';
+import { sanitizeHtml, htmlToText, linkifyHtml } from '../../utils/sanitizeHtml';
 
 const STATUS_META = {
   DECLAREE: { label: 'Déclarée', pill: 'declared' },
@@ -694,7 +694,7 @@ function AdminTasksToValidate() {
             {detailTask.description && (
               <div
                 className="validate-detail-desc rich-text"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(detailTask.description) }}
+                dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(detailTask.description)) }}
               />
             )}
 

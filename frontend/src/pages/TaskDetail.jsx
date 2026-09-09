@@ -27,7 +27,7 @@ import {
   IconX,
   IconPaperclip,
 } from '../components/icons';
-import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { sanitizeHtml, linkifyHtml } from '../utils/sanitizeHtml';
 import { createPortal } from 'react-dom';
 import RichTextEditor from '../components/RichTextEditor';
 import StatusDropdown from '../components/StatusDropdown';
@@ -781,7 +781,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                     }
                   }}
                   title={isAdmin ? 'Cliquer pour modifier' : undefined}
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.description) }}
+                  dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(task.description)) }}
                 />
               ) : isAdmin ? (
                 <button

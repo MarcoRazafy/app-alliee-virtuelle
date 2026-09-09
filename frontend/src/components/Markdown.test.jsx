@@ -73,3 +73,33 @@ test('Markdown : une mention dans une puce reste une mention', () => {
   assert.match(html, /<li><b>@Marco<\/b><\/li>|<li>relancer <b>@Marco<\/b><\/li>/);
   assert.match(html, /<li>puis archiver<\/li>/);
 });
+
+test('Markdown rend cliquable une adresse écrite telle quelle', () => {
+  const html = renderToStaticMarkup(<Markdown text="le planning est sur https://exemple.com/p" />);
+  assert.match(html, /<a href="https:\/\/exemple\.com\/p"[^>]*>https:\/\/exemple\.com\/p<\/a>/);
+  assert.match(html, /rel="noopener noreferrer"/);
+});
+
+test('Markdown : la ponctuation finale reste hors du lien', () => {
+  const html = renderToStaticMarkup(<Markdown text="voir https://exemple.com/p." />);
+  assert.match(html, /href="https:\/\/exemple\.com\/p"/);
+  assert.doesNotMatch(html, /href="https:\/\/exemple\.com\/p\."/);
+  assert.match(html, /\.<\/p>/);
+});
+
+test('Markdown : la forme [texte](url) gagne sur la détection d’adresse nue', () => {
+  const html = renderToStaticMarkup(<Markdown text="voir [le planning](https://exemple.com/p)" />);
+  assert.match(html, />le planning<\/a>/);
+  assert.doesNotMatch(html, />https:\/\/exemple\.com\/p<\/a>/);
+});
+
+test('Markdown : une adresse nue dans une puce reste dans sa puce', () => {
+  const html = renderToStaticMarkup(<Markdown text={'- doc https://exemple.com/a\n- fin'} />);
+  assert.match(html, /<li>doc <a href="https:\/\/exemple\.com\/a"[^>]*>.*?<\/a><\/li>/);
+  assert.match(html, /<li>fin<\/li>/);
+});
+
+test('Markdown : une adresse nue non http n’est pas transformée en lien', () => {
+  const html = renderToStaticMarkup(<Markdown text="tapez javascript:alert(1) ici" />);
+  assert.doesNotMatch(html, /<a /);
+});
