@@ -21,6 +21,23 @@ async function findDailyDone(userId, date) {
   return result.rows;
 }
 
+// Ajoute une tâche au Daily du jour sans toucher aux autres, à la suite de celles déjà
+// présentes. Utilisé quand une tâche est marquée Terminée : elle « glisse » d'elle-même dans
+// le Daily, au lieu d'obliger l'employé à refaire le geste à la main.
+// ON CONFLICT DO NOTHING : la contrainte d'unicité (user, tâche, date) rend l'opération
+// rejouable — terminer puis rouvrir puis re-terminer ne crée pas de doublon.
+async function addDailyDone(userId, date, taskId, client = db) {
+  await client.query(
+    `INSERT INTO user_daily_done (user_id, task_id, selected_order, date)
+     VALUES ($1, $2,
+             COALESCE((SELECT MAX(selected_order) FROM user_daily_done
+                        WHERE user_id = $1 AND date = $3), 0) + 1,
+             $3)
+     ON CONFLICT (user_id, task_id, date) DO NOTHING`,
+    [userId, taskId, date]
+  );
+}
+
 async function replaceDailyDone(userId, date, taskIds) {
   return db.withTransaction(async (client) => {
     await client.query('DELETE FROM user_daily_done WHERE user_id = $1 AND date = $2', [userId, date]);
@@ -107,4 +124,4 @@ async function getDailyOverview(date) {
   return [...byUser.values()].filter((u) => u.todo.length > 0 || u.daily.length > 0);
 }
 
-module.exports = { findDailyDone, replaceDailyDone, getDailyOverview };
+module.exports = { findDailyDone, addDailyDone, replaceDailyDone, getDailyOverview };

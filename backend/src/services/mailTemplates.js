@@ -120,21 +120,23 @@ function newRegistration(user) {
 }
 
 // Un employé a PROPOSÉ une tâche (statut « Non validée ») → prévenir les admins.
+// Un employé s'est créé une tâche. Elle n'attend PLUS de validation : le message informe,
+// il ne demande pas d'agir. Le lien mène donc à la tâche elle-même, pas à une file d'attente.
 function newTaskProposal(task, proposerName) {
-  const adminUrl = `${env.appUrl}/admin/validate`;
+  const taskUrl = `${env.appUrl}/tasks/${task?.id || ''}`;
   const name = proposerName || '—';
   const title = task?.title || '—';
   return {
-    subject: `Nouvelle tâche à valider — ${BRAND}`,
-    text: `${name} a proposé une nouvelle tâche à valider :\n\nTâche : ${title}\n\nValider les tâches : ${adminUrl}`,
+    subject: `Nouvelle tâche créée par ${name} — ${BRAND}`,
+    text: `${name} vient de se créer une tâche :\n\nTâche : ${title}\n\nVoir la tâche : ${taskUrl}`,
     html: layout({
-      title: 'Nouvelle tâche à valider',
-      intro: `<strong>${esc(name)}</strong> a proposé une nouvelle tâche. Elle attend votre validation.`,
+      title: 'Nouvelle tâche créée',
+      intro: `<strong>${esc(name)}</strong> vient de se créer une tâche. Elle est déjà « À faire ».`,
       bodyHtml: `
         <tr><td style="padding:0 0 16px;font-size:14px;color:#3a4a63;">
           <strong>Tâche :</strong> ${esc(title)}</td></tr>`,
-      buttonLabel: 'Valider les tâches',
-      buttonUrl: adminUrl,
+      buttonLabel: 'Voir la tâche',
+      buttonUrl: taskUrl,
     }),
   };
 }

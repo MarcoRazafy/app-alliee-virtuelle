@@ -6,6 +6,7 @@ const extraTaskRequestModel = require('../models/extraTaskRequest.model');
 const mailService = require('../services/mail.service');
 const { isValidTitle, isValidPriority, isTodayOrFuture, isValidEmail } = require('../utils/validators');
 const { businessDayNow } = require('../utils/businessDay');
+const dailyModel = require('../models/daily.model');
 
 // L'utilisateur est-il l'un des assignés de la tâche ? (task issu de findById → contient `assignees`)
 // Repli sur assigned_to si la liste n'est pas chargée, pour ne jamais être moins permissif qu'avant.
@@ -401,9 +402,11 @@ async function createTask(req, res, next) {
       }
     }
 
-    // Une tâche admin est immédiatement disponible ; une proposition employé
-    // attend l'approbation admin avant d'être visible et démarrable.
-    const initialStatus = isAdmin ? taskModel.TASK_STATUS.VALIDATED : taskModel.TASK_STATUS.DECLARED;
+    // Une tâche créée par un employé n'attend plus l'approbation d'un admin : elle est
+    // immédiatement « À faire » et démarrable, comme celle d'un admin. Le statut DECLAREE
+    // subsiste pour les propositions faites AVANT ce changement, qui restent à traiter dans
+    // « Tâches à valider ».
+    const initialStatus = taskModel.TASK_STATUS.VALIDATED;
 
     const task = await taskModel.create({
       title,
@@ -434,7 +437,7 @@ async function createTask(req, res, next) {
         priority,
         deadline,
         status: initialStatus,
-        created_as: isAdmin ? 'ADMIN' : 'EMPLOYEE_PROPOSAL',
+        created_as: isAdmin ? 'ADMIN' : 'EMPLOYEE',
         list_id: listId || null,
         parent_task_id: isAdmin ? parentTaskId || null : null,
         client_name: isAdmin ? clientName || null : null,
@@ -442,8 +445,10 @@ async function createTask(req, res, next) {
       },
     });
 
-    // Proposition d'employé (« Non validée ») : prévenir les admins par email qu'une tâche attend
-    // validation. Best-effort — ne doit jamais faire échouer la création (email/base admin).
+    // Tâche créée par un employé : les admins en sont informés par email. Ce n'est plus une
+    // demande de validation — la tâche existe déjà — mais l'information reste utile pour
+    // suivre ce que l'équipe se donne comme travail. Best-effort : ne doit jamais faire
+    // échouer la création.
     if (!isAdmin) {
       Promise.all([userModel.findById(req.user.id).catch(() => null), userModel.findAdminEmails().catch(() => [])])
         .then(([proposer, adminEmails]) =>
@@ -762,6 +767,12 @@ async function completeTask(req, res, next) {
         },
         client
       );
+
+      // La tâche rejoint d'elle-même le Daily du jour : la marquer Terminée EST le geste,
+      // le refaire à la main dans « Ma journée » ne serait qu'une corvée de plus. Dans la
+      // même transaction que le changement de statut, pour qu'il n'existe pas de tâche
+      // terminée absente du Daily.
+      await dailyModel.addDailyDone(req.user.id, todayDateString(), id, client);
     });
 
     res.status(200).json({ status: taskModel.TASK_STATUS.DONE });

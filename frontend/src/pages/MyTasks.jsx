@@ -13,6 +13,7 @@ import { htmlToText } from '../utils/sanitizeHtml';
 import { notifySuccess, notifyError } from '../utils/toast';
 import '../styles/task-detail.css';
 import '../styles/admin-create-task.css';
+import ProjectPicker from '../components/ProjectPicker';
 
 const PRIORITIES = [
   { value: 'URGENT', label: 'Urgent' },
@@ -171,7 +172,7 @@ function MyTasks() {
         attachFailed = results.filter((r) => r.status === 'rejected').length;
       }
 
-      notifySuccess('Tâche proposée : en attente de validation par un administrateur');
+      notifySuccess('Tâche créée : elle est « À faire », vous pouvez la démarrer');
       if (attachFailed > 0) notifyError(`${attachFailed} pièce(s) jointe(s) n'ont pas pu être envoyées.`);
       setNewTask(EMPTY_NEW_TASK);
       setPendingFiles([]);
@@ -214,7 +215,7 @@ function MyTasks() {
     >
       <div className="mytasks-toolbar">
         <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
-          <IconChecklist /> Proposer une tâche
+          <IconChecklist /> Créer une tâche
         </button>
       </div>
 
@@ -301,7 +302,7 @@ function MyTasks() {
             <div className="modal-card-head">
               <div>
                 <p className="modal-card-eyebrow">Nouvelle tâche</p>
-                <h2 id="new-task-title">Proposer une tâche</h2>
+                <h2 id="new-task-title">Créer une tâche</h2>
               </div>
               <button type="button" className="modal-card-close" onClick={() => setCreateOpen(false)} aria-label="Fermer">
                 <IconX />
@@ -309,7 +310,7 @@ function MyTasks() {
             </div>
 
             <p className="modal-card-hint">
-              Votre tâche sera soumise à un administrateur. Vous pourrez la démarrer une fois validée.
+              Votre tâche sera immédiatement « À faire » : vous pourrez la démarrer tout de suite.
             </p>
 
             <form className="tk-create-modal-form" onSubmit={handleCreateTask}>
@@ -406,21 +407,12 @@ function MyTasks() {
                     <IconFolder /> Projet <span className="form-required">*</span>
                   </span>
                   <div className="tk-prop-value tk-prop-value--block">
-                    <select
-                      className="form-select tk-create-project"
+                    <ProjectPicker
+                      projects={projectLists}
                       value={newTask.list_id}
-                      onChange={(e) => setNewTask((c) => ({ ...c, list_id: e.target.value }))}
+                      onChange={(listId) => setNewTask((c) => ({ ...c, list_id: listId }))}
                       required
-                    >
-                      <option value="" disabled>
-                        Sélectionnez un projet…
-                      </option>
-                      {projectLists.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.path}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                 </div>
 
@@ -481,7 +473,7 @@ function MyTasks() {
                   className="btn-primary"
                   disabled={creating || !newTask.title.trim() || !newTask.deadline || !newTask.list_id}
                 >
-                  {creating ? 'Envoi…' : 'Proposer la tâche'}
+                  {creating ? 'Création…' : 'Créer la tâche'}
                 </button>
               </div>
             </form>
