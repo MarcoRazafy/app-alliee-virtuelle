@@ -20,29 +20,8 @@
   text-align: center;
 }
 
-.sidebar-logout {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin-top: 16px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--sidebar-border);
-  background: none;
-  color: var(--sidebar-text);
-  font-family: var(--font-family);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.sidebar-logout:hover {
-  color: #fff;
-  background: rgba(239, 68, 68, 0.14);
-  border-color: rgba(239, 68, 68, 0.5);
-}
+/* .sidebar-logout vit désormais dans layout.css : les deux espaces s'en servent,
+   et admin.css n'est chargé que côté admin. */
 
 /* Le dashboard admin exploite toute la largeur (grilles de cartes) */
 .shell-content--wide {

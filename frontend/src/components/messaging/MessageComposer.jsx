@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconPaperclip, IconX, IconListUl, IconListOl, IconBarChart } from '../icons';
-import { MicIcon, ImageIcon, SmileyIcon, SendIcon } from './messagingIcons';
+import { MicIcon, ImageIcon, SmileyIcon, SendIcon, PlusIcon } from './messagingIcons';
 import { isAudioType, isImageType, formatFileSize, formatDuration } from './messagingHelpers';
 import { htmlToText } from '../../utils/sanitizeHtml';
 import { notifyError, notifyInfo } from '../../utils/toast';
@@ -15,11 +15,14 @@ const COMPOSER_EMOJIS = [
 function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCreatePoll }) {
   const [file, setFile] = useState(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  // Menu « + » : fichier, photo, vocal, sondage.
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordSec, setRecordSec] = useState(0);
   const fileRef = useRef(null);
   const audioRef = useRef(null); // repli d'enregistrement natif (HTTP : micro web bloqué)
   const emojiRef = useRef(null);
+  const toolsRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordTimerRef = useRef(null);
   const recordCancelledRef = useRef(false);
@@ -28,9 +31,21 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
   useEffect(() => {
     function onClickOutside(event) {
       if (emojiRef.current && !emojiRef.current.contains(event.target)) setEmojiOpen(false);
+      if (toolsRef.current && !toolsRef.current.contains(event.target)) setToolsOpen(false);
+    }
+    // Échap ferme aussi : un menu ouvert par-dessus le champ empêche d'écrire.
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        setEmojiOpen(false);
+        setToolsOpen(false);
+      }
     }
     document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
 
   useEffect(() => () => { if (recordTimerRef.current) clearInterval(recordTimerRef.current); }, []);
@@ -178,20 +193,74 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
           <div className="msgr-composer-row">
           <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx" onChange={pickFile} />
           <input ref={audioRef} type="file" hidden accept="audio/*" capture onChange={pickAudio} />
-          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx'); fileRef.current.click(); } }} disabled={disabled} aria-label='Ajouter une pièce jointe' title='Fichier'>
-            <IconPaperclip />
-          </button>
-          <button type="button" className="msgr-composer-icon" onClick={() => { if (fileRef.current) { fileRef.current.setAttribute('accept', 'image/*'); fileRef.current.click(); } }} disabled={disabled} aria-label='Ajouter une photo' title="Photo">
-            <ImageIcon />
-          </button>
-          <button type="button" className="msgr-composer-icon" onClick={startRecording} disabled={disabled} aria-label='Message vocal' title='Message vocal'>
-            <MicIcon />
-          </button>
-          {onCreatePoll && (
-            <button type="button" className="msgr-composer-icon" onClick={onCreatePoll} disabled={disabled} aria-label='Créer un sondage' title='Sondage'>
-              <IconBarChart />
+          {/* Un seul « + » regroupe fichier, photo, vocal et sondage : quatre icônes alignées
+              mangeaient la largeur du champ de saisie, surtout sur mobile. L'emoji reste
+              dehors — c'est le seul qu'on utilise en cours de frappe, sans quitter le texte. */}
+          <div className="msgr-tools-anchor" ref={toolsRef}>
+            <button
+              type="button"
+              className={`msgr-composer-icon msgr-tools-btn${toolsOpen ? ' msgr-tools-btn--open' : ''}`}
+              onClick={() => setToolsOpen((v) => !v)}
+              disabled={disabled}
+              aria-label="Joindre un élément"
+              aria-expanded={toolsOpen}
+              title="Joindre"
+            >
+              <PlusIcon />
             </button>
-          )}
+            {toolsOpen && (
+              <div className="msgr-tools-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setToolsOpen(false);
+                    if (fileRef.current) {
+                      fileRef.current.setAttribute('accept', 'image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx');
+                      fileRef.current.click();
+                    }
+                  }}
+                >
+                  <IconPaperclip /> <span>Fichier</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setToolsOpen(false);
+                    if (fileRef.current) {
+                      fileRef.current.setAttribute('accept', 'image/*');
+                      fileRef.current.click();
+                    }
+                  }}
+                >
+                  <ImageIcon /> <span>Photo</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setToolsOpen(false);
+                    startRecording();
+                  }}
+                >
+                  <MicIcon /> <span>Message vocal</span>
+                </button>
+                {onCreatePoll && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setToolsOpen(false);
+                      onCreatePoll();
+                    }}
+                  >
+                    <IconBarChart /> <span>Sondage</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <div className="msgr-emoji-anchor" ref={emojiRef}>
             <button type="button" className="msgr-composer-icon" onClick={() => setEmojiOpen((v) => !v)} disabled={disabled} aria-label="Emoji" title="Emoji">
               <SmileyIcon />

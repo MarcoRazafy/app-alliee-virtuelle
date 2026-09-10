@@ -1596,6 +1596,66 @@
 .msgr-emoji-picker button { border: none; background: transparent; font-size: 1.25rem; cursor: pointer; border-radius: 8px; padding: 4px; }
 .msgr-emoji-picker button:hover { background: var(--glass-overlay); }
 
+/* --- Menu « + » du composeur -------------------------------------------------------
+   Regroupe fichier, photo, vocal et sondage. Quatre icônes alignées rognaient la largeur
+   du champ de saisie, surtout sur mobile. L'emoji reste hors du menu : c'est le seul
+   qu'on utilise en cours de frappe. */
+.msgr-tools-anchor {
+  position: relative;
+}
+
+.msgr-tools-btn--open {
+  color: var(--color-accent-lighter);
+  background: var(--glass-overlay);
+}
+
+.msgr-tools-menu {
+  position: absolute;
+  bottom: 46px;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.msgr-tools-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.msgr-tools-menu button:hover {
+  background: var(--glass-overlay);
+}
+
+.msgr-tools-menu button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-accent);
+}
+
+.msgr-tools-menu svg {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  color: var(--color-text-muted);
+}
+
 /* --- Colonne droite (profil) --- */
 .msgr-profile {
   width: 320px;
