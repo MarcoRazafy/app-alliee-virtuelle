@@ -221,7 +221,7 @@ function MyDay() {
             <circle cx="12" cy="16" r="1" fill="currentColor" />
           </svg>
           <span>
-            Glissez au moins une tâche vers <strong>« Mes tâches aujourd'hui »</strong> et validez pour accéder au
+            Glissez — ou double-cliquez — au moins une tâche vers <strong>« Mes tâches aujourd'hui »</strong> et validez pour accéder au
             reste de l'application.
           </span>
         </div>
@@ -305,7 +305,9 @@ function MyDay() {
             <span className="daily-recap-user">{user?.full_name}</span>
             <strong className="daily-recap-title">Daily du {todayShort}</strong>
           </div>
-          <p className="daily-drag-hint">Glissez les tâches que vous avez faites aujourd'hui.</p>
+          <p className="daily-drag-hint">
+            Glissez les tâches que vous avez faites aujourd'hui — ou double-cliquez dessus.
+          </p>
           <DragDropTasks
             availableTasks={dailyAvailable}
             selectedTasks={dailySelected}
@@ -313,7 +315,7 @@ function MyDay() {
             validated={false}
             availableTitle="Tâches disponibles"
             selectedTitle="Tâches faites (Daily)"
-            selectedEmptyLabel="Glissez ici les tâches faites."
+            selectedEmptyLabel="Glissez ici les tâches faites, ou double-cliquez dessus."
           />
           <div className="app-actions">
             <button type="button" className="btn-primary" onClick={handleValidateDaily} disabled={savingDaily}>

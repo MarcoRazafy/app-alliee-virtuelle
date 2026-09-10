@@ -71,7 +71,7 @@ function RequestControl({ task, requestState, onRequest }) {
   );
 }
 
-function DraggableTask({ task, index, column, order, moveTask, disabled, requestable, requestState, onRequest }) {
+function DraggableTask({ task, index, column, order, moveTask, onToggleTask, disabled, requestable, requestState, onRequest }) {
   const ref = useRef(null);
 
   const [, drop] = useDrop({
@@ -99,12 +99,24 @@ function DraggableTask({ task, index, column, order, moveTask, disabled, request
   // Chemin du projet (Espace › Dossier › Liste) pour situer l'origine de la tâche.
   const taskPath = [task.space_name, task.folder_name, task.list_name].filter(Boolean).join(' › ');
 
+  const canToggle = !disabled && typeof onToggleTask === 'function';
+  const toggleHint =
+    column === 'available' ? 'Double-cliquez pour ajouter' : 'Double-cliquez pour retirer';
+
   return (
     <div
       ref={ref}
       className={`task-card${isDragging ? ' task-card--dragging' : ''}${locked ? ' task-card--locked' : ''}${
         requestable ? ' task-card--requestable' : ''
       }`}
+      // Le double-clic bascule la tâche d'une colonne à l'autre. On ignore les clics venant
+      // d'un bouton de la carte (« Demander »), qui a sa propre action.
+      onDoubleClick={(event) => {
+        if (!canToggle) return;
+        if (event.target.closest('button')) return;
+        onToggleTask(column, index);
+      }}
+      title={canToggle ? toggleHint : undefined}
     >
       {order != null && <span className="task-order-badge">{order}</span>}
       <span className={`priority-dot ${PRIORITY_DOT_CLASS[task.priority] || 'priority-dot--normale'}`} />
@@ -134,7 +146,7 @@ function DraggableTask({ task, index, column, order, moveTask, disabled, request
   );
 }
 
-function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disabled, requestable, requestsByTaskId, onRequestTask }) {
+function Column({ title, tasks, column, moveTask, onToggleTask, showOrder, emptyLabel, disabled, requestable, requestsByTaskId, onRequestTask }) {
   const ref = useRef(null);
   const [{ isOver }, drop] = useDrop({
     accept: ITEM_TYPE,
@@ -165,6 +177,7 @@ function Column({ title, tasks, column, moveTask, showOrder, emptyLabel, disable
           column={column}
           order={showOrder ? index + 1 : null}
           moveTask={moveTask}
+          onToggleTask={onToggleTask}
           disabled={disabled}
           requestable={requestable}
           requestState={requestsByTaskId?.[task.id]}
@@ -184,8 +197,18 @@ function DragDropTasks({
   onRequestTask,
   availableTitle = 'Tâches disponibles',
   selectedTitle = "Mes tâches aujourd'hui",
-  selectedEmptyLabel = 'Glissez des tâches ici.',
+  selectedEmptyLabel = 'Glissez des tâches ici, ou double-cliquez dessus.',
 }) {
+  // Double-clic : bascule la tâche dans l'autre colonne, à la fin. Le glisser-déposer reste
+  // possible, mais il est pénible au doigt sur un téléphone — et c'est là que la page sert
+  // le plus. La tâche est ajoutée à la fin plutôt qu'à une position devinée.
+  function toggleTaskColumn(fromColumn, fromIndex) {
+    if (validated) return;
+    const toColumn = fromColumn === 'available' ? 'selected' : 'available';
+    const destLength = toColumn === 'available' ? availableTasks.length : selectedTasks.length;
+    moveTask(fromColumn, fromIndex, toColumn, destLength);
+  }
+
   function moveTask(fromColumn, fromIndex, toColumn, toIndex) {
     if (validated) return;
 
@@ -209,6 +232,7 @@ function DragDropTasks({
           tasks={availableTasks}
           column="available"
           moveTask={moveTask}
+          onToggleTask={toggleTaskColumn}
           emptyLabel="Aucune tâche disponible."
           disabled={validated}
           requestable={validated && !!onRequestTask}
@@ -220,6 +244,7 @@ function DragDropTasks({
           tasks={selectedTasks}
           column="selected"
           moveTask={moveTask}
+          onToggleTask={toggleTaskColumn}
           showOrder
           emptyLabel={selectedEmptyLabel}
           disabled={validated}
