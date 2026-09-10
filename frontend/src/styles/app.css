@@ -411,6 +411,34 @@
   flex-shrink: 0;
 }
 
+/* Écrans étroits : la carte tenait tout sur une ligne — pastille, titre, chemin du projet,
+   badge de retard et priorité. À 375 px, il ne restait plus rien pour le titre et la ligne
+   débordait de l'écran. Les badges passent donc à la ligne dès que le titre n'a plus au
+   moins 180 px : la carte s'adapte à la place réelle au lieu d'imposer sa largeur. */
+@media (max-width: 560px) {
+  .task-card {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    align-items: flex-start;
+  }
+
+  /* flex-basis : c'est lui qui déclenche le passage à la ligne, pas une largeur fixe. */
+  .task-card-main {
+    flex: 1 1 180px;
+  }
+
+  /* La pastille de priorité reste alignée sur le titre, pas sur le milieu de la carte. */
+  .task-card .priority-dot {
+    margin-top: 6px;
+  }
+
+  /* Deuxième ligne : les badges s'alignent sous le texte, décalés de la pastille et de son
+     écart, pour rester dans la colonne du titre. */
+  .task-card-deadline {
+    margin-left: 18px;
+  }
+}
+
 /* En retard / échéance aujourd'hui → rouge ; bientôt (≤ 3 j) → ambre ; sinon neutre. */
 .task-card-deadline--overdue,
 .task-card-deadline--today {
