@@ -1,3 +1,7 @@
+// Extension explicite : ce module est couvert par des tests exécutés directement par Node
+// (node:test), qui ne résout pas les imports sans extension comme le fait Vite.
+import { matchesTerms } from './textSearch.js';
+
 // Recherche dans une liste de projets (« Espace › Dossier › Liste »).
 //
 // Deux exigences tirées des vrais noms de projets de l'app :
@@ -6,20 +10,10 @@
 //    trouver « Espace Opérations › Clients › Facturation », alors qu'une simple recherche
 //    de sous-chaîne échouerait.
 
-export function normalize(value) {
-  return String(value ?? '')
-    .normalize('NFD')
-    // Retire les diacritiques (é → e), pour que la recherche ignore les accents.
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-}
+// La normalisation et la règle « chaque mot compte » vivent dans utils/textSearch : elles
+// servent aussi à la recherche de tâches, et deux copies finiraient par diverger.
+export { normalize } from './textSearch.js';
 
 export function filterProjects(projects, query) {
-  const terms = normalize(query).split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return [...(projects || [])];
-  return (projects || []).filter((project) => {
-    const haystack = normalize(project?.path);
-    return terms.every((term) => haystack.includes(term));
-  });
+  return (projects || []).filter((project) => matchesTerms(project?.path, query));
 }

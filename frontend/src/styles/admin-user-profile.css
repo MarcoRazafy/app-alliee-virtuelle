@@ -187,6 +187,41 @@
   flex-wrap: wrap;
 }
 
+/* Recherche de tâche, posée avec les filtres. Le champ rétrécit si la place manque plutôt
+   que de repousser les onglets hors de la carte. */
+.aup-task-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 1 220px;
+  min-width: 140px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+}
+.aup-task-search svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+}
+.aup-task-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.aup-task-search input:focus {
+  outline: none;
+}
+.aup-task-search:focus-within {
+  border-color: var(--color-accent-light);
+}
+
 /* Filtre de priorité posé parmi les onglets : il s'y combine (« En retard » + « Urgent »).
    Un écart le détache du groupe, pour qu'on ne le prenne pas pour un onglet de plus —
    une bordure n'y ferait pas séparateur, la pilule en a déjà une sur tout son pourtour. */
