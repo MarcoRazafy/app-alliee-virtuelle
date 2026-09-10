@@ -1273,12 +1273,22 @@ async function deleteAttachment(req, res, next) {
 
 // Suppression définitive d'une tâche (admin uniquement). Supprime aussi ses sous-tâches,
 // commentaires, chronos et pièces jointes (cascade BD). Le titre est conservé dans l'audit.
+// Supprime une tâche. Un admin peut supprimer n'importe laquelle ; un employé, uniquement
+// celles qu'il a CRÉÉES lui-même — pas celles qu'on lui a assignées, qu'il n'a pas à
+// retirer du suivi de son responsable.
 async function deleteTask(req, res, next) {
   try {
     const { id } = req.params;
     const task = await taskModel.findById(id);
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
+    }
+
+    const isAdmin = req.user.role === 'ADMIN';
+    if (!isAdmin && task.created_by !== req.user.id) {
+      return res.status(403).json({
+        error: "Vous ne pouvez supprimer que les tâches que vous avez créées",
+      });
     }
 
     await taskModel.deleteTask(id);
@@ -1288,7 +1298,7 @@ async function deleteTask(req, res, next) {
       action: 'DELETE_TASK',
       entityType: 'task',
       entityId: id,
-      details: { title: task.title },
+      details: { title: task.title, deleted_as: isAdmin ? 'ADMIN' : 'CREATOR' },
     });
 
     res.status(200).json({ deleted: true });

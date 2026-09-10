@@ -182,8 +182,24 @@
 }
 .aup-tabs {
   display: flex;
+  align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+/* Filtre de priorité posé parmi les onglets : il s'y combine (« En retard » + « Urgent »).
+   Un écart le détache du groupe, pour qu'on ne le prenne pas pour un onglet de plus —
+   une bordure n'y ferait pas séparateur, la pilule en a déjà une sur tout son pourtour. */
+.aup-priority-filter {
+  margin-right: 10px;
+}
+
+/* Filtre actif : il doit se voir, sinon on croit le tableau incomplet. La classe vient de
+   l'état React — sur un <select> contrôlé, l'attribut `value` du DOM n'est pas mis à jour,
+   un sélecteur d'attribut ne verrait donc jamais le changement. */
+.aup-priority-filter--on {
+  border-color: var(--color-accent-light);
+  color: var(--color-text-primary);
 }
 .aup-tab {
   display: inline-flex;

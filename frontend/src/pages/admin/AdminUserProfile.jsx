@@ -205,6 +205,7 @@ function AdminUserProfile() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [taskTab, setTaskTab] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('');
   // Tableau des tâches dépliable, REPLIÉ par défaut : la fiche s'ouvre alors sur une vue
   // d'ensemble courte (indicateurs, présence, planning), et la liste se déroule à la demande.
   // Le nombre de tâches reste affiché dans le titre, ce qui suffit le plus souvent.
@@ -361,14 +362,16 @@ function AdminUserProfile() {
   const todayYMD = new Date().toISOString().slice(0, 10);
   const tasks = detail?.tasks || [];
 
-  const counts = useMemo(
-    () => ({
-      progress: tasks.filter((t) => t.status === 'EN_COURS').length,
-      late: tasks.filter((t) => isLate(t, todayYMD)).length,
-      done: tasks.filter((t) => t.status === 'TERMINEE' || t.status === 'CONFIRMEE').length,
-    }),
-    [tasks, todayYMD]
-  );
+  // Les compteurs des onglets suivent le filtre de priorité : afficher « En retard 12 »
+  // alors que le tableau filtré n'en montre que 2 ferait douter de l'un ou de l'autre.
+  const counts = useMemo(() => {
+    const base = priorityFilter ? tasks.filter((t) => t.priority === priorityFilter) : tasks;
+    return {
+      progress: base.filter((t) => t.status === 'EN_COURS').length,
+      late: base.filter((t) => isLate(t, todayYMD)).length,
+      done: base.filter((t) => t.status === 'TERMINEE' || t.status === 'CONFIRMEE').length,
+    };
+  }, [tasks, todayYMD, priorityFilter]);
 
   // Ce qui est terminé ou confirmé passe EN DERNIER : ces tâches n'appellent plus d'action,
   // et triées par échéance elles occupaient le haut du tableau — l'admin devait dérouler pour
@@ -377,6 +380,9 @@ function AdminUserProfile() {
   const isFinished = (task) => task.status === 'TERMINEE' || task.status === 'CONFIRMEE';
 
   const visibleTasks = useMemo(() => {
+    const byPriority = (list) =>
+      priorityFilter ? list.filter((t) => t.priority === priorityFilter) : list;
+
     const filtered =
       taskTab === 'progress'
         ? tasks.filter((t) => t.status === 'EN_COURS')
@@ -385,8 +391,8 @@ function AdminUserProfile() {
           : taskTab === 'done'
             ? tasks.filter(isFinished)
             : tasks;
-    return [...filtered].sort((a, b) => Number(isFinished(a)) - Number(isFinished(b)));
-  }, [tasks, taskTab, todayYMD]);
+    return [...byPriority(filtered)].sort((a, b) => Number(isFinished(a)) - Number(isFinished(b)));
+  }, [tasks, taskTab, todayYMD, priorityFilter]);
 
   // --- Correction du temps de connexion (déconnexion oubliée) ---
   function toDatetimeLocal(value) {
@@ -440,7 +446,7 @@ function AdminUserProfile() {
   // nouveau filtre : on revient au début plutôt que d'afficher un tableau vide.
   useEffect(() => {
     setPage(1);
-  }, [taskTab, id]);
+  }, [taskTab, id, priorityFilter]);
 
   const statusSegments = useMemo(
     () => STATUS_SEG.map((s) => ({ ...s, value: tasks.filter((t) => t.status === s.key).length })),
@@ -590,6 +596,20 @@ function AdminUserProfile() {
               {/* Les onglets ne servent à rien tant que le tableau est replié. */}
               {tasksOpen && (
                 <div className="aup-tabs">
+                  {/* Filtre par priorité : se combine aux onglets (« En retard » + « Urgent »)
+                      plutôt que de les remplacer. */}
+                  <select
+                    className={`filter-select aup-priority-filter${priorityFilter ? ' aup-priority-filter--on' : ''}`}
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                    aria-label="Filtrer par priorité"
+                  >
+                    <option value="">Toutes priorités</option>
+                    <option value="URGENT">Urgent</option>
+                    <option value="HAUTE">Haute</option>
+                    <option value="NORMALE">Normale</option>
+                    <option value="FAIBLE">Faible</option>
+                  </select>
                   {TABS.map((tab) => (
                     <button
                       key={tab.key}
