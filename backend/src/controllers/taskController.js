@@ -201,9 +201,19 @@ async function updateTask(req, res, next) {
     const task = await taskModel.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
 
+    const isAdmin = req.user.role === 'ADMIN';
+    // Le créateur d'une tâche en règle le titre, la priorité et les dates — c'est lui qui
+    // l'a posée. Les autres champs qui passent par cette route (assignation, statut) ont
+    // leurs propres routes, réservées à l'admin.
+    const isCreator = task.created_by === req.user.id;
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({
+        error: 'Vous ne pouvez modifier que les tâches que vous avez créées',
+      });
+    }
+
     const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
     const { description, priority, deadline, start_date: startDate } = req.body;
-    const isAdmin = req.user.role === 'ADMIN';
     const errors = [];
     if (!isValidTitle(title)) errors.push('Le titre est requis (moins de 255 caractères)');
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
@@ -217,7 +227,7 @@ async function updateTask(req, res, next) {
       const dt = new Date(d);
       return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
     };
-    const effectiveStart = isAdmin && startDate ? toYMD(startDate) : toYMD(task.start_date);
+    const effectiveStart = startDate ? toYMD(startDate) : toYMD(task.start_date);
     if (effectiveStart && deadline && effectiveStart > toYMD(deadline)) {
       errors.push("La date de début ne peut pas être postérieure à l'échéance");
     }
@@ -229,8 +239,8 @@ async function updateTask(req, res, next) {
       description,
       priority,
       deadline,
-      // Seul un admin fixe la date de début ; chaîne vide → on garde la valeur existante.
-      startDate: isAdmin && startDate ? String(startDate) : undefined,
+      // Chaîne vide → on garde la valeur existante.
+      startDate: startDate ? String(startDate) : undefined,
     });
     await taskModel.recordAudit({
       userId: req.user.id,

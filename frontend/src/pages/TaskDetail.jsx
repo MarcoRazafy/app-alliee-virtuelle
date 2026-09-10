@@ -445,8 +445,11 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   // qui ne peut rien écrire d'autre. Déclaré ICI, après isAssignee : plus haut, la constante
   // aurait été évaluée avant lui et le rendu aurait échoué.
   const canEditDescription = isAdmin || isAssignee;
-  // Suppression : le créateur de la tâche, ou n'importe quel admin.
-  const canDeleteTask = isAdmin || (task?.created_by && task.created_by === user?.id);
+  // Créateur de la tâche : il en règle le titre, la priorité et les dates, et peut la
+  // supprimer. Le statut et l'assignation restent à l'admin — ce ne sont pas les siens.
+  const isCreator = Boolean(task?.created_by && task.created_by === user?.id);
+  const canEditTask = isAdmin || isCreator;
+  const canDeleteTask = canEditTask;
 
   const content = (
     <>
@@ -468,7 +471,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               </span>
             )}
 
-            {isAdmin && editingTitle ? (
+            {canEditTask && editingTitle ? (
               <input
                 className="tk-title-input"
                 value={titleDraft}
@@ -482,14 +485,14 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               />
             ) : (
               <h1
-                className={`detail-task-title${isAdmin ? ' tk-editable' : ''}`}
+                className={`detail-task-title${canEditTask ? ' tk-editable' : ''}`}
                 onClick={() => {
-                  if (isAdmin) {
+                  if (canEditTask) {
                     setTitleDraft(task.title || '');
                     setEditingTitle(true);
                   }
                 }}
-                title={isAdmin ? 'Cliquer pour modifier' : undefined}
+                title={canEditTask ? 'Cliquer pour modifier' : undefined}
               >
                 {task.title}
               </h1>
@@ -591,7 +594,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               )}
 
               <PropRow icon={<IconAlert />} label="Priorité">
-                {isAdmin ? (
+                {canEditTask ? (
                   <div className="tk-priority-picker">
                     {EDIT_PRIORITIES.map((p) => (
                       <button
@@ -612,7 +615,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
               <PropRow icon={<IconCalendarWeek />} label="Dates">
                 <span className="tk-dates">
-                  {isAdmin && editingStart ? (
+                  {canEditTask && editingStart ? (
                     <input
                       type="date"
                       className="tk-date-input"
@@ -623,7 +626,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                       onBlur={() => setEditingStart(false)}
                       title="Date de début"
                     />
-                  ) : isAdmin ? (
+                  ) : canEditTask ? (
                     <button
                       type="button"
                       className="tk-date-part"
@@ -640,7 +643,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                     </span>
                   )}
                   <span className="tk-date-arrow" aria-hidden="true">→</span>
-                  {isAdmin && editingDeadline ? (
+                  {canEditTask && editingDeadline ? (
                     <input
                       type="date"
                       className="tk-date-input"
@@ -651,7 +654,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                       onBlur={() => setEditingDeadline(false)}
                       title="Échéance"
                     />
-                  ) : isAdmin ? (
+                  ) : canEditTask ? (
                     <button
                       type="button"
                       className="tk-date-part tk-date-due"

@@ -65,7 +65,10 @@ router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskContro
 router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.getNotes);
 router.post('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.createNote);
 // Modification d'une tâche (admin) : titre, description, priorité, échéance.
-router.patch('/tasks/:id', authMiddleware.requireRole('ADMIN'), taskController.updateTask);
+// Titre, priorité, dates : admin pour toutes les tâches, employé pour CELLES QU'IL A CRÉÉES.
+// Le contrôle a besoin de la tâche pour comparer son créateur à l'appelant : il vit donc
+// dans le contrôleur. L'assignation et le statut ont leurs propres routes, restées admin.
+router.patch('/tasks/:id', taskController.updateTask);
 // Description seule : ouverte à la personne assignée (contrôle dans le contrôleur), pour
 // qu'elle puisse décrire sa tâche. Volontairement distincte de la route ci-dessus.
 router.patch('/tasks/:id/description', taskController.updateTaskDescription);
