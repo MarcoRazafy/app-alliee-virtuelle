@@ -21,6 +21,7 @@ import {
   IconCalendarWeek,
   IconTrash,
   IconChevronDown,
+  IconSearch,
   IconPencil,
   IconTrendingUp,
 } from '../../components/icons';
@@ -31,6 +32,7 @@ import { computeWeekPresence, formatPresenceMinutes, formatPresenceHours } from 
 import '../../styles/admin-user-profile.css';
 import '../../styles/planning.css';
 import '../../styles/week-calendar.css';
+import { matchesTerms } from '../../utils/textSearch';
 
 const STATUS_META = {
   ACTIF: { label: 'Actif', cls: 'user-active' },
@@ -206,6 +208,7 @@ function AdminUserProfile() {
   const [notFound, setNotFound] = useState(false);
   const [taskTab, setTaskTab] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [taskQuery, setTaskQuery] = useState('');
   // Tableau des tâches dépliable, REPLIÉ par défaut : la fiche s'ouvre alors sur une vue
   // d'ensemble courte (indicateurs, présence, planning), et la liste se déroule à la demande.
   // Le nombre de tâches reste affiché dans le titre, ce qui suffit le plus souvent.
@@ -365,13 +368,15 @@ function AdminUserProfile() {
   // Les compteurs des onglets suivent le filtre de priorité : afficher « En retard 12 »
   // alors que le tableau filtré n'en montre que 2 ferait douter de l'un ou de l'autre.
   const counts = useMemo(() => {
-    const base = priorityFilter ? tasks.filter((t) => t.priority === priorityFilter) : tasks;
+    const base = tasks
+      .filter((t) => (priorityFilter ? t.priority === priorityFilter : true))
+      .filter((t) => matchesTerms([t.title, t.space_name, t.folder_name, t.list_name], taskQuery));
     return {
       progress: base.filter((t) => t.status === 'EN_COURS').length,
       late: base.filter((t) => isLate(t, todayYMD)).length,
       done: base.filter((t) => t.status === 'TERMINEE' || t.status === 'CONFIRMEE').length,
     };
-  }, [tasks, todayYMD, priorityFilter]);
+  }, [tasks, todayYMD, priorityFilter, taskQuery]);
 
   // Ce qui est terminé ou confirmé passe EN DERNIER : ces tâches n'appellent plus d'action,
   // et triées par échéance elles occupaient le haut du tableau — l'admin devait dérouler pour
@@ -383,6 +388,11 @@ function AdminUserProfile() {
     const byPriority = (list) =>
       priorityFilter ? list.filter((t) => t.priority === priorityFilter) : list;
 
+    // La recherche croise le titre ET le chemin du projet : on cherche aussi bien
+    // « relire » qu'« interne », voire les deux ensemble.
+    const bySearch = (list) =>
+      list.filter((t) => matchesTerms([t.title, t.space_name, t.folder_name, t.list_name], taskQuery));
+
     const filtered =
       taskTab === 'progress'
         ? tasks.filter((t) => t.status === 'EN_COURS')
@@ -391,8 +401,10 @@ function AdminUserProfile() {
           : taskTab === 'done'
             ? tasks.filter(isFinished)
             : tasks;
-    return [...byPriority(filtered)].sort((a, b) => Number(isFinished(a)) - Number(isFinished(b)));
-  }, [tasks, taskTab, todayYMD, priorityFilter]);
+    return [...bySearch(byPriority(filtered))].sort(
+      (a, b) => Number(isFinished(a)) - Number(isFinished(b))
+    );
+  }, [tasks, taskTab, todayYMD, priorityFilter, taskQuery]);
 
   // --- Correction du temps de connexion (déconnexion oubliée) ---
   function toDatetimeLocal(value) {
@@ -446,7 +458,7 @@ function AdminUserProfile() {
   // nouveau filtre : on revient au début plutôt que d'afficher un tableau vide.
   useEffect(() => {
     setPage(1);
-  }, [taskTab, id, priorityFilter]);
+  }, [taskTab, id, priorityFilter, taskQuery]);
 
   const statusSegments = useMemo(
     () => STATUS_SEG.map((s) => ({ ...s, value: tasks.filter((t) => t.status === s.key).length })),
@@ -596,6 +608,16 @@ function AdminUserProfile() {
               {/* Les onglets ne servent à rien tant que le tableau est replié. */}
               {tasksOpen && (
                 <div className="aup-tabs">
+                  <label className="aup-task-search">
+                    <IconSearch />
+                    <input
+                      type="search"
+                      value={taskQuery}
+                      onChange={(e) => setTaskQuery(e.target.value)}
+                      placeholder="Rechercher une tâche…"
+                      aria-label="Rechercher une tâche"
+                    />
+                  </label>
                   {/* Filtre par priorité : se combine aux onglets (« En retard » + « Urgent »)
                       plutôt que de les remplacer. */}
                   <select
