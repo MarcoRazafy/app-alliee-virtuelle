@@ -445,6 +445,8 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   // qui ne peut rien écrire d'autre. Déclaré ICI, après isAssignee : plus haut, la constante
   // aurait été évaluée avant lui et le rendu aurait échoué.
   const canEditDescription = isAdmin || isAssignee;
+  // Suppression : le créateur de la tâche, ou n'importe quel admin.
+  const canDeleteTask = isAdmin || (task?.created_by && task.created_by === user?.id);
 
   const content = (
     <>
@@ -954,9 +956,11 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
         </aside>
       </div>
 
-      {isAdmin && (
+      {/* « Refaire » reste réservé à l'admin. La suppression s'ouvre à qui a CRÉÉ la tâche :
+          un employé peut retirer ce qu'il s'est ajouté, pas ce qu'on lui a confié. */}
+      {(isAdmin || canDeleteTask) && (
         <div className="tk-footer">
-          {['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
+          {isAdmin && ['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
             <button type="button" className="btn-outline" onClick={handleRedoTask} title="Recréer et réassigner cette tâche">
               <IconRestore /> Refaire
             </button>

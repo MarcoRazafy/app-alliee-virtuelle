@@ -78,6 +78,8 @@ router.post('/tasks/:id/add-assignee', authMiddleware.requireRole('ADMIN'), task
 router.delete('/tasks/:id/assignees/:userId', authMiddleware.requireRole('ADMIN'), taskController.removeTaskAssignee);
 
 // Suppression d'une tâche (admin) : supprime aussi ses sous-tâches, commentaires, chronos… (CASCADE).
-router.delete('/tasks/:id', authMiddleware.requireRole('ADMIN'), taskController.deleteTask);
+// Suppression : admin pour toutes, employé pour CELLES QU'IL A CRÉÉES. Le contrôle est dans
+// le contrôleur, qui a besoin de la tâche pour comparer son créateur à l'appelant.
+router.delete('/tasks/:id', taskController.deleteTask);
 
 module.exports = router;
