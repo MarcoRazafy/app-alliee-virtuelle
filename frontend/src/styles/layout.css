@@ -850,8 +850,13 @@
     font-size: 18px;
   }
 
+  /* Les boutons d'action ont une largeur fixe et ne rétrécissent pas : sur un écran étroit,
+     leur somme dépassait la barre et élargissait TOUTE la page, ce qui donnait l'impression
+     que chaque section était coupée. Ils passent donc à la ligne plutôt que de déborder. */
   .shell-header-actions {
     gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }
 
