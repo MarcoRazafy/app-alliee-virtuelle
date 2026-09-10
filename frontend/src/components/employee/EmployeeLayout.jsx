@@ -259,6 +259,13 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
             </p>
           </Link>
         )}
+
+        {/* Déconnexion dans la navigation, comme côté admin. Sur mobile, le menu du haut est
+            masqué (il débordait de l'écran) : c'est ici qu'on se déconnecte. */}
+        <button type="button" className="sidebar-logout" onClick={handleLogout}>
+          <IconLogout />
+          <span>Déconnexion</span>
+        </button>
       </aside>
 
       <div className="shell-main">

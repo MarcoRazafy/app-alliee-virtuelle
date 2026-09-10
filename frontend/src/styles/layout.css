@@ -803,8 +803,42 @@
   background: var(--glass-overlay);
 }
 
+/* Déconnexion en pied de barre latérale. Vit ici et non dans admin.css : les deux espaces
+   l'utilisent, et admin.css n'est chargé que du côté admin — la règle y était invisible
+   pour l'espace employé. */
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--sidebar-border);
+  background: none;
+  color: var(--sidebar-text);
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar-logout:hover {
+  color: #fff;
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
 @media (max-width: 640px) {
   .search-input {
+    display: none;
+  }
+
+  /* Le menu utilisateur (avatar + profil + déconnexion) débordait de la barre sur un
+     écran étroit : masquer seulement son libellé ne suffisait pas. On le retire donc
+     entièrement — « Profil » et « Déconnexion » sont tous deux dans la navigation. */
+  .user-menu {
     display: none;
   }
 
