@@ -73,6 +73,12 @@ export function rejectTask(id, motif) {
   return api.post(`/api/tasks/${id}/reject`, { motif }).then((res) => res.data);
 }
 
+// Description seule. Route distincte de updateTask, qui réécrit aussi titre, priorité et
+// échéance : la personne assignée n'a le droit de modifier que ce champ.
+export function updateTaskDescription(id, description) {
+  return api.patch(`/api/tasks/${id}/description`, { description }).then((res) => res.data);
+}
+
 export function completeTask(id) {
   return api.post(`/api/tasks/${id}/complete`).then((res) => res.data);
 }

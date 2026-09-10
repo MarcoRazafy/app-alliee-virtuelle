@@ -312,6 +312,19 @@ async function updateTask(taskId, { title, description, priority, deadline, star
   return result.rows[0] || null;
 }
 
+// Ne touche QUE la description. Fonction distincte de updateTask, qui réécrit titre,
+// priorité et échéance : l'employé n'a le droit de modifier que ce champ, et une requête
+// qui ne peut rien écrire d'autre vaut mieux qu'un contrôle à ne pas oublier.
+async function updateDescription(taskId, description, client = db) {
+  const result = await client.query(
+    `UPDATE tasks SET description = $2, updated_at = now()
+     WHERE id = $1
+     RETURNING id, description`,
+    [taskId, description ?? null]
+  );
+  return result.rows[0] || null;
+}
+
 // Réassigne une tâche à une autre personne (transfert). Ne touche qu'au destinataire.
 async function updateAssignee(taskId, assigneeId, client = db) {
   const result = await client.query(
@@ -830,6 +843,7 @@ module.exports = {
   getTaskDetail,
   updateStatus,
   updateTask,
+  updateDescription,
   updateAssignee,
   getAssignees,
   isAssignee,

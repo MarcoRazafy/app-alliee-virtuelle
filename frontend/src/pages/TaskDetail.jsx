@@ -389,7 +389,19 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
   async function commitDesc() {
     setEditingDesc(false);
-    if (descDraft !== (task.description || '')) await savePatch({ description: descDraft });
+    if (descDraft === (task.description || '')) return;
+    try {
+      await taskService.updateTaskDescription(id, descDraft);
+      await loadData();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Impossible de modifier la description');
+    }
+  }
+
+  function startEditDesc() {
+    if (!canEditDescription) return;
+    setDescDraft(task.description || '');
+    setEditingDesc(true);
   }
 
   const layoutProps = isAdmin
@@ -428,6 +440,11 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   // l'interface le lui refusait. Il ne pourra retirer que ses propres envois.
   const isAssignee = assignees.some((a) => a.id === user?.id);
   const canAttach = isAdmin || isAssignee;
+  // La personne assignée décrit sa tâche, pas seulement l'admin qui l'a créée : c'est elle
+  // qui sait ce qu'il y a à y consigner. Elle passe par la route dédiée à la description,
+  // qui ne peut rien écrire d'autre. Déclaré ICI, après isAssignee : plus haut, la constante
+  // aurait été évaluée avant lui et le rendu aurait échoué.
+  const canEditDescription = isAdmin || isAssignee;
 
   const content = (
     <>
@@ -759,7 +776,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
             {/* Description */}
             <div className="tk-desc-block">
               <p className="tk-section-label">Description</p>
-              {isAdmin && editingDesc ? (
+              {canEditDescription && editingDesc ? (
                 <div className="tk-desc-edit">
                   <RichTextEditor value={descDraft} onChange={setDescDraft} placeholder="Description de la tâche…" />
                   <div className="tk-desc-actions">
@@ -773,17 +790,12 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                 </div>
               ) : task.description ? (
                 <div
-                  className={`detail-description rich-text${isAdmin ? ' tk-editable' : ''}`}
-                  onClick={() => {
-                    if (isAdmin) {
-                      setDescDraft(task.description || '');
-                      setEditingDesc(true);
-                    }
-                  }}
-                  title={isAdmin ? 'Cliquer pour modifier' : undefined}
+                  className={`detail-description rich-text${canEditDescription ? ' tk-editable' : ''}`}
+                  onClick={startEditDesc}
+                  title={canEditDescription ? 'Cliquer pour modifier' : undefined}
                   dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(task.description)) }}
                 />
-              ) : isAdmin ? (
+              ) : canEditDescription ? (
                 <button
                   type="button"
                   className="tk-desc-empty"
