@@ -258,6 +258,44 @@ const ADMIN_SETTABLE_STATUSES = [
 // Effet de bord : en quittant « En cours », on ferme les chronos encore ouverts des assignés
 // (pas de minuteur fantôme). Le changement est historisé + audité (l'audit rafraîchit aussi
 // le dashboard temps réel via notification:new).
+// PATCH /tasks/:id/description — la personne assignée peut décrire sa tâche (préciser le
+// besoin, consigner ce qu'elle a compris), pas seulement l'admin qui l'a créée.
+// Route SÉPARÉE de PATCH /tasks/:id, qui réécrit titre, priorité, échéance et date de
+// début : y laisser entrer un employé aurait exigé un filtrage de champs à maintenir à
+// chaque évolution. Ici, la requête ne peut rien écrire d'autre que la description.
+const MAX_DESCRIPTION_LENGTH = 20000;
+
+async function updateTaskDescription(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+
+    const isAdmin = req.user.role === 'ADMIN';
+    if (!isAdmin && !isTaskAssignee(task, req.user.id)) {
+      return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
+    }
+
+    const description = typeof req.body.description === 'string' ? req.body.description : '';
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      return res.status(400).json({ error: 'La description est trop longue' });
+    }
+
+    const updated = await taskModel.updateDescription(task.id, description || null);
+
+    await taskModel.recordHistory({
+      taskId: task.id,
+      fieldChanged: 'description',
+      oldValue: null,
+      newValue: null,
+      changedBy: req.user.id,
+    });
+
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function updateTaskStatus(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
@@ -1525,6 +1563,7 @@ module.exports = {
   deleteAttachment,
   deleteTask,
   updateTask,
+  updateTaskDescription,
   updateTaskStatus,
   reassignTask,
   addTaskAssignee,
