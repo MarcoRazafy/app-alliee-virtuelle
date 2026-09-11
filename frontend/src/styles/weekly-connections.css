@@ -184,6 +184,13 @@
 .wkc-name {
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Sans min-width, un élément flex refuse de descendre sous la largeur de son texte :
+     l'ellipse ne se déclencherait jamais et la colonne s'élargirait à l'infini. */
+  min-width: 0;
+}
+/* Forme courte réservée aux écrans étroits (voir la requête média plus bas). */
+.wkc-name--short {
+  display: none;
 }
 
 .wkc-th-day {
@@ -258,6 +265,59 @@
   .wkc-th-name,
   .wkc-td-name {
     min-width: 160px;
+  }
+  .wkc-name {
+    max-width: 130px;
+  }
+}
+
+/* Sur mobile, la colonne des noms est le vrai problème : figée à gauche, elle occupe une
+   place qu'aucun défilement ne rend, et il ne restait qu'une journée visible sur sept.
+   On la resserre sur trois leviers — nom abrégé, avatar plus petit, marges réduites — et
+   on rétrécit les colonnes de jour d'autant : quatre journées tiennent alors à l'écran.
+   Le nom entier reste accessible en ouvrant la fiche de la personne. */
+@media (max-width: 600px) {
+  .wkc-table th,
+  .wkc-table td {
+    padding: 9px 6px;
+    font-size: 12.5px;
+  }
+
+  .wkc-th-name,
+  .wkc-td-name {
+    min-width: 0;
+    padding-left: 10px;
+  }
+  .wkc-name--full {
+    display: none;
+  }
+  .wkc-name--short {
+    display: inline;
+    max-width: 88px;
+  }
+  .wkc-person-btn {
+    gap: 7px;
+  }
+
+  .wkc-avatar {
+    width: 22px;
+    height: 22px;
+    font-size: 9.5px;
+  }
+
+  .wkc-th-day {
+    min-width: 56px;
+  }
+  .wkc-th-weekday,
+  .wkc-th-date {
+    font-size: 11px;
+  }
+
+  /* « Total équipe » élargirait la colonne figée à lui seul : il tient sur deux lignes. */
+  .wkc-foot-label {
+    font-size: 11px;
+    white-space: normal;
+    line-height: 1.25;
   }
 }
 
