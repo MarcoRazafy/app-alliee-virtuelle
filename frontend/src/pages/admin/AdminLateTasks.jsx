@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
-import { notifyError } from '../../utils/toast';
+import { notifyError, notifySuccess } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconAlert, IconSearch, IconExternalLink, IconChevronDown } from '../../components/icons';
+import { IconAlert, IconSearch, IconExternalLink, IconChevronDown, IconTrash } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
 import StatusDropdown from '../../components/StatusDropdown';
 import { displayStatusOf } from '../../utils/taskStatus';
@@ -24,6 +24,9 @@ function AdminLateTasks() {
   const [sortDirection, setSortDirection] = useState('desc');
   const [query, setQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  // Sélection pour suppression groupée : un admin peut supprimer n'importe quelle tâche.
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(
     () =>
@@ -38,6 +41,39 @@ function AdminLateTasks() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // La sélection porte sur la liste FILTRÉE : « tout sélectionner » doit couvrir ce que
+  // l'admin voit après filtrage, pas les 50 tâches en retard de toute l'équipe.
+  function toggleSelected(taskId) {
+    setSelectedIds((cur) => (cur.includes(taskId) ? cur.filter((id) => id !== taskId) : [...cur, taskId]));
+  }
+
+  async function deleteSelected(visible) {
+    const cibles = visible.filter((t) => selectedIds.includes(t.id));
+    if (cibles.length === 0 || deleting) return;
+    const n = cibles.length;
+    const message =
+      `Supprimer ${n} tâche${n > 1 ? 's' : ''} en retard ?\n\n` +
+      'Cette action est définitive et supprime aussi leurs commentaires, chronos et pièces jointes.';
+    if (!window.confirm(message)) return;
+
+    setDeleting(true);
+    try {
+      // En série : si l'une échoue, les précédentes sont déjà parties et le rechargement
+      // montre exactement ce qui reste.
+      for (const task of cibles) {
+        await taskService.deleteTask(task.id);
+      }
+      setSelectedIds([]);
+      await load();
+      notifySuccess(`${n} tâche${n > 1 ? 's supprimées' : ' supprimée'}`);
+    } catch (err) {
+      await load();
+      notifyError(err.response?.data?.error || 'Suppression impossible');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   function toggleSort() {
     setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
@@ -116,6 +152,30 @@ function AdminLateTasks() {
         </div>
       </div>
 
+      {(() => {
+        const selectedVisible = visibleTasks.filter((t) => selectedIds.includes(t.id));
+        if (selectedVisible.length === 0) return null;
+        return (
+          <div className="late-bulk-bar">
+            <span>
+              {selectedVisible.length} tâche{selectedVisible.length > 1 ? 's' : ''} sélectionnée
+              {selectedVisible.length > 1 ? 's' : ''}
+            </span>
+            <button type="button" className="late-bulk-clear" onClick={() => setSelectedIds([])}>
+              Annuler
+            </button>
+            <button
+              type="button"
+              className="btn-danger late-bulk-delete"
+              onClick={() => deleteSelected(visibleTasks)}
+              disabled={deleting}
+            >
+              <IconTrash /> {deleting ? 'Suppression…' : 'Supprimer'}
+            </button>
+          </div>
+        );
+      })()}
+
       {visibleTasks.length === 0 ? (
         <div className="empty-state">
           {tasks.length === 0 ? 'Aucune tâche en retard. 🎉' : 'Aucune tâche ne correspond à ces filtres.'}
@@ -125,6 +185,17 @@ function AdminLateTasks() {
           <table className="task-table">
             <thead>
               <tr>
+                <th className="late-select-col">
+                  <input
+                    type="checkbox"
+                    checked={visibleTasks.length > 0 && visibleTasks.every((t) => selectedIds.includes(t.id))}
+                    onChange={(e) =>
+                      setSelectedIds(e.target.checked ? visibleTasks.map((t) => t.id) : [])
+                    }
+                    aria-label="Tout sélectionner"
+                    title="Sélectionner toutes les tâches affichées"
+                  />
+                </th>
                 <th>Tâche</th>
                 <th>Employé</th>
                 <th>Priorité</th>
@@ -142,7 +213,15 @@ function AdminLateTasks() {
             <tbody>
               {visibleTasks.map((task) => {
                 return (
-                  <tr key={task.id}>
+                  <tr key={task.id} className={selectedIds.includes(task.id) ? 'late-row--selected' : undefined}>
+                    <td className="late-select-col">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(task.id)}
+                        onChange={() => toggleSelected(task.id)}
+                        aria-label={`Sélectionner « ${task.title} »`}
+                      />
+                    </td>
                     <td>
                       <Link to={`/tasks/${task.id}`} className="task-table-title">
                         {task.title}

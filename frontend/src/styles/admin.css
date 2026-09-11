@@ -3008,3 +3008,64 @@
   outline: none;
   box-shadow: var(--ring-accent);
 }
+
+
+/* --- « Tâches en retard » : sélection et suppression groupée ------------------------
+   Une liste de retards se purge souvent en lot (tâches abandonnées, doublons de test) :
+   sans sélection, il fallait ouvrir chaque fiche pour en supprimer une. */
+
+.late-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 8px 10px 8px 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 28%, transparent);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  width: fit-content;
+}
+
+.late-bulk-clear {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.late-bulk-clear:hover {
+  color: var(--color-text-primary);
+}
+
+.late-bulk-delete {
+  width: auto;
+  height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.late-bulk-delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Colonne étroite : elle ne doit pas rogner le titre des tâches. */
+.late-select-col {
+  width: 36px;
+  text-align: center;
+}
+.late-select-col input {
+  cursor: pointer;
+}
+
+.late-row--selected {
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}

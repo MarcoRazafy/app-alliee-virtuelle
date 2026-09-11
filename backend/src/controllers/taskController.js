@@ -502,21 +502,9 @@ async function createTask(req, res, next) {
       },
     });
 
-    // Tâche créée par un employé : les admins en sont informés par email. Ce n'est plus une
-    // demande de validation — la tâche existe déjà — mais l'information reste utile pour
-    // suivre ce que l'équipe se donne comme travail. Best-effort : ne doit jamais faire
-    // échouer la création.
-    if (!isAdmin) {
-      Promise.all([userModel.findById(req.user.id).catch(() => null), userModel.findAdminEmails().catch(() => [])])
-        .then(([proposer, adminEmails]) =>
-          mailService.sendNewTaskProposalToAdmins(
-            { id: task.id, title },
-            proposer?.full_name || proposer?.username || null,
-            adminEmails
-          )
-        )
-        .catch(() => {});
-    }
+    // Aucun email à la création d'une tâche : depuis que la validation admin a disparu, il
+    // n'y avait plus rien à décider — le message ne faisait qu'encombrer les boîtes. La
+    // création reste tracée dans le journal (CREATE_TASK ci-dessus), donc consultable.
 
     res.status(201).json({ id: task.id, status: task.status });
   } catch (err) {
