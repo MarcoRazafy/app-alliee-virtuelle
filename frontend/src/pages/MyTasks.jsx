@@ -6,7 +6,7 @@ import EmployeeLayout from '../components/employee/EmployeeLayout';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import { formatDurationShort, formatBytes } from '../utils/formatters';
-import { STATUS_PILL, priorityPillClass, formatRelativeDeadline, displayStatusOf } from '../utils/taskStatus';
+import { STATUS_PILL, priorityPillClass, formatRelativeDeadline, displayStatusOf, isTaskLate } from '../utils/taskStatus';
 import { IconExternalLink, IconChecklist, IconX, IconAlert, IconCalendarWeek, IconFolder, IconChat, IconPaperclip, IconTrash } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
 import { htmlToText } from '../utils/sanitizeHtml';
@@ -80,8 +80,21 @@ function sortTasks(list, sort) {
   return rows.sort(byDate('created_at', 'desc'));
 }
 
-function matchesDeadlineRange(deadline, range) {
+// `task` et non la seule échéance : « En retard » dépend AUSSI du statut — une tâche
+// terminée après l'échéance n'est pas en retard, elle est faite.
+function matchesDeadlineRange(task, range) {
   if (!range) return true;
+
+  const deadline = task?.deadline;
+  if (!deadline) return false;
+
+  if (range === 'late') {
+    // Même définition que côté admin (utils/taskStatus), pour que l'employé et son
+    // responsable comptent la même chose.
+    const now = new Date();
+    const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return isTaskLate(task, todayYMD);
+  }
 
   const date = new Date(deadline);
   const now = new Date();
@@ -233,7 +246,7 @@ function MyTasks() {
         htmlToText(task.description || '').toLowerCase().includes(search);
       const matchesStatus = filters.statuses.length === 0 || filters.statuses.includes(task.displayStatus);
       const matchesPriority = filters.priorities.length === 0 || filters.priorities.includes(task.priority);
-      const matchesDeadline = matchesDeadlineRange(task.deadline, filters.deadlineRange);
+      const matchesDeadline = matchesDeadlineRange(task, filters.deadlineRange);
       return matchesSearch && matchesStatus && matchesPriority && matchesDeadline;
     });
     return sortTasks(rows, sort);
