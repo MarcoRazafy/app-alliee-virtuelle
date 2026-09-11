@@ -1339,7 +1339,9 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 18px 22px 8px;
+  /* 36 px en bas (au lieu de 8) : la barre d'actions du DERNIER message s'affiche sous sa
+     bulle et aurait été rognée par le bord du fil. */
+  padding: 18px 22px 36px;
   display: flex;
   flex-direction: column;
 }
@@ -1352,17 +1354,40 @@
 .msgr-msg-main { display: flex; flex-direction: column; max-width: min(560px, 72%); }
 .msgr-msg--own .msgr-msg-main { align-items: flex-end; }
 
-.msgr-msg-line { display: flex; align-items: center; gap: 6px; }
+/* position: relative → ancre la barre d'actions, désormais placée SOUS la bulle. */
+.msgr-msg-line { position: relative; display: flex; align-items: center; gap: 6px; }
 .msgr-msg--own .msgr-msg-line { flex-direction: row-reverse; }
 
+/* Actions (réagir, modifier, transférer, supprimer) sous le message plutôt qu'à côté :
+   à côté, elles poussaient la bulle et rognaient la largeur utile du texte.
+   En position absolue et non dans le flux : sinon leur hauteur serait réservée sur CHAQUE
+   message, même masquée (opacity ne libère pas la place), et tout le fil se serait espacé
+   de 28 px par message. */
 .msgr-msg-actions {
-  position: relative;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 4;
   display: flex;
   gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
   opacity: 0;
+  /* Masquée, elle ne doit pas intercepter les clics du message situé en dessous. */
+  pointer-events: none;
   transition: opacity 0.12s ease;
 }
-.msgr-msg:hover .msgr-msg-actions { opacity: 1; }
+/* Message envoyé par soi : la barre s'aligne à droite, comme la bulle. */
+.msgr-msg--own .msgr-msg-actions { left: auto; right: 0; }
+
+.msgr-msg:hover .msgr-msg-actions,
+.msgr-msg-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
 .msgr-msg-actions button {
   display: inline-flex;
   align-items: center;
@@ -1378,9 +1403,11 @@
 .msgr-msg-actions button:hover { background: var(--glass-overlay); color: var(--color-text-primary); }
 .msgr-msg-actions svg { width: 15px; height: 15px; }
 
+/* Le sélecteur d'émoji s'ouvre VERS LE BAS : la barre d'actions étant maintenant sous la
+   bulle, l'ouvrir vers le haut aurait recouvert le message auquel on réagit. */
 .msgr-react-picker {
   position: absolute;
-  bottom: 34px;
+  top: calc(100% + 6px);
   left: 0;
   display: flex;
   gap: 2px;
