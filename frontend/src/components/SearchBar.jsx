@@ -92,6 +92,9 @@ function SearchBar({ onChange }) {
           <span className="filter-group-label">Échéance</span>
           <select className="filter-select" value={deadlineRange} onChange={handleDeadlineChange}>
             <option value="">Toutes</option>
+            {/* « En retard » AVANT les autres : c'est ce qu'on vient chercher en premier.
+                Distinct de « Passée », qui retient aussi les tâches déjà terminées. */}
+            <option value="late">En retard</option>
             <option value="today">Aujourd'hui</option>
             <option value="week">Cette semaine</option>
             <option value="month">Ce mois</option>
