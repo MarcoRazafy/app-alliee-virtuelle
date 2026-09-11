@@ -523,6 +523,56 @@
   }
 }
 
+/* --- Écrans étroits -----------------------------------------------------------------
+   L'en-tête tenait tout sur une ligne : titre du mois, « Évaluée par … le … » et les
+   flèches de navigation. Le libellé de l'auteur est en white-space: nowrap et ne pouvait
+   donc pas rétrécir : il passait PAR-DESSUS le titre. Chaque partie prend désormais sa
+   propre ligne. */
+@media (max-width: 560px) {
+  .eval-section-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* margin-left: auto poussait le résumé à droite d'une ligne qu'il ne partage plus. */
+  .eval-summary {
+    margin-left: 0;
+    padding-left: 0;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .eval-section-head {
+    align-items: flex-start;
+  }
+
+  /* La navigation par mois passe sous le titre, alignée à gauche comme le reste. */
+  .eval-monthnav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .eval-section-title {
+    font-size: 18px;
+  }
+
+  /* Remarque : la pastille d'auteur est en nowrap et ne rétrécit pas. Sur une barre
+     étroite, elle débordait par la droite en recouvrant le texte. Elle passe donc à la
+     ligne sous la remarque, et la barre s'aligne en haut pour que l'icône reste en
+     face de la première ligne. */
+  .eval-item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .eval-item-author {
+    flex-shrink: 1;
+    max-width: 100%;
+    margin-left: 36px;
+  }
+}
+
 /* ============================================================================
    Vue employé « Mes évaluations » (lecture seule, dans la page Profil).
    ============================================================================ */
@@ -625,6 +675,10 @@
 .myeval-remark-text {
   min-width: 0;
   word-break: break-word;
+  /* Une suite de caractères sans espace (copier-coller, saisie accidentelle) doit se
+     couper plutôt que d'élargir la barre au-delà de la carte — même règle que la saisie
+     côté admin (.eval-item-sizer). */
+  overflow-wrap: anywhere;
 }
 .myeval-remark--good {
   background: var(--color-success);
