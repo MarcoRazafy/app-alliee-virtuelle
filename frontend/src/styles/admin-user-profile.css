@@ -222,7 +222,7 @@
   border-color: var(--color-accent-light);
 }
 
-/* Filtre de priorité posé parmi les onglets : il s'y combine (« En retard » + « Urgent »).
+/* Filtre de priorité posé parmi les onglets : il s'y combine (« Terminées » + « Urgent »).
    Un écart le détache du groupe, pour qu'on ne le prenne pas pour un onglet de plus —
    une bordure n'y ferait pas séparateur, la pilule en a déjà une sur tout son pourtour. */
 .aup-priority-filter {
@@ -232,7 +232,7 @@
 /* Filtre actif : il doit se voir, sinon on croit le tableau incomplet. La classe vient de
    l'état React — sur un <select> contrôlé, l'attribut `value` du DOM n'est pas mis à jour,
    un sélecteur d'attribut ne verrait donc jamais le changement. */
-.aup-priority-filter--on {
+.aup-filter--on {
   border-color: var(--color-accent-light);
   color: var(--color-text-primary);
 }
@@ -937,4 +937,20 @@ a.aup-info-link:hover {
   font-weight: 700;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+
+/* Plage d'échéance personnalisée : deux dates et leur flèche, groupées pour qu'on les
+   lise comme un seul réglage et non comme deux filtres indépendants. */
+.aup-custom-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.aup-custom-range input {
+  padding: 6px 10px;
+}
+.aup-custom-range-sep {
+  color: var(--color-text-muted);
+  font-size: 12px;
 }
