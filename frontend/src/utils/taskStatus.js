@@ -56,3 +56,17 @@ export function displayStatusOf(task) {
   if (task.status === 'EN_COURS' && !task.has_active_session) return 'A_REPRENDRE';
   return task.status;
 }
+
+// Statuts pour lesquels le travail est FAIT : une tâche qui les porte n'est jamais en
+// retard, même rendue après l'échéance.
+export const FINISHED_STATUSES = ['TERMINEE', 'CONFIRMEE'];
+
+// Définition unique du « retard » côté interface, jumelle de utils/lateTasks.js côté
+// serveur. Elle vivait recopiée dans les pages, en n'excluant que CONFIRMEE : une tâche
+// terminée mais pas encore confirmée par un admin apparaissait donc en retard, alors
+// qu'elle n'appelait plus rien de l'employé.
+export function isTaskLate(task, todayYMD) {
+  if (!task?.deadline) return false;
+  if (FINISHED_STATUSES.includes(task.status)) return false;
+  return String(task.deadline).slice(0, 10) < todayYMD;
+}

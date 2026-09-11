@@ -11,6 +11,10 @@ import { IconChevronDown } from './icons';
 const OPTIONS = [
   { value: 'VALIDEE', label: 'À faire', cls: 'todo' },
   { value: 'EN_COURS', label: 'En cours', cls: 'progress' },
+  // « À reprendre » n'est pas un statut stocké : le serveur le traduit en EN_COURS et
+  // arrête le chrono en cours. C'est la façon de renvoyer une tâche au travail sans la
+  // laisser paraître activement chronométrée.
+  { value: 'A_REPRENDRE', label: 'À reprendre', cls: 'paused' },
   { value: 'TERMINEE', label: 'Terminée', cls: 'done' },
   { value: 'CONFIRMEE', label: 'Confirmée', cls: 'confirmed' },
 ];
@@ -105,8 +109,11 @@ export default function StatusDropdown({ taskId, status, displayStatus, onChange
                 key={opt.value}
                 type="button"
                 role="option"
-                aria-selected={status === opt.value}
-                className={`status-menu-item${status === opt.value ? ' status-menu-item--active' : ''}`}
+                // Comparaison sur le statut AFFICHÉ : « À reprendre » et « En cours » partagent
+                // le même statut en base, seul l'affiché les distingue. Sans cela, « En cours »
+                // serait marqué actif sur une tâche à reprendre, et « À reprendre » jamais.
+                aria-selected={shown === opt.value}
+                className={`status-menu-item${shown === opt.value ? ' status-menu-item--active' : ''}`}
                 onClick={() => pick(opt.value)}
               >
                 <span className={`status-dot status-dot--${opt.cls}`} />

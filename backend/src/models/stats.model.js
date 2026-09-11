@@ -11,6 +11,7 @@ const { sqlBusinessDay: DAY, sqlBusinessDayNaive: DAYN, sqlToday } = require('..
 // Les colonnes DATE remontent de `pg` construites avec les getters LOCAUX : les relire avec
 // toISOString() décalait l'étiquette du jour quand le fuseau du serveur n'est pas UTC.
 const { formatDbDate } = require('../utils/planningDates');
+const { sqlIsLate } = require('../utils/lateTasks');
 const planningDates = require('../utils/planningDates');
 const businessDay = require('../utils/businessDay');
 const sessionModel = require('./session.model');
@@ -110,7 +111,7 @@ async function computeTeamStats(from, to) {
               COUNT(*)::INTEGER AS total_tasks,
               COUNT(*) FILTER (WHERE t.status = 'CONFIRMEE')::INTEGER AS confirmed,
               COUNT(*) FILTER (WHERE t.status = 'EN_COURS')::INTEGER AS in_progress,
-              COUNT(*) FILTER (WHERE t.deadline < ${TODAY} AND t.status != 'CONFIRMEE')::INTEGER AS late
+              COUNT(*) FILTER (WHERE ${sqlIsLate('t')})::INTEGER AS late
        FROM tasks t JOIN task_assignees ta ON ta.task_id = t.id
        WHERE t.deadline BETWEEN $1 AND $2
        GROUP BY ta.user_id`,

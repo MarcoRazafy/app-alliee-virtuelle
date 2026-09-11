@@ -29,6 +29,9 @@ const STATUS_FILTERS = [
   { value: 'DECLAREE', label: 'Déclarée' },
   { value: 'TERMINEE', label: 'Terminée' },
   { value: 'EN_COURS', label: 'En cours' },
+  // « À reprendre » n'existe pas en base : c'est une EN_COURS dont le chrono est arrêté.
+  // Le filtre porte donc sur le statut AFFICHÉ, pas sur la colonne.
+  { value: 'A_REPRENDRE', label: 'À reprendre' },
   { value: 'VALIDEE', label: 'À faire' },
   { value: 'CONFIRMEE', label: 'Confirmée' },
 ];
@@ -171,7 +174,9 @@ function AdminTasksToValidate() {
             .toLowerCase()
             .includes(q);
         // Multi-sélection : un filtre vide = pas de contrainte ; sinon OU logique sur les valeurs cochées.
-        const matchesStatus = !statusFilters.length || statusFilters.includes(task.status);
+        // On compare au statut AFFICHÉ : sans cela, cocher « En cours » ramènerait aussi les
+        // tâches à reprendre, et « À reprendre » ne ramènerait jamais rien.
+        const matchesStatus = !statusFilters.length || statusFilters.includes(displayStatusOf(task));
         const matchesPriority = !priorityFilters.length || priorityFilters.includes(task.priority);
         const matchesEmployee =
           !employeeFilters.length ||

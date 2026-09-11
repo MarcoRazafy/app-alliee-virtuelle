@@ -4,6 +4,7 @@ const db = require('../config/database');
 // regrouper par `::date` coupait en deux le poste d'un employé de nuit, et CURRENT_DATE
 // dépendait du fuseau de la session PostgreSQL — différent en local et sur Railway.
 const { sqlBusinessDay: DAY, sqlToday } = require('../utils/businessDay');
+const { sqlIsLate } = require('../utils/lateTasks');
 const TODAY = sqlToday();
 const sessionModel = require('./session.model');
 const realtime = require('../realtime/io');
@@ -639,7 +640,7 @@ async function findLateTasks() {
             (${TODAY} - t.deadline) AS days_late
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
-     WHERE t.deadline < ${TODAY} AND t.status != 'CONFIRMEE'
+     WHERE ${sqlIsLate('t')}
      ORDER BY t.deadline ASC`
   );
   return result.rows;
@@ -668,7 +669,7 @@ async function computeEmployeeStats(userId) {
     `SELECT
        COUNT(*) FILTER (WHERE status = 'CONFIRMEE')::INTEGER AS tasks_confirmed,
        COUNT(*)::INTEGER AS tasks_assigned,
-       COUNT(*) FILTER (WHERE deadline < ${TODAY} AND status != 'CONFIRMEE')::INTEGER AS tasks_late
+       COUNT(*) FILTER (WHERE ${sqlIsLate()})::INTEGER AS tasks_late
      FROM tasks WHERE assigned_to = $1`,
     [userId]
   );
@@ -714,7 +715,7 @@ async function computeRealtimeDashboard() {
     SELECT
       (SELECT COUNT(*) FROM tasks t WHERE t.status = 'EN_COURS'
        AND EXISTS (SELECT 1 FROM timelog tl WHERE tl.task_id = t.id AND tl.end_time IS NULL))::INTEGER AS tasks_in_progress,
-      (SELECT COUNT(*) FROM tasks WHERE deadline < ${TODAY} AND status != 'CONFIRMEE')::INTEGER AS tasks_late
+      (SELECT COUNT(*) FROM tasks WHERE ${sqlIsLate()})::INTEGER AS tasks_late
   `);
 
   // 3 requêtes groupées sur tous les employés plutôt que 3 requêtes par employé (N+1)

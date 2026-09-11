@@ -1997,6 +1997,10 @@
   background: var(--color-success);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success) 35%, transparent);
 }
+/* « À reprendre » : un travail commencé puis mis en pause — neutre, ni actif ni terminé. */
+.status-dot--paused {
+  background: var(--color-text-muted);
+}
 
 /* Filtres multi-sélection : bouton (réutilise .filter-select : pastille + chevron) + menu à cases. */
 .filter-multi {
