@@ -311,16 +311,25 @@ async function updateTaskStatus(req, res, next) {
     const task = await taskModel.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
 
-    const newStatus = req.body.status;
+    const requested = req.body.status;
+
+    // « À reprendre » n'est pas un statut stocké : c'est une tâche EN_COURS dont le chrono
+    // n'est plus lancé. La demander revient donc à mettre EN_COURS *et* à arrêter le chrono
+    // — sans quoi l'affichage retomberait aussitôt sur « En cours ».
+    const wantsPaused = requested === 'A_REPRENDRE';
+    const newStatus = wantsPaused ? taskModel.TASK_STATUS.IN_PROGRESS : requested;
+
     if (!ADMIN_SETTABLE_STATUSES.includes(newStatus)) {
       return res.status(400).json({ error: 'Statut invalide' });
     }
-    if (newStatus === task.status) {
+    // Une tâche déjà EN_COURS qu'on repasse « À reprendre » n'est pas un non-changement :
+    // il reste son chrono à arrêter.
+    if (newStatus === task.status && !wantsPaused) {
       return res.status(200).json({ id: task.id, status: task.status });
     }
 
     await db.withTransaction(async (client) => {
-      if (task.status === taskModel.TASK_STATUS.IN_PROGRESS) {
+      if (wantsPaused || task.status === taskModel.TASK_STATUS.IN_PROGRESS) {
         const assignees = task.assignees && task.assignees.length ? task.assignees : [{ id: task.assigned_to }];
         for (const a of assignees) {
           const s = await taskModel.findActiveSessionForTask(task.id, a.id);
@@ -338,7 +347,7 @@ async function updateTaskStatus(req, res, next) {
           action: 'UPDATE_TASK_STATUS',
           entityType: 'task',
           entityId: task.id,
-          details: { title: task.title, from: task.status, to: newStatus },
+          details: { title: task.title, from: task.status, to: newStatus, paused: wantsPaused || undefined },
         },
         client
       );

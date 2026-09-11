@@ -5,7 +5,7 @@ import * as avatarService from '../../services/avatarService';
 import * as planningService from '../../services/planningService';
 import * as dailyService from '../../services/dailyService';
 import { formatDate, formatDateTime, formatDurationShort } from '../../utils/formatters';
-import { STATUS_PILL, priorityPillClass, displayStatusOf } from '../../utils/taskStatus';
+import { STATUS_PILL, priorityPillClass, displayStatusOf, isTaskLate } from '../../utils/taskStatus';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { PageSkeleton } from '../../components/Skeleton';
 import Pagination from '../../components/Pagination';
@@ -59,10 +59,6 @@ function initialsOf(name) {
 
 // Une tâche est « en retard » si son échéance est passée et qu'elle n'est pas confirmée
 // (même définition que le KPI backend tasks_late, pour que compteur et onglet coïncident).
-function isLate(task, todayYMD) {
-  return task.deadline && String(task.deadline).slice(0, 10) < todayYMD && task.status !== 'CONFIRMEE';
-}
-
 function KpiCard({ icon, label, value, tone }) {
   return (
     <div className={`aup-kpi${tone ? ` aup-kpi--${tone}` : ''}`}>
@@ -373,7 +369,7 @@ function AdminUserProfile() {
       .filter((t) => matchesTerms([t.title, t.space_name, t.folder_name, t.list_name], taskQuery));
     return {
       progress: base.filter((t) => t.status === 'EN_COURS').length,
-      late: base.filter((t) => isLate(t, todayYMD)).length,
+      late: base.filter((t) => isTaskLate(t, todayYMD)).length,
       done: base.filter((t) => t.status === 'TERMINEE' || t.status === 'CONFIRMEE').length,
     };
   }, [tasks, todayYMD, priorityFilter, taskQuery]);
@@ -397,7 +393,7 @@ function AdminUserProfile() {
       taskTab === 'progress'
         ? tasks.filter((t) => t.status === 'EN_COURS')
         : taskTab === 'late'
-          ? tasks.filter((t) => isLate(t, todayYMD))
+          ? tasks.filter((t) => isTaskLate(t, todayYMD))
           : taskTab === 'done'
             ? tasks.filter(isFinished)
             : tasks;
@@ -666,7 +662,7 @@ function AdminUserProfile() {
                   </thead>
                   <tbody>
                     {paginatedTasks.map((task) => {
-                      const late = isLate(task, todayYMD);
+                      const late = isTaskLate(task, todayYMD);
                       return (
                         <tr
                           key={task.id}
