@@ -1743,10 +1743,34 @@
   color: var(--color-text-muted);
 }
 
+/* Le retour à la ligne est le filet de sécurité : même avec la fenêtre de numéros, une
+   barre de pagination ne doit JAMAIS pousser la page au-delà de l'écran. */
 .pagination-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Le trou entre deux blocs de numéros : ni bouton, ni cliquable. */
+.pagination-gap {
+  min-width: 18px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  user-select: none;
+}
+
+.pagination-btn--step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* La flèche ne sert que sur écran étroit ; ailleurs c'est le mot qui parle. */
+.pagination-btn-arrow {
+  display: none;
+  font-size: 17px;
+  line-height: 1;
 }
 
 .pagination-btn {
@@ -1778,6 +1802,26 @@
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-on-accent);
+}
+
+/* Sur téléphone, « Précédent » et « Suivant » coûtaient à eux seuls la moitié de la barre :
+   ils deviennent des flèches, et les numéros se resserrent. */
+@media (max-width: 600px) {
+  .pagination {
+    gap: 8px;
+  }
+  .pagination-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    font-size: 12.5px;
+  }
+  .pagination-btn-word {
+    display: none;
+  }
+  .pagination-btn-arrow {
+    display: inline;
+  }
 }
 
 /* --- Détail de tâche --- */
