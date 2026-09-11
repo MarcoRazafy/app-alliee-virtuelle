@@ -120,27 +120,6 @@ function newRegistration(user) {
 }
 
 // Un employé a PROPOSÉ une tâche (statut « Non validée ») → prévenir les admins.
-// Un employé s'est créé une tâche. Elle n'attend PLUS de validation : le message informe,
-// il ne demande pas d'agir. Le lien mène donc à la tâche elle-même, pas à une file d'attente.
-function newTaskProposal(task, proposerName) {
-  const taskUrl = `${env.appUrl}/tasks/${task?.id || ''}`;
-  const name = proposerName || '—';
-  const title = task?.title || '—';
-  return {
-    subject: `Nouvelle tâche créée par ${name} — ${BRAND}`,
-    text: `${name} vient de se créer une tâche :\n\nTâche : ${title}\n\nVoir la tâche : ${taskUrl}`,
-    html: layout({
-      title: 'Nouvelle tâche créée',
-      intro: `<strong>${esc(name)}</strong> vient de se créer une tâche. Elle est déjà « À faire ».`,
-      bodyHtml: `
-        <tr><td style="padding:0 0 16px;font-size:14px;color:#3a4a63;">
-          <strong>Tâche :</strong> ${esc(title)}</td></tr>`,
-      buttonLabel: 'Voir la tâche',
-      buttonUrl: taskUrl,
-    }),
-  };
-}
-
 // Un employé a DEMANDÉ une tâche supplémentaire (après avoir validé sa journée) → prévenir les admins.
 function newTaskRequest({ requesterName, taskTitle, message }) {
   const adminUrl = `${env.appUrl}/admin/task-requests`;
@@ -220,7 +199,6 @@ module.exports = {
   accountRejected,
   accountPending,
   newRegistration,
-  newTaskProposal,
   newTaskRequest,
   newAnnouncement,
   htmlExcerpt,

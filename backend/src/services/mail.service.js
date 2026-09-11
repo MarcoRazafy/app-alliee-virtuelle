@@ -138,13 +138,6 @@ function sendNewRegistrationToAdmins(user, adminEmails) {
 }
 
 // Un employé a proposé une tâche (« Non validée ») → prévenir les admins.
-function sendNewTaskProposalToAdmins(task, proposerName, adminEmails) {
-  const recipients = [...new Set((adminEmails || []).filter(Boolean))];
-  if (recipients.length === 0) return Promise.resolve(false);
-  const { subject, html, text } = templates.newTaskProposal(task, proposerName);
-  return sendMail({ to: recipients.join(', '), subject, html, text });
-}
-
 // Un employé a demandé une tâche supplémentaire → prévenir les admins.
 // Nouvelle annonce → toute l'équipe, « pour ne rien manquer ». Les destinataires passent en
 // COPIE CACHÉE : un envoi groupé en clair exposerait l'adresse de chacun à tous les autres.
@@ -170,7 +163,6 @@ module.exports = {
   sendAccountRejected,
   sendAccountPending,
   sendNewRegistrationToAdmins,
-  sendNewTaskProposalToAdmins,
   sendNewTaskRequestToAdmins,
   sendAnnouncementToTeam,
 };
