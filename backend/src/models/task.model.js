@@ -45,8 +45,10 @@ async function findAssignedTasks(userId, { status, priority, deadline, listId } 
   }
 
   const result = await db.query(
+    // created_by : « Mes tâches » distingue celles que l'employé a créées lui-même — lui
+    // seul peut les supprimer, et il doit pouvoir les repérer dans la liste.
     `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.list_id, t.parent_task_id,
-            t.client_name, t.client_email, tl.name AS list_name,
+            t.created_by, t.client_name, t.client_email, tl.name AS list_name,
             tf.name AS folder_name, ts.name AS space_name,
             EXISTS (SELECT 1 FROM timelog tlog WHERE tlog.task_id = t.id AND tlog.end_time IS NULL)
               AS has_active_session

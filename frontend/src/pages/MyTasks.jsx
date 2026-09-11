@@ -7,13 +7,14 @@ import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import { formatDurationShort, formatBytes } from '../utils/formatters';
 import { STATUS_PILL, priorityPillClass, formatRelativeDeadline, displayStatusOf } from '../utils/taskStatus';
-import { IconExternalLink, IconChecklist, IconX, IconAlert, IconCalendarWeek, IconFolder, IconChat, IconPaperclip } from '../components/icons';
+import { IconExternalLink, IconChecklist, IconX, IconAlert, IconCalendarWeek, IconFolder, IconChat, IconPaperclip, IconTrash } from '../components/icons';
 import RichTextEditor from '../components/RichTextEditor';
 import { htmlToText } from '../utils/sanitizeHtml';
 import { notifySuccess, notifyError } from '../utils/toast';
 import '../styles/task-detail.css';
 import '../styles/admin-create-task.css';
 import ProjectPicker from '../components/ProjectPicker';
+import useAuthStore from '../store/authStore';
 
 const PRIORITIES = [
   { value: 'URGENT', label: 'Urgent' },
@@ -72,6 +73,11 @@ function matchesDeadlineRange(deadline, range) {
 function MyTasks() {
   const location = useLocation();
   const [tasks, setTasks] = useState([]);
+  // Sélection pour suppression groupée. Ne concerne QUE les tâches créées par l'employé :
+  // il ne peut pas supprimer celles qu'on lui a confiées.
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleting, setDeleting] = useState(false);
+  const user = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: '', statuses: [], priorities: [], deadlineRange: '' });
   const [page, setPage] = useState(1);
@@ -206,6 +212,49 @@ function MyTasks() {
 
   const paginatedTasks = filteredTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
+  // Tâche créée par l'employé lui-même : la seule qu'il puisse supprimer.
+  const isMine = (task) => Boolean(user?.id && task.created_by === user.id);
+
+  // La sélection porte sur la liste FILTRÉE, pas seulement la page affichée : sinon
+  // « tout sélectionner » ne ferait qu'une page et le compte serait trompeur.
+  const mineInView = filteredTasks.filter(isMine);
+  const selectedInView = mineInView.filter((t) => selectedIds.includes(t.id));
+  const allMineSelected = mineInView.length > 0 && selectedInView.length === mineInView.length;
+
+  function toggleSelected(taskId) {
+    setSelectedIds((cur) => (cur.includes(taskId) ? cur.filter((id) => id !== taskId) : [...cur, taskId]));
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds(allMineSelected ? [] : mineInView.map((t) => t.id));
+  }
+
+  async function deleteSelected() {
+    if (selectedInView.length === 0 || deleting) return;
+    const count = selectedInView.length;
+    const message =
+      `Supprimer ${count} tâche${count > 1 ? 's' : ''} que vous avez créée${count > 1 ? 's' : ''} ?\n\n` +
+      'Cette action est définitive et supprime aussi leurs commentaires, chronos et pièces jointes.';
+    if (!window.confirm(message)) return;
+
+    setDeleting(true);
+    try {
+      // En série plutôt qu'en parallèle : si l'une échoue, les précédentes sont déjà
+      // parties et le rechargement montrera exactement ce qui reste.
+      for (const task of selectedInView) {
+        await taskService.deleteTask(task.id);
+      }
+      setSelectedIds([]);
+      await loadTasks();
+      notifySuccess(`${count} tâche${count > 1 ? 's supprimées' : ' supprimée'}`);
+    } catch (err) {
+      await loadTasks();
+      notifyError(err.response?.data?.error || 'Suppression impossible');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <EmployeeLayout
       title="Mes tâches"
@@ -221,7 +270,22 @@ function MyTasks() {
 
       <SearchBar onChange={setFilters} />
 
-      <p className="results-count">{filteredTasks.length} tâche(s) trouvée(s)</p>
+      <div className="mt-list-head">
+        <p className="results-count">{filteredTasks.length} tâche(s) trouvée(s)</p>
+        {selectedInView.length > 0 && (
+          <div className="mt-bulk-bar">
+            <span>
+              {selectedInView.length} sélectionnée{selectedInView.length > 1 ? 's' : ''}
+            </span>
+            <button type="button" className="mt-bulk-clear" onClick={() => setSelectedIds([])}>
+              Annuler
+            </button>
+            <button type="button" className="btn-danger mt-bulk-delete" onClick={deleteSelected} disabled={deleting}>
+              <IconTrash /> {deleting ? 'Suppression…' : 'Supprimer'}
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="side-card">
         {filteredTasks.length === 0 && <div className="empty-state">Aucune tâche ne correspond à ces filtres.</div>}
@@ -230,6 +294,17 @@ function MyTasks() {
             <table className="task-table">
               <thead>
                 <tr>
+                  <th className="mt-select-col">
+                    {mineInView.length > 0 && (
+                      <input
+                        type="checkbox"
+                        checked={allMineSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Sélectionner toutes mes tâches"
+                        title="Sélectionner toutes les tâches que j'ai créées"
+                      />
+                    )}
+                  </th>
                   <th>Tâche</th>
                   <th>Projet / Contexte</th>
                   <th>Échéance</th>
@@ -241,15 +316,34 @@ function MyTasks() {
               </thead>
               <tbody>
                 {paginatedTasks.map((task) => (
-                  <tr key={task.id}>
+                  <tr key={task.id} className={selectedIds.includes(task.id) ? 'mt-row--selected' : undefined}>
+                    <td className="mt-select-col">
+                      {/* Case à cocher seulement sur ses propres tâches : proposer de
+                          sélectionner ce qu'on ne peut pas supprimer serait une impasse. */}
+                      {isMine(task) && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(task.id)}
+                          onChange={() => toggleSelected(task.id)}
+                          aria-label={`Sélectionner « ${task.title} »`}
+                        />
+                      )}
+                    </td>
                     <td>
-                      <Link
-                        to={`/tasks/${task.id}`}
-                        state={{ backgroundLocation: location }}
-                        className="task-table-title"
-                      >
-                        {task.title}
-                      </Link>
+                      <span className="mt-title-cell">
+                        {/* Point bleu : repère les tâches que l'employé a créées lui-même,
+                            les seules qu'il puisse supprimer. */}
+                        {isMine(task) && (
+                          <span className="mt-mine-dot" title="Tâche que vous avez créée" aria-label="Tâche que vous avez créée" />
+                        )}
+                        <Link
+                          to={`/tasks/${task.id}`}
+                          state={{ backgroundLocation: location }}
+                          className="task-table-title"
+                        >
+                          {task.title}
+                        </Link>
+                      </span>
                     </td>
                     <td>{task.list_name && <span className="task-table-project">{task.list_name}</span>}</td>
                     <td>{formatRelativeDeadline(task.deadline)}</td>

@@ -2982,3 +2982,83 @@
     background: color-mix(in srgb, var(--color-accent) 14%, transparent);
   }
 }
+
+/* --- « Mes tâches » : sélection et repère des tâches créées par l'employé ------------
+   Le point bleu et la case à cocher ne portent que sur ses propres tâches : ce sont les
+   seules qu'il puisse supprimer, et il doit les distinguer sans ouvrir chaque fiche. */
+
+.mt-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mt-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.mt-bulk-clear {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.mt-bulk-clear:hover {
+  color: var(--color-text-primary);
+}
+
+.mt-bulk-delete {
+  width: auto;
+  height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.mt-bulk-delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Colonne étroite : elle ne doit pas repousser le titre. */
+.mt-select-col {
+  width: 36px;
+  text-align: center;
+}
+.mt-select-col input {
+  cursor: pointer;
+}
+
+.mt-row--selected {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.mt-title-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mt-mine-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent-lighter);
+}

@@ -5,7 +5,8 @@ import * as avatarService from '../../services/avatarService';
 import * as planningService from '../../services/planningService';
 import * as dailyService from '../../services/dailyService';
 import { formatDate, formatDateTime, formatDurationShort } from '../../utils/formatters';
-import { STATUS_PILL, priorityPillClass, displayStatusOf, isTaskLate } from '../../utils/taskStatus';
+import { priorityPillClass, displayStatusOf, isTaskLate } from '../../utils/taskStatus';
+import StatusDropdown from '../../components/StatusDropdown';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { PageSkeleton } from '../../components/Skeleton';
 import Pagination from '../../components/Pagination';
@@ -677,10 +678,15 @@ function AdminUserProfile() {
                               </span>
                             )}
                           </td>
-                          <td>
-                            <span className={`pill ${STATUS_PILL[displayStatusOf(task)]?.className || ''}`}>
-                              {STATUS_PILL[displayStatusOf(task)]?.label || task.status}
-                            </span>
+                          {/* stopPropagation : la ligne entière ouvre la tâche ; sans cela,
+                              ouvrir le menu de statut aurait aussi quitté la page. */}
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <StatusDropdown
+                              taskId={task.id}
+                              status={task.status}
+                              displayStatus={displayStatusOf(task)}
+                              onChanged={load}
+                            />
                           </td>
                           <td>
                             <span className={`pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
