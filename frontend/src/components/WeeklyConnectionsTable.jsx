@@ -61,6 +61,15 @@ function clockDateTime(value) {
   return d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+// Nom compact pour les écrans étroits : « Fahendrena Razafimamonjy » → « Fahendrena R. ».
+// Couper simplement à l'ellipse donnerait « Fahendrena Razafi… », qui occupe la même place
+// sans rien apprendre de plus ; l'initiale suffit à distinguer deux homonymes de prénom.
+function shortName(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return name || '';
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
+
 function initialsOf(name) {
   return (name || '')
     .trim()
@@ -311,7 +320,14 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
                       title={`Voir le relevé de temps de ${employee.full_name}`}
                     >
                       <Avatar employee={employee} url={avatarUrls[employee.id]} />
-                      <span className="wkc-name">{employee.full_name}</span>
+                      {/* Les deux formes coexistent, la CSS choisit selon la largeur : un
+                          basculement en JS demanderait d'écouter le redimensionnement pour
+                          un simple détail d'affichage. La version courte est masquée aux
+                          lecteurs d'écran, qui doivent entendre le nom entier. */}
+                      <span className="wkc-name wkc-name--full">{employee.full_name}</span>
+                      <span className="wkc-name wkc-name--short" aria-hidden="true">
+                        {shortName(employee.full_name)}
+                      </span>
                     </button>
                   </th>
                   {days.map((day) => {
