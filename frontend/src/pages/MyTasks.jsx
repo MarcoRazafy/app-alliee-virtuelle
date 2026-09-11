@@ -49,6 +49,37 @@ function flattenLists(tree) {
   return out;
 }
 
+// Ordres d'affichage proposés. « Plus récentes » est le défaut : une tâche qu'on vient de
+// créer doit se voir tout de suite, alors qu'un tri par échéance la renvoyait en dernière
+// page dès que son échéance était lointaine.
+const SORT_OPTIONS = [
+  { value: 'recent', label: 'Plus récentes' },
+  { value: 'oldest', label: 'Plus anciennes' },
+  { value: 'deadline_asc', label: 'Échéance proche' },
+  { value: 'deadline_desc', label: 'Échéance lointaine' },
+];
+
+// Comparaison sûre : une date absente part en fin de liste plutôt que de remonter en tête
+// par accident (une valeur vide se compare mal).
+function byDate(field, direction) {
+  return (a, b) => {
+    const va = a[field] ? new Date(a[field]).getTime() : null;
+    const vb = b[field] ? new Date(b[field]).getTime() : null;
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    return direction === 'asc' ? va - vb : vb - va;
+  };
+}
+
+function sortTasks(list, sort) {
+  const rows = [...list];
+  if (sort === 'oldest') return rows.sort(byDate('created_at', 'asc'));
+  if (sort === 'deadline_asc') return rows.sort(byDate('deadline', 'asc'));
+  if (sort === 'deadline_desc') return rows.sort(byDate('deadline', 'desc'));
+  return rows.sort(byDate('created_at', 'desc'));
+}
+
 function matchesDeadlineRange(deadline, range) {
   if (!range) return true;
 
@@ -75,6 +106,7 @@ function MyTasks() {
   const [tasks, setTasks] = useState([]);
   // Sélection pour suppression groupée. Ne concerne QUE les tâches créées par l'employé :
   // il ne peut pas supprimer celles qu'on lui a confiées.
+  const [sort, setSort] = useState('recent');
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleting, setDeleting] = useState(false);
   const user = useAuthStore((state) => state.user);
@@ -193,7 +225,7 @@ function MyTasks() {
   }
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
+    const rows = tasks.filter((task) => {
       const search = filters.search.toLowerCase();
       const matchesSearch =
         !search ||
@@ -204,11 +236,12 @@ function MyTasks() {
       const matchesDeadline = matchesDeadlineRange(task.deadline, filters.deadlineRange);
       return matchesSearch && matchesStatus && matchesPriority && matchesDeadline;
     });
-  }, [tasks, filters]);
+    return sortTasks(rows, sort);
+  }, [tasks, filters, sort]);
 
   useEffect(() => {
     setPage(1);
-  }, [filters]);
+  }, [filters, sort]);
 
   const paginatedTasks = filteredTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
@@ -271,7 +304,19 @@ function MyTasks() {
       <SearchBar onChange={setFilters} />
 
       <div className="mt-list-head">
-        <p className="results-count">{filteredTasks.length} tâche(s) trouvée(s)</p>
+        <div className="mt-list-head-left">
+          <p className="results-count">{filteredTasks.length} tâche(s) trouvée(s)</p>
+          <label className="mt-sort">
+            <span>Trier par</span>
+            <select className="filter-select" value={sort} onChange={(e) => setSort(e.target.value)}>
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         {selectedInView.length > 0 && (
           <div className="mt-bulk-bar">
             <span>
