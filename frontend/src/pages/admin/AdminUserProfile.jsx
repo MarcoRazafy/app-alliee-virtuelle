@@ -34,6 +34,7 @@ import '../../styles/admin-user-profile.css';
 import '../../styles/planning.css';
 import '../../styles/week-calendar.css';
 import { matchesTerms } from '../../utils/textSearch';
+import { matchesPeriod } from '../../utils/deadlineRange';
 
 const STATUS_META = {
   ACTIF: { label: 'Actif', cls: 'user-active' },
@@ -42,11 +43,27 @@ const STATUS_META = {
   EN_ATTENTE: { label: 'En attente', cls: 'user-pending' },
 };
 
+// Deux états seulement : le travail est fait, ou il reste à faire. « En cours », « À faire »
+// et « À reprendre » sont des nuances de la même chose — non terminé — et les distinguer
+// ici obligeait à choisir entre trois onglets pour une même question.
 const TABS = [
   { key: 'all', label: 'Toutes' },
-  { key: 'progress', label: 'En cours' },
-  { key: 'late', label: 'En retard' },
+  { key: 'open', label: 'Non terminées' },
   { key: 'done', label: 'Terminées' },
+];
+
+const DEADLINE_SORTS = [
+  { value: 'asc', label: 'Échéance croissante' },
+  { value: 'desc', label: 'Échéance décroissante' },
+];
+
+// DEADLINE_PERIODS et non PERIODS : ce nom sert déjà plus bas au filtre de présence.
+const DEADLINE_PERIODS = [
+  { value: '', label: 'Toutes échéances' },
+  { value: 'day', label: "Aujourd'hui" },
+  { value: 'week', label: 'Cette semaine' },
+  { value: 'month', label: 'Ce mois' },
+  { value: 'custom', label: 'Personnalisé' },
 ];
 
 function initialsOf(name) {
@@ -206,6 +223,10 @@ function AdminUserProfile() {
   const [taskTab, setTaskTab] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [taskQuery, setTaskQuery] = useState('');
+  const [deadlineSort, setDeadlineSort] = useState('asc');
+  // deadlinePeriod : le nom `period` sert déjà au filtre de présence plus bas.
+  const [deadlinePeriod, setDeadlinePeriod] = useState('');
+  const [customRange, setCustomRange] = useState({ from: '', to: '' });
   // Tableau des tâches dépliable, REPLIÉ par défaut : la fiche s'ouvre alors sur une vue
   // d'ensemble courte (indicateurs, présence, planning), et la liste se déroule à la demande.
   // Le nombre de tâches reste affiché dans le titre, ce qui suffit le plus souvent.
@@ -362,24 +383,21 @@ function AdminUserProfile() {
   const todayYMD = new Date().toISOString().slice(0, 10);
   const tasks = detail?.tasks || [];
 
-  // Les compteurs des onglets suivent le filtre de priorité : afficher « En retard 12 »
-  // alors que le tableau filtré n'en montre que 2 ferait douter de l'un ou de l'autre.
+  // « Terminé » = terminée ou confirmée ; tout le reste est « non terminé ». Déclaré avant
+  // les compteurs, qui s'en servent.
+  const isFinished = (task) => task.status === 'TERMINEE' || task.status === 'CONFIRMEE';
+
+  // Les compteurs des onglets suivent les filtres : afficher « Non terminées 12 » alors que
+  // le tableau filtré n'en montre que 2 ferait douter de l'un ou de l'autre.
   const counts = useMemo(() => {
     const base = tasks
       .filter((t) => (priorityFilter ? t.priority === priorityFilter : true))
       .filter((t) => matchesTerms([t.title, t.space_name, t.folder_name, t.list_name], taskQuery));
     return {
-      progress: base.filter((t) => t.status === 'EN_COURS').length,
-      late: base.filter((t) => isTaskLate(t, todayYMD)).length,
-      done: base.filter((t) => t.status === 'TERMINEE' || t.status === 'CONFIRMEE').length,
+      open: base.filter((t) => !isFinished(t)).length,
+      done: base.filter(isFinished).length,
     };
-  }, [tasks, todayYMD, priorityFilter, taskQuery]);
-
-  // Ce qui est terminé ou confirmé passe EN DERNIER : ces tâches n'appellent plus d'action,
-  // et triées par échéance elles occupaient le haut du tableau — l'admin devait dérouler pour
-  // trouver ce qui reste à faire. Le tri de JavaScript étant stable, l'ordre par échéance est
-  // conservé à l'intérieur de chaque bloc.
-  const isFinished = (task) => task.status === 'TERMINEE' || task.status === 'CONFIRMEE';
+  }, [tasks, priorityFilter, taskQuery]);
 
   const visibleTasks = useMemo(() => {
     const byPriority = (list) =>
@@ -390,18 +408,33 @@ function AdminUserProfile() {
     const bySearch = (list) =>
       list.filter((t) => matchesTerms([t.title, t.space_name, t.folder_name, t.list_name], taskQuery));
 
+    // Période d'échéance (jour / semaine / mois / plage saisie).
+    const byPeriod = (list) => list.filter((t) => matchesPeriod(t.deadline, deadlinePeriod, new Date(), customRange));
+
     const filtered =
-      taskTab === 'progress'
-        ? tasks.filter((t) => t.status === 'EN_COURS')
-        : taskTab === 'late'
-          ? tasks.filter((t) => isTaskLate(t, todayYMD))
-          : taskTab === 'done'
-            ? tasks.filter(isFinished)
-            : tasks;
-    return [...bySearch(byPriority(filtered))].sort(
-      (a, b) => Number(isFinished(a)) - Number(isFinished(b))
-    );
-  }, [tasks, taskTab, todayYMD, priorityFilter, taskQuery]);
+      taskTab === 'open'
+        ? tasks.filter((t) => !isFinished(t))
+        : taskTab === 'done'
+          ? tasks.filter(isFinished)
+          : tasks;
+
+    // Une échéance absente part en fin de liste dans les deux sens : sans date, elle ne se
+    // compare à rien, et la laisser remonter en tête serait trompeur.
+    const byDeadline = (a, b) => {
+      const va = a.deadline ? String(a.deadline).slice(0, 10) : null;
+      const vb = b.deadline ? String(b.deadline).slice(0, 10) : null;
+      if (va === null && vb === null) return 0;
+      if (va === null) return 1;
+      if (vb === null) return -1;
+      return deadlineSort === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    };
+
+    return [...byPeriod(bySearch(byPriority(filtered)))]
+      .sort(byDeadline)
+      // Ce qui est fini passe EN DERNIER : ces tâches n'appellent plus d'action. Le tri de
+      // JavaScript étant stable, l'ordre par échéance est conservé dans chaque bloc.
+      .sort((a, b) => Number(isFinished(a)) - Number(isFinished(b)));
+  }, [tasks, taskTab, priorityFilter, taskQuery, deadlineSort, deadlinePeriod, customRange]);
 
   // --- Correction du temps de connexion (déconnexion oubliée) ---
   function toDatetimeLocal(value) {
@@ -455,7 +488,7 @@ function AdminUserProfile() {
   // nouveau filtre : on revient au début plutôt que d'afficher un tableau vide.
   useEffect(() => {
     setPage(1);
-  }, [taskTab, id, priorityFilter, taskQuery]);
+  }, [taskTab, id, priorityFilter, taskQuery, deadlineSort, deadlinePeriod, customRange]);
 
   const statusSegments = useMemo(
     () => STATUS_SEG.map((s) => ({ ...s, value: tasks.filter((t) => t.status === s.key).length })),
@@ -615,10 +648,58 @@ function AdminUserProfile() {
                       aria-label="Rechercher une tâche"
                     />
                   </label>
-                  {/* Filtre par priorité : se combine aux onglets (« En retard » + « Urgent »)
-                      plutôt que de les remplacer. */}
+                  {/* Ordre et période d'échéance, à côté de la priorité : tous se combinent
+                      aux onglets plutôt que de les remplacer. */}
                   <select
-                    className={`filter-select aup-priority-filter${priorityFilter ? ' aup-priority-filter--on' : ''}`}
+                    className="filter-select"
+                    value={deadlineSort}
+                    onChange={(e) => setDeadlineSort(e.target.value)}
+                    aria-label="Ordre des échéances"
+                  >
+                    {DEADLINE_SORTS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className={`filter-select${deadlinePeriod ? ' aup-filter--on' : ''}`}
+                    value={deadlinePeriod}
+                    onChange={(e) => setDeadlinePeriod(e.target.value)}
+                    aria-label="Période d'échéance"
+                  >
+                    {DEADLINE_PERIODS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Les deux bornes n'apparaissent qu'en mode personnalisé, et restent
+                      indépendantes : n'en renseigner qu'une reste utile. */}
+                  {deadlinePeriod === 'custom' && (
+                    <span className="aup-custom-range">
+                      <input
+                        type="date"
+                        className="filter-select"
+                        value={customRange.from}
+                        max={customRange.to || undefined}
+                        onChange={(e) => setCustomRange((c) => ({ ...c, from: e.target.value }))}
+                        aria-label="Échéance à partir du"
+                      />
+                      <span className="aup-custom-range-sep">→</span>
+                      <input
+                        type="date"
+                        className="filter-select"
+                        value={customRange.to}
+                        min={customRange.from || undefined}
+                        onChange={(e) => setCustomRange((c) => ({ ...c, to: e.target.value }))}
+                        aria-label="Échéance jusqu'au"
+                      />
+                    </span>
+                  )}
+                  {/* Filtre par priorité : se combine aux onglets plutôt que de les remplacer. */}
+                  <select
+                    className={`filter-select aup-priority-filter${priorityFilter ? ' aup-filter--on' : ''}`}
                     value={priorityFilter}
                     onChange={(e) => setPriorityFilter(e.target.value)}
                     aria-label="Filtrer par priorité"
