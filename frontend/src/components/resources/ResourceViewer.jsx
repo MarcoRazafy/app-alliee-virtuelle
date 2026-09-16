@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as resourceService from '../../services/resourceService';
 import { notifyError } from '../../utils/toast';
 import { IconX, IconDownload, IconPencil } from '../icons';
@@ -19,6 +20,9 @@ function saveBlob(blob, filename) {
 // Visionneuse unifiée : aperçu d'un fichier uploadé (PDF/image), lecture d'une vidéo, ou
 // lecture d'un document HTML créé dans la plateforme, avec téléchargement (fichier ou PDF).
 // Les vidéos font exception : elles se regardent ici et ne se téléchargent pas.
+//
+// `file.media` : PDF inséré dans un document (utils/documentMedia), servi par la route des
+// médias et non par celle des fichiers du dossier.
 function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const isDocument = file.kind === 'DOCUMENT';
   const docRef = useRef(null);
@@ -28,6 +32,8 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [docContent, setDocContent] = useState('');
   const [exporting, setExporting] = useState(false);
+  // PDF inséré dans le document et ouvert depuis sa carte.
+  const [openedPdf, setOpenedPdf] = useState(null);
 
   const mime = file.mime_type || '';
   const isPdf = mime === 'application/pdf';
@@ -54,7 +60,9 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
           const full = await resourceService.getFile(file.id);
           if (!cancelled) setDocContent(full.content || '');
         } else if (isPdf || isImage) {
-          const blob = await resourceService.getFilePreviewBlob(file.id);
+          const blob = file.media
+            ? await resourceService.getDocumentMediaBlob(file.id)
+            : await resourceService.getFilePreviewBlob(file.id);
           objectUrl = URL.createObjectURL(blob);
           if (!cancelled) setBlobUrl(objectUrl);
         }
@@ -70,11 +78,13 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [file.id, isDocument, isPdf, isImage, isVideo]);
+  }, [file.id, file.media, isDocument, isPdf, isImage, isVideo]);
 
   async function handleDownloadFile() {
     try {
-      const blob = await resourceService.downloadFileBlob(file.id);
+      const blob = file.media
+        ? await resourceService.getDocumentMediaBlob(file.id)
+        : await resourceService.downloadFileBlob(file.id);
       saveBlob(blob, file.file_name);
     } catch (err) {
       notifyError(err.response?.data?.error || 'Téléchargement impossible');
@@ -105,6 +115,20 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
     }
   }
 
+  // Clic sur la carte d'un PDF du document : ouverture dans une visionneuse par-dessus, au lieu
+  // de suivre le lien (qui afficherait le PDF brut en quittant l'application).
+  function handleDocumentClick(event) {
+    const card = event.target.closest('a.resource-doc-pdf');
+    if (!card) return;
+    event.preventDefault();
+    setOpenedPdf({ id: card.dataset.mediaId, name: card.dataset.fileName || card.textContent });
+  }
+
+  // Les vidéos du document suivent la règle des Ressources : pas d'« Enregistrer sous… ».
+  function handleDocumentContextMenu(event) {
+    if (event.target.closest('video')) event.preventDefault();
+  }
+
   return (
     <div className="resources-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <div
@@ -132,6 +156,8 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
             <div className="resources-doc-page">
               <div
                 ref={docRef}
+                onClick={handleDocumentClick}
+                onContextMenu={handleDocumentContextMenu}
                 className="resource-doc-render"
                 // eslint-disable-next-line react/no-danger
                 dangerouslySetInnerHTML={{ __html: linkifyHtml(docContent || '<p><em>Document vide.</em></p>') }}
@@ -203,7 +229,28 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
           )}
         </div>
         )}
+
+        {/* Portail vers <body> : la fenêtre du document reste le repère de ses descendants tant
+            que son animation d'ouverture tourne, la visionneuse imbriquée y serait piégée.
+            Placé DANS la fenêtre (et non dans son voile) : les événements d'un portail
+            remontent l'arbre React, et un clic sur le voile du PDF fermerait sinon les deux. */}
+        {openedPdf &&
+          createPortal(
+            <ResourceViewer
+              file={{
+                id: openedPdf.id,
+                file_name: openedPdf.name,
+                file_type: 'PDF',
+                mime_type: 'application/pdf',
+                kind: 'FILE',
+                media: true,
+              }}
+              onClose={() => setOpenedPdf(null)}
+            />,
+            window.document.body
+          )}
       </div>
+
     </div>
   );
 }

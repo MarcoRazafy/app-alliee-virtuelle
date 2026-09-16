@@ -13,6 +13,8 @@ router.get('/resources/folders/:id/files', resourceController.getFolderFiles);
 router.get('/resources/files/:id', resourceController.getFile);
 router.get('/resources/files/:id/preview', resourceController.previewFile);
 router.get('/resources/files/:id/download', resourceController.downloadFile);
+// Média inséré dans un document (photo, vidéo, PDF) : lisible par qui peut lire le document.
+router.get('/resources/media/:id', resourceController.serveDocumentMedia);
 
 // Gestion : admin uniquement
 const requireAdmin = authMiddleware.requireRole('ADMIN');
@@ -28,6 +30,8 @@ router.put('/resources/folders/:id', requireAdmin, resourceController.renameFold
 router.delete('/resources/folders/:id', requireAdmin, resourceController.deleteFolder);
 router.post('/resources/folders/:id/files', requireAdmin, handleSingleUpload, resourceController.uploadFile);
 router.post('/resources/folders/:id/documents', requireAdmin, resourceController.createDocument);
+router.post('/resources/folders/:id/media', requireAdmin, handleSingleUpload, resourceController.uploadDocumentMedia);
+router.delete('/resources/media/:id', requireAdmin, resourceController.deleteDocumentMedia);
 router.put('/resources/files/:id', requireAdmin, resourceController.updateDocument);
 router.delete('/resources/files/:id', requireAdmin, resourceController.deleteFile);
 router.post('/resources/folders/:id/share', requireAdmin, resourceController.shareFolder);

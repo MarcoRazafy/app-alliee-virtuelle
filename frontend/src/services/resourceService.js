@@ -60,6 +60,31 @@ export function downloadFileBlob(id) {
   return api.get(`/api/resources/files/${id}/download`, { responseType: 'blob' }).then((res) => res.data);
 }
 
+// Média (photo, vidéo, PDF) à insérer dans un document. Mêmes règles que uploadFile : pas de
+// délai maximal, progression suivie, et `signal` pour abandonner si l'éditeur se ferme.
+export function uploadDocumentMedia(folderId, file, { onProgress, signal } = {}) {
+  const payload = new FormData();
+  payload.append('file', file);
+  return api
+    .post(`/api/resources/folders/${folderId}/media`, payload, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      signal,
+      onUploadProgress: onProgress ? (event) => onProgress(event.loaded, event.total) : undefined,
+    })
+    .then((res) => res.data);
+}
+
+// Retire un média abandonné. Le serveur refuse (409) s'il est encore cité par un document.
+export function deleteDocumentMedia(id) {
+  return api.delete(`/api/resources/media/${id}`).then((res) => res.data);
+}
+
+// PDF inséré dans un document, chargé en Blob pour la visionneuse.
+export function getDocumentMediaBlob(id) {
+  return api.get(`/api/resources/media/${id}`, { responseType: 'blob', timeout: 0 }).then((res) => res.data);
+}
+
 // Documents éditables créés dans la plateforme.
 export function createDocument(folderId, payload) {
   return api.post(`/api/resources/folders/${folderId}/documents`, payload).then((res) => res.data);
