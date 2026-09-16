@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import { notifyError, notifySuccess } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconAlert, IconSearch, IconExternalLink, IconChevronDown, IconTrash } from '../../components/icons';
+import { matchesTerms } from '../../utils/textSearch';
+import { IconAlert, IconSearch, IconExternalLink, IconTrash, IconLayers } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
 import StatusDropdown from '../../components/StatusDropdown';
+import Pagination from '../../components/Pagination';
 import { displayStatusOf } from '../../utils/taskStatus';
 import '../../styles/admin.css';
 
@@ -18,7 +20,12 @@ function lateSeverity(days) {
   return 'severe';
 }
 
+// La liste s'affiche en cartes, comme l'onglet « À valider » : mêmes informations au même
+// endroit (priorité, employé, échéance, chemin du projet), le retard en plus. Le tableau
+// d'avant n'avait ni le chemin du projet, ni de place pour lui sur un écran étroit.
 function AdminLateTasks() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortDirection, setSortDirection] = useState('desc');
@@ -27,6 +34,8 @@ function AdminLateTasks() {
   // Sélection pour suppression groupée : un admin peut supprimer n'importe quelle tâche.
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = useCallback(
     () =>
@@ -75,17 +84,24 @@ function AdminLateTasks() {
     }
   }
 
-  function toggleSort() {
-    setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
+  function openTask(taskId) {
+    navigate(`/tasks/${taskId}`, { state: { backgroundLocation: location } });
+  }
+
+  // Clic sur la carte → détail de la tâche, SAUF sur un élément interactif (case, statut,
+  // lien, chemin du projet) qui garde son propre comportement.
+  function openTaskFromCard(event, taskId) {
+    if (event.target.closest('button, a, input, label, select, textarea')) return;
+    openTask(taskId);
   }
 
   const visibleTasks = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const filtered = tasks.filter((task) => {
-      const matchesQuery =
-        !q ||
-        task.title.toLowerCase().includes(q) ||
-        (task.assigned_to_name || '').toLowerCase().includes(q);
+      // Mot par mot, sans accents : « campagne julien » trouve la tâche de Julien Petit.
+      const matchesQuery = matchesTerms(
+        [task.title, task.assigned_to_name, task.space_name, task.folder_name, task.list_name],
+        query
+      );
       const matchesPriority = !priorityFilter || task.priority === priorityFilter;
       return matchesQuery && matchesPriority;
     });
@@ -94,8 +110,19 @@ function AdminLateTasks() {
     );
   }, [tasks, query, priorityFilter, sortDirection]);
 
+  // Un changement de recherche, de filtre ou d'ordre remet à la première page : rester en
+  // page 4 d'une liste qui n'en compte plus que 2 afficherait une page vide.
+  useEffect(() => {
+    setPage(1);
+  }, [query, priorityFilter, sortDirection]);
+
+  const pagedTasks =
+    pageSize === Infinity ? visibleTasks : visibleTasks.slice((page - 1) * pageSize, page * pageSize);
+
   const maxDays = tasks.reduce((max, t) => Math.max(max, t.days_late), 0);
-  const hasFilters = query.trim() || priorityFilter;
+  const hasFilters = Boolean(query.trim() || priorityFilter);
+  const selectedVisible = visibleTasks.filter((t) => selectedIds.includes(t.id));
+  const allVisibleSelected = visibleTasks.length > 0 && selectedVisible.length === visibleTasks.length;
 
   if (loading) return <PageSkeleton variant="table" />;
 
@@ -124,7 +151,7 @@ function AdminLateTasks() {
           <IconSearch />
           <input
             type="text"
-            placeholder="Rechercher une tâche ou un employé…"
+            placeholder="Rechercher une tâche, un employé, un projet…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -136,6 +163,17 @@ function AdminLateTasks() {
             <option value="HAUTE">Haute</option>
             <option value="NORMALE">Normale</option>
             <option value="FAIBLE">Faible</option>
+          </select>
+          {/* L'ordre vivait dans l'en-tête de colonne « Retard » du tableau : sans tableau,
+              il lui faut son propre réglage. */}
+          <select
+            className="filter-select"
+            value={sortDirection}
+            onChange={(e) => setSortDirection(e.target.value)}
+            aria-label="Ordre du retard"
+          >
+            <option value="desc">Plus en retard d'abord</option>
+            <option value="asc">Moins en retard d'abord</option>
           </select>
           {hasFilters && (
             <button
@@ -152,116 +190,147 @@ function AdminLateTasks() {
         </div>
       </div>
 
-      {(() => {
-        const selectedVisible = visibleTasks.filter((t) => selectedIds.includes(t.id));
-        if (selectedVisible.length === 0) return null;
-        return (
-          <div className="late-bulk-bar">
-            <span>
-              {selectedVisible.length} tâche{selectedVisible.length > 1 ? 's' : ''} sélectionnée
-              {selectedVisible.length > 1 ? 's' : ''}
-            </span>
-            <button type="button" className="late-bulk-clear" onClick={() => setSelectedIds([])}>
-              Annuler
-            </button>
-            <button
-              type="button"
-              className="btn-danger late-bulk-delete"
-              onClick={() => deleteSelected(visibleTasks)}
+      {visibleTasks.length > 0 && (
+        <div className="validate-listhead">
+          <label className="validate-selectall">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={(e) => setSelectedIds(e.target.checked ? visibleTasks.map((t) => t.id) : [])}
               disabled={deleting}
-            >
-              <IconTrash /> {deleting ? 'Suppression…' : 'Supprimer'}
-            </button>
-          </div>
-        );
-      })()}
+            />
+            Tout sélectionner
+          </label>
+          <span className="validate-count">
+            {visibleTasks.length} tâche{visibleTasks.length > 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+
+      {selectedVisible.length > 0 && (
+        <div className="late-bulk-bar">
+          <span>
+            {selectedVisible.length} tâche{selectedVisible.length > 1 ? 's' : ''} sélectionnée
+            {selectedVisible.length > 1 ? 's' : ''}
+          </span>
+          <button type="button" className="late-bulk-clear" onClick={() => setSelectedIds([])}>
+            Annuler
+          </button>
+          <button
+            type="button"
+            className="btn-danger late-bulk-delete"
+            onClick={() => deleteSelected(visibleTasks)}
+            disabled={deleting}
+          >
+            <IconTrash /> {deleting ? 'Suppression…' : 'Supprimer'}
+          </button>
+        </div>
+      )}
 
       {visibleTasks.length === 0 ? (
         <div className="empty-state">
           {tasks.length === 0 ? 'Aucune tâche en retard. 🎉' : 'Aucune tâche ne correspond à ces filtres.'}
         </div>
       ) : (
-        <div className="task-table-wrap late-table-wrap">
-          <table className="task-table">
-            <thead>
-              <tr>
-                <th className="late-select-col">
+        <div className="validate-list">
+          {pagedTasks.map((task) => {
+            const selected = selectedIds.includes(task.id);
+            return (
+              <div
+                key={task.id}
+                className={`validate-card late-card${selected ? ' validate-card--selected' : ''}`}
+                onClick={(e) => openTaskFromCard(e, task.id)}
+              >
+                <label className="validate-card-check" aria-label={`Sélectionner la tâche ${task.title}`}>
                   <input
                     type="checkbox"
-                    checked={visibleTasks.length > 0 && visibleTasks.every((t) => selectedIds.includes(t.id))}
-                    onChange={(e) =>
-                      setSelectedIds(e.target.checked ? visibleTasks.map((t) => t.id) : [])
-                    }
-                    aria-label="Tout sélectionner"
-                    title="Sélectionner toutes les tâches affichées"
+                    checked={selected}
+                    onChange={() => toggleSelected(task.id)}
+                    disabled={deleting}
                   />
-                </th>
-                <th>Tâche</th>
-                <th>Employé</th>
-                <th>Priorité</th>
-                <th>Statut</th>
-                <th>Échéance</th>
-                <th>
-                  <button type="button" className="late-sort-btn" onClick={toggleSort}>
-                    Retard
-                    <IconChevronDown className={`late-sort-arrow${sortDirection === 'asc' ? ' late-sort-arrow--up' : ''}`} />
-                  </button>
-                </th>
-                <th aria-label="Ouvrir" />
-              </tr>
-            </thead>
-            <tbody>
-              {visibleTasks.map((task) => {
-                return (
-                  <tr key={task.id} className={selectedIds.includes(task.id) ? 'late-row--selected' : undefined}>
-                    <td className="late-select-col">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(task.id)}
-                        onChange={() => toggleSelected(task.id)}
-                        aria-label={`Sélectionner « ${task.title} »`}
-                      />
-                    </td>
-                    <td>
-                      <Link to={`/tasks/${task.id}`} className="task-table-title">
-                        {task.title}
-                      </Link>
-                    </td>
-                    <td>{task.assigned_to_name || '—'}</td>
-                    <td>
-                      <span className="lists-priority">
-                        <span className={`priority-dot priority-dot--${PRIORITY_CLS[task.priority] || 'normale'}`} />
-                        {task.priority}
-                      </span>
-                    </td>
-                    <td>
-                      {/* Modifiable sur place : une tâche en retard se règle le plus souvent
-                          en changeant son statut, sans avoir à ouvrir la fiche. Le rechargement
-                          fait disparaître de la liste ce qui passe en Confirmée. */}
-                      <StatusDropdown
-                        taskId={task.id}
-                        status={task.status}
-                        displayStatus={displayStatusOf(task)}
-                        onChanged={load}
-                      />
-                    </td>
-                    <td>{task.deadline ? formatDate(task.deadline) : '—'}</td>
-                    <td>
-                      <span className={`late-badge late-badge--${lateSeverity(task.days_late)}`}>
-                        {task.days_late} j
-                      </span>
-                    </td>
-                    <td>
-                      <Link to={`/tasks/${task.id}`} className="icon-link-btn" title="Ouvrir la tâche">
-                        <IconExternalLink />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </label>
+
+                <div className="validate-card-body">
+                  <div className="validate-card-top">
+                    <button type="button" className="validate-card-title" onClick={() => openTask(task.id)}>
+                      {task.title}
+                    </button>
+                    {/* Modifiable sur place : une tâche en retard se règle le plus souvent en
+                        changeant son statut. Le rechargement fait disparaître de la liste ce
+                        qui passe en Terminée ou Confirmée. */}
+                    <StatusDropdown
+                      taskId={task.id}
+                      status={task.status}
+                      displayStatus={displayStatusOf(task)}
+                      onChanged={load}
+                    />
+                    <Link
+                      to={`/tasks/${task.id}`}
+                      state={{ backgroundLocation: location }}
+                      className="validate-card-open"
+                      title="Ouvrir le détail de la tâche"
+                      aria-label={`Ouvrir le détail de la tâche ${task.title}`}
+                    >
+                      <IconExternalLink />
+                    </Link>
+                  </div>
+
+                  <div className="validate-card-meta">
+                    <span className="validate-meta-item">
+                      <span className={`priority-dot priority-dot--${PRIORITY_CLS[task.priority] || 'normale'}`} />
+                      {task.priority}
+                    </span>
+                    <span className="validate-meta-sep" />
+                    <span>{task.assigned_to_name || '—'}</span>
+                    <span className="validate-meta-sep" />
+                    <span>Échéance : {task.deadline ? formatDate(task.deadline) : '—'}</span>
+                    <span className={`late-badge late-badge--${lateSeverity(task.days_late)}`}>
+                      {task.days_late} j de retard
+                    </span>
+                  </div>
+
+                  {task.list_name && (
+                    <button
+                      type="button"
+                      className="validate-project-path"
+                      onClick={() =>
+                        navigate('/admin/lists', {
+                          state: {
+                            selectList: {
+                              id: task.list_id,
+                              name: task.list_name,
+                              folderId: task.folder_id,
+                              spaceId: task.space_id,
+                            },
+                          },
+                        })
+                      }
+                      title="Ouvrir ce projet"
+                    >
+                      <IconLayers />
+                      {task.space_name} › {task.folder_name} › {task.list_name}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {visibleTasks.length > 0 && (
+        <Pagination
+          page={page}
+          totalItems={visibleTasks.length}
+          itemsPerPage={pageSize}
+          onPageChange={setPage}
+          onItemsPerPageChange={setPageSize}
+          options={[
+            { value: 10, label: '10 par page' },
+            { value: 50, label: '50 par page' },
+            { value: Infinity, label: 'Toutes' },
+          ]}
+        />
       )}
     </div>
   );
