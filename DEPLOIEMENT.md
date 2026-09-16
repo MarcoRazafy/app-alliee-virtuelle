@@ -44,7 +44,9 @@
    - → débloque aussi le **micro / message vocal**, les notifications navigateur, etc.
 5. **Frontend** : `cd frontend && npm run build`, servir le dossier `dist/` derrière le proxy. Définir `VITE_API_URL` uniquement si le front est sur un **autre domaine** que l'API (sinon laisser vide = même origine).
    - **Fallback SPA (obligatoire)** : router toutes les routes inconnues vers `index.html`, sinon un refresh sur une URL profonde (ex. `/admin/stats`) renvoie 404. Nginx : `try_files $uri /index.html;` — Caddy : `try_files {path} /index.html`.
-   - **Taille des uploads au proxy** : l'app accepte jusqu'à **20 Mo** (ressources). Nginx limite par défaut à 1 Mo → ajouter `client_max_body_size 25m;` (inutile avec Caddy).
+   - **Taille des uploads au proxy** : l'app accepte jusqu'à **20 Mo** pour les documents des ressources, et **sans limite** pour les **vidéos** (MP4, WebM, MOV). Nginx limite par défaut à 1 Mo → ajouter `client_max_body_size 0;` (0 = illimité) et `proxy_request_buffering off;` pour que la vidéo parte en flux au lieu d'être d'abord recopiée sur le disque du proxy (inutile avec Caddy).
+   - **Durée des imports vidéo** : Node ne coupe plus les requêtes longues (`server.requestTimeout = 0` dans `src/index.js`), mais un proxy ou l'hébergeur peut imposer sa propre durée maximale — Nginx : `proxy_read_timeout`/`client_body_timeout`. **Tester l'import d'une grosse vidéo après déploiement.**
+   - **Espace disque** : sans limite de taille, c'est le volume persistant (point 3) qui borne les vidéos. Dimensionner le volume en conséquence et surveiller son remplissage.
 6. **CORS** : aujourd'hui ouvert (`cors()` côté API + Socket.IO `origin:'*'`). OK en same-origin. **Restreindre** au domaine du front si séparé de l'API.
 7. **Health check** : configurer la supervision de l'hébergeur sur **`/health`** (et non `/`, qui ne teste pas la DB).
 

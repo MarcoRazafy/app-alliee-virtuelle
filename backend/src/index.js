@@ -17,6 +17,12 @@ initObservability();
 
 // Serveur HTTP explicite pour héberger à la fois Express (REST) et Socket.IO (WebSockets).
 const server = http.createServer(app);
+// Node coupe par défaut toute requête qui dure plus de 5 minutes (requestTimeout). Les vidéos
+// des ressources n'ont pas de limite de taille : leur import, sur une connexion ordinaire,
+// dépasse vite cette durée et échouait à coup sûr. On lève donc ce plafond.
+// headersTimeout reste en place (60 s) : c'est lui qui protège contre les connexions qui
+// envoient leurs en-têtes au compte-gouttes pour occuper le serveur.
+server.requestTimeout = 0;
 initRealtime(server);
 
 // Les rejets de promesse non gérés ne doivent pas passer inaperçus : on les journalise et on

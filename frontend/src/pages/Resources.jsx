@@ -4,7 +4,8 @@ import * as resourceService from '../services/resourceService';
 import { formatBytes } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
 import ResourceViewer from '../components/resources/ResourceViewer';
-import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil } from '../components/icons';
+import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil, IconPlay } from '../components/icons';
+import { isVideoMime } from '../utils/resourceMedia';
 import '../styles/resources.css';
 
 const TABS = [
@@ -165,7 +166,13 @@ function Resources() {
                                 onClick={() => setViewerFile(file)}
                               >
                                 <span className="resources-file-icon">
-                                  {file.kind === 'DOCUMENT' ? <IconPencil /> : <IconFileText />}
+                                  {file.kind === 'DOCUMENT' ? (
+                                    <IconPencil />
+                                  ) : isVideoMime(file.mime_type) ? (
+                                    <IconPlay />
+                                  ) : (
+                                    <IconFileText />
+                                  )}
                                 </span>
                                 {file.file_name}
                               </button>
