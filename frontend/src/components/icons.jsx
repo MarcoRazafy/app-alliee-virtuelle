@@ -204,6 +204,13 @@ export const IconTrendingUp = (props) =>
     props
   );
 
+// Coche seule, branche droite plus longue que la gauche : le « nike » des réactions.
+export const IconCheck = (props) =>
+  base(
+    <path d="M4.5 12.5l4.5 4.5L20 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />,
+    props
+  );
+
 export const IconCheckCircle = (props) =>
   base(
     <>

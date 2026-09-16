@@ -517,9 +517,31 @@ async function replaceDailySelection(userId, date, taskIds) {
 // --- Commentaires & notes ---
 
 // onlyType filtre strictement côté serveur : jamais confié au frontend de séparer NOTE/COMMENT
-async function findComments(taskId, { onlyType } = {}) {
+// Réactions d'un commentaire, agrégées par emoji : combien, si le lecteur en fait partie, et
+// QUI — un « vu » n'a d'intérêt que si l'on sait qui l'a posé. L'identifiant accompagne le
+// nom : c'est lui qui permet d'écrire « Vous » sans confondre deux homonymes. `viewerParam` = placeholder $N
+// du lecteur ; `commentExpr` = expression SQL de l'identifiant du commentaire.
+function commentReactionsSql(viewerParam, commentExpr = 'c.id') {
+  return `COALESCE((
+    SELECT json_agg(json_build_object('emoji', e.emoji, 'count', e.count, 'mine', e.mine, 'users', e.users)
+                    ORDER BY e.first_at)
+    FROM (
+      SELECT r.emoji, COUNT(*)::int AS count, bool_or(r.user_id = ${viewerParam}) AS mine,
+             json_agg(json_build_object('id', ru.id, 'name', ru.full_name) ORDER BY r.created_at) AS users,
+             MIN(r.created_at) AS first_at
+      FROM task_comment_reactions r
+      JOIN users ru ON ru.id = r.user_id
+      WHERE r.comment_id = ${commentExpr}
+      GROUP BY r.emoji
+    ) e
+  ), '[]'::json)`;
+}
+
+async function findComments(taskId, { onlyType, viewerId = null } = {}) {
   const conditions = ['c.task_id = $1'];
-  const params = [taskId];
+  // $2 = lecteur, pour marquer ses propres réactions. Toujours présent, même à null :
+  // la position des paramètres suivants ne dépend ainsi pas de sa présence.
+  const params = [taskId, viewerId];
   if (onlyType) {
     params.push(onlyType);
     conditions.push(`c.type = $${params.length}`);
@@ -530,7 +552,8 @@ async function findComments(taskId, { onlyType } = {}) {
             EXISTS (SELECT 1 FROM user_avatars ua WHERE ua.user_id = c.author_id) AS has_avatar,
             COALESCE((SELECT json_agg(json_build_object('id', a.id, 'file_name', a.file_name,
                         'file_size', a.file_size, 'file_type', a.file_type) ORDER BY a.created_at)
-                      FROM task_attachments a WHERE a.comment_id = c.id), '[]') AS attachments
+                      FROM task_attachments a WHERE a.comment_id = c.id), '[]') AS attachments,
+            ${commentReactionsSql('$2::uuid')} AS reactions
      FROM task_comments c
      JOIN users u ON u.id = c.author_id
      WHERE ${conditions.join(' AND ')}
@@ -548,6 +571,30 @@ async function createComment({ taskId, authorId, content, type, isVisibleToEmplo
     [taskId, authorId, content, type, isVisibleToEmployee]
   );
   return result.rows[0];
+}
+
+// Pose la réaction si elle n'existe pas, la retire sinon — un clic de plus annule, comme
+// partout ailleurs. Rend l'état agrégé à jour du commentaire, pour que l'interface se cale
+// sur la vérité du serveur (deux personnes peuvent réagir au même moment).
+async function toggleCommentReaction(commentId, userId, emoji) {
+  const removed = await db.query(
+    `DELETE FROM task_comment_reactions WHERE comment_id = $1 AND user_id = $2 AND emoji = $3 RETURNING id`,
+    [commentId, userId, emoji]
+  );
+  if (removed.rowCount === 0) {
+    // ON CONFLICT : un double clic très rapide enverrait deux insertions ; la seconde ne doit
+    // pas lever d'erreur d'unicité.
+    await db.query(
+      `INSERT INTO task_comment_reactions (comment_id, user_id, emoji) VALUES ($1, $2, $3)
+       ON CONFLICT (comment_id, user_id, emoji) DO NOTHING`,
+      [commentId, userId, emoji]
+    );
+  }
+  const result = await db.query(`SELECT ${commentReactionsSql('$2::uuid', '$1::uuid')} AS reactions`, [
+    commentId,
+    userId,
+  ]);
+  return result.rows[0].reactions;
 }
 
 // --- Pièces jointes ---
@@ -868,6 +915,7 @@ module.exports = {
   validateDailySelection,
   replaceDailySelection,
   findComments,
+  toggleCommentReaction,
   createComment,
   findCommentById,
   findAttachmentsByComment,

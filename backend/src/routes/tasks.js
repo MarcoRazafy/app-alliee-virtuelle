@@ -49,6 +49,8 @@ router.post('/tasks/:id/comments', taskController.createComment);
 router.patch('/tasks/:id/comments/:commentId', taskController.updateComment);
 // Retrait d'un message : l'auteur pour le sien, l'admin pour n'importe lequel.
 router.delete('/tasks/:id/comments/:commentId', taskController.deleteComment);
+// Réaction (le « nike » ✓) : quiconque voit le commentaire peut y réagir.
+router.post('/tasks/:id/comments/:commentId/reactions', taskController.toggleCommentReaction);
 
 router.get('/tasks/:id/attachments', taskController.getAttachments);
 router.post('/tasks/:id/attachments', handleSingleUpload, taskController.uploadAttachment);

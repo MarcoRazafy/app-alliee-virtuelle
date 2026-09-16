@@ -6,9 +6,10 @@ import * as userService from '../services/userService';
 import { formatDateTime, formatBytes } from '../utils/formatters';
 import { notifyError, notifySuccess } from '../utils/toast';
 import useAuthStore from '../store/authStore';
-import { IconPaperclip, IconX, IconFileText, IconDownload, IconTrash, IconPencil } from './icons';
+import { IconPaperclip, IconX, IconFileText, IconDownload, IconTrash, IconPencil, IconCheck } from './icons';
 import Markdown from './Markdown';
 import MarkdownToolbar from './MarkdownToolbar';
+import { NIKE, findReaction, reactorsLabel, reactorsTitle, toggleReactionLocally } from '../utils/commentReactions';
 
 // Les mentions restent stockées dans le contenu sous la forme `@[Nom](uuid)`, en texte brut.
 // Leur découpage à l'affichage est désormais assuré par <Markdown/> (prop renderMention),
@@ -137,6 +138,36 @@ function CommentSection({ taskId, focusCommentId = null }) {
       notifyError(err.response?.data?.error || 'Modification impossible');
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  // Réaction « nike » ✔️. Affichage anticipé : la coche répond au clic, puis se recale sur la
+  // réponse du serveur (qui peut compter une réaction posée au même moment par quelqu'un
+  // d'autre). En cas d'échec, on revient à l'état d'avant.
+  //
+  // Un clic est ignoré tant que le précédent n'a pas répondu : deux réponses arrivant dans le
+  // désordre pourraient sinon laisser affiché l'état intermédiaire.
+  const reactingRef = useRef(new Set());
+
+  function setItemReactions(item, reactions) {
+    const patch = (list) => list.map((c) => (c.id === item.id ? { ...c, reactions } : c));
+    if (item.kind === 'note') setNotes(patch);
+    else setComments(patch);
+  }
+
+  async function toggleNike(item) {
+    if (!user || reactingRef.current.has(item.id)) return;
+    reactingRef.current.add(item.id);
+    const previous = item.reactions || [];
+    setItemReactions(item, toggleReactionLocally(previous, NIKE, { id: user.id, name: user.full_name }));
+    try {
+      const { reactions } = await taskService.toggleCommentReaction(taskId, item.id, NIKE);
+      setItemReactions(item, reactions);
+    } catch (err) {
+      setItemReactions(item, previous);
+      notifyError(err.response?.data?.error || 'Réaction impossible');
+    } finally {
+      reactingRef.current.delete(item.id);
     }
   }
 
@@ -301,6 +332,20 @@ function CommentSection({ taskId, focusCommentId = null }) {
                       aboutirait, pour ne pas proposer une action qui serait refusée.
                       Modifier = l'auteur seul ; supprimer = l'auteur ou un admin. */}
                   <span className="cmt-actions">
+                    {/* Tant que personne n'a réagi, la coche se propose ici, avec les autres
+                        actions. Dès la première réaction, c'est la pastille sous le message
+                        qui sert d'interrupteur : deux boutons pour la même chose brouilleraient. */}
+                    {!findReaction(it.reactions, NIKE) && (
+                      <button
+                        type="button"
+                        className="icon-link-btn cmt-action cmt-action--nike"
+                        onClick={() => toggleNike(it)}
+                        aria-label="Réagir avec ✔️"
+                        title="Marquer d'un ✔️ (vu)"
+                      >
+                        <IconCheck />
+                      </button>
+                    )}
                     {it.author_id === user?.id && !editing && (
                       <button
                         type="button"
@@ -405,6 +450,27 @@ function CommentSection({ taskId, focusCommentId = null }) {
                     ))}
                   </div>
                 )}
+                {(() => {
+                  const nike = findReaction(it.reactions, NIKE);
+                  if (!nike) return null;
+                  return (
+                    <div className="cmt-reactions">
+                      <button
+                        type="button"
+                        className={`cmt-reaction${nike.mine ? ' cmt-reaction--mine' : ''}`}
+                        onClick={() => toggleNike(it)}
+                        aria-pressed={nike.mine}
+                        title={`${reactorsTitle(nike.users, user?.id)} — ${nike.mine ? 'cliquer pour retirer' : 'cliquer pour ajouter'}`}
+                      >
+                        <IconCheck />
+                        <span className="cmt-reaction-count">{nike.count}</span>
+                      </button>
+                      {/* Les noms en clair, pas seulement dans l'infobulle : sur téléphone,
+                          il n'y a pas de survol pour la faire apparaître. */}
+                      <span className="cmt-reaction-who">{reactorsLabel(nike.users, user?.id)}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))
