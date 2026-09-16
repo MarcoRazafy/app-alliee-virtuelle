@@ -10,8 +10,15 @@
   --motion-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* `backwards` et non `both` : avec `both`, la dernière image (transform: translateY(0))
+   restait appliquée pour toujours. Or TOUTE valeur de transform, même nulle, fait de
+   l'élément le repère des descendants en position: fixed. Les fenêtres modales rendues dans
+   la page se centraient alors dans <main> au lieu de l'écran : sur une page courte, la
+   visionneuse des Ressources montait au-dessus du bord, bouton de fermeture hors d'atteinte.
+   `backwards` applique l'image de départ avant l'animation, puis rend la main aux styles
+   normaux (transform: none) une fois celle-ci terminée. */
 .app-route-stage {
-  animation: route-stage-in var(--motion-slow) var(--motion-ease-out) both;
+  animation: route-stage-in var(--motion-slow) var(--motion-ease-out) backwards;
 }
 
 @keyframes route-stage-in {
@@ -58,7 +65,9 @@
   .resources-folder-panel,
   .resources-files-panel
 ) {
-  animation: surface-reveal var(--motion-slow) var(--motion-ease-out) both;
+  /* `backwards`, pour la même raison que .app-route-stage : ces panneaux contiennent des
+     fenêtres modales, qu'un transform resté appliqué empêcherait de se centrer à l'écran. */
+  animation: surface-reveal var(--motion-slow) var(--motion-ease-out) backwards;
 }
 
 .app-route-stage :where(
