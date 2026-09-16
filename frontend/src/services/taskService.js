@@ -205,6 +205,12 @@ export function deleteComment(taskId, commentId) {
   return api.delete(`/api/tasks/${taskId}/comments/${commentId}`).then((res) => res.data);
 }
 
+// Pose ou retire une réaction (le « nike » ✔️). Rend { id, reactions } : l'état agrégé à
+// jour, sur lequel l'interface se recale après son affichage anticipé.
+export function toggleCommentReaction(taskId, commentId, emoji) {
+  return api.post(`/api/tasks/${taskId}/comments/${commentId}/reactions`, { emoji }).then((res) => res.data);
+}
+
 export function getNotes(taskId) {
   return api.get(`/api/tasks/${taskId}/notes`).then((res) => res.data);
 }

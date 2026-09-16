@@ -938,7 +938,7 @@ async function getComments(req, res, next) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
-    const comments = await taskModel.findComments(id, { onlyType: 'COMMENT' });
+    const comments = await taskModel.findComments(id, { onlyType: 'COMMENT', viewerId: req.user.id });
     res.status(200).json(comments);
   } catch (err) {
     next(err);
@@ -1060,6 +1060,43 @@ async function updateComment(req, res, next) {
   }
 }
 
+// Emojis autorisés en réaction. Liste fermée : la colonne est courte, et accepter n'importe
+// quelle chaîne ferait d'une réaction un second canal de texte libre, non modéré.
+// « ✔️ » = le « nike » : vu, c'est noté.
+const COMMENT_REACTIONS = ['✔️'];
+
+// POST /tasks/:id/comments/:commentId/reactions — pose ou retire une réaction. Réagir, c'est
+// lire : quiconque voit le commentaire peut y réagir, y compris sur son propre message.
+async function toggleCommentReaction(req, res, next) {
+  try {
+    const { id, commentId } = req.params;
+    const emoji = typeof req.body.emoji === 'string' ? req.body.emoji : '';
+    if (!COMMENT_REACTIONS.includes(emoji)) {
+      return res.status(400).json({ error: 'Réaction non prise en charge' });
+    }
+
+    const comment = await taskModel.findCommentById(commentId);
+    if (!comment || comment.task_id !== id) {
+      return res.status(404).json({ error: 'Commentaire introuvable' });
+    }
+
+    const task = await taskModel.findById(id);
+    if (!task || !canAccessTask(task, req.user)) {
+      return res.status(403).json({ error: 'Accès refusé à cette tâche' });
+    }
+    // Une note interne n'existe pas pour un employé : 404 plutôt que 403, un refus explicite
+    // lui confirmerait qu'une note est attachée à cette tâche.
+    if (comment.type === 'NOTE' && req.user.role !== 'ADMIN') {
+      return res.status(404).json({ error: 'Commentaire introuvable' });
+    }
+
+    const reactions = await taskModel.toggleCommentReaction(commentId, req.user.id, emoji);
+    res.status(200).json({ id: commentId, reactions });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // DELETE /tasks/:id/comments/:commentId — l'auteur retire son message, un admin peut retirer
 // n'importe lequel (modération). Les fichiers joints partent avec.
 async function deleteComment(req, res, next) {
@@ -1112,7 +1149,7 @@ async function getNotes(req, res, next) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
 
-    const notes = await taskModel.findComments(id, { onlyType: 'NOTE' });
+    const notes = await taskModel.findComments(id, { onlyType: 'NOTE', viewerId: req.user.id });
     res.status(200).json(notes);
   } catch (err) {
     next(err);
@@ -1573,6 +1610,7 @@ module.exports = {
   createNote,
   updateComment,
   deleteComment,
+  toggleCommentReaction,
   getLateTasks,
   getAttachments,
   uploadAttachment,
