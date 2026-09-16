@@ -682,13 +682,21 @@ async function findLateTasks() {
   const result = await db.query(
     // has_active_session : indispensable pour distinguer « En cours » de « À reprendre ».
     // Sans lui, displayStatusOf afficherait « À reprendre » sur TOUTE tâche en cours.
+    // Chemin projet (espace › dossier › liste) : la liste des retards s'affiche désormais en
+    // cartes, comme « À valider », qui le montrent et permettent d'ouvrir le projet.
+    // LEFT JOIN : une tâche sans liste reste en retard, elle n'a simplement pas de chemin.
     `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.assigned_to,
             u.full_name AS assigned_to_name,
+            t.list_id, tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name,
+            ts.id AS space_id, ts.name AS space_name,
             EXISTS (SELECT 1 FROM timelog tlog WHERE tlog.task_id = t.id AND tlog.end_time IS NULL)
               AS has_active_session,
             (${TODAY} - t.deadline) AS days_late
      FROM tasks t
      JOIN users u ON u.id = t.assigned_to
+     LEFT JOIN task_lists tl ON tl.id = t.list_id
+     LEFT JOIN task_folders tf ON tf.id = tl.folder_id
+     LEFT JOIN task_spaces ts ON ts.id = tf.space_id
      WHERE ${sqlIsLate('t')}
      ORDER BY t.deadline ASC`
   );
