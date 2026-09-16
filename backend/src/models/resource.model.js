@@ -202,10 +202,62 @@ async function findFilePathsInFolderTree(folderId) {
      FROM resources_files
      WHERE folder_id IN (SELECT id FROM folder_tree)
        AND kind = 'FILE'
-       AND file_path IS NOT NULL`,
+       AND file_path IS NOT NULL
+     UNION ALL
+     -- Médias insérés dans les documents : la suppression du dossier efface leurs lignes en
+     -- cascade, mais pas leurs fichiers sur le disque — une vidéo oubliée y resterait.
+     SELECT file_path
+     FROM resources_document_media
+     WHERE folder_id IN (SELECT id FROM folder_tree)`,
     [folderId]
   );
   return result.rows.map((row) => row.file_path);
+}
+
+// --- Médias insérés dans les documents (photo, vidéo, PDF) ---
+
+async function createDocumentMedia({ folderId, fileName, filePath, mimeType, fileSize, createdBy }) {
+  const result = await db.query(
+    `INSERT INTO resources_document_media (folder_id, file_name, file_path, mime_type, file_size, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, folder_id, file_name, mime_type, file_size, created_at`,
+    [folderId, fileName, filePath, mimeType, fileSize, createdBy]
+  );
+  return result.rows[0];
+}
+
+async function findDocumentMediaById(id) {
+  const result = await db.query(
+    // Le type du dossier porte le contrôle d'accès, comme pour findFileById.
+    `SELECT m.*, folder.type AS folder_type, folder.deleted_at AS folder_deleted_at
+     FROM resources_document_media m
+     JOIN resources_folders folder ON folder.id = m.folder_id
+     WHERE m.id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+// Supprime les médias qu'AUCUN document ne cite plus, corbeille comprise : un document mis à
+// la corbeille peut être restauré, il doit alors retrouver ses images. Rend les chemins disque
+// des lignes effacées, que l'appelant retire ensuite du stockage.
+//
+// Le contrôle et la suppression tiennent dans une seule requête : entre un SELECT de
+// vérification et un DELETE séparés, un document enregistré entre-temps pourrait citer le
+// média qu'on s'apprête à effacer.
+async function deleteUnreferencedMedia(ids) {
+  if (!ids || ids.length === 0) return [];
+  const result = await db.query(
+    `DELETE FROM resources_document_media m
+     WHERE m.id = ANY($1::uuid[])
+       AND NOT EXISTS (
+         SELECT 1 FROM resources_files f
+         WHERE f.kind = 'DOCUMENT' AND f.content LIKE '%' || m.id::text || '%'
+       )
+     RETURNING m.id, m.file_path`,
+    [ids]
+  );
+  return result.rows;
 }
 
 async function permanentlyDeleteFolder(id) {
@@ -285,6 +337,9 @@ module.exports = {
   findFilePathsInFolderTree,
   permanentlyDeleteFolder,
   permanentlyDeleteFile,
+  createDocumentMedia,
+  findDocumentMediaById,
+  deleteUnreferencedMedia,
   createShares,
   findSharesForFolder,
   findShareById,

@@ -732,6 +732,118 @@
   border-color: var(--color-accent);
 }
 
+/* Bouton « Photo, vidéo, PDF » : poussé à droite, il se distingue de la mise en forme. */
+.resources-editor-tool--media {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--color-accent-lighter);
+}
+.resources-editor-tool--media svg {
+  width: 14px;
+  height: 14px;
+}
+.resources-editor-tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Texte d'invite affiché tant que le document est vide. Il n'est PAS du contenu : autrefois
+   écrit dans le document, il finissait enregistré si l'on ne pensait pas à l'effacer. */
+.resources-editor-surface-wrap {
+  position: relative;
+}
+.resources-editor-surface--empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+.resources-editor-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-bg-primary) 80%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+.resources-editor-uploading {
+  margin-right: auto;
+  align-self: center;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+/* Médias insérés dans un document (photo, vidéo, PDF). */
+.resource-doc-render .resource-doc-media {
+  margin: 14px 0;
+}
+.resource-doc-render .resource-doc-media img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+.resource-doc-render .resource-doc-media video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border-radius: 10px;
+  background: #000;
+}
+/* Carte d'un PDF : lisible sur la page blanche de lecture comme sur le fond sombre de
+   l'éditeur — d'où des couleurs dérivées du texte plutôt que fixées. */
+.resource-doc-render .resource-doc-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  color: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.resource-doc-render .resource-doc-pdf::before {
+  content: 'PDF';
+  flex-shrink: 0;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: var(--color-error);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.resource-doc-render .resource-doc-pdf:hover {
+  border-color: var(--color-accent);
+}
+/* Bloc d'attente pendant l'import : il réserve la place du média dans le texte. */
+.resource-doc-render .resource-doc-media--uploading {
+  padding: 14px 16px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+/* Dans l'éditeur, un média est un objet d'un seul tenant : on le montre au survol. */
+.resources-editor-surface .resource-doc-media {
+  border-radius: 10px;
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  transition: outline-color 0.15s ease;
+}
+.resources-editor-surface .resource-doc-media:hover {
+  outline-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
 /* Typographie commune du document (édition + lecture + export PDF) */
 .resource-doc-render {
   color: var(--color-text-primary);

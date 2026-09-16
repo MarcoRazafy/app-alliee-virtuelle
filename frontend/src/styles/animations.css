@@ -125,7 +125,9 @@
 }
 
 :where(.modal-card, .messaging-modal, .resources-modal, .aplan-modal) {
-  animation: dialog-pop-in 280ms var(--motion-ease-out) both;
+  /* `backwards`, comme .app-route-stage : un transform resté appliqué ferait de la fenêtre le
+     repère des éléments fixes qu'elle contient (visionneuse ouverte depuis un document). */
+  animation: dialog-pop-in 280ms var(--motion-ease-out) backwards;
 }
 
 @keyframes overlay-fade-in {

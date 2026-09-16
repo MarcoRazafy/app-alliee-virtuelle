@@ -7,6 +7,7 @@ const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
 const { isVideoMime } = require('../config/resourceUpload');
 const { videoAccessError } = require('../utils/videoAccess');
+const { MEDIA_URL_PREFIX, extractMediaIds, mediaKind, isUuid } = require('../utils/documentMedia');
 
 const FOLDER_TYPES = ['INTERNE', 'CLIENT', 'ADMIN'];
 
@@ -478,6 +479,11 @@ async function permanentlyDeleteFile(req, res, next) {
     if (file.kind === 'FILE' && file.file_path) {
       fs.unlink(file.file_path, () => {});
     }
+    // Un document part avec ses médias — sauf ceux qu'un autre document cite encore.
+    if (file.kind === 'DOCUMENT') {
+      const removed = await resourceModel.deleteUnreferencedMedia(extractMediaIds(file.content));
+      removed.forEach((m) => fs.unlink(m.file_path, () => {}));
+    }
     await taskModel.recordAudit({
       userId: req.user.id,
       action: 'PERMANENT_DELETE_RESOURCE_FILE',
@@ -485,6 +491,94 @@ async function permanentlyDeleteFile(req, res, next) {
       entityId: id,
       details: { file_name: file.file_name, folder_id: file.folder_id },
     });
+    res.status(200).json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- Médias insérés dans les documents -----------------------------------------------
+
+// POST /resources/folders/:id/media — importe une photo, une vidéo ou un PDF à insérer dans
+// un document. Le fichier est déjà écrit sur le disque par multer (config/resourceUpload,
+// qui applique aussi la limite de 20 Mo hors vidéos) ; on vérifie ici qu'il a sa place
+// dans un document.
+async function uploadDocumentMedia(req, res, next) {
+  try {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ error: 'Fichier requis' });
+    }
+    const kind = mediaKind(req.file.mimetype, isVideoMime);
+    if (!kind) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: 'Seules les photos, vidéos et PDF peuvent être insérés dans un document' });
+    }
+
+    const folder = isUuid(id) ? await resourceModel.findFolderById(id) : null;
+    if (!folder || folder.deleted_at) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ error: 'Dossier introuvable' });
+    }
+
+    const media = await resourceModel.createDocumentMedia({
+      folderId: id,
+      fileName: req.file.originalname,
+      filePath: req.file.path,
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size,
+      createdBy: req.user.id,
+    });
+
+    res.status(201).json({ ...media, kind, url: `${MEDIA_URL_PREFIX}${media.id}` });
+  } catch (err) {
+    fs.unlink(req.file?.path || '', () => {});
+    next(err);
+  }
+}
+
+// GET /resources/media/:id — sert un média de document. Mêmes règles que les fichiers :
+// espace Admin réservé aux admins, vidéos lisibles dans l'application seulement.
+async function serveDocumentMedia(req, res, next) {
+  try {
+    const { id } = req.params;
+    const media = isUuid(id) ? await resourceModel.findDocumentMediaById(id) : null;
+    if (!media || media.folder_deleted_at || !canReadFolderType(media.folder_type, req.user)) {
+      return res.status(404).json({ error: 'Média introuvable' });
+    }
+    if (!fs.existsSync(media.file_path)) {
+      return res.status(404).json({ error: 'Média absent du stockage' });
+    }
+
+    if (isVideoMime(media.mime_type)) {
+      const refused = videoAccessError({ disposition: 'inline', fetchDest: req.get('Sec-Fetch-Dest') });
+      if (refused) return res.status(403).json({ error: refused });
+    }
+    res.setHeader('Cache-Control', 'private');
+    res.type(media.mime_type);
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(media.file_name)}`);
+    // Requêtes partielles (Range) gérées par sendFile : une vidéo se lit en flux et s'avance.
+    return sendFileOr404(res, path.resolve(media.file_path), 'Média introuvable');
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /resources/media/:id — retire un média importé puis abandonné (retiré du texte, ou
+// document jamais enregistré). Refusé tant qu'un document le cite : l'éditeur ne voit que
+// le document ouvert, pas les autres, et supprimer ici casserait leur affichage.
+async function deleteDocumentMedia(req, res, next) {
+  try {
+    const { id } = req.params;
+    const media = isUuid(id) ? await resourceModel.findDocumentMediaById(id) : null;
+    if (!media) {
+      return res.status(404).json({ error: 'Média introuvable' });
+    }
+    const removed = await resourceModel.deleteUnreferencedMedia([id]);
+    if (removed.length === 0) {
+      return res.status(409).json({ error: 'Ce média est encore utilisé dans un document' });
+    }
+    removed.forEach((m) => fs.unlink(m.file_path, () => {}));
     res.status(200).json({ deleted: true });
   } catch (err) {
     next(err);
@@ -608,6 +702,9 @@ module.exports = {
   restoreFile,
   permanentlyDeleteFolder,
   permanentlyDeleteFile,
+  uploadDocumentMedia,
+  serveDocumentMedia,
+  deleteDocumentMedia,
   shareFolder,
   getFolderShares,
   revokeShare,
