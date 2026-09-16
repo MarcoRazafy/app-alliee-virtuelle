@@ -1,4 +1,4 @@
-import api from './api';
+import api, { apiBaseUrl } from './api';
 
 export function getFolders(type) {
   return api.get('/api/resources/folders', { params: { type } }).then((res) => res.data);
@@ -20,15 +20,29 @@ export function deleteFolder(id) {
   return api.delete(`/api/resources/folders/${id}`).then((res) => res.data);
 }
 
-// Upload réel d'un fichier (PDF, image, Word...) via multipart/form-data.
-export function uploadFile(folderId, file) {
+// Upload réel d'un fichier (PDF, image, Word, vidéo...) via multipart/form-data.
+// `onProgress(loaded, total)` : suivi de l'envoi, indispensable pour une vidéo de plusieurs
+// centaines de Mo — sans lui, l'import semble figé pendant de longues minutes.
+export function uploadFile(folderId, file, onProgress) {
   const payload = new FormData();
   payload.append('file', file);
   return api
     .post(`/api/resources/folders/${folderId}/files`, payload, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      // Aucun délai maximal : le délai global de l'API (10 s) coupait tout import un peu
+      // gros, et une vidéo peut légitimement mettre de longues minutes à partir.
+      timeout: 0,
+      onUploadProgress: onProgress ? (event) => onProgress(event.loaded, event.total) : undefined,
     })
     .then((res) => res.data);
+}
+
+// Adresse de lecture d'une vidéo, donnée directement à la balise <video>. Contrairement aux
+// PDF et images, on ne la charge PAS en Blob : il faudrait recevoir le fichier entier avant
+// la première image, et le lecteur ne pourrait plus sauter au milieu. Le cookie de session
+// accompagne la requête, l'API étant servie depuis la même origine.
+export function videoStreamUrl(id) {
+  return `${apiBaseUrl}/api/resources/files/${id}/preview`;
 }
 
 // Métadonnées + contenu d'un fichier/document.

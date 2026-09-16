@@ -5,6 +5,8 @@ const db = require('../config/database');
 const resourceModel = require('../models/resource.model');
 const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
+const { isVideoMime } = require('../config/resourceUpload');
+const { videoAccessError } = require('../utils/videoAccess');
 
 const FOLDER_TYPES = ['INTERNE', 'CLIENT', 'ADMIN'];
 
@@ -306,6 +308,16 @@ async function serveFile(req, res, next, { disposition }) {
       return res.status(404).json({ error: 'Fichier absent du stockage' });
     }
 
+    // Vidéo : lecture dans l'application uniquement (voir utils/videoAccess).
+    if (isVideoMime(file.mime_type)) {
+      const refused = videoAccessError({ disposition, fetchDest: req.get('Sec-Fetch-Dest') });
+      if (refused) return res.status(403).json({ error: refused });
+      // Pas de copie dans un cache partagé (proxy, CDN) : la vidéo reste derrière l'authentification.
+      res.setHeader('Cache-Control', 'private');
+    }
+
+    // res.sendFile gère les requêtes partielles (Range → 206) : le lecteur peut sauter au
+    // milieu d'une vidéo sans en recevoir le début, et la lecture démarre sans attendre la fin.
     if (file.mime_type) res.type(file.mime_type);
     const encoded = encodeURIComponent(file.file_name);
     res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encoded}`);

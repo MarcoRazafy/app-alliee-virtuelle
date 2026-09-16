@@ -16,8 +16,10 @@ import {
   IconSearch,
   IconDownload,
   IconArrowRight,
+  IconPlay,
 } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
+import { RESOURCE_ACCEPT, isVideoMime, uploadSizeError, uploadPercent } from '../../utils/resourceMedia';
 import '../../styles/resources.css';
 
 const TABS = [
@@ -39,6 +41,8 @@ function AdminResources() {
   const [fileSearch, setFileSearch] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState([]);
   const [uploading, setUploading] = useState(false);
+  // Pourcentage envoyé (null = inconnu) : une vidéo peut mettre plusieurs minutes à partir.
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
   const [editor, setEditor] = useState(null); // { document } (édition) ou { document: null } (création)
   const [trashOpen, setTrashOpen] = useState(false);
@@ -186,17 +190,38 @@ function AdminResources() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !selectedFolder) return;
+    const sizeError = uploadSizeError(file);
+    if (sizeError) {
+      notifyError(sizeError);
+      return;
+    }
     setUploading(true);
+    setUploadProgress(0);
     try {
-      await resourceService.uploadFile(selectedFolder.id, file);
-      notifySuccess('Fichier importé');
+      await resourceService.uploadFile(selectedFolder.id, file, (loaded, total) =>
+        setUploadProgress(uploadPercent(loaded, total))
+      );
+      notifySuccess(isVideoMime(file.type) ? 'Vidéo importée' : 'Fichier importé');
       await refreshFiles();
     } catch (err) {
       notifyError(err.response?.data?.error || "Impossible d'importer le fichier");
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   }
+
+  // Fermer l'onglet pendant l'envoi d'une vidéo perdrait des minutes de transfert : le
+  // navigateur demande confirmation tant que l'import n'est pas terminé.
+  useEffect(() => {
+    if (!uploading) return undefined;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [uploading]);
 
   function openViewer(file) {
     setViewerFile(file);
@@ -486,7 +511,7 @@ function AdminResources() {
                   type="file"
                   hidden
                   onChange={handleUpload}
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt"
+                  accept={RESOURCE_ACCEPT}
                 />
                 <button
                   type="button"
@@ -494,7 +519,12 @@ function AdminResources() {
                   onClick={() => uploadInputRef.current?.click()}
                   disabled={uploading}
                 >
-                  <IconDownload /> {uploading ? 'Import…' : 'Importer un fichier'}
+                  <IconDownload />{' '}
+                  {uploading
+                    ? uploadProgress === null
+                      ? 'Import…'
+                      : `Import… ${uploadProgress} %`
+                    : 'Importer un fichier'}
                 </button>
                 <button type="button" className="btn-outline" onClick={openNewDocument}>
                   <IconPencil /> Nouveau document
@@ -552,7 +582,13 @@ function AdminResources() {
                               onClick={() => openViewer(file)}
                             >
                               <span className="resources-file-icon">
-                                {file.kind === 'DOCUMENT' ? <IconPencil /> : <IconFileText />}
+                                {file.kind === 'DOCUMENT' ? (
+                                  <IconPencil />
+                                ) : isVideoMime(file.mime_type) ? (
+                                  <IconPlay />
+                                ) : (
+                                  <IconFileText />
+                                )}
                               </span>
                               {file.file_name}
                             </button>

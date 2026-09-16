@@ -3,6 +3,7 @@ import * as resourceService from '../../services/resourceService';
 import { notifyError } from '../../utils/toast';
 import { IconX, IconDownload, IconPencil } from '../icons';
 import { linkifyHtml } from '../../utils/sanitizeHtml';
+import { isVideoMime } from '../../utils/resourceMedia';
 
 function saveBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -15,8 +16,9 @@ function saveBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-// Visionneuse unifiée : aperçu d'un fichier uploadé (PDF/image) ou lecture d'un
-// document HTML créé dans la plateforme, avec téléchargement (fichier ou PDF).
+// Visionneuse unifiée : aperçu d'un fichier uploadé (PDF/image), lecture d'une vidéo, ou
+// lecture d'un document HTML créé dans la plateforme, avec téléchargement (fichier ou PDF).
+// Les vidéos font exception : elles se regardent ici et ne se téléchargent pas.
 function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const isDocument = file.kind === 'DOCUMENT';
   const docRef = useRef(null);
@@ -30,10 +32,19 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const mime = file.mime_type || '';
   const isPdf = mime === 'application/pdf';
   const isImage = mime.startsWith('image/');
+  const isVideo = isVideoMime(mime);
 
   useEffect(() => {
     let objectUrl;
     let cancelled = false;
+
+    // La vidéo n'a rien à précharger : la balise <video> lit en flux, directement depuis le
+    // serveur. Attendre ici le fichier entier retarderait la première image d'autant.
+    if (isVideo) {
+      setError(null);
+      setLoading(false);
+      return undefined;
+    }
 
     async function load() {
       setLoading(true);
@@ -59,7 +70,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [file.id, isDocument, isPdf, isImage]);
+  }, [file.id, isDocument, isPdf, isImage, isVideo]);
 
   async function handleDownloadFile() {
     try {
@@ -138,29 +149,60 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
             </div>
           )}
 
-          {!loading && !error && !isDocument && !isPdf && !isImage && (
+          {!loading && !error && !isDocument && isVideo && (
+            <div className="resources-viewer-video-wrap">
+              {/* Lecture seule : ni bouton de téléchargement dans les contrôles, ni
+                  « Enregistrer la vidéo sous… » au clic droit. Le serveur refuse de son côté
+                  toute requête qui ne vient pas d'un lecteur vidéo (utils/videoAccess). */}
+              <video
+                key={file.id}
+                className="resources-viewer-video"
+                src={resourceService.videoStreamUrl(file.id)}
+                controls
+                controlsList="nodownload noremoteplayback"
+                disableRemotePlayback
+                playsInline
+                preload="metadata"
+                onContextMenu={(e) => e.preventDefault()}
+                onError={() =>
+                  setError(
+                    'Lecture impossible : la vidéo est introuvable ou son format n’est pas pris en charge par ce navigateur.'
+                  )
+                }
+              >
+                Votre navigateur ne sait pas lire cette vidéo.
+              </video>
+            </div>
+          )}
+
+          {!loading && !error && !isDocument && !isPdf && !isImage && !isVideo && (
             <div className="empty-state">
               Aperçu indisponible pour ce format. Téléchargez le fichier pour l'ouvrir.
             </div>
           )}
         </div>
 
+        {/* Une vidéo n'a aucune action : sans cette condition, il resterait une bande vide. */}
+        {!isVideo && (
         <div className="resources-modal-foot">
           {canManage && isDocument && (
             <button type="button" className="btn-outline" onClick={() => onEdit?.(file)}>
               <IconPencil /> Éditer
             </button>
           )}
-          {isDocument ? (
+          {isDocument && (
             <button type="button" className="btn-primary" onClick={handleDownloadPdf} disabled={exporting}>
               <IconDownload /> {exporting ? 'Génération…' : 'Télécharger en PDF'}
             </button>
-          ) : (
+          )}
+          {/* Pas de téléchargement pour une vidéo : elle se regarde dans l'application. */}
+          {!isDocument && (
             <button type="button" className="btn-primary" onClick={handleDownloadFile}>
               <IconDownload /> Télécharger
             </button>
           )}
         </div>
+        )}
       </div>
     </div>
   );
