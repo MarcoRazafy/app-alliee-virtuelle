@@ -6,6 +6,8 @@ const extraTaskRequestModel = require('../models/extraTaskRequest.model');
 const mailService = require('../services/mail.service');
 const { isValidTitle, isValidPriority, isTodayOrFuture, isValidEmail } = require('../utils/validators');
 const { businessDayNow } = require('../utils/businessDay');
+const { FINISHED_STATUSES } = require('../utils/lateTasks');
+const { DateTime } = require('luxon');
 const dailyModel = require('../models/daily.model');
 
 // L'utilisateur est-il l'un des assignés de la tâche ? (task issu de findById → contient `assignees`)
@@ -250,6 +252,56 @@ async function updateTask(req, res, next) {
       details: { title },
     });
     return res.status(200).json(updated);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// PATCH /tasks/:id/deadline — change l'échéance, et elle seule (depuis les cartes « En
+// retard », sans ouvrir la fiche). Mêmes droits que la modification des dates dans
+// updateTask : l'admin, ou le créateur de la tâche.
+async function updateTaskDeadline(req, res, next) {
+  try {
+    const task = await taskModel.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
+
+    const isAdmin = req.user.role === 'ADMIN';
+    if (!isAdmin && task.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez modifier que les tâches que vous avez créées' });
+    }
+
+    const deadline = typeof req.body.deadline === 'string' ? req.body.deadline.trim() : '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || !DateTime.fromISO(deadline).isValid) {
+      return res.status(400).json({ error: "Date d'échéance invalide" });
+    }
+    // Même règle que la fiche : l'échéance ne précède pas le début.
+    const start = task.start_date
+      ? typeof task.start_date === 'string'
+        ? task.start_date.slice(0, 10)
+        : DateTime.fromJSDate(task.start_date).toISODate()
+      : null;
+    if (start && deadline < start) {
+      const startLabel = DateTime.fromISO(start).setLocale('fr').toFormat('d MMMM yyyy');
+      return res.status(400).json({ error: `L'échéance ne peut pas précéder la date de début (${startLabel})` });
+    }
+
+    const before = task.deadline
+      ? typeof task.deadline === 'string'
+        ? task.deadline.slice(0, 10)
+        : DateTime.fromJSDate(task.deadline).toISODate()
+      : null;
+    const updated = await taskModel.updateDeadline(task.id, deadline);
+    await taskModel.recordAudit({
+      userId: req.user.id,
+      action: 'UPDATE_TASK_DEADLINE',
+      entityType: 'task',
+      entityId: task.id,
+      details: { title: task.title, before, after: deadline },
+    });
+
+    // Encore en retard ? L'interface l'indique : une carte qui quitte la liste doit dire pourquoi.
+    const isLate = deadline < businessDayNow() && !FINISHED_STATUSES.includes(updated.status);
+    return res.status(200).json({ id: updated.id, deadline: updated.deadline, is_late: isLate });
   } catch (err) {
     return next(err);
   }
@@ -1621,6 +1673,7 @@ module.exports = {
   deleteTask,
   updateTask,
   updateTaskDescription,
+  updateTaskDeadline,
   updateTaskStatus,
   reassignTask,
   addTaskAssignee,

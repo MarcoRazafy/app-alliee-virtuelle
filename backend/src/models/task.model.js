@@ -315,6 +315,21 @@ async function updateTask(taskId, { title, description, priority, deadline, star
   return result.rows[0] || null;
 }
 
+// Ne touche QUE l'échéance. updateTask réécrit aussi titre, priorité et description (NULL si
+// absente) : l'utiliser depuis une carte qui ne connaît que l'échéance effacerait la
+// description, et écraserait une modification faite entre-temps par quelqu'un d'autre.
+// deadline::text : une colonne DATE lue par pg devient un objet Date à minuit LOCAL, que le
+// JSON transforme en « veille à 21:00Z » — on rend la chaîne telle qu'enregistrée.
+async function updateDeadline(taskId, deadline, client = db) {
+  const result = await client.query(
+    `UPDATE tasks SET deadline = $2, updated_at = now()
+     WHERE id = $1
+     RETURNING id, deadline::text AS deadline, status`,
+    [taskId, deadline]
+  );
+  return result.rows[0] || null;
+}
+
 // Ne touche QUE la description. Fonction distincte de updateTask, qui réécrit titre,
 // priorité et échéance : l'employé n'a le droit de modifier que ce champ, et une requête
 // qui ne peut rien écrire d'autre vaut mieux qu'un contrôle à ne pas oublier.
@@ -694,7 +709,7 @@ async function findLateTasks() {
     // cartes, comme « À valider », qui le montrent et permettent d'ouvrir le projet.
     // LEFT JOIN : une tâche sans liste reste en retard, elle n'a simplement pas de chemin.
     `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.assigned_to,
-            u.full_name AS assigned_to_name,
+            u.full_name AS assigned_to_name, t.start_date::text AS start_date,
             t.list_id, tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name,
             ts.id AS space_id, ts.name AS space_name,
             EXISTS (SELECT 1 FROM timelog tlog WHERE tlog.task_id = t.id AND tlog.end_time IS NULL)
@@ -910,6 +925,7 @@ module.exports = {
   updateStatus,
   updateTask,
   updateDescription,
+  updateDeadline,
   updateAssignee,
   getAssignees,
   isAssignee,
