@@ -203,8 +203,10 @@ function AdminTasksToValidate() {
     setPage(1);
   }, [search, statusFilters, priorityFilters, employeeFilters, deadlineFilters]);
 
+  // Booléen explicite : la somme des longueurs valait 0 sans filtre, et `{0 && …}` affiche
+  // « 0 » en JSX — un zéro isolé apparaissait à côté de « Toutes échéances ».
   const hasFilters =
-    statusFilters.length || priorityFilters.length || employeeFilters.length || deadlineFilters.length;
+    statusFilters.length + priorityFilters.length + employeeFilters.length + deadlineFilters.length > 0;
   const selectedTasks = tasks.filter((task) => selectedIds.includes(task.id));
   const selectedDoneIds = selectedTasks.filter((task) => task.status === 'TERMINEE').map((task) => task.id);
   const selectedDeclaredIds = selectedTasks.filter((task) => task.status === 'DECLAREE').map((task) => task.id);
