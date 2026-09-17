@@ -35,6 +35,7 @@ import '../../styles/planning.css';
 import '../../styles/week-calendar.css';
 import { matchesTerms } from '../../utils/textSearch';
 import { matchesPeriod } from '../../utils/deadlineRange';
+import { toDatetimeLocal, datetimeLocalToIso } from '../../utils/datetimeLocal';
 
 const STATUS_META = {
   ACTIF: { label: 'Actif', cls: 'user-active' },
@@ -437,21 +438,14 @@ function AdminUserProfile() {
   }, [tasks, taskTab, priorityFilter, taskQuery, deadlineSort, deadlinePeriod, customRange]);
 
   // --- Correction du temps de connexion (déconnexion oubliée) ---
-  function toDatetimeLocal(value) {
-    if (!value) return '';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '';
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
 
   async function saveSession(e) {
     e.preventDefault();
     if (!editingSession) return;
     try {
       await sessionService.updateUserSessionAdmin(editingSession.id, {
-        login_at: new Date(editingSession.login).toISOString(),
-        logout_at: editingSession.logout ? new Date(editingSession.logout).toISOString() : null,
+        login_at: datetimeLocalToIso(editingSession.login),
+        logout_at: datetimeLocalToIso(editingSession.logout),
       });
       setEditingSession(null);
       notifySuccess('Session corrigée');

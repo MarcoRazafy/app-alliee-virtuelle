@@ -414,10 +414,18 @@ async function stopSession(sessionId, client = db) {
 
 // Saisie manuelle d'un temps de travail (admin) : chrono oublié, on enregistre a posteriori
 // une plage début→fin déjà terminée. La durée est calculée par la BD.
+// Les colonnes de timelog sont SANS fuseau et le chrono y écrit now() : l'heure y est donc
+// celle de la session PostgreSQL (UTC sur Railway, Madagascar en local). Une heure reçue du
+// client doit être ramenée à cette même convention, sinon elle se décale des vraies sessions.
+// On reçoit un instant absolu (ISO), converti avec AT TIME ZONE current_setting('TimeZone').
+// Une ancienne valeur sans fuseau reste lue à l'heure de la session : même résultat qu'avant.
+const SESSION_LOCAL = (param) => `(${param}::timestamptz AT TIME ZONE current_setting('TimeZone'))`;
+
 async function addManualTimelog(taskId, employeeId, startTime, endTime, client = db) {
   const result = await client.query(
     `INSERT INTO timelog (task_id, employee_id, start_time, end_time, duration_seconds)
-     VALUES ($1, $2, $3, $4, EXTRACT(EPOCH FROM ($4::timestamp - $3::timestamp))::INTEGER)
+     VALUES ($1, $2, ${SESSION_LOCAL('$3')}, ${SESSION_LOCAL('$4')},
+             EXTRACT(EPOCH FROM ($4::timestamptz - $3::timestamptz))::INTEGER)
      RETURNING id, task_id, start_time, end_time, duration_seconds`,
     [taskId, employeeId, startTime, endTime]
   );
@@ -434,9 +442,9 @@ async function findTimelogById(entryId) {
 async function updateTimelogEntry(entryId, startTime, endTime) {
   const result = await db.query(
     `UPDATE timelog
-        SET start_time = $2,
-            end_time = $3,
-            duration_seconds = EXTRACT(EPOCH FROM ($3::timestamp - $2::timestamp))::int
+        SET start_time = ${SESSION_LOCAL('$2')},
+            end_time = ${SESSION_LOCAL('$3')},
+            duration_seconds = EXTRACT(EPOCH FROM ($3::timestamptz - $2::timestamptz))::int
       WHERE id = $1
       RETURNING id, task_id, employee_id, start_time, end_time, duration_seconds`,
     [entryId, startTime, endTime]

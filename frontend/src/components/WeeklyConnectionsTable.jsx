@@ -8,6 +8,7 @@ import { businessDayNow } from '../utils/businessDay';
 import { notifyError, notifySuccess } from '../utils/toast';
 import { IconChevronLeft, IconChevronRight, IconClock, IconPencil, IconTrash, IconX } from './icons';
 import '../styles/weekly-connections.css';
+import { toDatetimeLocal, datetimeLocalToIso } from '../utils/datetimeLocal';
 
 // Feuille de temps hebdomadaire : une ligne par employé, une colonne par jour, façon ClickUp.
 // Le serveur renvoie déjà les 7 dates de la semaine et le temps par jour ; ce composant ne
@@ -46,13 +47,6 @@ function rangeLabel(days) {
 }
 
 // Valeur attendue par un <input type="datetime-local"> : heure LOCALE, sans fuseau.
-function toDatetimeLocal(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function clockDateTime(value) {
   if (!value) return '—';
@@ -192,8 +186,8 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
     setSavingSession(true);
     try {
       await sessionService.updateUserSessionAdmin(editingSession.id, {
-        login_at: editingSession.login,
-        logout_at: editingSession.logout || null,
+        login_at: datetimeLocalToIso(editingSession.login),
+        logout_at: datetimeLocalToIso(editingSession.logout),
       });
       setEditingSession(null);
       await Promise.all([loadCellSessions(cell.employee, cell.day), load(weekStart)]);
