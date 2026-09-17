@@ -2059,9 +2059,46 @@
   color: var(--color-text-primary);
   background-color: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg-secondary));
 }
+/* Le menu ne défile plus en entier : seule la liste défile, sous la recherche. */
 .filter-multi-menu {
-  max-height: 320px;
+  max-height: min(360px, calc(100dvh - 24px));
+  overflow: hidden;
+}
+.filter-multi-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
   overflow-y: auto;
+  /* Arrivé en bas de la liste, la molette ne passe pas à la page : sinon la page défilerait
+     sous le menu, qui se retrouverait détaché de son bouton. */
+  overscroll-behavior: contain;
+}
+/* Largeur FIXE, et non minimale : un menu à largeur libre s'élargit dès qu'on le décale
+   pour l'éloigner du bord de l'écran (il gagne de la place), et déborde de nouveau. */
+.filter-multi-menu--searchable {
+  width: 260px;
+  max-width: calc(100vw - 16px);
+}
+.filter-multi-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.filter-multi-search {
+  flex-shrink: 0;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  outline: none;
+}
+.filter-multi-search:focus {
+  border-color: var(--color-accent-light);
 }
 .filter-multi-clear {
   display: block;
