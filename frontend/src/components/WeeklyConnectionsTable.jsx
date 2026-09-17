@@ -322,6 +322,7 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
                       <span className="wkc-name wkc-name--short" aria-hidden="true">
                         {shortName(employee.full_name)}
                       </span>
+                      {employee.role === 'ADMIN' && <span className="wkc-role-badge">Admin</span>}
                     </button>
                   </th>
                   {days.map((day) => {

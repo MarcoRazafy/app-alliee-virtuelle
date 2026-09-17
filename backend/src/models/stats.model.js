@@ -266,14 +266,13 @@ async function computeWeeklyConnections(weekStartDate, { onlyUserId = null } = {
   const rangeEnd = businessDay.businessDayStart(days[days.length - 1]).plus({ days: 1 });
 
   const employeesResult = await db.query(
-    `SELECT u.id, u.full_name, (a.id IS NOT NULL) AS has_avatar
+    // Toute l'équipe active, admins compris : leur temps de connexion se lit au même endroit.
+    // `role` permet à l'affichage de les distinguer.
+    `SELECT u.id, u.full_name, u.role, (a.id IS NOT NULL) AS has_avatar
      FROM users u
      LEFT JOIN user_avatars a ON a.user_id = u.id
      WHERE u.status = 'ACTIF'
        AND ($1::uuid IS NULL OR u.id = $1)
-       -- Sans restriction, la grille liste les employés. Restreinte à une personne, elle
-       -- doit aussi fonctionner pour un admin qui consulte son propre temps.
-       AND ($1::uuid IS NOT NULL OR u.role = 'EMPLOYEE')
      ORDER BY u.full_name ASC`,
     [onlyUserId]
   );
@@ -307,6 +306,7 @@ async function computeWeeklyConnections(weekStartDate, { onlyUserId = null } = {
       return {
         id: e.id,
         full_name: e.full_name,
+        role: e.role,
         has_avatar: e.has_avatar,
         by_day: byDay,
         total_seconds: Object.values(byDay).reduce((sum, n) => sum + n, 0),
