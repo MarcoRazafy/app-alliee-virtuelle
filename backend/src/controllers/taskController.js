@@ -1425,7 +1425,9 @@ async function deleteTimelogEntry(req, res, next) {
 
 async function addManualTimelog(req, res, next) {
   try {
-    const { id } = req.params;
+    // La route déclare :taskId (POST /timelog/:taskId/manual). Lire `id` donnait undefined :
+    // la tâche n'était jamais trouvée et TOUTE saisie manuelle répondait « Tâche introuvable ».
+    const { taskId: id } = req.params;
     const { start_time: startTime, end_time: endTime } = req.body;
 
     const task = await taskModel.findById(id);

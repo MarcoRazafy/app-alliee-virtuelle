@@ -15,6 +15,7 @@ import {
   IconTrash,
 } from './icons';
 import '../styles/weekly-connections.css';
+import { toDatetimeLocal, datetimeLocalToIso } from '../utils/datetimeLocal';
 
 // Relevé de temps d'un employé sur une semaine. PARTAGÉ : la page admin l'ouvre pour
 // n'importe qui (avec correction), l'espace employé pour soi-même (lecture seule).
@@ -59,13 +60,6 @@ function clockTime(value) {
 }
 
 // Valeur attendue par un <input type="datetime-local"> : heure LOCALE, sans fuseau.
-function toDatetimeLocal(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 // `readOnly` : version employé — il consulte son propre relevé, sans jamais pouvoir le
 // corriger. Les routes de correction sont de toute façon réservées aux admins ; masquer les
@@ -117,8 +111,8 @@ export default function WeeklyTimesheet({ employee, initialWeek, onBack, readOnl
     setSavingEntry(true);
     try {
       await taskService.updateTimelogEntry(editingEntry.id, {
-        start_time: editingEntry.start,
-        end_time: editingEntry.end,
+        start_time: datetimeLocalToIso(editingEntry.start),
+        end_time: datetimeLocalToIso(editingEntry.end),
       });
       setEditingEntry(null);
       await load(weekStart);

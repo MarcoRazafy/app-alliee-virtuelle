@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as userService from '../services/userService';
@@ -32,6 +32,7 @@ import { createPortal } from 'react-dom';
 import RichTextEditor from '../components/RichTextEditor';
 import StatusDropdown from '../components/StatusDropdown';
 import '../styles/task-detail.css';
+import { toDatetimeLocal, datetimeLocalToIso } from '../utils/datetimeLocal';
 
 const EDIT_PRIORITIES = ['FAIBLE', 'NORMALE', 'HAUTE', 'URGENT'];
 
@@ -107,6 +108,10 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const [notFound, setNotFound] = useState(false);
   const [breadcrumbData, setBreadcrumbData] = useState(null);
   const [manualTime, setManualTime] = useState({ start: '', end: '' });
+  const [addingManualTime, setAddingManualTime] = useState(false);
+  // Verrou synchrone : l'état ci-dessus ne change qu'au rendu suivant, trop tard pour arrêter
+  // un second clic arrivé dans la foulée — deux entrées identiques étaient alors créées.
+  const addingManualTimeRef = useRef(false);
   const [editingSession, setEditingSession] = useState(null); // correction d'une session de chrono
   const [employees, setEmployees] = useState([]);
   const [pickAssignee, setPickAssignee] = useState('');
@@ -214,13 +219,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
   // Passe une date ISO au format attendu par <input type="datetime-local">, en heure LOCALE
   // (toISOString donnerait de l'UTC, décalant l'heure affichée de plusieurs heures).
-  function toDatetimeLocal(value) {
-    if (!value) return '';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '';
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
 
   function startEditSession(session) {
     setEditingSession({
@@ -235,8 +233,8 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     if (!editingSession) return;
     try {
       await taskService.updateTimelogEntry(editingSession.id, {
-        start_time: editingSession.start,
-        end_time: editingSession.end,
+        start_time: datetimeLocalToIso(editingSession.start),
+        end_time: datetimeLocalToIso(editingSession.end),
       });
       setEditingSession(null);
       notifySuccess('Session corrigée');
@@ -259,14 +257,22 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
   async function handleAddManualTime(event) {
     event.preventDefault();
-    if (!manualTime.start || !manualTime.end) return;
+    if (!manualTime.start || !manualTime.end || addingManualTimeRef.current) return;
+    addingManualTimeRef.current = true;
+    setAddingManualTime(true);
     try {
-      await taskService.addManualTimelog(id, { start_time: manualTime.start, end_time: manualTime.end });
+      await taskService.addManualTimelog(id, {
+        start_time: datetimeLocalToIso(manualTime.start),
+        end_time: datetimeLocalToIso(manualTime.end),
+      });
       notifySuccess('Temps ajouté');
       setManualTime({ start: '', end: '' });
       await loadData();
     } catch (err) {
       notifyError(err.response?.data?.error || "Impossible d'ajouter le temps");
+    } finally {
+      addingManualTimeRef.current = false;
+      setAddingManualTime(false);
     }
   }
 
@@ -937,8 +943,8 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                     <span>Fin</span>
                     <input type="datetime-local" value={manualTime.end} onChange={(e) => setManualTime((m) => ({ ...m, end: e.target.value }))} required />
                   </label>
-                  <button type="submit" className="btn-outline">
-                    Ajouter le temps
+                  <button type="submit" className="btn-outline" disabled={addingManualTime}>
+                    {addingManualTime ? 'Ajout…' : 'Ajouter le temps'}
                   </button>
                 </div>
               </form>
