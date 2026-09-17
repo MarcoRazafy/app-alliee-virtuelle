@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as taskService from '../../services/taskService';
 import { notifyError, notifySuccess } from '../../utils/toast';
-import { formatDate } from '../../utils/formatters';
 import { matchesTerms } from '../../utils/textSearch';
 import { IconAlert, IconSearch, IconExternalLink, IconTrash, IconLayers } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
 import StatusDropdown from '../../components/StatusDropdown';
 import Pagination from '../../components/Pagination';
+import DeadlineEditor from '../../components/DeadlineEditor';
 import { displayStatusOf } from '../../utils/taskStatus';
 import '../../styles/admin.css';
 
@@ -283,7 +283,14 @@ function AdminLateTasks() {
                     <span className="validate-meta-sep" />
                     <span>{task.assigned_to_name || '—'}</span>
                     <span className="validate-meta-sep" />
-                    <span>Échéance : {task.deadline ? formatDate(task.deadline) : '—'}</span>
+                    {/* Modifiable sur place : reporter une échéance est l'action la plus courante
+                        sur une tâche en retard, elle ne doit pas obliger à ouvrir la fiche. */}
+                    <DeadlineEditor
+                      taskId={task.id}
+                      deadline={task.deadline}
+                      startDate={task.start_date}
+                      onChanged={load}
+                    />
                     <span className={`late-badge late-badge--${lateSeverity(task.days_late)}`}>
                       {task.days_late} j de retard
                     </span>

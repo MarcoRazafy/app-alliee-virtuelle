@@ -74,6 +74,8 @@ router.patch('/tasks/:id', taskController.updateTask);
 // Description seule : ouverte à la personne assignée (contrôle dans le contrôleur), pour
 // qu'elle puisse décrire sa tâche. Volontairement distincte de la route ci-dessus.
 router.patch('/tasks/:id/description', taskController.updateTaskDescription);
+// Échéance seule : modifiable depuis les cartes « En retard » sans réécrire le reste.
+router.patch('/tasks/:id/deadline', taskController.updateTaskDeadline);
 // Changement de statut d'une tâche (admin) : À faire / En cours / Terminée / Confirmée.
 router.patch('/tasks/:id/status', authMiddleware.requireRole('ADMIN'), taskController.updateTaskStatus);
 

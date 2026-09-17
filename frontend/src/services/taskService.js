@@ -75,6 +75,12 @@ export function rejectTask(id, motif) {
 
 // Description seule. Route distincte de updateTask, qui réécrit aussi titre, priorité et
 // échéance : la personne assignée n'a le droit de modifier que ce champ.
+// Change l'échéance seule. Rend { id, deadline, is_late } : is_late dit si la tâche reste
+// en retard, pour expliquer pourquoi une carte quitte (ou non) la liste des retards.
+export function updateTaskDeadline(id, deadline) {
+  return api.patch(`/api/tasks/${id}/deadline`, { deadline }).then((res) => res.data);
+}
+
 export function updateTaskDescription(id, description) {
   return api.patch(`/api/tasks/${id}/description`, { description }).then((res) => res.data);
 }
