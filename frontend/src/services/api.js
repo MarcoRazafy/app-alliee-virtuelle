@@ -32,6 +32,14 @@ api.interceptors.response.use(
       // Marque l'erreur : un 401 = session expirée / déconnexion. Les appels de fond (polling)
       // peuvent l'ignorer au lieu d'afficher un toast « Jeton d'authentification manquant ».
       error.isAuthError = true;
+      // Une session active qui reçoit un 401 est morte (cookie effacé par un autre onglet,
+      // jeton expiré) : l'application doit revenir à la connexion au lieu de rester figée.
+      // La connexion elle-même répond 401 sur un mauvais mot de passe : ce n'est pas une perte.
+      if (!String(error.config?.url || '').includes('/api/auth/login')) {
+        // Nom écrit en clair : importer SESSION_LOST_EVENT depuis le store créerait une
+        // dépendance circulaire (le store importe ce client API).
+        window.dispatchEvent(new CustomEvent('auth:session-lost'));
+      }
     }
     return Promise.reject(error);
   }

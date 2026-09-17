@@ -5,6 +5,7 @@ const taskModel = require('../models/task.model');
 const avatarModel = require('../models/avatar.model');
 const sessionModel = require('../models/session.model');
 const mailService = require('../services/mail.service');
+const connectionLimit = require('../services/connectionLimit.service');
 const realtime = require('../realtime/io');
 const { generateToken } = require('../utils/jwt.util');
 const { isValidPassword } = require('../utils/validators');
@@ -102,6 +103,15 @@ async function login(req, res, next) {
     }
     if (user.status === userModel.USER_STATUS.REJECTED) {
       return res.status(403).json({ error: 'Compte refusé' });
+    }
+
+    // Limite quotidienne atteinte : reconnexion refusée jusqu'à la journée suivante. Sans ce
+    // refus, l'employé coupé à 8 h se reconnecterait et serait recoupé 20 s plus tard, en boucle.
+    // Vérifié APRÈS le mot de passe : personne n'apprend ainsi le temps de connexion d'un compte
+    // dont il ne connaît pas les identifiants.
+    const limit = await connectionLimit.todayStatus(user);
+    if (limit?.reached) {
+      return res.status(403).json({ error: limit.message, code: 'DAILY_CONNECTION_LIMIT' });
     }
 
     // La sélection de la journée est faite UNE SEULE FOIS par jour : elle persiste toute la
@@ -282,21 +292,8 @@ async function changePassword(req, res, next) {
 
 async function logout(req, res, next) {
   try {
-    // Un chrono ne doit jamais rester actif après une déconnexion
-    const activeSession = await taskModel.findActiveSessionForEmployee(req.user.id);
-    if (activeSession) {
-      const stopped = await taskModel.stopSession(activeSession.id);
-      await taskModel.recordAudit({
-        userId: req.user.id,
-        action: 'AUTO_STOP_TIMELOG_LOGOUT',
-        entityType: 'task',
-        entityId: activeSession.task_id,
-        details: { sessionId: stopped.id, duration_seconds: stopped.duration_seconds },
-      });
-    }
-
-    // Ferme aussi le chrono de connexion (présence), indépendant du chrono de tâche ci-dessus.
-    await sessionModel.closeOpenSessions(req.user.id);
+    // Un chrono ne doit jamais rester actif après une déconnexion ; la présence se ferme aussi.
+    await connectionLimit.endPresence(req.user.id, { timelogAuditAction: 'AUTO_STOP_TIMELOG_LOGOUT' });
 
     // Supprime le cookie d'authentification côté navigateur.
     res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(env.nodeEnv), maxAge: undefined });

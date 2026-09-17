@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Toaster } from 'react-hot-toast';
 import { heartbeatSession, signalSessionDisconnect } from './services/sessionService';
 import { getUser } from './services/auth';
+import useAuthStore, { FORCED_LOGOUT_KEY, SESSION_ENDED_MESSAGE, SESSION_LOST_EVENT } from './store/authStore';
+import { notifyWarning } from './utils/toast';
+import { limitCheckDelayMs, limitWarningMessage } from './utils/connectionLimit';
 import InstallPrompt from './components/InstallPrompt';
 import AnnouncementPopup from './components/AnnouncementPopup';
 // Gardés en chargement immédiat : la 1re page (Login), le garde de route et le shell admin
@@ -56,15 +59,74 @@ function AdminRoute({ children }) {
 }
 
 function App() {
+  // Fin de session vue depuis un AUTRE onglet, ou session morte (401) : cet onglet revient à la
+  // connexion au lieu de rester affiché sur des erreurs.
+  useEffect(() => {
+    function onStorage(event) {
+      if (event.key !== FORCED_LOGOUT_KEY || !event.newValue) return;
+      let message = null;
+      try {
+        message = JSON.parse(event.newValue).message;
+      } catch {
+        // Valeur illisible : on se déconnecte quand même, sans message particulier.
+      }
+      const store = useAuthStore.getState();
+      // broadcast: false — renvoyer le signal le ferait rebondir d'onglet en onglet.
+      if (store.isAuthenticated) store.forceLogout(message, { broadcast: false });
+      // Déjà revenu à la connexion (un 401 est arrivé avant ce signal) : la vraie raison
+      // remplace le message générique — mais jamais l'inverse, sinon l'onglet qui a reçu la
+      // coupure perdrait son explication au profit d'un « session terminée » sans motif.
+      else if (message && message !== SESSION_ENDED_MESSAGE && (!store.error || store.error === SESSION_ENDED_MESSAGE)) {
+        useAuthStore.setState({ error: message });
+      }
+    }
+    function onSessionLost() {
+      const store = useAuthStore.getState();
+      if (store.isAuthenticated) store.forceLogout(SESSION_ENDED_MESSAGE);
+    }
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(SESSION_LOST_EVENT, onSessionLost);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(SESSION_LOST_EVENT, onSessionLost);
+    };
+  }, []);
+
   // Une actualisation ne doit jamais interrompre la présence. Tant qu'un token existe,
   // l'application rafraîchit la session ; le backend borne automatiquement une session
   // abandonnée après l'arrêt des heartbeats.
   useEffect(() => {
+    // Limite quotidienne de connexion (employés, 8 h par défaut) : le serveur répond à chaque
+    // heartbeat avec le temps restant, ou ordonne la déconnexion une fois la limite atteinte.
+    let limitTimer = null;
+    let warned = false;
+
+    function applyHeartbeat(data) {
+      clearTimeout(limitTimer);
+      if (data?.forced_logout) {
+        useAuthStore.getState().forceLogout(data.message);
+        return;
+      }
+      const limit = data?.connection_limit;
+      if (!limit) return;
+      // Un seul avertissement par approche de la limite, pas un toutes les 20 secondes.
+      if (limit.warn && !warned) {
+        warned = true;
+        notifyWarning(limitWarningMessage(limit));
+      } else if (!limit.warn) {
+        warned = false;
+      }
+      // À l'approche de la coupure, on redemande au serveur à l'instant exact : en arrière-plan,
+      // les navigateurs espacent les heartbeats à une minute.
+      const delay = limitCheckDelayMs(limit);
+      if (delay !== null) limitTimer = setTimeout(heartbeat, delay);
+    }
+
     function heartbeat() {
       // Auth par cookie httpOnly : on se base sur la présence de l'utilisateur en session
       // (le token n'est plus lisible en JS). Le heartbeat porte le cookie via withCredentials.
       if (!getUser()) return;
-      heartbeatSession().catch(() => {});
+      heartbeatSession().then(applyHeartbeat).catch(() => {});
     }
     heartbeat();
     const interval = window.setInterval(heartbeat, 20000);
@@ -86,6 +148,7 @@ function App() {
     window.addEventListener('focus', onVisible);
     window.addEventListener('pagehide', onPageHide);
     return () => {
+      clearTimeout(limitTimer);
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
