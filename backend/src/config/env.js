@@ -82,6 +82,14 @@ module.exports = {
     300,
     Number(process.env.SESSION_ABANDON_TIMEOUT_SECONDS) || 8 * 3600
   ),
+  // Temps de connexion maximal d'un EMPLOYÉ par journée de travail, en heures (décimales
+  // acceptées : 7.5). Une fois atteint, il est déconnecté automatiquement et ne peut se
+  // reconnecter qu'à la journée suivante (à BUSINESS_DAY_CUTOFF_HOUR). Les admins ne sont pas
+  // concernés. 0 désactive la limite.
+  employeeDailyConnectionLimitHours: Math.min(
+    24,
+    Math.max(0, Number(process.env.EMPLOYEE_DAILY_CONNECTION_LIMIT_HOURS ?? 8) || 0)
+  ),
   // pagehide est aussi émis lors d'un simple rechargement. Cette courte tolérance laisse
   // le nouveau document annuler la demande avant de clôturer réellement présence + tâche.
   presenceDisconnectGraceSeconds: Math.max(20, Number(process.env.PRESENCE_DISCONNECT_GRACE_SECONDS) || 30),

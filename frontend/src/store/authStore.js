@@ -11,6 +11,13 @@ function extractErrorMessage(err, fallback) {
   return fallback;
 }
 
+// Clé du signal « déconnexion forcée » partagé entre onglets (événement `storage`).
+export const FORCED_LOGOUT_KEY = 'auth:forced-logout';
+// Événement émis par le client API sur un 401 : la session n'est plus valable.
+export const SESSION_LOST_EVENT = 'auth:session-lost';
+// Message quand la cause de la fin de session n'est pas connue (simple 401).
+export const SESSION_ENDED_MESSAGE = 'Votre session a pris fin. Reconnectez-vous pour continuer.';
+
 const useAuthStore = create((set, get) => ({
   user: authService.getUser(),
   // Le token vit dans un cookie httpOnly (invisible au JS) : on déduit l'état connecté de la
@@ -94,6 +101,29 @@ const useAuthStore = create((set, get) => ({
     } catch (err) {
       // Ne jamais bloquer l'employé à cause d'une erreur réseau
       set({ dayValidated: true });
+    }
+  },
+
+  // Déconnexion décidée par le serveur (limite quotidienne de connexion atteinte). Le serveur a
+  // déjà fermé la session, arrêté le chrono et effacé le cookie : il ne reste qu'à nettoyer
+  // l'état local. Le message est posé dans `error`, que la page de connexion affiche — la
+  // redirection vers /login se fait d'elle-même (ProtectedRoute).
+  //
+  // `broadcast` : prévient les autres onglets ouverts. Ils partagent le même cookie, déjà
+  // effacé : sans ce signal, ils restaient affichés, figés sur des erreurs 401.
+  forceLogout: (message, { broadcast = true } = {}) => {
+    disconnectSocket();
+    authService.removeToken();
+    authService.removeUser();
+    set({ user: null, isAuthenticated: false, dayValidated: null, error: message || null });
+    if (broadcast) {
+      try {
+        // L'horodatage rend chaque signal unique : `storage` ne se déclenche que sur un changement.
+        localStorage.setItem(FORCED_LOGOUT_KEY, JSON.stringify({ message: message || null, at: Date.now() }));
+      } catch {
+        // Stockage indisponible (navigation privée stricte) : les autres onglets retomberont sur
+        // le filet de sécurité des 401.
+      }
     }
   },
 

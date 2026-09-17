@@ -1,6 +1,9 @@
 const taskModel = require('../models/task.model');
 const sessionModel = require('../models/session.model');
 const planningDates = require('../utils/planningDates');
+const connectionLimit = require('../services/connectionLimit.service');
+const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
+const env = require('../config/env');
 
 // Construit les segments de connexion (découpés par jour) d'un utilisateur pour une semaine.
 // Le dernier segment d'une session encore ouverte est marqué is_live (suivi temps réel).
@@ -75,10 +78,37 @@ async function closeMySession(req, res, next) {
 // le compte actif. Renvoie login_at:null s'il n'y a aucune session ouverte.
 async function heartbeatMySession(req, res, next) {
   try {
+    // Limite quotidienne de connexion (employés) : le heartbeat, envoyé toutes les 20 s tant
+    // que l'application est ouverte, est le point où la vérifier. Le serveur décide seul : le
+    // navigateur ne fait qu'appliquer la réponse.
+    const limit = await connectionLimit.todayStatus(req.user);
+    if (limit?.reached) {
+      await connectionLimit.endPresence(req.user.id, { timelogAuditAction: 'AUTO_STOP_TIMELOG_DAILY_LIMIT' });
+      await taskModel.recordAudit({
+        userId: req.user.id,
+        action: 'AUTO_LOGOUT_DAILY_LIMIT',
+        entityType: 'user',
+        entityId: req.user.id,
+        details: { business_day: limit.day, connected_seconds: limit.connected_seconds, limit_seconds: limit.limit_seconds },
+      });
+      res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(env.nodeEnv), maxAge: undefined });
+      return res.status(200).json({ forced_logout: true, reason: 'DAILY_CONNECTION_LIMIT', message: limit.message });
+    }
+
     const session = await sessionModel.heartbeatSession(req.user.id);
     res.status(200).json({
       login_at: session ? session.login_at : null,
       last_seen_at: session ? session.last_seen_at : null,
+      // Temps restant, pour que l'application prévienne avant la coupure et se recale à
+      // l'instant exact (sans attendre le heartbeat suivant).
+      connection_limit: limit
+        ? {
+            limit_seconds: limit.limit_seconds,
+            connected_seconds: limit.connected_seconds,
+            remaining_seconds: limit.remaining_seconds,
+            warn: limit.warn,
+          }
+        : null,
     });
   } catch (err) {
     next(err);
