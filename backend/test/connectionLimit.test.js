@@ -57,12 +57,10 @@ test('durées lisibles', () => {
   assert.equal(formatHours(9.25), '9 h 15');
 });
 
-test('message : en journée, reconnexion demain à 2 h', () => {
-  const msg = limitReachedMessage({ limitHours: 8, day: '2026-09-17', now: at('2026-09-17T17:05:00') });
-  assert.equal(msg, "Vous avez atteint 8 h de connexion aujourd'hui. Vous pourrez vous reconnecter demain à 2 h.");
-});
-
-test('message : à 1 h du matin, reconnexion AUJOURD’HUI à 2 h', () => {
-  const msg = limitReachedMessage({ limitHours: 8, day: '2026-09-17', now: at('2026-09-18T01:10:00') });
-  assert.match(msg, /reconnecter aujourd'hui à 2 h\.$/);
+test('message : limite atteinte, reconnexion permise', () => {
+  assert.equal(
+    limitReachedMessage({ limitHours: 8 }),
+    "Vous avez atteint 8 h de connexion aujourd'hui. Vous pouvez vous reconnecter pour continuer."
+  );
+  assert.match(limitReachedMessage({ limitHours: 7.5 }), /atteint 7 h 30 de connexion/);
 });

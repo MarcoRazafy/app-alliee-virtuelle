@@ -83,14 +83,17 @@ async function heartbeatMySession(req, res, next) {
     // navigateur ne fait qu'appliquer la réponse.
     const limit = await connectionLimit.todayStatus(req.user);
     if (limit?.reached) {
-      await connectionLimit.endPresence(req.user.id, { timelogAuditAction: 'AUTO_STOP_TIMELOG_DAILY_LIMIT' });
-      await taskModel.recordAudit({
-        userId: req.user.id,
-        action: 'AUTO_LOGOUT_DAILY_LIMIT',
-        entityType: 'user',
-        entityId: req.user.id,
-        details: { business_day: limit.day, connected_seconds: limit.connected_seconds, limit_seconds: limit.limit_seconds },
-      });
+      // Une seule coupure par journée : après reconnexion, todayStatus ne renvoie plus rien.
+      if (await connectionLimit.recordCut(req.user.id, limit.day)) {
+        await connectionLimit.endPresence(req.user.id, { timelogAuditAction: 'AUTO_STOP_TIMELOG_DAILY_LIMIT' });
+        await taskModel.recordAudit({
+          userId: req.user.id,
+          action: 'AUTO_LOGOUT_DAILY_LIMIT',
+          entityType: 'user',
+          entityId: req.user.id,
+          details: { business_day: limit.day, connected_seconds: limit.connected_seconds, limit_seconds: limit.limit_seconds },
+        });
+      }
       res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(env.nodeEnv), maxAge: undefined });
       return res.status(200).json({ forced_logout: true, reason: 'DAILY_CONNECTION_LIMIT', message: limit.message });
     }

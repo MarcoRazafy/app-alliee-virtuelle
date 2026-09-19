@@ -105,14 +105,6 @@ async function login(req, res, next) {
       return res.status(403).json({ error: 'Compte refusé' });
     }
 
-    // Limite quotidienne atteinte : reconnexion refusée jusqu'à la journée suivante. Sans ce
-    // refus, l'employé coupé à 8 h se reconnecterait et serait recoupé 20 s plus tard, en boucle.
-    // Vérifié APRÈS le mot de passe : personne n'apprend ainsi le temps de connexion d'un compte
-    // dont il ne connaît pas les identifiants.
-    const limit = await connectionLimit.todayStatus(user);
-    if (limit?.reached) {
-      return res.status(403).json({ error: limit.message, code: 'DAILY_CONNECTION_LIMIT' });
-    }
 
     // La sélection de la journée est faite UNE SEULE FOIS par jour : elle persiste toute la
     // journée. Se reconnecter le même jour ne la remet plus à zéro (l'employé retrouve sa
