@@ -875,7 +875,7 @@
 
 /* --- Pièce jointe dans une bulle --- */
 .ai-bubble--user { display: flex; flex-direction: column; gap: 8px; }
-.ai-attach-image { display: block; }
+.ai-attach-image { display: block; padding: 0; border: none; background: none; cursor: zoom-in; border-radius: 10px; }
 .ai-attach-image img { max-width: 240px; max-height: 260px; border-radius: 10px; display: block; }
 .ai-attach-loading { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.8; }
 .ai-attach-loading svg { width: 16px; height: 16px; }
