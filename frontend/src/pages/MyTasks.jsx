@@ -135,7 +135,13 @@ function MyTasks() {
 
   function handleFilesSelected(e) {
     const chosen = Array.from(e.target.files || []);
-    e.target.value = '';
+    e.target.value = ''; // permet de re-sélectionner le même fichier
+    addPendingFiles(chosen);
+  }
+
+  // Fichiers choisis au bouton OU collés dans la description (capture d'écran, PDF copié) :
+  // même contrôle de taille, même liste de pièces jointes.
+  function addPendingFiles(chosen) {
     if (chosen.length === 0) return;
     const tooBig = chosen.filter((f) => f.size > MAX_ATTACH_SIZE);
     if (tooBig.length) {
@@ -612,6 +618,7 @@ function MyTasks() {
                   value={newTask.description}
                   onChange={(html) => setNewTask((c) => ({ ...c, description: html }))}
                   placeholder="Détails (facultatif, mise en forme disponible)"
+                  onPasteFiles={addPendingFiles}
                 />
               </div>
 

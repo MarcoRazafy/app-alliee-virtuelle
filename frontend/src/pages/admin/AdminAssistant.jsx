@@ -13,6 +13,7 @@ import {
 } from './adminAssistantIcons';
 import { newId, isImageType, weekRange } from './adminAssistantHelpers';
 import '../../styles/admin-assistant.css';
+import { filesFromPaste } from '../../utils/clipboardFiles';
 
 // Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
 const SUGGESTIONS = [
@@ -625,6 +626,13 @@ function AdminAssistant() {
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={handleQuestionKeyDown}
+                // Capture d'écran ou fichier collé : joint à la question, comme par le trombone.
+                onPaste={(event) => {
+                  const pasted = filesFromPaste(event);
+                  if (pasted.length === 0) return;
+                  event.preventDefault();
+                  setPendingFile(pasted[0]);
+                }}
                 placeholder={recognizing ? 'Parlez…' : "Posez votre question à l'assistant…"}
                 disabled={loading}
               />

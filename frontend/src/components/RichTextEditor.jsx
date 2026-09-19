@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { IconLink, IconListUl, IconListOl } from './icons';
 import '../styles/rich-text-editor.css';
+import { filesFromPaste } from '../utils/clipboardFiles';
 
 // Éditeur de texte riche léger (contentEditable + document.execCommand), sans dépendance.
 // Produit du HTML nettoyé à l'affichage (voir utils/sanitizeHtml). Boutons : Gras, Italique,
@@ -21,7 +22,10 @@ const ICON_TOOLS = [
 
 // `ariaLabel` : la surface d'édition est un div[role=textbox], qu'un <label for> ne peut pas
 // désigner. Là où le libellé visible n'est pas un vrai label (évaluations), il se passe ici.
-export default function RichTextEditor({ value, onChange, placeholder = '', ariaLabel }) {
+// `onPasteFiles(files)` : un collage qui contient des fichiers (capture d'écran copiée, PDF…)
+// les confie à l'écran appelant — le plus souvent pour en faire une pièce jointe. Sans cette
+// option, le navigateur garde son comportement par défaut.
+export default function RichTextEditor({ value, onChange, placeholder = '', ariaLabel, onPasteFiles }) {
   const ref = useRef(null);
 
   // Synchronise le HTML externe (ex. ouverture en édition) sans perturber la frappe.
@@ -95,6 +99,14 @@ export default function RichTextEditor({ value, onChange, placeholder = '', aria
         aria-label={ariaLabel}
         data-placeholder={placeholder}
         onInput={() => onChange(ref.current?.innerHTML || '')}
+        onPaste={(event) => {
+          if (!onPasteFiles) return;
+          const files = filesFromPaste(event);
+          if (files.length === 0) return; // du texte : collage normal
+          // Sans preventDefault, le navigateur insérerait l'image dans le texte, en base64.
+          event.preventDefault();
+          onPasteFiles(files);
+        }}
       />
     </div>
   );
