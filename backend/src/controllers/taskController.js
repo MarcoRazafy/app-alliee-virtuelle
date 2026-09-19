@@ -768,7 +768,15 @@ async function setMyDay(req, res, next) {
     }
 
     const date = todayDateString();
-    await taskModel.replaceDailySelection(req.user.id, date, taskIds);
+    // Journée déjà validée : l'employé ajoute ou retire des tâches lui-même, sans demande à
+    // l'admin. Une tâche ajoutée rejoint aussi le Daily, comme celles validées le matin. Une
+    // tâche retirée du To Do reste dans le Daily : les deux listes se corrigent séparément.
+    await db.withTransaction(async (client) => {
+      const { wasValidated, added } = await taskModel.replaceDailySelection(req.user.id, date, taskIds, client);
+      if (wasValidated) {
+        for (const taskId of added) await dailyModel.addDailyDone(req.user.id, date, taskId, client);
+      }
+    });
     const selection = await taskModel.findDailySelection(req.user.id, date);
 
     res.status(200).json(
@@ -797,7 +805,18 @@ async function setMyDay(req, res, next) {
 async function validateMyDay(req, res, next) {
   try {
     const date = todayDateString();
-    const updatedCount = await taskModel.validateDailySelection(req.user.id, date);
+    // Valider sa journée envoie aussi ses tâches dans le Daily, terminées ou non : l'employé
+    // n'a plus à les y glisser une à une. Il retire ensuite du Daily celles qu'il n'a pas faites.
+    const updatedCount = await db.withTransaction(async (client) => {
+      const count = await taskModel.validateDailySelection(req.user.id, date, client);
+      if (count === 0) return 0;
+      const selection = await client.query(
+        'SELECT task_id FROM user_daily_selection WHERE user_id = $1 AND date = $2 ORDER BY selected_order',
+        [req.user.id, date]
+      );
+      for (const row of selection.rows) await dailyModel.addDailyDone(req.user.id, date, row.task_id, client);
+      return count;
+    });
     if (updatedCount === 0) {
       return res.status(400).json({ error: 'Sélectionnez au moins une tâche avant de valider votre journée' });
     }
