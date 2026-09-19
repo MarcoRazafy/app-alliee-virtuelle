@@ -6,9 +6,6 @@ import DragDropTasks from '../components/DragDropTasks';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
-import { IconX } from '../components/icons';
-import RichTextEditor from '../components/RichTextEditor';
-import { htmlToText } from '../utils/sanitizeHtml';
 import '../styles/daily.css';
 import { groupByProject } from '../utils/dailyGrouping';
 
@@ -37,10 +34,6 @@ function MyDay() {
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [noTasksAvailable, setNoTasksAvailable] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
-  const [requestsByTaskId, setRequestsByTaskId] = useState({});
-  const [requestingTask, setRequestingTask] = useState(null); // tâche pour laquelle on ouvre la modale
-  const [requestMessage, setRequestMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const setDayValidated = useAuthStore((state) => state.setDayValidated);
   const storedDayValidated = useAuthStore((state) => state.dayValidated);
   const user = useAuthStore((state) => state.user);
@@ -50,15 +43,13 @@ function MyDay() {
   const [dailyDirty, setDailyDirty] = useState(false);
   const [savingDaily, setSavingDaily] = useState(false);
   const [dailySubmittedAt, setDailySubmittedAt] = useState(null);
+  // File d'enregistrement du To Do après validation (voir queueTodoSave).
+  const todoSaveRef = useRef({ running: false, next: null });
 
-  // Recharge tout l'état. En mode "journée validée", on l'appelle aussi en polling pour voir
-  // apparaître les tâches supplémentaires approuvées par l'admin (et le statut des demandes).
+  // Recharge tout l'état. En mode « journée validée », on l'appelle aussi en polling pour voir
+  // apparaître les tâches nouvellement assignées et les changements de statut.
   const load = useCallback(async () => {
-    const [allTasks, myDay, myRequests] = await Promise.all([
-      taskService.getTasks(),
-      taskService.getMyDay(),
-      taskService.getMyExtraTaskRequests().catch(() => []),
-    ]);
+    const [allTasks, myDay] = await Promise.all([taskService.getTasks(), taskService.getMyDay()]);
 
     // Une tâche pas encore terminée (VALIDEE ou EN_COURS) reste sélectionnable pour aujourd'hui
     const selectableTasks = allTasks.filter((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
@@ -84,13 +75,6 @@ function MyDay() {
     setNoTasksAvailable(hasNoTask);
     setTasksLoaded(true);
     setDayValidated(isValidated || hasNoTask);
-
-    // Dernière demande par tâche (la liste est déjà triée du plus récent au plus ancien).
-    const map = {};
-    for (const r of myRequests) {
-      if (!(r.task_id in map)) map[r.task_id] = r;
-    }
-    setRequestsByTaskId(map);
   }, [setDayValidated]);
 
   useEffect(() => {
@@ -104,14 +88,60 @@ function MyDay() {
   useEffect(() => {
     if (!platformAccessible) return undefined;
     const poll = setInterval(() => {
-      if (platformAccessibleRef.current) load().catch(() => {});
+      // Pendant un enregistrement du To Do, recharger réafficherait l'état d'avant le geste.
+      if (platformAccessibleRef.current && !todoSaveRef.current.running) load().catch(() => {});
     }, 15000);
     return () => clearInterval(poll);
   }, [platformAccessible, load]);
 
+  // Ajoute au Daily affiché les tâches que le serveur vient d'y placer (validation de la
+  // journée, ou tâche ajoutée au To Do après validation) — sans écraser les retraits pas encore
+  // envoyés que l'employé aurait faits dans le Daily.
+  function addToDaily(tasks) {
+    if (tasks.length === 0) return;
+    const ids = new Set(tasks.map((t) => t.id));
+    setDailySelected((cur) => {
+      const present = new Set(cur.map((t) => t.id));
+      return [...cur, ...tasks.filter((t) => !present.has(t.id))];
+    });
+    setDailyAvailable((cur) => cur.filter((t) => !ids.has(t.id)));
+    setDailySubmittedAt((cur) => cur || new Date().toISOString());
+  }
+
+  // Enregistrements du To Do après validation, un à la fois et toujours avec la DERNIÈRE liste :
+  // deux gestes rapides ne doivent pas se croiser, ni laisser le premier écraser le second.
+  function queueTodoSave(taskIds) {
+    const state = todoSaveRef.current;
+    state.next = taskIds;
+    if (state.running) return;
+    state.running = true;
+    (async () => {
+      try {
+        while (state.next) {
+          const ids = state.next;
+          state.next = null;
+          await taskService.setMyDay(ids);
+        }
+      } catch (err) {
+        notifyError(err.response?.data?.error || "Impossible d'enregistrer la modification");
+        await load().catch(() => {});
+      } finally {
+        state.running = false;
+      }
+    })();
+  }
+
   function handleUpdate({ available: newAvailable, selected: newSelected }) {
+    const before = new Set(selected.map((t) => t.id));
     setAvailable(newAvailable);
     setSelected(newSelected);
+    // Avant validation, rien ne part : tout s'envoie au clic sur « Valider ma journée ».
+    // Après, chaque ajout ou retrait est enregistré aussitôt, sans demande à l'admin ; une
+    // tâche ajoutée rejoint aussi le Daily (le serveur fait de même).
+    if (validated) {
+      queueTodoSave(newSelected.map((t) => t.id));
+      addToDaily(newSelected.filter((t) => !before.has(t.id)));
+    }
   }
 
   // Charge la sélection « Daily » (une fois au montage, indépendamment du polling To Do
@@ -165,32 +195,13 @@ function MyDay() {
       await taskService.validateMyDay();
       setValidated(true);
       setDayValidated(true);
-      notifySuccess('Votre journée est validée');
+      // Le serveur a placé ces tâches dans le Daily : on l'affiche tout de suite.
+      addToDaily(selected);
+      notifySuccess('Votre journée est validée : ses tâches sont aussi dans votre Daily');
     } catch (err) {
       notifyError(err.response?.data?.error || 'Impossible de valider la journée');
     } finally {
       setIsValidating(false);
-    }
-  }
-
-  function openRequest(task) {
-    setRequestingTask(task);
-    setRequestMessage('');
-  }
-
-  async function submitRequest(e) {
-    e.preventDefault();
-    if (!requestingTask) return;
-    setIsSending(true);
-    try {
-      await taskService.createExtraTaskRequest(requestingTask.id, htmlToText(requestMessage) ? requestMessage : undefined);
-      notifySuccess("Demande envoyée à l'administrateur");
-      setRequestingTask(null);
-      await load();
-    } catch (err) {
-      notifyError(err.response?.data?.error || "Impossible d'envoyer la demande");
-    } finally {
-      setIsSending(false);
     }
   }
 
@@ -247,8 +258,9 @@ function MyDay() {
             <path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span>
-            Votre journée est validée. Vous avez terminé vos tâches ? Cliquez sur <strong>« Demander »</strong> à côté
-            d'une tâche disponible : un administrateur doit l'approuver avant qu'elle rejoigne votre journée.
+            Votre journée est validée et ses tâches sont dans votre <strong>Daily</strong>. Vous pouvez encore
+            ajouter ou retirer des tâches — glissez-les ou double-cliquez : c'est enregistré aussitôt. Retirez du
+            Daily ce que vous n'avez pas fait.
           </span>
         </div>
       )}
@@ -258,9 +270,7 @@ function MyDay() {
           availableTasks={available}
           selectedTasks={selected}
           onUpdate={handleUpdate}
-          validated={validated}
-          requestsByTaskId={requestsByTaskId}
-          onRequestTask={openRequest}
+          validated={false}
         />
       )}
 
@@ -306,7 +316,8 @@ function MyDay() {
             <strong className="daily-recap-title">Daily du {todayShort}</strong>
           </div>
           <p className="daily-drag-hint">
-            Glissez les tâches que vous avez faites aujourd'hui — ou double-cliquez dessus.
+            Les tâches de votre To Do validé y sont déjà. Retirez celles que vous n'avez pas faites, ajoutez les
+            autres — glissez-les ou double-cliquez — puis validez le daily.
           </p>
           <DragDropTasks
             availableTasks={dailyAvailable}
@@ -350,53 +361,6 @@ function MyDay() {
         </section>
       )}
 
-      {requestingTask && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setRequestingTask(null)}>
-          <div
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="extra-request-title"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="modal-card-head">
-              <div>
-                <p className="modal-card-eyebrow">Tâche supplémentaire</p>
-                <h2 id="extra-request-title">Demander « {requestingTask.title} »</h2>
-              </div>
-              <button type="button" className="modal-card-close" onClick={() => setRequestingTask(null)} aria-label="Fermer">
-                <IconX />
-              </button>
-            </div>
-
-            <p className="modal-card-hint">
-              Votre journée est déjà validée. Cette tâche sera ajoutée à votre journée une fois approuvée par un
-              administrateur.
-            </p>
-
-            <form className="modal-card-form" onSubmit={submitRequest}>
-              <div className="modal-field">
-                <span className="modal-label">Message à l'administrateur (facultatif)</span>
-                <RichTextEditor
-                  value={requestMessage}
-                  onChange={setRequestMessage}
-                  placeholder="Ex : j'ai terminé toutes mes tâches, je peux prendre celle-ci."
-                />
-              </div>
-
-              <div className="modal-card-foot">
-                <button type="button" className="btn-outline" onClick={() => setRequestingTask(null)}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn-primary" disabled={isSending}>
-                  {isSending && <span className="btn-spinner" />}
-                  {isSending ? 'Envoi...' : 'Envoyer la demande'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </EmployeeLayout>
   );
 }

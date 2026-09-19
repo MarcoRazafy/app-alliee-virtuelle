@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { planSelection } = require('../utils/myDay');
 
 // Journée de TRAVAIL, terminée à 2 h du matin et non à minuit (voir utils/businessDay) :
 // regrouper par `::date` coupait en deux le poste d'un employé de nuit, et CURRENT_DATE
@@ -507,8 +508,8 @@ async function findDailySelection(userId, date) {
   return result.rows;
 }
 
-async function validateDailySelection(userId, date) {
-  const result = await db.query(
+async function validateDailySelection(userId, date, client = db) {
+  const result = await client.query(
     `UPDATE user_daily_selection SET validated_at = now()
      WHERE user_id = $1 AND date = $2`,
     [userId, date]
@@ -516,25 +517,36 @@ async function validateDailySelection(userId, date) {
   return result.rowCount;
 }
 
-// Remplace la sélection du jour par la liste ordonnée reçue (drag-drop côté front)
-async function replaceDailySelection(userId, date, taskIds) {
-  return db.withTransaction(async (client) => {
-    await client.query('DELETE FROM user_daily_selection WHERE user_id = $1 AND date = $2', [userId, date]);
-
-    if (taskIds.length === 0) return;
-
-    const params = [];
-    const placeholders = taskIds.map((taskId, i) => {
-      params.push(userId, taskId, i + 1, date);
-      const offset = i * 4;
-      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
-    });
-
-    await client.query(
-      `INSERT INTO user_daily_selection (user_id, task_id, selected_order, date) VALUES ${placeholders.join(', ')}`,
-      params
+// Remplace la sélection du jour par la liste ordonnée reçue (drag-drop côté front).
+// Une journée déjà validée le RESTE (voir utils/myDay) : les tâches présentes gardent leur
+// heure de validation, les nouvelles sont validées à l'instant. Rend { wasValidated, added }.
+// `client` : à fournir pour s'inscrire dans une transaction de l'appelant.
+async function replaceDailySelection(userId, date, taskIds, client = null) {
+  const run = async (c) => {
+    const previous = await c.query(
+      'SELECT task_id, validated_at FROM user_daily_selection WHERE user_id = $1 AND date = $2',
+      [userId, date]
     );
-  });
+    const plan = planSelection(previous.rows, taskIds);
+    await c.query('DELETE FROM user_daily_selection WHERE user_id = $1 AND date = $2', [userId, date]);
+
+    if (plan.rows.length > 0) {
+      const params = [];
+      const placeholders = plan.rows.map((row, i) => {
+        params.push(userId, row.task_id, row.selected_order, date, row.validated_at, row.validate_now);
+        const o = i * 6;
+        return `($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4},
+                 COALESCE($${o + 5}::timestamp, CASE WHEN $${o + 6}::boolean THEN now()::timestamp END))`;
+      });
+      await c.query(
+        `INSERT INTO user_daily_selection (user_id, task_id, selected_order, date, validated_at)
+         VALUES ${placeholders.join(', ')}`,
+        params
+      );
+    }
+    return { wasValidated: plan.wasValidated, added: plan.added };
+  };
+  return client ? run(client) : db.withTransaction(run);
 }
 
 // --- Commentaires & notes ---
