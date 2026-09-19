@@ -14,6 +14,7 @@ import {
 import { newId, isImageType, weekRange } from './adminAssistantHelpers';
 import '../../styles/admin-assistant.css';
 import { filesFromPaste } from '../../utils/clipboardFiles';
+import MediaPreview from '../../components/MediaPreview';
 
 // Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
 const SUGGESTIONS = [
@@ -39,6 +40,8 @@ function AdminAssistant() {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState('');
   const [pendingFile, setPendingFile] = useState(null);
+  // Image d'une conversation agrandie dans la visionneuse : { url, name, entry }.
+  const [imagePreview, setImagePreview] = useState(null);
   const [attachmentUrls, setAttachmentUrls] = useState({});
   const [recognizing, setRecognizing] = useState(false);
 
@@ -325,9 +328,15 @@ function AdminAssistant() {
     if (!entry.has_attachment) return null;
     if (isImageType(entry.attachment_type)) {
       return attachmentUrls[entry.id] ? (
-        <a href={attachmentUrls[entry.id]} target="_blank" rel="noreferrer" className="ai-attach-image">
+        // Agrandie dans la visionneuse de l'application, et non dans un nouvel onglet.
+        <button
+          type="button"
+          className="ai-attach-image"
+          onClick={() => setImagePreview({ url: attachmentUrls[entry.id], name: entry.attachment_name, entry })}
+          aria-label={`Afficher l'image ${entry.attachment_name || ''}`}
+        >
           <img src={attachmentUrls[entry.id]} alt={entry.attachment_name || ''} />
-        </a>
+        </button>
       ) : (
         <div className="ai-attach-loading"><ImageIcon /> Chargement…</div>
       );
@@ -643,6 +652,16 @@ function AdminAssistant() {
           </div>
         </form>
       </div>
+
+      {imagePreview && (
+        <MediaPreview
+          url={imagePreview.url}
+          type="image"
+          name={imagePreview.name}
+          onClose={() => setImagePreview(null)}
+          onDownload={() => downloadAttachment(imagePreview.entry)}
+        />
+      )}
     </div>
   );
 }

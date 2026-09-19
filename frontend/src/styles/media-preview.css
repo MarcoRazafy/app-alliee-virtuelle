@@ -78,3 +78,56 @@
   background: #fff;
   cursor: default;
 }
+
+/* Fichier qu'un navigateur ne sait pas afficher (Word, Excel…) : fiche + téléchargement. */
+.media-preview-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, 100%);
+  padding: 28px 24px;
+  border-radius: 14px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+  text-align: center;
+  cursor: default;
+}
+.media-preview-file-icon {
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.media-preview-file-icon svg {
+  width: 28px;
+  height: 28px;
+}
+.media-preview-file-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+.media-preview-file-size {
+  font-size: 12.5px;
+  color: #9ca3af;
+}
+.media-preview-file-hint {
+  margin: 4px 0 6px;
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+.media-preview-file-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.media-preview-file-download svg {
+  width: 16px;
+  height: 16px;
+}

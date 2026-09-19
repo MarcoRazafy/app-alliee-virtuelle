@@ -6,7 +6,7 @@ import useAuthStore from '../store/authStore';
 import { IconFileText, IconEye, IconDownload, IconTrash, IconPaperclip } from './icons';
 import MediaPreview from './MediaPreview';
 
-// Ce que la visionneuse de l'application sait afficher ; le reste s'ouvre comme avant.
+// Ce que la visionneuse affiche directement ; le reste y est présenté avec un bouton Télécharger.
 const PREVIEWABLE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf'];
 
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -71,19 +71,10 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
       }
       return;
     }
-    // On ouvre l'onglet AVANT le fetch (asynchrone) pour éviter le blocage des popups.
-    const win = window.open('', '_blank');
-    try {
-      const blob = await taskService.downloadAttachment(attachment.id);
-      const url = window.URL.createObjectURL(blob);
-      if (win) win.location = url;
-      else window.open(url, '_blank');
-      // Laisse le temps au nouvel onglet de charger avant de libérer l'URL.
-      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
-    } catch (err) {
-      if (win) win.close();
-      notifyError(err.response?.data?.error || "Impossible d'ouvrir le fichier");
-    }
+    // Word, Excel… : un navigateur ne sait pas les afficher. Plutôt qu'un nouvel onglet (qui
+    // téléchargeait le fichier en faisant sortir de l'application), la fenêtre de l'application
+    // présente le fichier et propose de le télécharger. Rien à charger d'avance.
+    setPreview({ url: null, type: attachment.file_type, name: attachment.file_name, size: attachment.file_size, attachment });
   }
 
   async function handleDownload(attachment) {
@@ -189,8 +180,9 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
           url={preview.url}
           type={preview.type}
           name={preview.name}
+          size={preview.size}
           onClose={() => {
-            URL.revokeObjectURL(preview.url);
+            if (preview.url) URL.revokeObjectURL(preview.url);
             setPreview(null);
           }}
           onDownload={() => handleDownload(preview.attachment)}
