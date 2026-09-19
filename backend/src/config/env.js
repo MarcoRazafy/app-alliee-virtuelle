@@ -82,10 +82,10 @@ module.exports = {
     300,
     Number(process.env.SESSION_ABANDON_TIMEOUT_SECONDS) || 8 * 3600
   ),
-  // Temps de connexion maximal d'un EMPLOYÉ par journée de travail, en heures (décimales
-  // acceptées : 7.5). Une fois atteint, il est déconnecté automatiquement et ne peut se
-  // reconnecter qu'à la journée suivante (à BUSINESS_DAY_CUTOFF_HOUR). Les admins ne sont pas
-  // concernés. 0 désactive la limite.
+  // Temps de connexion d'un EMPLOYÉ par journée de travail, en heures (décimales acceptées :
+  // 7.5), au bout duquel il est déconnecté automatiquement avec un message. Il peut se
+  // reconnecter aussitôt : la coupure n'a lieu qu'une fois par journée. Les admins ne sont pas
+  // concernés. 0 désactive la coupure.
   employeeDailyConnectionLimitHours: Math.min(
     24,
     Math.max(0, Number(process.env.EMPLOYEE_DAILY_CONNECTION_LIMIT_HOURS ?? 8) || 0)

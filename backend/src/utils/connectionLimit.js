@@ -1,4 +1,3 @@
-const { DateTime } = require('luxon');
 const businessDay = require('./businessDay');
 
 // Limite quotidienne du temps de connexion d'un employé (8 h par défaut).
@@ -39,22 +38,10 @@ function formatHours(hours) {
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`;
 }
 
-// Instant où l'employé pourra se reconnecter : le début de la journée de travail suivante.
-function reconnectAt(day) {
-  return businessDay.businessDayStart(day).plus({ days: 1 });
-}
-
-// Message affiché à la coupure et au refus de connexion. « aujourd'hui » à 1 h du matin : la
-// journée de travail commencée la veille n'est pas encore finie, on se reconnecte à 2 h.
-function limitReachedMessage({ limitHours, day, now = new Date() }) {
-  const at = reconnectAt(day);
-  const today = DateTime.fromJSDate(now, { zone: businessDay.TIMEZONE });
-  const time = at.minute ? `${at.hour} h ${String(at.minute).padStart(2, '0')}` : `${at.hour} h`;
-  let when;
-  if (at.hasSame(today, 'day')) when = `aujourd'hui à ${time}`;
-  else if (at.hasSame(today.plus({ days: 1 }), 'day')) when = `demain à ${time}`;
-  else when = `le ${at.setLocale('fr').toFormat('cccc d MMMM')} à ${time}`;
-  return `Vous avez atteint ${formatHours(limitHours)} de connexion aujourd'hui. Vous pourrez vous reconnecter ${when}.`;
+// Message affiché à la coupure. Depuis que la reconnexion est permise, il ne donne plus
+// d'heure : il annonce seulement la limite atteinte.
+function limitReachedMessage({ limitHours }) {
+  return `Vous avez atteint ${formatHours(limitHours)} de connexion aujourd'hui. Vous pouvez vous reconnecter pour continuer.`;
 }
 
 module.exports = {
@@ -62,6 +49,5 @@ module.exports = {
   connectedSecondsForDay,
   limitStatus,
   formatHours,
-  reconnectAt,
   limitReachedMessage,
 };

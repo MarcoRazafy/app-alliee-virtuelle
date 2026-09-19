@@ -13,7 +13,8 @@ export function limitWarningMessage(limit) {
   const minutes = Math.max(1, Math.ceil((limit?.remaining_seconds || 0) / 60));
   return (
     `Vous atteindrez ${formatLimit(limit?.limit_seconds)} de connexion dans ${minutes} min : ` +
-    'vous serez alors déconnecté automatiquement. Pensez à enregistrer votre travail.'
+    'vous serez alors déconnecté automatiquement, puis pourrez vous reconnecter. ' +
+    'Pensez à enregistrer votre travail.'
   );
 }
 
