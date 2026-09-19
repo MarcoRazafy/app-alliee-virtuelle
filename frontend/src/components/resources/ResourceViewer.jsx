@@ -5,6 +5,7 @@ import { notifyError } from '../../utils/toast';
 import { IconX, IconDownload, IconPencil } from '../icons';
 import { linkifyHtml } from '../../utils/sanitizeHtml';
 import { isVideoMime } from '../../utils/resourceMedia';
+import MediaPreview from '../MediaPreview';
 
 function saveBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -34,6 +35,8 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const [exporting, setExporting] = useState(false);
   // PDF inséré dans le document et ouvert depuis sa carte.
   const [openedPdf, setOpenedPdf] = useState(null);
+  // Image du document agrandie : { url, name }.
+  const [zoomedImage, setZoomedImage] = useState(null);
 
   const mime = file.mime_type || '';
   const isPdf = mime === 'application/pdf';
@@ -118,6 +121,12 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   // Clic sur la carte d'un PDF du document : ouverture dans une visionneuse par-dessus, au lieu
   // de suivre le lien (qui afficherait le PDF brut en quittant l'application).
   function handleDocumentClick(event) {
+    // Image insérée dans le document : agrandie dans la visionneuse.
+    const image = event.target.closest('img');
+    if (image) {
+      setZoomedImage({ url: image.currentSrc || image.src, name: image.alt || file.file_name });
+      return;
+    }
     const card = event.target.closest('a.resource-doc-pdf');
     if (!card) return;
     event.preventDefault();
@@ -228,6 +237,10 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
             </button>
           )}
         </div>
+        )}
+
+        {zoomedImage && (
+          <MediaPreview url={zoomedImage.url} type="image" name={zoomedImage.name} onClose={() => setZoomedImage(null)} />
         )}
 
         {/* Portail vers <body> : la fenêtre du document reste le repère de ses descendants tant

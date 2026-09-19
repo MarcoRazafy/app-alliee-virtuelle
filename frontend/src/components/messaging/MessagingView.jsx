@@ -35,6 +35,7 @@ import {
   formatFileSize,
 } from './messagingHelpers';
 import MessageComposer from './MessageComposer';
+import MediaPreview from '../MediaPreview';
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
@@ -678,6 +679,30 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       notifyError(requestErrorMessage(error, 'Impossible de supprimer le message'));
     }
   }
+  // Aperçu plein écran d'une pièce jointe : { url, type, name, message, temporary }.
+  // Image : l'objectURL déjà chargé pour l'affichage dans la conversation est réutilisé.
+  // PDF : chargé pour l'occasion, puis libéré à la fermeture (`temporary`).
+  const [mediaPreview, setMediaPreview] = useState(null);
+  async function openAttachmentPreview(message) {
+    const cached = attachmentUrls[message.id];
+    if (cached) {
+      setMediaPreview({ url: cached, type: message.attachment_type, name: message.attachment_name, message, temporary: false });
+      return;
+    }
+    try {
+      const url = URL.createObjectURL(await messageService.getAttachmentBlob(message.id));
+      setMediaPreview({ url, type: message.attachment_type, name: message.attachment_name, message, temporary: true });
+    } catch (error) {
+      notifyError(requestErrorMessage(error, "Impossible d'afficher la pièce jointe"));
+    }
+  }
+  function closeAttachmentPreview() {
+    setMediaPreview((current) => {
+      if (current?.temporary) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  }
+
   async function downloadAttachment(message) {
     try {
       const blob = await messageService.getAttachmentBlob(message.id);
@@ -1040,9 +1065,15 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                       {message.has_attachment && (
                         isImageType(message.attachment_type) ? (
                           attachmentUrls[message.id] ? (
-                            <a href={attachmentUrls[message.id]} target="_blank" rel="noreferrer" className="msgr-attach-image">
+                            // Agrandie dans la visionneuse de l'application, et non dans un nouvel onglet.
+                            <button
+                              type="button"
+                              className="msgr-attach-image"
+                              onClick={() => openAttachmentPreview(message)}
+                              aria-label={`Afficher l'image ${message.attachment_name || ''}`}
+                            >
                               <img src={attachmentUrls[message.id]} alt={message.attachment_name || 'image'} />
-                            </a>
+                            </button>
                           ) : (
                             <div className="msgr-attach-loading"><ImageIcon /> Chargement…</div>
                           )
@@ -1053,7 +1084,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                             <div className="msgr-attach-loading"><MicIcon /> Chargement…</div>
                           )
                         ) : (
-                          <button type="button" className="msgr-attach-file" onClick={() => downloadAttachment(message)}>
+                          <button
+                            type="button"
+                            className="msgr-attach-file"
+                            // Un PDF s'affiche dans la visionneuse ; Word, Excel… se téléchargent.
+                            onClick={() =>
+                              message.attachment_type === 'application/pdf'
+                                ? openAttachmentPreview(message)
+                                : downloadAttachment(message)
+                            }
+                          >
                             <IconPaperclip />
                             <span className="msgr-attach-file-name">{message.attachment_name}</span>
                             <span className="msgr-attach-file-size">{formatFileSize(message.attachment_size)}</span>
@@ -1850,6 +1890,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
             </form>
           </section>
         </div>
+      )}
+
+      {mediaPreview && (
+        <MediaPreview
+          url={mediaPreview.url}
+          type={mediaPreview.type}
+          name={mediaPreview.name}
+          onClose={closeAttachmentPreview}
+          onDownload={() => downloadAttachment(mediaPreview.message)}
+        />
       )}
     </div>
   );

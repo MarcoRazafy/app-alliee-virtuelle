@@ -4,6 +4,10 @@ import { formatBytes, formatDateTime } from '../utils/formatters';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconFileText, IconEye, IconDownload, IconTrash, IconPaperclip } from './icons';
+import MediaPreview from './MediaPreview';
+
+// Ce que la visionneuse de l'application sait afficher ; le reste s'ouvre comme avant.
+const PREVIEWABLE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf'];
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
@@ -17,6 +21,8 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
     canUpload && (currentUser?.role === 'ADMIN' || attachment.uploaded_by === currentUser?.id);
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  // Aperçu plein écran : { url, type, name, attachment }.
+  const [preview, setPreview] = useState(null);
 
   const loadAttachments = useCallback(async () => {
     try {
@@ -53,8 +59,18 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
     }
   }
 
-  // Prévisualise le fichier dans un nouvel onglet (PDF, image… rendus par le navigateur).
+  // Image ou PDF : affiché dans la visionneuse de l'application, sans en sortir.
+  // Autres formats : ouverts dans un nouvel onglet, comme avant (le navigateur décide).
   async function handleView(attachment) {
+    if (PREVIEWABLE_TYPES.includes(attachment.file_type)) {
+      try {
+        const blob = await taskService.downloadAttachment(attachment.id);
+        setPreview({ url: URL.createObjectURL(blob), type: attachment.file_type, name: attachment.file_name, attachment });
+      } catch (err) {
+        notifyError(err.response?.data?.error || "Impossible d'ouvrir le fichier");
+      }
+      return;
+    }
     // On ouvre l'onglet AVANT le fetch (asynchrone) pour éviter le blocage des popups.
     const win = window.open('', '_blank');
     try {
@@ -167,6 +183,19 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
           </div>
         </div>
       ))}
+
+      {preview && (
+        <MediaPreview
+          url={preview.url}
+          type={preview.type}
+          name={preview.name}
+          onClose={() => {
+            URL.revokeObjectURL(preview.url);
+            setPreview(null);
+          }}
+          onDownload={() => handleDownload(preview.attachment)}
+        />
+      )}
     </div>
   );
 }
