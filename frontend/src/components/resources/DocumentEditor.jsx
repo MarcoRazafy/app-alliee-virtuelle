@@ -11,6 +11,7 @@ import {
   mediaIdsToDelete,
 } from '../../utils/documentMedia';
 import { IconPaperclip, IconX } from '../icons';
+import { filesFromPaste } from '../../utils/clipboardFiles';
 
 // Éditeur de texte riche léger (contentEditable + document.execCommand), sans dépendance.
 // Sert à créer ou modifier un document HTML stocké dans resources_files.content, dans lequel
@@ -358,6 +359,13 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
             aria-multiline="true"
             onInput={() => setEmpty(isEditorEmpty(editorRef.current))}
             onFocus={() => window.document.execCommand('defaultParagraphSeparator', false, 'p')}
+            // Capture d'écran ou fichier collé : inséré comme par le bouton « Photo, vidéo, PDF ».
+            onPaste={(event) => {
+              const pasted = filesFromPaste(event);
+              if (pasted.length === 0) return;
+              event.preventDefault();
+              pasted.forEach((file) => uploadOne(file));
+            }}
             // Dans un bloc non éditable, un lien redevient cliquable : sans ce garde, cliquer
             // sur la carte d'un PDF quitterait l'éditeur et ferait perdre la saisie.
             onClick={(e) => {

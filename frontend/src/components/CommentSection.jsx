@@ -4,12 +4,13 @@ import * as taskService from '../services/taskService';
 import * as avatarService from '../services/avatarService';
 import * as userService from '../services/userService';
 import { formatDateTime, formatBytes } from '../utils/formatters';
-import { notifyError, notifySuccess } from '../utils/toast';
+import { notifyError, notifyInfo, notifySuccess } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import { IconPaperclip, IconX, IconFileText, IconDownload, IconTrash, IconPencil, IconCheck } from './icons';
 import Markdown from './Markdown';
 import MarkdownToolbar from './MarkdownToolbar';
 import { NIKE, findReaction, reactorsLabel, reactorsTitle, toggleReactionLocally } from '../utils/commentReactions';
+import { filesFromPaste } from '../utils/clipboardFiles';
 
 // Les mentions restent stockées dans le contenu sous la forme `@[Nom](uuid)`, en texte brut.
 // Leur découpage à l'affichage est désormais assuré par <Markdown/> (prop renderMention),
@@ -274,15 +275,29 @@ function CommentSection({ taskId, focusCommentId = null }) {
     });
   }
 
-  function pickFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = ''; // permet de re-choisir le même fichier après un retrait
+  function acceptFile(file) {
     if (!file) return;
     if (file.size > MAX_ATTACHMENT_SIZE) {
       notifyError('Fichier trop volumineux (5 Mo maximum).');
       return;
     }
     setPendingFile(file);
+  }
+
+  function pickFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // permet de re-choisir le même fichier après un retrait
+    acceptFile(file);
+  }
+
+  // Coller une capture d'écran ou un fichier copié : il est joint au commentaire, comme par le
+  // trombone. Un commentaire porte un seul fichier.
+  function handlePaste(event) {
+    const pasted = filesFromPaste(event);
+    if (pasted.length === 0) return; // du texte : collage normal
+    event.preventDefault();
+    acceptFile(pasted[0]);
+    if (pasted.length > 1) notifyInfo(`Un seul fichier par commentaire : « ${pasted[0].name} » a été joint.`);
   }
 
   async function downloadAttachment(attachment) {
@@ -509,6 +524,7 @@ function CommentSection({ taskId, focusCommentId = null }) {
           className="cmt-input"
           value={content}
           onChange={handleContentChange}
+          onPaste={handlePaste}
           onBlur={() => setTimeout(() => setMentionQuery(null), 150)}
           placeholder={isAdmin && asNote ? 'Écrire une note interne…' : 'Écrivez un commentaire…'}
           rows={2}

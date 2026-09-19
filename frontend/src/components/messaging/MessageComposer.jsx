@@ -4,6 +4,7 @@ import { MicIcon, ImageIcon, SmileyIcon, SendIcon, PlusIcon } from './messagingI
 import { isAudioType, isImageType, formatFileSize, formatDuration } from './messagingHelpers';
 import { htmlToText } from '../../utils/sanitizeHtml';
 import { notifyError, notifyInfo } from '../../utils/toast';
+import { filesFromPaste } from '../../utils/clipboardFiles';
 
 const COMPOSER_EMOJIS = [
   '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤔', '😅',
@@ -12,6 +13,18 @@ const COMPOSER_EMOJIS = [
 ];
 
 // Composer avec pièce jointe, emoji et message vocal. onSend reçoit le fichier éventuel.
+// Types acceptés au collage : les mêmes que le bouton « + » (et que le serveur).
+const PASTE_ACCEPTED_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+
 function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCreatePoll }) {
   const [file, setFile] = useState(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -95,6 +108,21 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
   function pickFile(event) {
     const selected = event.target.files?.[0];
     if (selected) setFile(selected);
+  }
+
+  // Coller une capture d'écran ou un fichier copié : il devient la pièce jointe du message,
+  // comme s'il avait été choisi par le bouton « + ». Un message porte un seul fichier.
+  function handlePaste(event) {
+    const pasted = filesFromPaste(event);
+    if (pasted.length === 0) return; // du texte : collage normal
+    event.preventDefault();
+    const accepted = pasted.find((f) => PASTE_ACCEPTED_TYPES.includes(f.type));
+    if (!accepted) {
+      notifyError('Ce type de fichier ne peut pas être envoyé (image, PDF, Word ou Excel uniquement).');
+      return;
+    }
+    setFile(accepted);
+    if (pasted.length > 1) notifyInfo(`Un seul fichier par message : « ${accepted.name} » a été joint.`);
   }
 
   // Fichier audio choisi via l'enregistreur natif (repli quand le micro web est bloqué en HTTP).
@@ -280,6 +308,7 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
             className="msgr-composer-input"
             contentEditable={!disabled}
             suppressContentEditableWarning
+            onPaste={handlePaste}
             role="textbox"
             aria-multiline="true"
             aria-label={placeholder}

@@ -296,6 +296,12 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
   function handleFilesSelected(e) {
     const chosen = Array.from(e.target.files || []);
     e.target.value = ''; // permet de re-sélectionner le même fichier
+    addPendingFiles(chosen);
+  }
+
+  // Fichiers choisis au bouton OU collés dans la description (capture d'écran, PDF copié) :
+  // même contrôle de taille, même liste de pièces jointes.
+  function addPendingFiles(chosen) {
     if (chosen.length === 0) return;
     const tooBig = chosen.filter((f) => f.size > MAX_ATTACH_SIZE);
     if (tooBig.length) {
@@ -675,6 +681,7 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
           value={form.description}
           onChange={(html) => setForm((f) => ({ ...f, description: html }))}
           placeholder="Précisez le contexte, les attentes, les livrables… (mise en forme disponible)"
+          onPasteFiles={addPendingFiles}
         />
       </div>
 

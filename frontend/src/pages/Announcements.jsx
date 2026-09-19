@@ -652,6 +652,16 @@ function Announcements() {
                   value={form.body}
                   onChange={(html) => setForm((f) => ({ ...f, body: html }))}
                   placeholder="Contenu de l'annonce… (mise en forme disponible)"
+                  // Une capture collée dans le texte devient l'image de l'annonce.
+                  onPasteFiles={(files) => {
+                    const image = files.find((f) => ['image/png', 'image/jpeg', 'image/webp'].includes(f.type));
+                    if (!image) {
+                      notifyError("Seule une image peut être jointe à une annonce (PNG, JPEG ou WebP).");
+                      return;
+                    }
+                    setForm((f) => ({ ...f, file: image }));
+                    notifySuccess(`Image jointe à l'annonce : ${image.name}`);
+                  }}
                 />
               </div>
 
