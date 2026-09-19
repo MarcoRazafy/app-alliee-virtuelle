@@ -984,3 +984,8 @@
     flex: 1;
   }
 }
+
+/* Image d'un document en lecture : un clic l'agrandit dans la visionneuse. */
+.resources-doc-page .resource-doc-render img {
+  cursor: zoom-in;
+}

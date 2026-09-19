@@ -27,6 +27,7 @@ import {
 import RichTextEditor from '../components/RichTextEditor';
 import { sanitizeHtml, htmlToText, linkifyHtml } from '../utils/sanitizeHtml';
 import '../styles/announcements.css';
+import MediaPreview from '../components/MediaPreview';
 
 function initialsOf(name) {
   return (name || '?')
@@ -97,6 +98,8 @@ function Announcements() {
   const listRef = useRef(null); // cible de « Voir toute l'activité »
 
   const [detailId, setDetailId] = useState(null);
+  // Image de l'annonce agrandie dans la visionneuse (adresse de l'image).
+  const [zoomedImage, setZoomedImage] = useState(null);
   const [readers, setReaders] = useState({});
   // Détail nominatif des lecteurs : replié par défaut, et remis à l'état replié à chaque
   // changement d'annonce — sinon la suivante s'ouvrirait déjà déroulée.
@@ -570,9 +573,19 @@ function Announcements() {
             </header>
             <h2 className="ann-modal-title">{detailItem.title}</h2>
             {imageSrcOf(detailItem) && (
-              <div className="ann-modal-image">
+              <button
+                type="button"
+                className="ann-modal-image ann-modal-image--zoomable"
+                onClick={() => setZoomedImage(imageSrcOf(detailItem))}
+                aria-label="Agrandir l'image de l'annonce"
+              >
                 <img src={imageSrcOf(detailItem)} alt="" />
-              </div>
+              </button>
+            )}
+            {/* Dans la fenêtre (et non son voile) : un clic dans la visionneuse ne doit pas
+                remonter jusqu'au voile, qui fermerait l'annonce. */}
+            {zoomedImage && (
+              <MediaPreview url={zoomedImage} type="image" name={detailItem.title} onClose={() => setZoomedImage(null)} />
             )}
             <div className="ann-modal-body ann-rich" dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(detailItem.body)) }} />
 

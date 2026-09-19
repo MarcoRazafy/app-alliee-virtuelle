@@ -1474,7 +1474,9 @@
 .msgr-edit-save:disabled { opacity: 0.5; cursor: default; }
 
 /* Pièces jointes */
-.msgr-attach-image { display: block; margin-bottom: 6px; }
+/* Image d'un message : bouton (et non lien) qui l'agrandit dans la visionneuse. */
+.msgr-attach-image { display: block; margin-bottom: 6px; padding: 0; border: none; background: none; cursor: zoom-in; border-radius: 12px; }
+.msgr-attach-image:focus-visible { outline: 2px solid var(--color-accent-light); outline-offset: 2px; }
 .msgr-attach-image img { max-width: 260px; max-height: 300px; border-radius: 12px; display: block; }
 .msgr-attach-loading { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--color-text-muted); }
 .msgr-attach-loading svg { width: 16px; height: 16px; }

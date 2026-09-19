@@ -11,12 +11,18 @@ import Markdown from './Markdown';
 import MarkdownToolbar from './MarkdownToolbar';
 import { NIKE, findReaction, reactorsLabel, reactorsTitle, toggleReactionLocally } from '../utils/commentReactions';
 import { filesFromPaste } from '../utils/clipboardFiles';
+import MediaPreview from './MediaPreview';
 
 // Les mentions restent stockées dans le contenu sous la forme `@[Nom](uuid)`, en texte brut.
 // Leur découpage à l'affichage est désormais assuré par <Markdown/> (prop renderMention),
 // pour qu'une mention placée dans une puce ou en gras reste dans son bloc.
 
-const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024; // aligné sur la limite serveur (config/upload.js)
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
+
+// Images qu'un navigateur affiche directement (les mêmes que celles acceptées en pièce jointe).
+function isPreviewableImage(type) {
+  return ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(type);
+} // aligné sur la limite serveur (config/upload.js)
 
 function initialsOf(name) {
   return (
@@ -300,6 +306,56 @@ function CommentSection({ taskId, focusCommentId = null }) {
     if (pasted.length > 1) notifyInfo(`Un seul fichier par commentaire : « ${pasted[0].name} » a été joint.`);
   }
 
+  // Images jointes : chargées une fois (Blob authentifié → objectURL) pour s'afficher en
+  // miniature dans le fil ; libérées au démontage. Même principe que les photos de profil.
+  const [attachmentUrls, setAttachmentUrls] = useState({});
+  const attachmentFetchedRef = useRef(new Set());
+  const attachmentUrlsRef = useRef({});
+  useEffect(() => {
+    attachmentUrlsRef.current = attachmentUrls;
+  }, [attachmentUrls]);
+  useEffect(() => () => Object.values(attachmentUrlsRef.current).forEach((u) => u && URL.revokeObjectURL(u)), []);
+  useEffect(() => {
+    const images = items
+      .flatMap((it) => it.attachments || [])
+      .filter((att) => isPreviewableImage(att.file_type) && !attachmentFetchedRef.current.has(att.id));
+    images.forEach(async (att) => {
+      attachmentFetchedRef.current.add(att.id);
+      try {
+        const blob = await taskService.downloadAttachment(att.id);
+        const url = URL.createObjectURL(blob);
+        if (mountedRef.current) setAttachmentUrls((cur) => ({ ...cur, [att.id]: url }));
+        else URL.revokeObjectURL(url);
+      } catch {
+        attachmentFetchedRef.current.delete(att.id);
+      }
+    });
+  }, [items]);
+
+  // Aperçu plein écran : { url, type, name, attachment, temporary }. `temporary` : objectURL
+  // créé pour l'occasion (PDF), à libérer à la fermeture — contrairement aux miniatures.
+  const [preview, setPreview] = useState(null);
+  async function openPreview(attachment) {
+    const cached = attachmentUrls[attachment.id];
+    if (cached) {
+      setPreview({ url: cached, type: attachment.file_type, name: attachment.file_name, attachment, temporary: false });
+      return;
+    }
+    try {
+      const blob = await taskService.downloadAttachment(attachment.id);
+      const url = URL.createObjectURL(blob);
+      setPreview({ url, type: attachment.file_type, name: attachment.file_name, attachment, temporary: true });
+    } catch {
+      notifyError("Impossible d'afficher le fichier");
+    }
+  }
+  function closePreview() {
+    setPreview((cur) => {
+      if (cur?.temporary) URL.revokeObjectURL(cur.url);
+      return null;
+    });
+  }
+
   async function downloadAttachment(attachment) {
     try {
       const blob = await taskService.downloadAttachment(attachment.id);
@@ -449,20 +505,39 @@ function CommentSection({ taskId, focusCommentId = null }) {
                 )}
                 {(it.attachments || []).length > 0 && (
                   <div className="cmt-files">
-                    {it.attachments.map((att) => (
+                    {it.attachments.map((att) =>
+                      // Image : miniature dans le fil, agrandie au clic. PDF : ouvert dans la
+                      // visionneuse. Autres fichiers (Word, Excel…) : téléchargés, comme avant.
+                      isPreviewableImage(att.file_type) ? (
+                        <button
+                          type="button"
+                          key={att.id}
+                          className="cmt-image"
+                          onClick={() => openPreview(att)}
+                          title={`Afficher ${att.file_name}`}
+                          aria-label={`Afficher l'image ${att.file_name}`}
+                        >
+                          {attachmentUrls[att.id] ? (
+                            <img src={attachmentUrls[att.id]} alt={att.file_name} />
+                          ) : (
+                            <span className="cmt-image-loading">Chargement…</span>
+                          )}
+                        </button>
+                      ) : (
                       <button
                         type="button"
                         key={att.id}
                         className="cmt-file"
-                        onClick={() => downloadAttachment(att)}
-                        title={`Télécharger ${att.file_name}`}
+                        onClick={() => (att.file_type === 'application/pdf' ? openPreview(att) : downloadAttachment(att))}
+                        title={att.file_type === 'application/pdf' ? `Afficher ${att.file_name}` : `Télécharger ${att.file_name}`}
                       >
                         <IconFileText />
                         <span className="cmt-file-name">{att.file_name}</span>
                         {att.file_size ? <span className="cmt-file-size">{formatBytes(att.file_size)}</span> : null}
                         <IconDownload />
                       </button>
-                    ))}
+                      )
+                    )}
                   </div>
                 )}
                 {(() => {
@@ -593,6 +668,16 @@ function CommentSection({ taskId, focusCommentId = null }) {
           </button>
         </div>
       </form>
+
+      {preview && (
+        <MediaPreview
+          url={preview.url}
+          type={preview.type}
+          name={preview.name}
+          onClose={closePreview}
+          onDownload={() => downloadAttachment(preview.attachment)}
+        />
+      )}
     </div>
   );
 }
