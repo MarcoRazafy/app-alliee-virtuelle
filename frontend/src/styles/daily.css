@@ -204,3 +204,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Recherche d'une section de « Ma journée » (To Do, Daily). */
+.myday-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 10px;
+}
+.myday-search .filter-search {
+  flex: 1;
+  min-width: min(320px, 100%);
+}
+.myday-search-info {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}

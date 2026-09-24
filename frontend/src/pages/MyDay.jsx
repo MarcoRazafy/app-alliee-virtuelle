@@ -8,6 +8,9 @@ import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import '../styles/daily.css';
 import { groupByProject } from '../utils/dailyGrouping';
+import { IconSearch } from '../components/icons';
+import { matchesTerms } from '../utils/textSearch';
+import { mergeFilteredMove } from '../utils/filteredDrag';
 
 const today = new Date().toLocaleDateString('fr-FR', {
   weekday: 'long',
@@ -27,6 +30,24 @@ function formatSubmit(ts) {
   return `${date} à ${time}`;
 }
 
+// Champ de recherche d'une section (To Do ou Daily). `hidden` : nombre de tâches masquées,
+// rappelé sous le champ — sans lui, une liste filtrée peut passer pour une liste vide.
+function TaskSearch({ value, onChange, hidden, placeholder, label }) {
+  return (
+    <div className="myday-search">
+      <div className="filter-search">
+        <IconSearch />
+        <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={label} />
+      </div>
+      {value.trim() && (
+        <span className="myday-search-info">
+          {hidden > 0 ? `${hidden} tâche${hidden > 1 ? 's' : ''} masquée${hidden > 1 ? 's' : ''} par la recherche` : 'Toutes les tâches correspondent'}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function MyDay() {
   const [available, setAvailable] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -43,6 +64,15 @@ function MyDay() {
   const [dailyDirty, setDailyDirty] = useState(false);
   const [savingDaily, setSavingDaily] = useState(false);
   const [dailySubmittedAt, setDailySubmittedAt] = useState(null);
+  // Recherches : une par section. Avec beaucoup de tâches, retrouver la bonne à l'œil dans
+  // quatre colonnes devient pénible.
+  const [todoQuery, setTodoQuery] = useState('');
+  const [dailyQuery, setDailyQuery] = useState('');
+  // Recherche : titre ou emplacement du projet, sans accents et mot par mot.
+  const taskMatches = (task, query) =>
+    matchesTerms([task.title, task.space_name, task.folder_name, task.list_name], query);
+  const todoMatches = (task) => taskMatches(task, todoQuery);
+  const dailyMatches = (task) => taskMatches(task, dailyQuery);
   // File d'enregistrement du To Do après validation (voir queueTodoSave).
   const todoSaveRef = useRef({ running: false, next: null });
 
@@ -131,7 +161,11 @@ function MyDay() {
     })();
   }
 
-  function handleUpdate({ available: newAvailable, selected: newSelected }) {
+  function handleUpdate({ available: filteredAvailable, selected: filteredSelected }) {
+    // Listes complètes reconstruites : pendant une recherche, le glisser-déposer ne voit que
+    // les tâches affichées (voir utils/filteredDrag).
+    const newAvailable = todoQuery ? mergeFilteredMove(available, filteredAvailable, todoMatches) : filteredAvailable;
+    const newSelected = todoQuery ? mergeFilteredMove(selected, filteredSelected, todoMatches) : filteredSelected;
     const before = new Set(selected.map((t) => t.id));
     setAvailable(newAvailable);
     setSelected(newSelected);
@@ -164,9 +198,9 @@ function MyDay() {
   }, []);
 
   // Le glisser-déposer met à jour l'état local ; l'envoi se fait au clic sur « Valider le daily ».
-  function handleDailyUpdate({ available, selected }) {
-    setDailyAvailable(available);
-    setDailySelected(selected);
+  function handleDailyUpdate({ available: filteredAvailable, selected: filteredSelected }) {
+    setDailyAvailable(dailyQuery ? mergeFilteredMove(dailyAvailable, filteredAvailable, dailyMatches) : filteredAvailable);
+    setDailySelected(dailyQuery ? mergeFilteredMove(dailySelected, filteredSelected, dailyMatches) : filteredSelected);
     setDailyDirty(true);
   }
 
@@ -204,6 +238,13 @@ function MyDay() {
       setIsValidating(false);
     }
   }
+
+  const shownAvailable = todoQuery ? available.filter(todoMatches) : available;
+  const shownSelected = todoQuery ? selected.filter(todoMatches) : selected;
+  const shownDailyAvailable = dailyQuery ? dailyAvailable.filter(dailyMatches) : dailyAvailable;
+  const shownDailySelected = dailyQuery ? dailySelected.filter(dailyMatches) : dailySelected;
+  const todoHidden = available.length + selected.length - shownAvailable.length - shownSelected.length;
+  const dailyHidden = dailyAvailable.length + dailySelected.length - shownDailyAvailable.length - shownDailySelected.length;
 
   // Horodatage d'envoi du To Do = le plus récent validated_at de la sélection.
   const todoSubmittedAt = selected.reduce(
@@ -266,12 +307,21 @@ function MyDay() {
       )}
 
       {!noTasksAvailable && (
-        <DragDropTasks
-          availableTasks={available}
-          selectedTasks={selected}
-          onUpdate={handleUpdate}
-          validated={false}
-        />
+        <>
+          <TaskSearch
+            value={todoQuery}
+            onChange={setTodoQuery}
+            hidden={todoHidden}
+            placeholder="Rechercher dans mes tâches du jour…"
+            label="Rechercher une tâche du To Do"
+          />
+          <DragDropTasks
+            availableTasks={shownAvailable}
+            selectedTasks={shownSelected}
+            onUpdate={handleUpdate}
+            validated={false}
+          />
+        </>
       )}
 
       <div className="app-actions">
@@ -319,9 +369,16 @@ function MyDay() {
             Les tâches de votre To Do validé y sont déjà. Retirez celles que vous n'avez pas faites, ajoutez les
             autres — glissez-les ou double-cliquez — puis validez le daily.
           </p>
+          <TaskSearch
+            value={dailyQuery}
+            onChange={setDailyQuery}
+            hidden={dailyHidden}
+            placeholder="Rechercher dans le daily…"
+            label="Rechercher une tâche du daily"
+          />
           <DragDropTasks
-            availableTasks={dailyAvailable}
-            selectedTasks={dailySelected}
+            availableTasks={shownDailyAvailable}
+            selectedTasks={shownDailySelected}
             onUpdate={handleDailyUpdate}
             validated={false}
             availableTitle="Tâches disponibles"
