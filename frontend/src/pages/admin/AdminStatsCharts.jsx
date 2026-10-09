@@ -3,8 +3,6 @@ import AnimatedNumber from '../../components/AnimatedNumber';
 import { formatDurationShort } from '../../utils/formatters';
 import { STATUS_ORDER, STATUS_INFO, niceCeil, formatShortDate, formatLongDate } from './adminStatsHelpers';
 
-// Composants de visualisation de la page Statistiques (extraits pour alléger AdminStatistics).
-
 export function Icon({ type }) {
   const common = { viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': true };
   if (type === 'check')
@@ -89,7 +87,6 @@ export function CompletionRing({ value }) {
   );
 }
 
-// --- Graphe d'activité (une mesure à la fois → un seul axe) avec survol ---
 export function ActivityChart({ rows, metric }) {
   const [hover, setHover] = useState(null);
   const displayed = rows.length > 30 ? rows.slice(-30) : rows;
@@ -104,8 +101,6 @@ export function ActivityChart({ rows, metric }) {
     );
   }
 
-  // Deux familles de mesures : les durées (heures travaillées / temps de connexion),
-  // affichées en heures ; et les compteurs (tâches confirmées).
   const isConnected = metric === 'connected_seconds';
   const isDuration = metric === 'hours_worked_seconds' || isConnected;
   const getVal = (row) =>
@@ -210,7 +205,6 @@ export function ActivityChart({ rows, metric }) {
   );
 }
 
-// --- Donut de répartition par statut ---
 export function StatusDonut({ byStatus }) {
   const [hover, setHover] = useState(null);
   const entries = STATUS_ORDER.map((key) => ({ key, ...STATUS_INFO[key], value: byStatus[key] || 0 }));
@@ -218,7 +212,7 @@ export function StatusDonut({ byStatus }) {
 
   const r = 52;
   const circ = 2 * Math.PI * r;
-  const gap = total > 0 ? 4 : 0; // espace de 4 unités (~2px) entre segments
+  const gap = total > 0 ? 4 : 0;
 
   let offset = 0;
   const segments = entries

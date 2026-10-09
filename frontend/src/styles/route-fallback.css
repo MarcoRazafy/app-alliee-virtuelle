@@ -1,4 +1,3 @@
-/* Écran d'attente plein écran pendant le chargement à la demande d'une page. */
 .route-fallback {
   position: fixed;
   inset: 0;

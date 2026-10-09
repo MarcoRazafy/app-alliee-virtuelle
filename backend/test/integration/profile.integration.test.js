@@ -1,4 +1,4 @@
-require('./setupTestDb'); // DOIT être en premier (bascule sur la base de test)
+require('./setupTestDb');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
@@ -33,7 +33,6 @@ test('PUT /api/auth/me — modifie poste, email et description → 200 et persis
   assert.equal(res.body.email, 'employe.modifie@alliee.test');
   assert.equal(res.body.description, 'Présentation de test.');
 
-  // On se reconnecte avec le NOUVEL email pour confirmer la persistance.
   const relog = await request(app).post('/api/auth/login').send({ identifier: 'employe.modifie@alliee.test', password: PASSWORD });
   assert.equal(relog.status, 200);
   const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${relog.body.token}`);

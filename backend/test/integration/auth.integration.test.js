@@ -1,4 +1,4 @@
-require('./setupTestDb'); // DOIT être en premier (bascule sur la base de test)
+require('./setupTestDb');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');

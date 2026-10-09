@@ -1,13 +1,3 @@
-/**
- * Seed de démo (idempotent) pour peupler l'espace admin :
- *  1. Complète les profils employés INCOMPLETS (prénom/nom, adresse, date de naissance) — sans écraser l'existant.
- *  2. Génère un planning SOUMIS pour la semaine par défaut de l'admin (semaine prochaine) pour chaque employé actif.
- *  3. Ajoute un avatar DiceBear (téléchargé) aux employés qui n'en ont pas,
- *     à l'exception explicite de Marco Razafimamonjy.
- *
- * Ne touche NI aux comptes utilisateurs, NI aux tâches/messages/ressources.
- * Lancer : node scripts/seedEmployeeData.js
- */
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
@@ -31,7 +21,6 @@ function pick(arr, i) {
 }
 
 function randomBirthDate(i) {
-  // Dates déterministes entre 1985 et 1999 pour rester stable entre deux exécutions.
   const year = 1985 + (i % 15);
   const month = String(1 + (i * 3 + 2) % 12).padStart(2, '0');
   const day = String(1 + (i * 7 + 4) % 27).padStart(2, '0');
@@ -71,9 +60,6 @@ function fetchBuffer(url) {
   });
 }
 
-// Modèle de semaine : les 7 jours SONT requis (validation planningController).
-// Lun→ven travaillés, samedi+dimanche UNAVAILABLE sans créneau. Un peu de variété.
-// weekStartDT est un objet luxon DateTime (fuseau planning) → pas de décalage UTC.
 function buildWeekDays(weekStartDT, empIndex) {
   const days = [];
   for (let i = 0; i < 7; i += 1) {
@@ -85,7 +71,6 @@ function buildWeekDays(weekStartDT, empIndex) {
     ];
 
     if (i >= 5) {
-      // Week-end : indisponible, aucun créneau.
       availability = 'UNAVAILABLE';
       slots = [];
     } else if (i === 2 && empIndex % 4 === 0) {
@@ -107,8 +92,6 @@ async function main() {
      FROM users WHERE role = 'EMPLOYEE' AND status = 'ACTIF' ORDER BY full_name`
   );
 
-  // Semaine ciblée : 'current' (cette semaine) ou 'next' (semaine prochaine, défaut admin).
-  // Usage : node scripts/seedEmployeeData.js [current|next]
   const target = (process.argv[2] || 'next').toLowerCase();
   const now = planningDates.nowInPlanningZone();
   const weekStartDT =
@@ -123,7 +106,6 @@ async function main() {
   for (const emp of employees) {
     index += 1;
 
-    // 1) Complète uniquement les champs vides
     const [firstName, lastName] = splitName(emp.full_name);
     const sets = [];
     const values = [];
@@ -141,7 +123,6 @@ async function main() {
       report.profiles += 1;
     }
 
-    // 2) Planning soumis pour la semaine prochaine
     const planningRes = await db.query(
       `INSERT INTO weekly_plannings (user_id, week_start_date, week_end_date, status, submitted_at, general_note)
        VALUES ($1, $2, $3, 'SUBMITTED', now(), $4)
@@ -169,7 +150,6 @@ async function main() {
     }
     report.plannings += 1;
 
-    // 3) Avatar DiceBear si absent
     const hasAvatar = await db.query('SELECT 1 FROM user_avatars WHERE user_id = $1', [emp.id]);
     if (hasAvatar.rowCount === 0 && !isAvatarExcluded(emp.full_name)) {
       try {

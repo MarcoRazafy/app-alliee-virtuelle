@@ -17,11 +17,6 @@ import {
 import '../styles/weekly-connections.css';
 import { toDatetimeLocal, datetimeLocalToIso } from '../utils/datetimeLocal';
 
-// Relevé de temps d'un employé sur une semaine. PARTAGÉ : la page admin l'ouvre pour
-// n'importe qui (avec correction), l'espace employé pour soi-même (lecture seule).
-// Relevé de temps d'un employé sur une semaine : ses entrées de chrono groupées par jour,
-// chaque journée repliable, avec son total. Ouvert depuis la feuille de temps de l'équipe.
-
 function shiftDate(dateString, days) {
   const [y, m, d] = String(dateString).split('-').map(Number);
   const date = new Date(y, m - 1, d + days);
@@ -51,7 +46,6 @@ function rangeLabel(days) {
   return `${first.toLocaleDateString('fr-FR', opts)} – ${last.toLocaleDateString('fr-FR', opts)}`;
 }
 
-// « 09:48 » à partir d'un horodatage. Les heures de chrono sont enregistrées en heure locale.
 function clockTime(value) {
   if (!value) return '—';
   const date = new Date(value);
@@ -59,17 +53,11 @@ function clockTime(value) {
   return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-// Valeur attendue par un <input type="datetime-local"> : heure LOCALE, sans fuseau.
-
-// `readOnly` : version employé — il consulte son propre relevé, sans jamais pouvoir le
-// corriger. Les routes de correction sont de toute façon réservées aux admins ; masquer les
-// boutons évite simplement de proposer une action qui serait refusée.
 export default function WeeklyTimesheet({ employee, initialWeek, onBack, readOnly = false }) {
   const navigate = useNavigate();
   const [weekStart, setWeekStart] = useState(initialWeek || businessDayNow());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  // Journées repliées. Par défaut tout est ouvert : une journée vide se voit d'un coup d'œil.
   const [collapsed, setCollapsed] = useState(() => new Set());
 
   const load = useCallback(
@@ -101,7 +89,6 @@ export default function WeeklyTimesheet({ employee, initialWeek, onBack, readOnl
     [days, data]
   );
 
-  // Correction d'une entrée, en place sous la ligne concernée : { id, start, end }.
   const [editingEntry, setEditingEntry] = useState(null);
   const [savingEntry, setSavingEntry] = useState(false);
 
@@ -227,8 +214,6 @@ export default function WeeklyTimesheet({ employee, initialWeek, onBack, readOnl
                   <span className="wkc-day-count">
                     {entries.length} {entries.length > 1 ? 'entrées' : 'entrée'}
                   </span>
-                  {/* Connexion à côté du temps sur les tâches : l'écart entre les deux est
-                      justement ce qu'on vient lire. */}
                   {data.connection_by_day && (
                     <span className="wkc-day-connection" title="Temps de connexion ce jour-là">
                       <IconClock /> {formatDurationShort(data.connection_by_day[day] || 0)}
@@ -274,11 +259,8 @@ export default function WeeklyTimesheet({ employee, initialWeek, onBack, readOnl
                                 )}
                               </td>
                               <td className="wkc-sheet-duration">{formatDurationShort(entry.duration_seconds)}</td>
-                              {/* stopPropagation : la ligne entière ouvre la tâche, ces boutons non. */}
                               {!readOnly && (
                               <td className="wkc-sheet-actions" onClick={(e) => e.stopPropagation()}>
-                                {/* Un chrono encore actif n'a pas de fin à corriger : on l'arrête
-                                    d'abord depuis la tâche. */}
                                 {!entry.running && (
                                   <button
                                     type="button"
@@ -311,8 +293,6 @@ export default function WeeklyTimesheet({ employee, initialWeek, onBack, readOnl
 
                             {!readOnly && editingEntry?.id === entry.id && (
                               <tr className="wkc-sheet-edit-row">
-                                {/* 5 colonnes : la ligne d'édition n'existe qu'en mode admin,
-                                    où la colonne d'actions est présente. */}
                                 <td colSpan={5}>
                                   <form className="wkc-sheet-edit" onSubmit={saveEntry}>
                                     <label>

@@ -9,17 +9,14 @@ const pushService = require('../services/push.service');
 
 const ALLOWED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
-// Supprime un fichier best-effort (ancienne photo de groupe) sans jamais faire échouer la requête.
 function safeUnlink(filePath) {
   if (filePath) fs.promises.unlink(filePath).catch(() => {});
 }
 
-// Droit de gérer un groupe : le créateur ou un administrateur.
 function canManageGroup(group, user) {
   return group.created_by === user.id || user.role === 'ADMIN';
 }
 
-// Construit l'objet pièce jointe à partir du fichier multer (ou null).
 function attachmentFrom(req) {
   if (!req.file) return null;
   return { path: req.file.path, name: req.file.originalname, type: req.file.mimetype, size: req.file.size };
@@ -30,7 +27,6 @@ function hasBody(req) {
   return content.length > 0 || Boolean(req.file);
 }
 
-// Retire le HTML (les messages peuvent être mis en forme) pour un aperçu texte propre.
 function stripHtml(value) {
   return (value || '')
     .replace(/<[^>]*>/g, ' ')
@@ -39,7 +35,6 @@ function stripHtml(value) {
     .trim();
 }
 
-// Aperçu court pour le corps de la notification push : le texte, ou une mention de la pièce jointe.
 function pushPreview(content, hasAttachment) {
   const text = stripHtml(content);
   if (text) return text.length > 120 ? `${text.slice(0, 117)}…` : text;
@@ -62,7 +57,6 @@ async function postGlobalMessage(req, res, next) {
     }
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await messageModel.createGlobalMessage(req.user.id, content, attachmentFrom(req));
-    // Temps réel : prévenir tout le monde qu'un message a été posté dans le salon global.
     realtime.broadcast('message:new', { scope: 'global', authorId: req.user.id });
     res.status(201).json(message);
   } catch (err) {
@@ -121,14 +115,11 @@ async function postPrivateMessage(req, res, next) {
 
     const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
     const message = await messageModel.createPrivateMessage(req.user.id, userId, content, attachmentFrom(req));
-    // Temps réel : prévenir le destinataire (et les autres onglets de l'auteur).
     realtime.emitToUsers([userId, req.user.id], 'message:new', {
       scope: 'private',
       authorId: req.user.id,
       recipientId: userId,
     });
-    // Notification push au destinataire (fonctionne même app fermée). Best-effort : n'interrompt
-    // jamais la réponse. Le nom de l'expéditeur vient de son profil pour un libellé lisible.
     const author = await userModel.findById(req.user.id).catch(() => null);
     pushService
       .notifyUsers([userId], {
@@ -156,7 +147,6 @@ async function getGroups(req, res, next) {
 async function createGroup(req, res, next) {
   try {
     const normalizedName = typeof req.body.name === 'string' ? req.body.name.trim().replace(/\s+/g, ' ') : '';
-    // En multipart (avec photo), member_ids arrive en chaîne JSON ; sinon en tableau.
     let requestedMemberIds = req.body.member_ids;
     if (typeof requestedMemberIds === 'string') {
       try { requestedMemberIds = JSON.parse(requestedMemberIds); } catch { requestedMemberIds = []; }
@@ -234,10 +224,8 @@ async function postGroupMessage(req, res, next) {
     const message = await db.withTransaction((client) =>
       messageModel.createGroupMessage(groupId, req.user.id, content, attachmentFrom(req), client)
     );
-    // Temps réel : prévenir tous les membres du groupe.
     const memberIds = await messageModel.findGroupMemberIds(groupId);
     realtime.emitToUsers(memberIds, 'message:new', { scope: 'group', groupId, authorId: req.user.id });
-    // Notification push aux membres (sauf l'auteur). Best-effort.
     const author = await userModel.findById(req.user.id).catch(() => null);
     const authorName = author?.full_name || author?.username || "Quelqu'un";
     pushService
@@ -258,7 +246,6 @@ async function postGroupMessage(req, res, next) {
   }
 }
 
-// --- Vérifie que l'utilisateur a accès au message (même canal). ---
 async function canAccessMessage(raw, user) {
   if (raw.channel_type === 'GLOBAL') return true;
   if (raw.channel_type === 'PRIVATE') return raw.author_id === user.id || raw.recipient_id === user.id;
@@ -290,7 +277,6 @@ async function deleteMessage(req, res, next) {
   try {
     const raw = await messageModel.findRawMessageById(req.params.id);
     if (!raw) return res.status(404).json({ error: 'Message introuvable' });
-    // L'auteur ou un administrateur peut supprimer.
     if (raw.author_id !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Suppression non autorisée' });
     }
@@ -344,7 +330,6 @@ async function getGroupAvatar(req, res, next) {
   }
 }
 
-// Renommer le groupe et/ou changer sa photo (créateur ou admin). Multipart : name en champ, photo en fichier.
 async function updateGroup(req, res, next) {
   try {
     const { groupId } = req.params;
@@ -364,7 +349,7 @@ async function updateGroup(req, res, next) {
 
     if (req.file) {
       await messageModel.updateGroupAvatar(groupId, req.file.path);
-      safeUnlink(group.avatar_path); // supprime l'ancienne photo
+      safeUnlink(group.avatar_path);
     }
 
     const updated = await messageModel.findGroupForUser(groupId, req.user.id);
@@ -376,7 +361,6 @@ async function updateGroup(req, res, next) {
   }
 }
 
-// Supprimer le groupe (créateur ou admin). Cascade DB + suppression de la photo.
 async function deleteGroup(req, res, next) {
   try {
     const { groupId } = req.params;
@@ -395,7 +379,6 @@ async function deleteGroup(req, res, next) {
   }
 }
 
-// Ajouter des membres (créateur ou admin).
 async function addGroupMembers(req, res, next) {
   try {
     const { groupId } = req.params;
@@ -419,7 +402,6 @@ async function addGroupMembers(req, res, next) {
 
     await messageModel.addGroupMembers(groupId, valid);
     const updated = await messageModel.findGroupForUser(groupId, req.user.id);
-    // Prévenir tous les membres (y compris les nouveaux, dont la liste doit se rafraîchir).
     const memberIds = await messageModel.findGroupMemberIds(groupId);
     realtime.emitToUsers(memberIds, 'group:changed', { groupId });
     res.status(200).json(updated);
@@ -428,7 +410,6 @@ async function addGroupMembers(req, res, next) {
   }
 }
 
-// Retirer un membre (créateur ou admin ; on ne peut pas retirer le créateur).
 async function removeGroupMember(req, res, next) {
   try {
     const { groupId, userId } = req.params;
@@ -440,7 +421,6 @@ async function removeGroupMember(req, res, next) {
     if (userId === group.created_by) {
       return res.status(400).json({ error: 'Impossible de retirer le créateur du groupe' });
     }
-    // On récupère les membres AVANT retrait pour notifier aussi la personne retirée.
     const affected = await messageModel.findGroupMemberIds(groupId);
     await messageModel.removeGroupMember(groupId, userId);
     const updated = await messageModel.findGroupForUser(groupId, req.user.id);
@@ -451,7 +431,6 @@ async function removeGroupMember(req, res, next) {
   }
 }
 
-// Quitter un groupe (tout membre). Si le créateur quitte : transfert au plus ancien membre, ou suppression si plus personne.
 async function leaveGroup(req, res, next) {
   try {
     const { groupId } = req.params;
@@ -465,7 +444,6 @@ async function leaveGroup(req, res, next) {
     if (group.created_by === req.user.id) {
       const newOwner = await messageModel.findOldestMember(groupId, req.user.id);
       if (!newOwner) {
-        // Dernier membre : on supprime le groupe.
         await messageModel.deleteGroup(groupId);
         safeUnlink(group.avatar_path);
         realtime.emitToUsers(affected, 'group:deleted', { groupId });
@@ -482,7 +460,6 @@ async function leaveGroup(req, res, next) {
   }
 }
 
-// Transférer un message (texte + pièce jointe) vers une autre destination : global / privé / groupe.
 async function forwardMessage(req, res, next) {
   try {
     const source = await messageModel.findMessageForForward(req.params.id);
@@ -547,21 +524,14 @@ async function forwardMessage(req, res, next) {
   }
 }
 
-// Ids des utilisateurs actuellement connectés (session ouverte) — pour le statut « en ligne ».
 async function getOnlineUsers(req, res, next) {
   try {
-    // Présence "temps réel" : uniquement les utilisateurs réellement en ligne (définition
-    // partagée) — plus de pastille verte qui reste allumée après la fermeture du navigateur.
     res.status(200).json(await sessionModel.findLiveUserIds());
   } catch (err) {
     next(err);
   }
 }
 
-// --- Sondages ---
-
-// Crée un sondage dans le canal choisi (global / privé / groupe). Réutilise l'accès et le
-// broadcast des messages classiques : un sondage est un message porteur + des options.
 async function createPoll(req, res, next) {
   try {
     const { scope, target_id: targetId } = req.body;
@@ -569,7 +539,7 @@ async function createPoll(req, res, next) {
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
     let options = Array.isArray(req.body.options) ? req.body.options : [];
     options = options.map((o) => (typeof o === 'string' ? o.trim() : '')).filter(Boolean);
-    options = [...new Set(options)]; // dédoublonne en gardant l'ordre
+    options = [...new Set(options)];
 
     if (!question) return res.status(400).json({ error: 'La question du sondage est requise' });
     if (question.length > 300) return res.status(400).json({ error: 'La question est trop longue (300 caractères max)' });
@@ -610,7 +580,6 @@ async function createPoll(req, res, next) {
   }
 }
 
-// Vote sur un sondage : remplace le vote de l'utilisateur. Contrôle d'accès selon le canal.
 async function votePoll(req, res, next) {
   try {
     const { id: pollId } = req.params;

@@ -1,9 +1,3 @@
--- Réactions sur les commentaires de tâche (le « nike » ✓ : « vu », « c'est noté »).
---
--- Même forme que message_reactions dans la messagerie : une ligne par (commentaire,
--- personne, emoji), l'unicité empêchant de réagir deux fois avec le même emoji. Le
--- commentaire et les notes internes partagent la table task_comments : une seule table de
--- réactions couvre donc les deux, la visibilité des notes restant contrôlée côté serveur.
 CREATE TABLE IF NOT EXISTS task_comment_reactions (
   id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
   comment_id uuid NOT NULL REFERENCES task_comments(id) ON DELETE CASCADE,

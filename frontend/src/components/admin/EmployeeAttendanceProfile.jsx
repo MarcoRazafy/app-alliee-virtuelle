@@ -4,7 +4,6 @@ import { IconAlert, IconX } from '../icons';
 import PresAvatar from './PresAvatar';
 import { PRESENCE_META, formatMinutes, formatDayLabel, formatMonthLabel, useDialogFocus } from './adminPresenceHelpers';
 
-// Panneau latéral des statistiques de présence d'un employé (par mois). Extrait d'AdminPresence.
 function EmployeeAttendanceProfile({ employee, initialMonth, refreshKey, onClose }) {
   const [month, setMonth] = useState(initialMonth);
   const [stats, setStats] = useState(null);

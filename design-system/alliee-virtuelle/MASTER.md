@@ -1,8 +1,8 @@
 # Design System Master File
 
-> **LOGIC:** When building a specific page, first check `design-system/alliee-virtuelle/pages/[page-name].md`.
-> If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
+> Règle de lecture : pour une page donnée, se reporter d'abord à
+> `design-system/alliee-virtuelle/pages/[nom-de-la-page].md`. Si ce fichier existe, ses
+> règles priment sur celles de ce document. Sinon, ce sont celles ci-dessous qui s'appliquent.
 
 ---
 

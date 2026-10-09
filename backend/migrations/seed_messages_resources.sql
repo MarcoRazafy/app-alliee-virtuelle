@@ -1,10 +1,3 @@
--- L'Alliée Virtuelle - Données d'exemple pour messagerie et ressources
--- À exécuter après migrations/init.sql :
---   psql -U postgres -h localhost -d alliee_virtuelle -f migrations/seed_messages_resources.sql
-
--- ===== MESSAGERIE =====
-
--- Chat global
 INSERT INTO messages (author_id, content, channel_type)
 SELECT (SELECT id FROM users WHERE email = 'admin@alliee.test'), 'Bonjour à tous, bonne journée !', 'GLOBAL'
 WHERE NOT EXISTS (SELECT 1 FROM messages WHERE content = 'Bonjour à tous, bonne journée !');
@@ -13,7 +6,6 @@ INSERT INTO messages (author_id, content, channel_type)
 SELECT (SELECT id FROM users WHERE email = 'admin@alliee.test'), 'Rappel : réunion d''équipe à 14h.', 'GLOBAL'
 WHERE NOT EXISTS (SELECT 1 FROM messages WHERE content = 'Rappel : réunion d''équipe à 14h.');
 
--- Conversation privée admin <-> employee
 INSERT INTO message_conversations (participant1_id, participant2_id, last_message_at)
 SELECT
   (SELECT id FROM users WHERE email = 'admin@alliee.test'),
@@ -40,8 +32,6 @@ SELECT
   (SELECT id FROM users WHERE email = 'employee@alliee.test'),
   'N''hésite pas si tu as des questions.', 'PRIVATE', FALSE
 WHERE NOT EXISTS (SELECT 1 FROM messages WHERE content = 'N''hésite pas si tu as des questions.');
-
--- ===== RESSOURCES =====
 
 INSERT INTO resources_folders (name, type, created_by)
 SELECT 'Marco', 'INTERNE', (SELECT id FROM users WHERE email = 'admin@alliee.test')

@@ -8,21 +8,16 @@ import { notifyWarning } from './utils/toast';
 import { limitCheckDelayMs, limitWarningMessage } from './utils/connectionLimit';
 import InstallPrompt from './components/InstallPrompt';
 import AnnouncementPopup from './components/AnnouncementPopup';
-// Gardés en chargement immédiat : la 1re page (Login), le garde de route et le shell admin
-// (partagé par toutes les pages admin, donc mieux vaut le charger une seule fois).
 import Login from './pages/Login';
 import AdminLayout from './components/admin/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import RouteFallback from './components/RouteFallback';
 
-// Toutes les autres pages sont chargées à la demande (code-splitting) : chacune devient
-// un fichier séparé, téléchargé seulement quand on visite sa route. Le bundle initial fond.
 const Register = lazy(() => import('./pages/Register'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Workspace = lazy(() => import('./pages/Workspace'));
 const MyTasks = lazy(() => import('./pages/MyTasks'));
 const TaskDetail = lazy(() => import('./pages/TaskDetail'));
-// Même module, export nommé → ouvert en fenêtre modale par-dessus la liste.
 const TaskDetailModal = lazy(() => import('./pages/TaskDetail').then((m) => ({ default: m.TaskDetailModal })));
 const MyDay = lazy(() => import('./pages/MyDay'));
 const MyStats = lazy(() => import('./pages/MyStats'));
@@ -59,8 +54,6 @@ function AdminRoute({ children }) {
 }
 
 function App() {
-  // Fin de session vue depuis un AUTRE onglet, ou session morte (401) : cet onglet revient à la
-  // connexion au lieu de rester affiché sur des erreurs.
   useEffect(() => {
     function onStorage(event) {
       if (event.key !== FORCED_LOGOUT_KEY || !event.newValue) return;
@@ -68,14 +61,9 @@ function App() {
       try {
         message = JSON.parse(event.newValue).message;
       } catch {
-        // Valeur illisible : on se déconnecte quand même, sans message particulier.
       }
       const store = useAuthStore.getState();
-      // broadcast: false — renvoyer le signal le ferait rebondir d'onglet en onglet.
       if (store.isAuthenticated) store.forceLogout(message, { broadcast: false });
-      // Déjà revenu à la connexion (un 401 est arrivé avant ce signal) : la vraie raison
-      // remplace le message générique — mais jamais l'inverse, sinon l'onglet qui a reçu la
-      // coupure perdrait son explication au profit d'un « session terminée » sans motif.
       else if (message && message !== SESSION_ENDED_MESSAGE && (!store.error || store.error === SESSION_ENDED_MESSAGE)) {
         useAuthStore.setState({ error: message });
       }
@@ -92,12 +80,7 @@ function App() {
     };
   }, []);
 
-  // Une actualisation ne doit jamais interrompre la présence. Tant qu'un token existe,
-  // l'application rafraîchit la session ; le backend borne automatiquement une session
-  // abandonnée après l'arrêt des heartbeats.
   useEffect(() => {
-    // Limite quotidienne de connexion (employés, 8 h par défaut) : le serveur répond à chaque
-    // heartbeat avec le temps restant, ou ordonne la déconnexion une fois la limite atteinte.
     let limitTimer = null;
     let warned = false;
 
@@ -109,37 +92,25 @@ function App() {
       }
       const limit = data?.connection_limit;
       if (!limit) return;
-      // Un seul avertissement par approche de la limite, pas un toutes les 20 secondes.
       if (limit.warn && !warned) {
         warned = true;
         notifyWarning(limitWarningMessage(limit));
       } else if (!limit.warn) {
         warned = false;
       }
-      // À l'approche de la coupure, on redemande au serveur à l'instant exact : en arrière-plan,
-      // les navigateurs espacent les heartbeats à une minute.
       const delay = limitCheckDelayMs(limit);
       if (delay !== null) limitTimer = setTimeout(heartbeat, delay);
     }
 
     function heartbeat() {
-      // Auth par cookie httpOnly : on se base sur la présence de l'utilisateur en session
-      // (le token n'est plus lisible en JS). Le heartbeat porte le cookie via withCredentials.
       if (!getUser()) return;
       heartbeatSession().then(applyHeartbeat).catch(() => {});
     }
     heartbeat();
     const interval = window.setInterval(heartbeat, 20000);
-    // Les navigateurs BRIDENT les minuteries des onglets en arrière-plan (jusqu'à 1/minute) :
-    // le heartbeat de 20 s peut donc s'espacer sans que l'employé ait rien fait. On en renvoie
-    // un immédiatement dès que l'onglet redevient visible, pour rattraper la période bridée.
     function onVisible() {
       if (document.visibilityState === 'visible') heartbeat();
     }
-    // pagehide se déclenche aussi bien à la fermeture qu'au simple passage en arrière-plan
-    // (mobile, changement d'application) : dans ce cas persisted vaut true, la page est mise
-    // en cache et peut revenir telle quelle. Signaler une déconnexion là coupait le temps de
-    // connexion d'un employé qui consultait juste une autre application.
     function onPageHide(event) {
       if (event.persisted) return;
       signalSessionDisconnect();
@@ -168,9 +139,6 @@ function App() {
   );
 }
 
-// Routes de l'app. Isolé dans un composant pour pouvoir lire useLocation (background location) :
-// une tâche ouverte depuis une liste s'affiche en MODALE par-dessus la liste (state.backgroundLocation),
-// tout en gardant l'URL /tasks/:id (le lien direct / le rafraîchissement ouvrent la page pleine).
 function AppRoutes() {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
@@ -296,7 +264,6 @@ function AppRoutes() {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 
-      {/* Route modale : rendue EN PLUS de la liste de fond quand on vient d'une liste. */}
       {backgroundLocation && (
         <Routes>
           <Route

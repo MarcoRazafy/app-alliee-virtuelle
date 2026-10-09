@@ -29,7 +29,6 @@ function validateUpdateProfile(req, res, next) {
   if (!first_name || !first_name.trim()) errors.push('Le prénom est requis');
   if (!last_name || !last_name.trim()) errors.push('Le nom est requis');
   if (!phone || !phone.trim()) errors.push('Le téléphone est requis');
-  // L'email est modifiable : requis et valide s'il est fourni.
   if (email !== undefined && (!email || !isValidEmail(email))) errors.push('Adresse email invalide');
 
   if (errors.length > 0) {
@@ -42,7 +41,6 @@ function validateLogin(req, res, next) {
   const { identifier, password } = req.body;
   const errors = [];
 
-  // Un identifiant peut être un email OU un nom d'utilisateur : ne pas exiger un format email
   if (!identifier || !identifier.trim()) errors.push("L'identifiant (email ou nom d'utilisateur) est requis");
   if (!password) errors.push('Le mot de passe est requis');
 

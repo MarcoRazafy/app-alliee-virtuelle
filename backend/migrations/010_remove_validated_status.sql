@@ -1,7 +1,5 @@
 BEGIN;
 
--- Le statut VALIDEE est supprimé : une tâche envoyée est immédiatement DECLAREE
--- et peut être démarrée par l'employé.
 UPDATE tasks SET status = 'DECLAREE' WHERE status = 'VALIDEE';
 
 ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check;

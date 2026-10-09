@@ -12,7 +12,6 @@ const CRITERIA = [
   { key: 'adaptabilite', label: 'Adaptabilité et Évolution' },
 ];
 
-// Champs de développement / carrière (affichés seulement s'ils sont remplis).
 const TEXT_FIELDS = [
   { key: 'forces_actuelles', label: 'Forces actuelles' },
   { key: 'competences_ameliorer', label: 'Compétences à améliorer' },
@@ -34,14 +33,11 @@ function RemarkItem({ item }) {
   return (
     <li className={`myeval-remark myeval-remark--${good ? 'good' : 'bad'}`}>
       <span className="myeval-remark-icon">{good ? <IconCheckCircle /> : <IconAlert />}</span>
-      {/* Texte brut, mais une adresse écrite dedans doit rester cliquable. */}
       <span className="myeval-remark-text"><Linkify text={item.comment} /></span>
     </li>
   );
 }
 
-// Vue employé de ses évaluations mensuelles : commentaire global toujours visible,
-// détail des critères seulement si l'admin l'a partagé.
 export default function MyEvaluations() {
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,8 +71,6 @@ export default function MyEvaluations() {
                 <span className="myeval-month">{monthLabel(ev.month)}</span>
               </div>
 
-              {/* Contenu riche saisi par l'admin (gras, listes) : nettoyé avant affichage,
-                  et rendu dans un <div> car un <p> ne peut pas contenir de <ul>. */}
               {ev.global_comment && (
                 <div
                   className="myeval-global"

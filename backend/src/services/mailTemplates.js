@@ -3,7 +3,6 @@ const env = require('../config/env');
 const BRAND = "L'Alliée Virtuelle";
 const ACCENT = '#256bff';
 
-// Échappe le HTML des valeurs dynamiques (nom, motif…) pour éviter toute injection dans l'email.
 function esc(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -12,7 +11,6 @@ function esc(value) {
     .replace(/"/g, '&quot;');
 }
 
-// Gabarit commun : en-tête coloré + contenu + bouton optionnel + pied de page.
 function layout({ title, intro, bodyHtml = '', buttonLabel, buttonUrl }) {
   const button =
     buttonLabel && buttonUrl
@@ -49,7 +47,6 @@ function layout({ title, intro, bodyHtml = '', buttonLabel, buttonUrl }) {
 </body></html>`;
 }
 
-// --- Compte approuvé (envoyé à l'employé) ---
 function accountApproved(user) {
   const name = user.full_name || user.first_name || 'bonjour';
   const loginUrl = `${env.appUrl}/login`;
@@ -65,7 +62,6 @@ function accountApproved(user) {
   };
 }
 
-// --- Compte refusé (envoyé à l'employé) ---
 function accountRejected(user, motif) {
   const name = user.full_name || user.first_name || 'bonjour';
   const reason = motif
@@ -84,7 +80,6 @@ function accountRejected(user, motif) {
   };
 }
 
-// --- Compte créé, en attente de validation (envoyé au NOUVEL inscrit) ---
 function accountPending(user) {
   const name = user.full_name || user.first_name || 'bonjour';
   return {
@@ -99,7 +94,6 @@ function accountPending(user) {
   };
 }
 
-// --- Nouvelle inscription (envoyé aux administrateurs) ---
 function newRegistration(user) {
   const adminUrl = `${env.appUrl}/admin/users`;
   return {
@@ -119,8 +113,6 @@ function newRegistration(user) {
   };
 }
 
-// Un employé a PROPOSÉ une tâche (statut « Non validée ») → prévenir les admins.
-// Un employé a DEMANDÉ une tâche supplémentaire (après avoir validé sa journée) → prévenir les admins.
 function newTaskRequest({ requesterName, taskTitle, message }) {
   const adminUrl = `${env.appUrl}/admin/task-requests`;
   const name = requesterName || '—';
@@ -149,9 +141,6 @@ function newTaskRequest({ requesterName, taskTitle, message }) {
   };
 }
 
-// Le corps d'une annonce est saisi dans l'éditeur riche : du HTML. On n'en met PAS le balisage
-// dans l'email — les clients de messagerie le rendent de façon imprévisible, et l'email n'est
-// qu'un rappel. On en extrait un aperçu en texte, le bouton renvoyant à l'annonce complète.
 function htmlExcerpt(html, maxLength = 320) {
   const text = String(html || '')
     .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
@@ -168,9 +157,7 @@ function htmlExcerpt(html, maxLength = 320) {
   return `${text.slice(0, maxLength).replace(/\s+\S*$/, '')}…`;
 }
 
-// Nouvelle annonce publiée → prévenir toute l'équipe par email, « pour ne rien manquer ».
 function newAnnouncement({ id, title, body, authorName, isImportant }) {
-  // ?open=<id> ouvre directement le détail de l'annonce (déjà géré par la page Annonces).
   const url = `${env.appUrl}/announcements?open=${encodeURIComponent(id)}`;
   const safeTitle = title || 'Nouvelle annonce';
   const author = authorName || "L'équipe";

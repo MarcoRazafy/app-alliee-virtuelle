@@ -39,7 +39,6 @@ function initialsOf(name) {
     .toUpperCase();
 }
 
-// Couleur d'avatar stable, dérivée du nom (fallback quand pas de photo).
 const AVATAR_COLORS = ['#256bff', '#8b5cf6', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444'];
 function avatarColor(name) {
   let hash = 0;
@@ -59,7 +58,6 @@ function timeOnly(iso) {
   }
 }
 
-// Avatar : photo réelle si disponible, sinon initiales colorées.
 function Avatar({ name, size = 'md', src }) {
   if (src) {
     return <img className={`ann-avatar ann-avatar--${size} ann-avatar--photo`} src={src} alt={`Photo de ${name || ''}`} />;
@@ -92,17 +90,14 @@ function Announcements() {
   const [items, setItems] = useState([]);
   const [recipients, setRecipients] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('all'); // all | unread | important | pinned
-  const [sort, setSort] = useState('recent'); // recent | old
+  const [tab, setTab] = useState('all');
+  const [sort, setSort] = useState('recent');
   const [search, setSearch] = useState('');
-  const listRef = useRef(null); // cible de « Voir toute l'activité »
+  const listRef = useRef(null);
 
   const [detailId, setDetailId] = useState(null);
-  // Image de l'annonce agrandie dans la visionneuse (adresse de l'image).
   const [zoomedImage, setZoomedImage] = useState(null);
   const [readers, setReaders] = useState({});
-  // Détail nominatif des lecteurs : replié par défaut, et remis à l'état replié à chaque
-  // changement d'annonce — sinon la suivante s'ouvrirait déjà déroulée.
   const [readersOpen, setReadersOpen] = useState(false);
   useEffect(() => {
     setReadersOpen(false);
@@ -113,7 +108,6 @@ function Announcements() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
-  // Photos d'auteur + images uploadées (blobs authentifiés), mémorisées une fois chacune.
   const [authorAvatars, setAuthorAvatars] = useState({});
   const [imageUrls, setImageUrls] = useState({});
   const avatarFetched = useRef(new Set());
@@ -136,7 +130,6 @@ function Announcements() {
       .catch(() => setRecipients(0));
   }, [load]);
 
-  // Récupère les photos d'auteur (une fois par auteur qui en a une).
   useEffect(() => {
     items.forEach((item) => {
       if (!item.author_has_avatar || !item.author_id || avatarFetched.current.has(item.author_id)) return;
@@ -152,7 +145,6 @@ function Announcements() {
     });
   }, [items]);
 
-  // Récupère les images uploadées (celles sans URL externe).
   useEffect(() => {
     items.forEach((item) => {
       if (!item.has_image || item.image_url || imageFetched.current.has(item.id)) return;
@@ -168,10 +160,8 @@ function Announcements() {
     });
   }, [items]);
 
-  // Libère les blobs à la sortie de la page.
   useEffect(() => () => objectUrls.current.forEach((url) => URL.revokeObjectURL(url)), []);
 
-  // Source d'image d'une annonce : URL externe (seed) OU fichier uploadé (blob).
   const imageSrcOf = useCallback((item) => item?.image_url || imageUrls[item?.id] || null, [imageUrls]);
 
   const openDetail = useCallback(
@@ -183,17 +173,11 @@ function Announcements() {
         setReaders((prev) => ({ ...prev, [id]: r }));
         await load();
       } catch {
-        /* silencieux */
       }
     },
     [load]
   );
 
-  // Ouverture directe depuis une notification (?open=<id>). L'effet SUIT le paramètre :
-  // avec des dépendances vides, cliquer une notification d'annonce alors qu'on se trouve
-  // déjà sur la page ne rouvrait rien (même route → pas de remontage → effet jamais rejoué).
-  // Le garde-fou évite de retraiter le même id, tout en se réarmant dès que le paramètre
-  // disparaît (on peut donc rouvrir la même annonce plus tard).
   const openParam = searchParams.get('open');
   const handledOpenRef = useRef(null);
   useEffect(() => {
@@ -265,9 +249,6 @@ function Announcements() {
   const filePreview = useMemo(() => (form.file ? URL.createObjectURL(form.file) : null), [form.file]);
   useEffect(() => () => filePreview && URL.revokeObjectURL(filePreview), [filePreview]);
 
-  // « Voir toute l'activité » : la liste complète est sur cette même page, mais elle peut
-  // être masquée par un onglet ou une recherche en cours — on remet donc la vue à plat,
-  // puis on y ramène l'utilisateur (sinon le clic paraissait sans effet).
   function showAllActivity() {
     setTab('all');
     setSearch('');
@@ -319,7 +300,6 @@ function Announcements() {
       setModalOpen(false);
       setForm(EMPTY_FORM);
       setEditingId(null);
-      // Une nouvelle image doit être re-téléchargée : on invalide le cache de cette annonce.
       if (editingId) {
         imageFetched.current.delete(editingId);
         setImageUrls((prev) => {
@@ -530,7 +510,6 @@ function Announcements() {
                 {recentActivity.length === 0 && <li className="ann-activity-empty">Aucune activité.</li>}
                 {recentActivity.map((item) => (
                   <li key={item.id}>
-                    {/* Chaque activité ouvre le détail de l'annonce concernée. */}
                     <button
                       type="button"
                       className="ann-activity-item"
@@ -558,7 +537,6 @@ function Announcements() {
         </div>
       </section>
 
-      {/* Détail d'une annonce */}
       {detailItem && createPortal(
         <div className="ann-modal-backdrop" role="presentation" onMouseDown={() => setDetailId(null)}>
           <section className="ann-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
@@ -582,16 +560,11 @@ function Announcements() {
                 <img src={imageSrcOf(detailItem)} alt="" />
               </button>
             )}
-            {/* Dans la fenêtre (et non son voile) : un clic dans la visionneuse ne doit pas
-                remonter jusqu'au voile, qui fermerait l'annonce. */}
             {zoomedImage && (
               <MediaPreview url={zoomedImage} type="image" name={detailItem.title} onClose={() => setZoomedImage(null)} />
             )}
             <div className="ann-modal-body ann-rich" dangerouslySetInnerHTML={{ __html: linkifyHtml(sanitizeHtml(detailItem.body)) }} />
 
-            {/* Le nombre de lecteurs suffit la plupart du temps ; le détail nominatif, lui,
-                repoussait le contenu de l'annonce hors de l'écran dès que l'équipe grandit.
-                Il est donc replié par défaut, et se déroule à la demande. */}
             <div className="ann-readers">
               {(readers[detailItem.id] || []).length === 0 ? (
                 <>
@@ -639,7 +612,6 @@ function Announcements() {
         document.body
       )}
 
-      {/* Création / édition (admin) */}
       {isAdmin && modalOpen && createPortal(
         <div className="ann-modal-backdrop" role="presentation" onMouseDown={() => setModalOpen(false)}>
           <section className="ann-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
@@ -665,7 +637,6 @@ function Announcements() {
                   value={form.body}
                   onChange={(html) => setForm((f) => ({ ...f, body: html }))}
                   placeholder="Contenu de l'annonce… (mise en forme disponible)"
-                  // Une capture collée dans le texte devient l'image de l'annonce.
                   onPasteFiles={(files) => {
                     const image = files.find((f) => ['image/png', 'image/jpeg', 'image/webp'].includes(f.type));
                     if (!image) {

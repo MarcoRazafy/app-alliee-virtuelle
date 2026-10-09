@@ -1,8 +1,6 @@
 import { formatDateTime, formatBytes } from '../../utils/formatters';
 import { IconX, IconTrash, IconFolder, IconFileText, IconRestore } from '../icons';
 
-// Modale "Corbeille" des ressources (dossiers/fichiers supprimés) — présentationnelle.
-// Extraite de AdminResources ; reçoit les données et les callbacks en props.
 function ResourceTrashModal({ onClose, loading, count, trash, busyKey, onRestore, onPermanentDelete }) {
   return (
     <div className="resources-modal-backdrop" role="presentation" onMouseDown={onClose}>

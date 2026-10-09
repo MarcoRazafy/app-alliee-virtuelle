@@ -13,16 +13,12 @@ import '../../styles/admin.css';
 
 const PRIORITY_CLS = { URGENT: 'urgent', HAUTE: 'haute', NORMALE: 'normale', FAIBLE: 'faible' };
 
-// Sévérité du retard → intensité du badge (plus c'est long, plus c'est rouge)
 function lateSeverity(days) {
   if (days <= 2) return 'mild';
   if (days <= 6) return 'high';
   return 'severe';
 }
 
-// La liste s'affiche en cartes, comme l'onglet « À valider » : mêmes informations au même
-// endroit (priorité, employé, échéance, chemin du projet), le retard en plus. Le tableau
-// d'avant n'avait ni le chemin du projet, ni de place pour lui sur un écran étroit.
 function AdminLateTasks() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,7 +27,6 @@ function AdminLateTasks() {
   const [sortDirection, setSortDirection] = useState('desc');
   const [query, setQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  // Sélection pour suppression groupée : un admin peut supprimer n'importe quelle tâche.
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleting, setDeleting] = useState(false);
   const [page, setPage] = useState(1);
@@ -51,8 +46,6 @@ function AdminLateTasks() {
     load();
   }, [load]);
 
-  // La sélection porte sur la liste FILTRÉE : « tout sélectionner » doit couvrir ce que
-  // l'admin voit après filtrage, pas les 50 tâches en retard de toute l'équipe.
   function toggleSelected(taskId) {
     setSelectedIds((cur) => (cur.includes(taskId) ? cur.filter((id) => id !== taskId) : [...cur, taskId]));
   }
@@ -68,8 +61,6 @@ function AdminLateTasks() {
 
     setDeleting(true);
     try {
-      // En série : si l'une échoue, les précédentes sont déjà parties et le rechargement
-      // montre exactement ce qui reste.
       for (const task of cibles) {
         await taskService.deleteTask(task.id);
       }
@@ -88,8 +79,6 @@ function AdminLateTasks() {
     navigate(`/tasks/${taskId}`, { state: { backgroundLocation: location } });
   }
 
-  // Clic sur la carte → détail de la tâche, SAUF sur un élément interactif (case, statut,
-  // lien, chemin du projet) qui garde son propre comportement.
   function openTaskFromCard(event, taskId) {
     if (event.target.closest('button, a, input, label, select, textarea')) return;
     openTask(taskId);
@@ -97,7 +86,6 @@ function AdminLateTasks() {
 
   const visibleTasks = useMemo(() => {
     const filtered = tasks.filter((task) => {
-      // Mot par mot, sans accents : « campagne julien » trouve la tâche de Julien Petit.
       const matchesQuery = matchesTerms(
         [task.title, task.assigned_to_name, task.space_name, task.folder_name, task.list_name],
         query
@@ -110,8 +98,6 @@ function AdminLateTasks() {
     );
   }, [tasks, query, priorityFilter, sortDirection]);
 
-  // Un changement de recherche, de filtre ou d'ordre remet à la première page : rester en
-  // page 4 d'une liste qui n'en compte plus que 2 afficherait une page vide.
   useEffect(() => {
     setPage(1);
   }, [query, priorityFilter, sortDirection]);
@@ -164,8 +150,6 @@ function AdminLateTasks() {
             <option value="NORMALE">Normale</option>
             <option value="FAIBLE">Faible</option>
           </select>
-          {/* L'ordre vivait dans l'en-tête de colonne « Retard » du tableau : sans tableau,
-              il lui faut son propre réglage. */}
           <select
             className="filter-select"
             value={sortDirection}
@@ -255,9 +239,6 @@ function AdminLateTasks() {
                     <button type="button" className="validate-card-title" onClick={() => openTask(task.id)}>
                       {task.title}
                     </button>
-                    {/* Modifiable sur place : une tâche en retard se règle le plus souvent en
-                        changeant son statut. Le rechargement fait disparaître de la liste ce
-                        qui passe en Terminée ou Confirmée. */}
                     <StatusDropdown
                       taskId={task.id}
                       status={task.status}
@@ -283,8 +264,6 @@ function AdminLateTasks() {
                     <span className="validate-meta-sep" />
                     <span>{task.assigned_to_name || '—'}</span>
                     <span className="validate-meta-sep" />
-                    {/* Modifiable sur place : reporter une échéance est l'action la plus courante
-                        sur une tâche en retard, elle ne doit pas obliger à ouvrir la fiche. */}
                     <DeadlineEditor
                       taskId={task.id}
                       deadline={task.deadline}

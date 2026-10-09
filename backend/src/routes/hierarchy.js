@@ -8,7 +8,6 @@ router.use(authMiddleware);
 
 const requireAdmin = authMiddleware.requireRole('ADMIN');
 
-// Route statique déclarée avant /spaces/:id (aucune route :id ici pour l'instant, mais on garde l'habitude)
 router.get('/spaces/tree', hierarchyController.getSpacesTree);
 
 router.get('/spaces', hierarchyController.listSpaces);

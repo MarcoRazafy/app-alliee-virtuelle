@@ -26,20 +26,10 @@ const mailService = require('./services/mail.service');
 const imapService = require('./services/imap.service');
 const errorHandler = require('./middleware/errorHandler.middleware');
 
-// Construit l'application Express (middlewares + routes), SANS écouter de port ni
-// démarrer de tâche de fond. Séparé de index.js pour pouvoir être testé (supertest).
 const app = express();
 
-// Derrière un reverse proxy en prod (Nginx/Caddy/…), fait confiance au 1er proxy pour
-// récupérer la vraie IP client (utile au rate-limiting). Sans effet en local direct.
 app.set('trust proxy', 1);
 
-// En-têtes de sécurité HTTP (X-Content-Type-Options, HSTS, referrer-policy, …) + CSP.
-// La CSP par défaut de Helmet bloquerait des choses dont l'app a besoin ; on l'ajuste :
-// - blob: pour les images/avatars ET les messages vocaux affichés via URL.createObjectURL,
-// - Google Fonts (feuille de style + fichiers de police),
-// - 'unsafe-inline' pour le petit script inline du thème (anti-flash) et les styles inline React,
-// - ws:/wss: pour le temps réel Socket.IO (même origine).
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -60,16 +50,11 @@ app.use(
 );
 
 app.use(cors());
-// Limite la taille des corps JSON (les fichiers passent par multer, pas par ici).
 app.use(express.json({ limit: '1mb' }));
 
-// Health check pour la supervision de l'hébergeur (non authentifié). Vérifie que le process
-// répond ET que la base est joignable → 200 si tout va bien, 503 sinon (pour que la plateforme
-// puisse détecter une instance dégradée et la redémarrer / la sortir du load-balancer).
 app.get('/health', async (req, res) => {
   try {
     await db.query('SELECT 1');
-    // `push` permet de vérifier à distance que les clés VAPID sont bien chargées côté serveur.
     res.status(200).json({
       status: 'ok',
       db: 'up',
@@ -83,9 +68,6 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Déploiement en SERVICE UNIQUE : si le build Vite est présent, le backend sert aussi le
-// frontend (same-origin → le cookie httpOnly d'auth fonctionne sans config CORS). Absent en
-// dev/test (Vite tourne à part) → on garde juste une bannière API à la racine.
 const distPath = path.join(__dirname, '../../frontend/dist');
 const hasFrontendBuild = fs.existsSync(path.join(distPath, 'index.html'));
 if (hasFrontendBuild) {
@@ -112,8 +94,6 @@ app.use('/api', announcementRoutes);
 app.use('/api', dailyRoutes);
 app.use('/api', emailRoutes);
 
-// Fallback SPA : toute route non-API/non-socket renvoie index.html pour que les deep-links du
-// routeur React (ex. /admin/stats rafraîchi) fonctionnent au lieu de renvoyer 404.
 if (hasFrontendBuild) {
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();

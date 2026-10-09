@@ -12,8 +12,6 @@ const COMPOSER_EMOJIS = [
   '❤️', '🔥', '🎉', '✅', '❌', '⭐', '💯', '👌', '🤝', '😮',
 ];
 
-// Composer avec pièce jointe, emoji et message vocal. onSend reçoit le fichier éventuel.
-// Types acceptés au collage : les mêmes que le bouton « + » (et que le serveur).
 const PASTE_ACCEPTED_TYPES = [
   'image/png',
   'image/jpeg',
@@ -28,12 +26,11 @@ const PASTE_ACCEPTED_TYPES = [
 function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCreatePoll }) {
   const [file, setFile] = useState(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  // Menu « + » : fichier, photo, vocal, sondage.
   const [toolsOpen, setToolsOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordSec, setRecordSec] = useState(0);
   const fileRef = useRef(null);
-  const audioRef = useRef(null); // repli d'enregistrement natif (HTTP : micro web bloqué)
+  const audioRef = useRef(null);
   const emojiRef = useRef(null);
   const toolsRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -46,7 +43,6 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
       if (emojiRef.current && !emojiRef.current.contains(event.target)) setEmojiOpen(false);
       if (toolsRef.current && !toolsRef.current.contains(event.target)) setToolsOpen(false);
     }
-    // Échap ferme aussi : un menu ouvert par-dessus le champ empêche d'écrire.
     function onKeyDown(event) {
       if (event.key === 'Escape') {
         setEmojiOpen(false);
@@ -63,7 +59,6 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
 
   useEffect(() => () => { if (recordTimerRef.current) clearInterval(recordTimerRef.current); }, []);
 
-  // Synchronise le HTML externe (vidage après envoi, insertion d'emoji…) sans casser la frappe.
   useEffect(() => {
     if (editorRef.current && value !== editorRef.current.innerHTML) {
       editorRef.current.innerHTML = value || '';
@@ -87,14 +82,12 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
       submitMessage();
     }
   }
-  // Mise en forme WYSIWYG (balises sémantiques grâce à styleWithCSS=false → survivent au nettoyage).
   function exec(cmd) {
     if (disabled) return;
     editorRef.current?.focus();
     try {
       window.document.execCommand('styleWithCSS', false, false);
     } catch {
-      /* ignoré */
     }
     window.document.execCommand(cmd, false, null);
     onChange(editorRef.current?.innerHTML || '');
@@ -110,11 +103,9 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
     if (selected) setFile(selected);
   }
 
-  // Coller une capture d'écran ou un fichier copié : il devient la pièce jointe du message,
-  // comme s'il avait été choisi par le bouton « + ». Un message porte un seul fichier.
   function handlePaste(event) {
     const pasted = filesFromPaste(event);
-    if (pasted.length === 0) return; // du texte : collage normal
+    if (pasted.length === 0) return;
     event.preventDefault();
     const accepted = pasted.find((f) => PASTE_ACCEPTED_TYPES.includes(f.type));
     if (!accepted) {
@@ -125,7 +116,6 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
     if (pasted.length > 1) notifyInfo(`Un seul fichier par message : « ${accepted.name} » a été joint.`);
   }
 
-  // Fichier audio choisi via l'enregistreur natif (repli quand le micro web est bloqué en HTTP).
   function pickAudio(event) {
     const selected = event.target.files?.[0];
     if (selected) setFile(selected);
@@ -133,19 +123,12 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
   }
 
   async function startRecording() {
-    // Sur mobile, on passe toujours par l'enregistreur natif du téléphone
-    // (<input type="file" accept="audio/*" capture>) : il gère la permission micro de
-    // façon fiable, y compris en PWA/standalone où getUserMedia est souvent bloqué (iOS).
     const isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     if (isMobile) {
       if (audioRef.current) audioRef.current.click();
       return;
     }
-    // Desktop : le micro web (getUserMedia) exige un contexte sécurisé (HTTPS ou localhost).
-    // En HTTP sur une IP réseau, il est indisponible.
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      // Sur ordinateur, l'enregistrement est impossible en HTTP : on l'explique clairement
-      // au lieu d'ouvrir un simple import de fichier.
       notifyInfo(
         'Pour enregistrer un message vocal en HTTP sur ordinateur, autorise le micro pour cette adresse : ' +
           "chrome://flags/#unsafely-treat-insecure-origin-as-secure → ajoute l'URL du site → Relaunch. " +
@@ -221,9 +204,6 @@ function MessageComposer({ value, onChange, onSend, disabled, placeholder, onCre
           <div className="msgr-composer-row">
           <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,application/pdf,.doc,.docx,.xls,.xlsx" onChange={pickFile} />
           <input ref={audioRef} type="file" hidden accept="audio/*" capture onChange={pickAudio} />
-          {/* Un seul « + » regroupe fichier, photo, vocal et sondage : quatre icônes alignées
-              mangeaient la largeur du champ de saisie, surtout sur mobile. L'emoji reste
-              dehors — c'est le seul qu'on utilise en cours de frappe, sans quitter le texte. */}
           <div className="msgr-tools-anchor" ref={toolsRef}>
             <button
               type="button"

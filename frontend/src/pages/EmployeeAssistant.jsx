@@ -37,8 +37,6 @@ function EmployeeAssistant() {
       .catch(() => setHistory([]));
   }, []);
 
-  // Plein écran mobile : masque l'en-tête de l'app tant qu'on est sur le chatbot (bouton
-  // retour dans l'en-tête interne pour revenir). Retiré à la sortie de la page.
   useEffect(() => {
     document.body.classList.add('chat-fullscreen');
     return () => document.body.classList.remove('chat-fullscreen');
@@ -155,7 +153,6 @@ function EmployeeAssistant() {
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
               onKeyDown={(e) => {
-                // Entrée = envoyer, Maj+Entrée = nouvelle ligne.
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
                   submit(e);

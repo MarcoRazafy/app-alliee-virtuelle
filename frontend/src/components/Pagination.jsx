@@ -1,7 +1,5 @@
 import { paginationRange, GAP } from '../utils/paginationRange';
 
-// `options` : liste de tailles de page. Un item peut être un nombre (ex. 10) ou
-// { value, label } — utiliser value=Infinity pour « Toutes ».
 function Pagination({
   page,
   totalItems,
@@ -20,8 +18,6 @@ function Pagination({
     window.scrollTo({ top: 0 });
   }
 
-  // Fenêtre de numéros au lieu de la liste complète : avec 146 tâches à 10 par page, les
-  // 15 boutons faisaient 856 px de large et débordaient de l'écran d'un téléphone.
   const pages = paginationRange(page, totalPages);
 
   return (
@@ -50,8 +46,6 @@ function Pagination({
           })}
         </select>
 
-        {/* Le libellé cède la place à une flèche sur écran étroit (voir app.css) : sur un
-            téléphone, « Précédent » et « Suivant » coûtent à eux seuls la moitié de la barre. */}
         <button
           className="pagination-btn pagination-btn--step"
           onClick={() => goToPage(page - 1)}
@@ -66,8 +60,6 @@ function Pagination({
 
         {pages.map((item, index) =>
           item === GAP ? (
-            // Un trou n'est pas un bouton : il ne mène nulle part. `index` suffit comme clé,
-            // la liste est recalculée en entier à chaque changement de page.
             // eslint-disable-next-line react/no-array-index-key
             <span key={`gap-${index}`} className="pagination-gap" aria-hidden="true">
               {GAP}

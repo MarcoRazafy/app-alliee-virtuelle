@@ -10,12 +10,6 @@ import { IconChevronLeft, IconChevronRight, IconClock, IconPencil, IconTrash, Ic
 import '../styles/weekly-connections.css';
 import { toDatetimeLocal, datetimeLocalToIso } from '../utils/datetimeLocal';
 
-// Feuille de temps hebdomadaire : une ligne par employé, une colonne par jour, façon ClickUp.
-// Le serveur renvoie déjà les 7 dates de la semaine et le temps par jour ; ce composant ne
-// fait que naviguer et mettre en forme.
-
-// Décalage d'une date 'YYYY-MM-DD' en jours, sans passer par les fuseaux : construire un
-// Date depuis la chaîne complète l'interpréterait en UTC et pourrait reculer d'un jour.
 function shiftDate(dateString, days) {
   const [y, m, d] = String(dateString).split('-').map(Number);
   const date = new Date(y, m - 1, d + days);
@@ -28,7 +22,6 @@ function parseLocal(dateString) {
   return new Date(y, m - 1, d);
 }
 
-// « Lun. 7 sept. » — jour abrégé, pour tenir dans une colonne étroite.
 function dayHeader(dateString) {
   const date = parseLocal(dateString);
   const weekday = date.toLocaleDateString('fr-FR', { weekday: 'short' });
@@ -46,8 +39,6 @@ function rangeLabel(days) {
   return `${first.toLocaleDateString('fr-FR', opts)} – ${end}`;
 }
 
-// Valeur attendue par un <input type="datetime-local"> : heure LOCALE, sans fuseau.
-
 function clockDateTime(value) {
   if (!value) return '—';
   const d = new Date(value);
@@ -55,9 +46,6 @@ function clockDateTime(value) {
   return d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-// Nom compact pour les écrans étroits : « Fahendrena Razafimamonjy » → « Fahendrena R. ».
-// Couper simplement à l'ellipse donnerait « Fahendrena Razafi… », qui occupe la même place
-// sans rien apprendre de plus ; l'initiale suffit à distinguer deux homonymes de prénom.
 function shortName(name) {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean);
   if (parts.length < 2) return name || '';
@@ -73,16 +61,11 @@ function initialsOf(name) {
     .join('');
 }
 
-// Photo de profil, initiales en repli. Le blob est chargé une seule fois par personne et
-// libéré au démontage : sans cela, changer de semaine fuirait un objectURL par employé.
 function Avatar({ employee, url }) {
   if (url) return <img src={url} alt="" className="wkc-avatar wkc-avatar--img" />;
   return <span className="wkc-avatar">{initialsOf(employee.full_name) || '?'}</span>;
 }
 
-// `readOnly` : version employé — la grille se consulte, une cellule ne s'y corrige pas.
-// Les routes de correction restent de toute façon réservées aux admins ; masquer l'action
-// évite seulement d'en proposer une qui serait refusée.
 export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = false }) {
   const [weekStart, setWeekStart] = useState(() => businessDayNow());
   const [data, setData] = useState(null);
@@ -91,8 +74,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
   const load = useCallback(async (dateInWeek) => {
     setLoading(true);
     try {
-      // Le serveur ramène toujours au lundi de la semaine demandée : on peut donc lui
-      // envoyer une date quelconque, y compris celle choisie dans le sélecteur.
       const result = await statsService.getWeeklyConnections(dateInWeek);
       setData(result);
       setWeekStart(result.week_start_date);
@@ -107,8 +88,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
     load(businessDayNow());
   }, [load]);
 
-  // Photos de profil : une requête par personne, mémorisée d'une semaine à l'autre puisque
-  // ce sont les mêmes employés. Les objectURL sont libérés au démontage du composant.
   const [avatarUrls, setAvatarUrls] = useState({});
   const fetchedRef = useRef(new Set());
   const urlsRef = useRef({});
@@ -138,7 +117,7 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
         if (mountedRef.current) setAvatarUrls((cur) => ({ ...cur, [id]: url }));
         else URL.revokeObjectURL(url);
       } catch {
-        fetchedRef.current.delete(id); // autorise une nouvelle tentative
+        fetchedRef.current.delete(id);
       }
     });
   }, [data]);
@@ -147,20 +126,15 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
   const employees = data?.employees || [];
   const today = businessDayNow();
 
-  // Correction d'une cellule : les sessions RÉELLES de cette personne ce jour-là. Une cellule
-  // est une somme, pas un enregistrement — on corrige donc les sessions qui la composent,
-  // plutôt que de laisser saisir un total qui ne correspondrait à rien en base.
-  const [cell, setCell] = useState(null); // { employee, day }
+  const [cell, setCell] = useState(null);
   const [cellSessions, setCellSessions] = useState([]);
   const [cellLoading, setCellLoading] = useState(false);
-  const [editingSession, setEditingSession] = useState(null); // { id, login, logout }
+  const [editingSession, setEditingSession] = useState(null);
   const [savingSession, setSavingSession] = useState(false);
 
   const loadCellSessions = useCallback(async (employee, day) => {
     setCellLoading(true);
     try {
-      // On part de la veille : une connexion de nuit commence le jour précédent et compte
-      // pourtant sur cette journée de travail.
       const rows = await sessionService.getUserSessionsAdmin(employee.id, {
         start: shiftDate(day, -1),
         end: day,
@@ -210,7 +184,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
     }
   }
 
-  // Total de l'équipe par jour : la ligne de pied donne la charge réelle de chaque journée.
   const dayTotals = useMemo(() => {
     const totals = {};
     days.forEach((day) => {
@@ -251,8 +224,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
             <IconChevronRight />
           </button>
 
-          {/* Aller directement à n'importe quelle semaine : la date choisie n'a pas besoin
-              d'être un lundi, le serveur ramène à la semaine qui la contient. */}
           <label className="wkc-jump" title="Aller à une semaine">
             <input
               type="date"
@@ -278,8 +249,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
           <thead>
             <tr>
               <th className="wkc-th-name">
-                {/* Côté employé la grille ne contient que lui : compter les « personnes »
-                    n'aurait aucun sens. */}
                 {employees.length === 1 ? 'Ma semaine' : `Personnes (${employees.length})`}
               </th>
               {days.map((day) => {
@@ -306,7 +275,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
               employees.map((employee) => (
                 <tr key={employee.id}>
                   <th scope="row" className="wkc-td-name">
-                    {/* Toute l'identité ouvre le relevé détaillé de la personne. */}
                     <button
                       type="button"
                       className="wkc-person-btn"
@@ -314,10 +282,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
                       title={`Voir le relevé de temps de ${employee.full_name}`}
                     >
                       <Avatar employee={employee} url={avatarUrls[employee.id]} />
-                      {/* Les deux formes coexistent, la CSS choisit selon la largeur : un
-                          basculement en JS demanderait d'écouter le redimensionnement pour
-                          un simple détail d'affichage. La version courte est masquée aux
-                          lecteurs d'écran, qui doivent entendre le nom entier. */}
                       <span className="wkc-name wkc-name--full">{employee.full_name}</span>
                       <span className="wkc-name wkc-name--short" aria-hidden="true">
                         {shortName(employee.full_name)}
@@ -365,7 +329,6 @@ export default function WeeklyConnectionsTable({ onOpenEmployee, readOnly = fals
             )}
           </tbody>
 
-          {/* Le total d'équipe répéterait mot pour mot l'unique ligne : on l'omet. */}
           {employees.length > 1 && (
             <tfoot>
               <tr>

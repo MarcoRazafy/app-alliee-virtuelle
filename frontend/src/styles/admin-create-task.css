@@ -1,6 +1,3 @@
-/* Page « Créer une tâche » — même langage visuel que la fiche détail (grille de propriétés).
-   Réutilise les classes .tk-* (task-detail.css) ; ce fichier n'ajoute que le spécifique création. */
-
 .tk-create {
   max-width: 1000px;
   margin: 0 auto;
@@ -14,7 +11,6 @@
   box-shadow: var(--card-shadow);
 }
 
-/* En-tête : fil d'Ariane + grand titre éditable (comme le titre de la fiche). */
 .tk-create-head {
   margin-bottom: 4px;
 }
@@ -44,7 +40,6 @@
   background: var(--input-bg);
 }
 
-/* Client : deux champs côte à côte. */
 .tk-create-client {
   gap: 8px;
 }
@@ -53,7 +48,6 @@
   min-width: 150px;
 }
 
-/* Cascade projet : Espace / Dossier / Liste (responsive). */
 .tk-create-cascade {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -80,11 +74,6 @@
   min-width: 0;
 }
 
-/* ============================================================================
-   Sélecteur d'assignés (people picker) : recherche + cartes avec avatar.
-   ============================================================================ */
-
-/* Avatar réutilisable : photo ou initiales sur fond dégradé. */
 .tk-person-avatar {
   position: relative;
   flex-shrink: 0;
@@ -118,7 +107,6 @@
   font-size: 10px;
 }
 
-/* Conteneur du panneau : en-tête (recherche + compteur) au-dessus de la grille. */
 .tk-assign-box {
   border: 1px solid var(--color-border);
   border-radius: 14px;
@@ -209,7 +197,6 @@
   text-decoration: underline;
 }
 
-/* Grille des cartes. */
 .tk-create-assign-panel {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
@@ -219,7 +206,6 @@
   overflow-y: auto;
 }
 
-/* Carte sélectionnable : avatar + nom + poste + coche. */
 .tk-person-card {
   display: flex;
   align-items: center;
@@ -269,7 +255,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Coche : discrète (cercle vide) au repos, pleine et accent quand sélectionnée. */
 .tk-person-check {
   flex-shrink: 0;
   display: inline-flex;
@@ -292,8 +277,6 @@
   transform: scale(1.06);
 }
 
-/* Puces sélectionnées (au-dessus du panneau) : pastilles retirables.
-   Le :has() ne cible que les puces du formulaire de création (elles ont un bouton retirer). */
 .tk-assignee-chip:has(.tk-assignee-remove) {
   gap: 7px;
   padding: 4px 8px 4px 4px;
@@ -323,12 +306,10 @@
   height: 12px;
 }
 
-/* Description : un peu d'air au-dessus du bloc. */
 .tk-create-desc {
   margin-top: 14px;
 }
 
-/* --- Variante MODALE (employé : « Proposer une tâche ») : mêmes .tk-* sans la carte --- */
 .modal-card--task {
   max-width: 600px;
 }
@@ -337,7 +318,6 @@
   flex-direction: column;
   gap: 4px;
 }
-/* Dans la modale (étroite), une seule colonne pour que chaque propriété respire. */
 .tk-create-modal-form .tk-props {
   grid-template-columns: 1fr;
 }
@@ -346,8 +326,6 @@
   max-width: 440px;
 }
 
-/* Liste des pièces jointes en attente (partagée admin + employé, car la modale employé
-   ne charge pas admin.css). Mêmes styles que admin.css. */
 .create-attach-hint {
   display: block;
   margin-top: 8px;

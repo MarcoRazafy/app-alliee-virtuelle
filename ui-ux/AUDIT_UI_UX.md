@@ -14,7 +14,7 @@ Audit réalisé le 18 juillet 2026 à partir de :
 - « Suivi en temps réel » en 1440 × 1100 et 390 × 844 ;
 - « Ma journée » employé en 1440 × 1100 ;
 - la structure React, les composants et les feuilles de styles du frontend ;
-- la grille de contrôle UI/UX Pro Max : accessibilité, interaction, responsive, typographie, couleur, mouvement et performance.
+- une grille de contrôle UI/UX : accessibilité, interaction, responsive, typographie, couleur, mouvement et performance.
 
 ## Ce qui fonctionne déjà bien
 

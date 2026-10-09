@@ -1,8 +1,3 @@
--- Corbeille de la page Ressources.
---
--- Les suppressions deviennent logiques : les fichiers restent sur disque et
--- les dossiers conservent leur contenu jusqu'à une suppression définitive.
-
 ALTER TABLE resources_folders
   ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;

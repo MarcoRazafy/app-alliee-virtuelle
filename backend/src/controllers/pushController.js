@@ -1,8 +1,6 @@
 const env = require('../config/env');
 const pushModel = require('../models/pushSubscription.model');
 
-// Clé publique VAPID nécessaire au navigateur pour créer un abonnement (PushManager.subscribe).
-// Non secrète : peut être exposée. Renvoie null si le push n'est pas configuré côté serveur.
 function getPublicKey(req, res) {
   res.status(200).json({ publicKey: env.vapidPublicKey || null });
 }

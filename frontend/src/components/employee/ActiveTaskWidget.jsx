@@ -6,8 +6,6 @@ import { formatClock } from '../../utils/formatters';
 import { IconClock } from '../icons';
 import '../../styles/active-task-widget.css';
 
-// Widget « tâche en cours » figé en haut de l'espace employé : rappelle la tâche dont le
-// chrono tourne + le temps écoulé (en rouge). Cliquer ouvre la tâche. Rien si aucun chrono.
 export default function ActiveTaskWidget() {
   const navigate = useNavigate();
   const [active, setActive] = useState(null);
@@ -24,14 +22,11 @@ export default function ActiveTaskWidget() {
       .catch(() => {});
   }
 
-  // Rafraîchit la tâche active : au montage, en polling de secours, au retour sur l'onglet,
-  // et en temps réel quand un chrono démarre/s'arrête (event notification:new).
   useEffect(() => {
     refresh();
     const poll = window.setInterval(refresh, 15000);
     const onFocus = () => refresh();
     window.addEventListener('focus', onFocus);
-    // Rafraîchissement immédiat quand on démarre/arrête un chrono dans cet onglet.
     window.addEventListener('timelog:changed', refresh);
 
     const socket = getSocket();
@@ -48,7 +43,6 @@ export default function ActiveTaskWidget() {
     };
   }, []);
 
-  // Met à jour le temps écoulé chaque seconde à partir de l'heure de début du chrono.
   useEffect(() => {
     if (!active) {
       setElapsed(0);

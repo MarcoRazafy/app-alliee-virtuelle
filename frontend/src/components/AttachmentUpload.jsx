@@ -6,22 +6,16 @@ import useAuthStore from '../store/authStore';
 import { IconFileText, IconEye, IconDownload, IconTrash, IconPaperclip } from './icons';
 import MediaPreview from './MediaPreview';
 
-// Ce que la visionneuse affiche directement ; le reste y est présenté avec un bouton Télécharger.
 const PREVIEWABLE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf'];
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
-// `hideTrigger` + `inputId` : le bouton d'upload interne est masqué et le champ fichier
-// (caché) est déclenché par un <label htmlFor={inputId}> rendu ailleurs (ex. le libellé
-// « Pièces jointes » de la fiche détail).
 function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
   const currentUser = useAuthStore((state) => state.user);
-  // Un admin gère tout ; un employé ne retire que ses propres envois (le serveur le revérifie).
   const canDelete = (attachment) =>
     canUpload && (currentUser?.role === 'ADMIN' || attachment.uploaded_by === currentUser?.id);
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
-  // Aperçu plein écran : { url, type, name, attachment }.
   const [preview, setPreview] = useState(null);
 
   const loadAttachments = useCallback(async () => {
@@ -59,8 +53,6 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
     }
   }
 
-  // Image ou PDF : affiché dans la visionneuse de l'application, sans en sortir.
-  // Autres formats : ouverts dans un nouvel onglet, comme avant (le navigateur décide).
   async function handleView(attachment) {
     if (PREVIEWABLE_TYPES.includes(attachment.file_type)) {
       try {
@@ -71,9 +63,6 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
       }
       return;
     }
-    // Word, Excel… : un navigateur ne sait pas les afficher. Plutôt qu'un nouvel onglet (qui
-    // téléchargeait le fichier en faisant sortir de l'application), la fenêtre de l'application
-    // présente le fichier et propose de le télécharger. Rien à charger d'avance.
     setPreview({ url: null, type: attachment.file_type, name: attachment.file_name, size: attachment.file_size, attachment });
   }
 
@@ -104,7 +93,6 @@ function AttachmentUpload({ taskId, canUpload, inputId, hideTrigger = false }) {
 
   return (
     <div>
-      {/* Déclencheur externe : input fichier caché, activé par un <label htmlFor={inputId}>. */}
       {canUpload && hideTrigger && (
         <input
           id={inputId}

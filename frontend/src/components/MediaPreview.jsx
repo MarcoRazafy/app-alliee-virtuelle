@@ -4,19 +4,6 @@ import { IconDownload, IconFileText, IconX } from './icons';
 import { formatBytes } from '../utils/formatters';
 import '../styles/media-preview.css';
 
-// Visionneuse plein écran d'une image (ou d'un PDF) jointe : commentaires, pièces jointes de
-// tâche, messagerie, documents, annonces. Elle remplace l'ouverture dans un nouvel onglet,
-// qui faisait sortir de l'application.
-//
-// - `url` : adresse déjà chargée (objectURL d'un Blob, en général) ;
-// - `type` : type MIME. Image → affichée ; PDF → dans un cadre ; autre format (Word, Excel…)
-//   → fiche du fichier avec un bouton Télécharger : un navigateur ne sait pas les afficher,
-//   et les ouvrir dans un onglet faisait quand même sortir de l'application ;
-// - `size` : facultatif, taille en octets affichée sur la fiche ;
-// - `onDownload` : facultatif, affiche le bouton de téléchargement.
-//
-// Rendue dans <body> par un portail : elle passe au-dessus de toute fenêtre ouverte (fiche de
-// tâche en surimpression, visionneuse de document) sans en dépendre.
 export function isPreviewableInApp(type) {
   return isImage(type) || type === 'application/pdf';
 }
@@ -27,8 +14,6 @@ function isImage(type) {
 
 export default function MediaPreview({ url, type, name, size, onClose, onDownload }) {
   useEffect(() => {
-    // Échap ne ferme QUE la visionneuse : écouté en phase de capture sur window, avant les
-    // raccourcis de la page — sinon la fiche de tâche ouverte derrière se fermerait aussi.
     function onKey(event) {
       if (event.key !== 'Escape') return;
       event.stopPropagation();
@@ -36,7 +21,6 @@ export default function MediaPreview({ url, type, name, size, onClose, onDownloa
       onClose();
     }
     window.addEventListener('keydown', onKey, true);
-    // La page derrière ne défile pas pendant l'aperçu.
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -64,7 +48,6 @@ export default function MediaPreview({ url, type, name, size, onClose, onDownloa
           <IconX />
         </button>
       </div>
-      {/* Un clic à côté de l'image ferme ; un clic SUR l'image ne ferme pas. */}
       <div className="media-preview-stage">
         {isPdf ? (
           <iframe className="media-preview-pdf" src={url} title={name || 'PDF'} onClick={stop} />

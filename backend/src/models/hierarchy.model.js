@@ -1,7 +1,5 @@
 const db = require('../config/database');
 
-// --- Spaces ---
-
 async function findAllSpaces() {
   const result = await db.query(
     `SELECT id, name, description, created_by, created_at
@@ -52,8 +50,6 @@ async function deleteSpace(id, deletedBy) {
   );
   return result.rows[0] || null;
 }
-
-// --- Folders ---
 
 async function findFoldersBySpace(spaceId) {
   const result = await db.query(
@@ -107,8 +103,6 @@ async function deleteFolder(id, deletedBy) {
   return result.rows[0] || null;
 }
 
-// --- Lists ---
-
 async function findListsByFolder(folderId) {
   const result = await db.query(
     `SELECT id, folder_id, name, created_at
@@ -155,8 +149,6 @@ async function deleteList(id, deletedBy) {
   );
   return result.rows[0] || null;
 }
-
-// --- Arbre complet : spaces -> folders -> lists (+ nombre de tâches par liste) ---
 
 async function getTree() {
   const result = await db.query(`

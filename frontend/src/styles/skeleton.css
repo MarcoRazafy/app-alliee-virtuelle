@@ -1,5 +1,3 @@
-/* Skeleton loaders : blocs gris animés (shimmer), thème-aware via les tokens partagés. */
-
 .skeleton {
   display: block;
   flex-shrink: 0;
@@ -22,7 +20,6 @@
   .skeleton { animation: none; }
 }
 
-/* --- Compositions --- */
 .pgsk {
   display: flex;
   flex-direction: column;

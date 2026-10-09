@@ -7,7 +7,6 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// Routes statiques avant /:id pour éviter que 'unread' soit pris pour un id.
 router.get('/announcements/unread', controller.getUnread);
 router.get('/announcements', controller.listAnnouncements);
 router.post('/announcements', authMiddleware.requireRole('ADMIN'), handleSingleUpload, controller.createAnnouncement);

@@ -2,7 +2,6 @@ const db = require('../config/database');
 const taskModel = require('./task.model');
 const { getWeekDates, formatDbDate } = require('../utils/planningDates');
 
-// Réutilise la fonction d'audit déjà utilisée par le module tâches (table audit_log).
 const recordAudit = taskModel.recordAudit;
 
 function timeToMinutes(timeString) {
@@ -10,7 +9,6 @@ function timeToMinutes(timeString) {
   return hours * 60 + minutes;
 }
 
-// Total d'heures disponibles sur un ensemble de jours (utilisé côté employé et admin).
 function computeTotalHours(days) {
   let totalMinutes = 0;
   for (const day of days) {
@@ -21,7 +19,6 @@ function computeTotalHours(days) {
   return Math.round((totalMinutes / 60) * 100) / 100;
 }
 
-// Squelette des 7 jours d'une semaine sans planning existant : days vides côté API/UI.
 function buildEmptyWeekDays(weekStartDate) {
   return getWeekDates(weekStartDate).map((date) => ({
     id: null,
@@ -111,7 +108,6 @@ async function fullSnapshot(planningId, client = db) {
   };
 }
 
-// Remplace intégralement les jours/plages d'un planning (transaction fournie par l'appelant).
 async function replacePlanningDays(client, planningId, days) {
   await client.query('DELETE FROM planning_days WHERE planning_id = $1', [planningId]);
 
@@ -274,8 +270,6 @@ async function findActiveEmployees() {
   return result.rows;
 }
 
-// Détail jour par jour d'une semaine (pour l'assistant IA) : une ligne par (employé, jour)
-// avec la disponibilité et les créneaux horaires. Une seule requête pour toute la semaine.
 async function listDayAvailabilityForWeek(weekStartDate) {
   const result = await db.query(
     `SELECT u.full_name, pd.planning_date, pd.availability_status,
@@ -298,7 +292,6 @@ async function listDayAvailabilityForWeek(weekStartDate) {
   return result.rows;
 }
 
-// Disponibilité déclarée d'un jour donné, par utilisateur (page présence) : statut + créneaux.
 async function findDayAvailabilityByUserForDate(dateString) {
   const result = await db.query(
     `SELECT wp.user_id, pd.availability_status,
@@ -318,8 +311,6 @@ async function findDayAvailabilityByUserForDate(dateString) {
   return result.rows;
 }
 
-// Même projection que ci-dessus, mais bornée à un employé et une période pour la
-// fiche statistique mensuelle de présence.
 async function findDayAvailabilityForUserRange(userId, startDate, endDate) {
   const result = await db.query(
     `SELECT pd.planning_date, pd.availability_status,
@@ -432,7 +423,6 @@ async function countAvailableToday(dateString) {
   return result.rows[0].total;
 }
 
-// Inclut les employés actifs sans aucun enregistrement weekly_plannings pour la semaine donnée.
 async function findNonSubmittedEmployees(weekStartDate) {
   const result = await db.query(
     `SELECT u.id AS user_id, u.full_name, u.position, wp.id AS planning_id, wp.status, wp.submitted_at
@@ -446,7 +436,6 @@ async function findNonSubmittedEmployees(weekStartDate) {
   return result.rows;
 }
 
-// Un employé est disponible seulement si une de ses plages couvre entièrement la période demandée.
 async function findAvailableEmployees({ date, startTime, endTime }) {
   const result = await db.query(
     `SELECT DISTINCT u.id AS user_id, u.full_name, u.position

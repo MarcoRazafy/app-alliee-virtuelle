@@ -163,7 +163,6 @@ function Profile() {
     try {
       const [profileResponse, statsResponse] = await Promise.allSettled([
         api.get('/api/auth/me'),
-        // Journées de TRAVAIL (fin à 2 h du matin), comme le regroupement côté serveur.
         statsService.getMyStats(businessDayShifted(-29), businessDayNow()),
       ]);
 

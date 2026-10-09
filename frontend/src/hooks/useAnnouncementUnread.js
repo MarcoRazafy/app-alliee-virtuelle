@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import * as announcementService from '../services/announcementService';
 import { getSocket } from '../services/socket';
 
-// Compteur d'annonces non lues + dernière annonce non lue (pastille & popup). Se rafraîchit
-// en temps réel (event announcement:new) + polling de secours.
 export default function useAnnouncementUnread() {
   const [unread, setUnread] = useState(0);
   const [latest, setLatest] = useState(null);

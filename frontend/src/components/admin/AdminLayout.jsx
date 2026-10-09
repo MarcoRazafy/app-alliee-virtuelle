@@ -36,8 +36,6 @@ import ConnectionChrono from '../employee/ConnectionChrono';
 import '../../styles/app.css';
 import '../../styles/layout.css';
 
-// Navigation : liens simples + deux liens "parents" repliables (accordéon).
-// Un parent (children) ne mène à aucune page : cliquer déplie/replie ses sous-éléments.
 const NAV_ITEMS = [
   { to: '/admin', label: "Vue d'ensemble", subtitle: "Activité de l'équipe en direct", icon: IconWorkspace, end: true },
   {
@@ -66,11 +64,8 @@ const NAV_ITEMS = [
   { to: '/admin/profile', label: 'Admin Profil', subtitle: 'Vos informations', icon: IconUser },
 ];
 
-// Feuilles navigables aplaties : sert à résoudre le titre d'en-tête et la recherche.
 const FLAT_ITEMS = NAV_ITEMS.flatMap((item) => (item.children ? item.children : [item]));
 
-// Pages accessibles sans entrée de menu dédiée : on leur donne quand même un
-// titre/sous-titre d'en-tête cohérent (sinon le header retomberait sur le 1er item).
 const EXTRA_TITLES = {
   '/admin/create-task': { label: 'Créer une tâche', subtitle: 'Nouvelle tâche à assigner' },
   '/admin/late': { label: 'Tâches en retard', subtitle: 'Tâches dont l’échéance est dépassée' },
@@ -78,7 +73,6 @@ const EXTRA_TITLES = {
   '/admin/assistant': { label: 'Assistant IA', subtitle: 'Analyse et recommandations' },
 };
 
-// Groupes à déplier automatiquement selon la page active.
 function activeGroups(pathname) {
   const open = {};
   NAV_ITEMS.forEach((item) => {
@@ -110,15 +104,12 @@ function AdminLayout({ children }) {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
-  // Déplie automatiquement le groupe dont une page enfant devient active,
-  // sans refermer ceux que l'utilisateur a déjà ouverts manuellement.
   useEffect(() => {
     setOpenMenus((prev) => ({ ...prev, ...activeGroups(location.pathname) }));
   }, [location.pathname]);
 
   useEffect(() => {
     function loadBadges() {
-      // "À valider" regroupe les tâches Déclarée (à valider par l'admin) et Terminée (à confirmer)
       Promise.all([taskService.getTasks({ status: 'DECLAREE' }), taskService.getTasks({ status: 'TERMINEE' })]).then(
         ([declared, done]) => {
           setBadges((prev) => ({ ...prev, toValidate: declared.length + done.length }));
@@ -133,7 +124,6 @@ function AdminLayout({ children }) {
     }
     loadBadges();
     const poll = setInterval(loadBadges, 15000);
-    // Nouvel email en temps réel → rafraîchit le compteur non-lus tout de suite.
     const socket = getSocket();
     const onMail = () => loadBadges();
     socket.on('mail:new', onMail);
@@ -195,8 +185,6 @@ function AdminLayout({ children }) {
     navigate('/login');
   }
 
-  // Valeur du badge pour une entrée : les annonces viennent du hook temps réel,
-  // le reste (à valider / demandes) de l'API.
   function badgeValueFor(badgeKey) {
     if (!badgeKey) return 0;
     if (badgeKey === 'announcements') return announcementUnread;
@@ -245,7 +233,6 @@ function AdminLayout({ children }) {
 
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => {
-            // Lien simple
             if (!item.children) {
               const { to, label, icon: Icon, end, badgeKey } = item;
               const isActive = end ? location.pathname === to : location.pathname.startsWith(to);
@@ -259,11 +246,8 @@ function AdminLayout({ children }) {
               );
             }
 
-            // Lien parent repliable (accordéon)
             const { label, icon: Icon, children } = item;
             const isOpen = !!openMenus[label];
-            // Quand le groupe est replié, on agrège les badges des enfants pour ne
-            // pas masquer une notification en attente.
             const collapsedBadge = children.reduce((sum, c) => sum + badgeValueFor(c.badgeKey), 0);
 
             return (

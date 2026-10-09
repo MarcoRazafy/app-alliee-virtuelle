@@ -1,6 +1,3 @@
-// Railway n'a pas d'egress IPv6 : on préfère l'IPv4 pour les connexions sortantes (ex. SMTP
-// Gmail, sinon connect ENETUNREACH sur une adresse IPv6). Sans effet sur les hôtes internes
-// IPv6-only (ne fait que réordonner quand IPv4 ET IPv6 existent). À définir tôt, avant tout réseau.
 require('dns').setDefaultResultOrder('ipv4first');
 
 const http = require('http');
@@ -12,21 +9,12 @@ const { initObservability, captureError } = require('./config/observability');
 const sessionModel = require('./models/session.model');
 const imapService = require('./services/imap.service');
 
-// Monitoring d'erreurs optionnel (inerte sans SENTRY_DSN — voir config/observability.js).
 initObservability();
 
-// Serveur HTTP explicite pour héberger à la fois Express (REST) et Socket.IO (WebSockets).
 const server = http.createServer(app);
-// Node coupe par défaut toute requête qui dure plus de 5 minutes (requestTimeout). Les vidéos
-// des ressources n'ont pas de limite de taille : leur import, sur une connexion ordinaire,
-// dépasse vite cette durée et échouait à coup sûr. On lève donc ce plafond.
-// headersTimeout reste en place (60 s) : c'est lui qui protège contre les connexions qui
-// envoient leurs en-têtes au compte-gouttes pour occuper le serveur.
 server.requestTimeout = 0;
 initRealtime(server);
 
-// Les rejets de promesse non gérés ne doivent pas passer inaperçus : on les journalise et on
-// les remonte au monitoring (sans faire crasher le process, contrairement à uncaughtException).
 process.on('unhandledRejection', (reason) => {
   console.error('Rejet de promesse non géré :', reason);
   captureError(reason instanceof Error ? reason : new Error(String(reason)));
@@ -36,11 +24,8 @@ server.listen(env.port, () => {
   console.log(`API démarrée sur http://localhost:${env.port} (REST + WebSocket)`);
 });
 
-// Boîte mail entrante : connexion IMAP + écoute des nouveaux mails (inerte sans IMAP_USER/PASS).
 imapService.start();
 
-// Nettoyage autonome des navigateurs fermés : présence et tâche sont clôturées
-// même si aucun utilisateur ne rouvre l'application et si aucun admin ne consulte la page.
 const presenceCleanupTimer = setInterval(() => {
   sessionModel.expireStaleSessions().catch((err) => {
     console.error('Impossible de nettoyer les sessions de présence expirées', err);
@@ -48,9 +33,6 @@ const presenceCleanupTimer = setInterval(() => {
 }, env.presenceCleanupIntervalSeconds * 1000);
 presenceCleanupTimer.unref();
 
-// Arrêt propre : les plateformes managées (Railway/Render/Fly…) envoient SIGTERM à chaque
-// redéploiement. On cesse d'accepter de nouvelles connexions, on attend la fin des requêtes
-// en cours, puis on ferme le pool PostgreSQL — avec un filet de sécurité si des sockets traînent.
 let shuttingDown = false;
 function shutdown(signal) {
   if (shuttingDown) return;
@@ -69,7 +51,6 @@ function shutdown(signal) {
     process.exit(0);
   });
 
-  // Filet de sécurité : si des connexions (ex. WebSocket) empêchent la fermeture, on force la sortie.
   setTimeout(() => {
     console.error('Arrêt forcé après délai de grâce.');
     process.exit(1);

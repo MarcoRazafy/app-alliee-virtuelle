@@ -13,11 +13,8 @@ function initialsOf(name, address) {
   return src.slice(0, 2).toUpperCase();
 }
 
-// Corps d'un email rendu dans une iframe sandbox : aucun script ne s'exécute et les images
-// distantes (traceurs) sont bloquées par défaut via une CSP, tant qu'on ne les autorise pas.
 function EmailBody({ email }) {
   const iframeRef = useRef(null);
-  // Images distantes affichées automatiquement (le script reste bloqué par la sandbox).
   const [showImages, setShowImages] = useState(true);
 
   const html = email.body_html;
@@ -56,7 +53,6 @@ function EmailBody({ email }) {
       const h = iframe.contentDocument?.body?.scrollHeight;
       if (h) iframe.style.height = `${h + 24}px`;
     } catch {
-      /* accès inter-origine impossible : on garde la hauteur par défaut */
     }
   }
 

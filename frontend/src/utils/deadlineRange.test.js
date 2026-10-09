@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { matchesPeriod, periodBounds, toYMD } from './deadlineRange.js';
 
-// Mercredi 10 septembre 2026. Figé : les bornes ne doivent pas dépendre du jour du test.
 const MERCREDI = new Date(2026, 8, 10);
 
 test('la période « jour » se limite à aujourd’hui', () => {
@@ -20,7 +19,6 @@ test('la semaine va du lundi au dimanche', () => {
 });
 
 test('un dimanche appartient à la semaine qui vient de s’écouler, pas à la suivante', () => {
-  // getDay() rend 0 le dimanche : sans correction, le lundi calculé serait le lendemain.
   const dimanche = new Date(2026, 8, 13);
   assert.deepEqual(periodBounds('week', dimanche), { from: '2026-09-07', to: '2026-09-13' });
 });

@@ -39,7 +39,6 @@ import MediaPreview from '../MediaPreview';
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
 
-// Carte sondage affichée dans une bulle : options + barres + %, clic pour voter/retirer.
 function PollBubble({ poll, onVote }) {
   const total = poll.total_voters || 0;
   return (
@@ -99,9 +98,6 @@ function ProfileAvatar({ name, avatarUrl, className = '' }) {
   );
 }
 
-// Avatar + nom d'une conversation, rendus dans un lien vers la fiche complète de la personne
-// quand c'est permis, et tels quels sinon. La fiche vit sous /admin/users/:id : un employé y
-// serait refoulé, donc pour lui l'en-tête reste volontairement inerte.
 function PeerIdentityLink({ href, label, className, children }) {
   if (!href) return children;
   return (
@@ -129,7 +125,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   const [activeChannel, setActiveChannel] = useState('global');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobilePanel, setMobilePanel] = useState('list');
-  // Onglet de liste : 'all' | 'unread' | 'members' | 'groups'
   const [listFilter, setListFilter] = useState('all');
 
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -153,13 +148,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   const [sending, setSending] = useState(false);
   const [pinnedMemberIds, setPinnedMemberIds] = useState([]);
 
-  // Actions sur message + panneau profil
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [panelSearch, setPanelSearch] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [reactPickerId, setReactPickerId] = useState(null);
-  // Sondage (création)
   const [pollOpen, setPollOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -171,13 +164,12 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   const groupAvatarFetchedRef = useRef(new Set());
   const [groupPhoto, setGroupPhoto] = useState(null);
 
-  // Gestion de groupe : renommage inline, ajout de membres (modale), transfert de message (modale).
   const [groupRenaming, setGroupRenaming] = useState(false);
   const [groupRenameValue, setGroupRenameValue] = useState('');
   const [addMembersOpen, setAddMembersOpen] = useState(false);
   const [addMemberIds, setAddMemberIds] = useState([]);
   const [forwardMessageId, setForwardMessageId] = useState(null);
-  const [forwardTarget, setForwardTarget] = useState(null); // { type:'global'|'private'|'group', id }
+  const [forwardTarget, setForwardTarget] = useState(null);
   const groupPhotoInputRef = useRef(null);
 
   const pinStorageKey = user?.id ? `alliee.messaging.pins.${user.id}` : null;
@@ -243,7 +235,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Statut en ligne : rafraîchi périodiquement.
   useEffect(() => {
     const interval = window.setInterval(() => {
       messageService.getOnlineUsers().then((ids) => setOnlineUserIds(new Set(ids))).catch(() => {});
@@ -293,7 +284,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       try {
         const data = await messageService.getGlobalMessages();
         setGlobalMessages(data);
-      } catch { /* silencieux */ }
+      } catch {}
     }, 15000);
     return () => window.clearInterval(interval);
   }, [activeChannel]);
@@ -305,7 +296,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       try {
         const data = await messageService.getPrivateMessages(otherUserId);
         setConversationMessages(data);
-      } catch { /* silencieux */ }
+      } catch {}
     }, 15000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,21 +309,16 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       try {
         const data = await messageService.getGroupMessages(groupId);
         setGroupMessages(data);
-      } catch { /* silencieux */ }
+      } catch {}
     }, 15000);
     return () => window.clearInterval(interval);
   }, [activeChannel, openGroup?.id]);
 
-  // Temps réel : à réception d'un nouveau message (WebSocket), on rafraîchit
-  // immédiatement le canal ouvert + les listes (aperçus / non-lus). Le polling
-  // ci-dessus reste en secours (réseau coupé, édition/suppression).
   useEffect(() => {
     const socket = getSocket();
     async function onNewMessage() {
-      // Listes (aperçu du dernier message + compteur de non-lus)
       loadConversations();
       loadGroups();
-      // Messages du canal actuellement ouvert
       const channel = activeChannelRef.current;
       try {
         if (channel === 'global') {
@@ -342,9 +328,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         } else if (channel === 'group' && openGroupRef.current) {
           setGroupMessages(await messageService.getGroupMessages(openGroupRef.current.id));
         }
-      } catch { /* silencieux */ }
+      } catch {}
     }
-    // Un groupe a changé (nom, photo, membres) : on rafraîchit la liste et le groupe ouvert.
     async function onGroupChanged(payload) {
       const data = await loadGroups();
       if (activeChannelRef.current !== 'group' || !openGroupRef.current) return;
@@ -352,13 +337,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       if (fresh) {
         setOpenGroup(fresh);
       } else if (payload?.groupId === openGroupRef.current.id) {
-        // On ne fait plus partie du groupe (retiré) : on ferme.
         setActiveChannel('global');
         setOpenGroup(null);
         setRightPanelOpen(false);
       }
     }
-    // Un groupe a été supprimé : on ferme s'il était ouvert, et on rafraîchit la liste.
     function onGroupDeleted(payload) {
       loadGroups();
       if (openGroupRef.current && payload?.groupId === openGroupRef.current.id) {
@@ -368,7 +351,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       }
     }
     socket.on('message:new', onNewMessage);
-    socket.on('poll:update', onNewMessage); // un vote → rafraîchit les messages (résultats à jour)
+    socket.on('poll:update', onNewMessage);
     socket.on('group:changed', onGroupChanged);
     socket.on('group:deleted', onGroupDeleted);
     return () => {
@@ -493,8 +476,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     return visibleMessages.filter((m) => (m.content || '').toLowerCase().includes(query));
   }, [visibleMessages, panelSearch]);
 
-  // Fiche complète du correspondant, pour l'en-tête et le panneau d'informations. Réservée
-  // à l'admin (la route l'est) et aux conversations privées : un groupe n'a pas de fiche.
   const peerProfileHref =
     isAdmin && activeChannel === 'private' && openConversation?.other_user_id
       ? `/admin/users/${openConversation.other_user_id}`
@@ -517,9 +498,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           : 'Hors ligne';
   const latestGlobalMessage = globalMessages[globalMessages.length - 1];
 
-  // Charge les blobs des pièces jointes image/audio à afficher. Chaque message est traité
-  // indépendamment (pas d'annulation globale) : le polling change la référence du tableau
-  // toutes les quelques secondes, ce qui ne doit jamais interrompre un chargement en cours.
   useEffect(() => {
     const toFetch = visibleMessages.filter(
       (m) => m.has_attachment && (isImageType(m.attachment_type) || isAudioType(m.attachment_type)) && !attachmentFetchedRef.current.has(m.id)
@@ -530,13 +508,11 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
         const url = URL.createObjectURL(await messageService.getAttachmentBlob(m.id));
         setAttachmentUrls((current) => ({ ...current, [m.id]: url }));
       } catch {
-        attachmentFetchedRef.current.delete(m.id); // autoriser une nouvelle tentative
+        attachmentFetchedRef.current.delete(m.id);
       }
     });
   }, [visibleMessages]);
 
-  // Avatars de groupe (blob authentifié), récupérés une fois par groupe, sans annulation
-  // (même raison que pour les pièces jointes : le polling ne doit pas interrompre le chargement).
   useEffect(() => {
     const toFetch = groups.filter((g) => g.has_avatar && !groupAvatarFetchedRef.current.has(g.id));
     toFetch.forEach(async (g) => {
@@ -557,7 +533,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     return () => window.clearTimeout(timer);
   }, [activeChannel, conversationMessages, groupMessages, globalMessages]);
 
-  // Avatar d'un groupe : photo si disponible, sinon icône par défaut.
   function groupAvatarNode(group, className = 'conversation-avatar') {
     const url = group && groupAvatarUrls[group.id];
     if (url) {
@@ -574,7 +549,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     });
   }
 
-  // --- Mise à jour d'un message dans l'état (réaction / édition / suppression) ---
   function replaceMessage(updated) {
     const apply = (list) => list.map((m) => (m.id === updated.id ? { ...m, ...updated } : m));
     setGlobalMessages(apply);
@@ -589,7 +563,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     setGroupMessages(apply);
   }
 
-  // --- Vote sur un sondage : bascule l'option (retire si déjà votée) selon simple/multiple ---
   async function handleVote(message, optionId) {
     const poll = message.poll;
     if (!poll) return;
@@ -609,7 +582,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     }
   }
 
-  // --- Création d'un sondage dans le canal actif ---
   async function handleCreatePoll(event) {
     event.preventDefault();
     const question = pollQuestion.trim();
@@ -679,9 +651,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
       notifyError(requestErrorMessage(error, 'Impossible de supprimer le message'));
     }
   }
-  // Aperçu plein écran d'une pièce jointe : { url, type, name, message, temporary }.
-  // Image : l'objectURL déjà chargé pour l'affichage dans la conversation est réutilisé.
-  // PDF : chargé pour l'occasion, puis libéré à la fermeture (`temporary`).
   const [mediaPreview, setMediaPreview] = useState(null);
   async function openAttachmentPreview(message) {
     const cached = attachmentUrls[message.id];
@@ -1065,7 +1034,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                       {message.has_attachment && (
                         isImageType(message.attachment_type) ? (
                           attachmentUrls[message.id] ? (
-                            // Agrandie dans la visionneuse de l'application, et non dans un nouvel onglet.
                             <button
                               type="button"
                               className="msgr-attach-image"
@@ -1087,7 +1055,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
                           <button
                             type="button"
                             className="msgr-attach-file"
-                            // Un PDF s'affiche dans la visionneuse ; Word, Excel… se téléchargent.
                             onClick={() =>
                               message.attachment_type === 'application/pdf'
                                 ? openAttachmentPreview(message)
@@ -1273,10 +1240,8 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     );
   }
 
-  // --- Gestion du groupe (créateur ou admin ; « Quitter » pour tous les membres) ---
   const canManageGroup =
     activeChannel === 'group' && openGroup && (openGroup.created_by === user?.id || isAdmin);
-  // Personnes qui ne sont pas encore dans le groupe (pour « Ajouter des membres »).
   const memberCandidates = availableUsers.filter(
     (candidate) =>
       candidate.id !== user?.id && !(openGroup?.members || []).some((member) => member.id === candidate.id)
@@ -1307,7 +1272,6 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     event.target.value = '';
     if (!file || !openGroup) return;
     try {
-      // Force le rechargement du blob avatar (mémorisé par id de groupe).
       groupAvatarFetchedRef.current.delete(openGroup.id);
       setGroupAvatarUrls((current) => {
         const next = { ...current };

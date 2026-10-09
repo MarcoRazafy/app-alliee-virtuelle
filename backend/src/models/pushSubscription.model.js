@@ -1,7 +1,5 @@
 const db = require('../config/database');
 
-// Enregistre (ou met à jour) un abonnement push pour un appareil/navigateur. L'endpoint est
-// unique côté navigateur : si le même appareil se ré-abonne (nouvelles clés), on écrase.
 async function upsert(userId, subscription, userAgent) {
   const { endpoint, keys } = subscription;
   const result = await db.query(

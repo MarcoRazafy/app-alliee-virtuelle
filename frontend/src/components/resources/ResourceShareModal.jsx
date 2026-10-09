@@ -5,8 +5,6 @@ const PERMISSION_LABELS = {
   LECTURE_ECRITURE: 'Lecture-écriture',
 };
 
-// Modale de partage d'un dossier de ressources — présentationnelle.
-// Extraite de AdminResources ; reçoit l'état et les callbacks en props.
 function ResourceShareModal({
   folderName,
   onClose,

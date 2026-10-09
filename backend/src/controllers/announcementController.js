@@ -22,7 +22,6 @@ async function listAnnouncements(req, res, next) {
   }
 }
 
-// Pastille + popup : nombre non lu + l'annonce non lue la plus récente (ou null).
 async function getUnread(req, res, next) {
   try {
     const [unread, latest] = await Promise.all([
@@ -45,12 +44,9 @@ async function getAnnouncement(req, res, next) {
   }
 }
 
-// Prévient l'équipe par email d'une nouvelle annonce. L'auteur est exclu : il vient de
-// l'écrire. Seuls les comptes ACTIFS sont concernés (findActiveExcept).
 async function notifyTeamByEmail(announcement, author) {
   const [recipients, fullAuthor] = await Promise.all([
     userModel.findActiveExcept(author.id),
-    // Le jeton ne porte que id/email/username/role : le nom complet se lit en base.
     userModel.findById(author.id),
   ]);
   const emails = recipients.map((u) => u.email).filter(Boolean);
@@ -86,13 +82,8 @@ async function createAnnouncement(req, res, next) {
       isPinned: req.body.is_pinned === true || req.body.is_pinned === 'true',
       imagePath: req.file ? req.file.path : null,
     });
-    // Temps réel EN PREMIER : popup + pastille annonces, émis dès que l'annonce existe.
-    // Indépendant du journal ci-dessous, pour qu'un échec de celui-ci ne puisse jamais
-    // empêcher l'événement live (sinon l'annonce n'apparaîtrait qu'au prochain refresh).
     realtime.broadcast('announcement:new', { id: created.id, title: created.title });
 
-    // Trace dans le journal → apparaît dans le centre de notifications de chacun. Best-effort :
-    // une erreur ici ne doit compromettre ni l'annonce, ni son événement temps réel.
     try {
       await taskModel.recordAudit({
         userId: req.user.id,
@@ -107,9 +98,6 @@ async function createAnnouncement(req, res, next) {
       console.error('recordAudit(PUBLISH_ANNOUNCEMENT) a échoué:', auditErr);
     }
 
-    // Email à toute l'équipe : la pastille et la popup ne touchent que les personnes déjà
-    // connectées ; l'email est ce qui rattrape celles qui ne le sont pas. Best-effort et
-    // détaché de la réponse — un envoi lent ou en échec ne doit pas retarder la publication.
     notifyTeamByEmail(created, req.user).catch((mailErr) => {
       // eslint-disable-next-line no-console
       console.error("Email d'annonce : envoi échoué —", mailErr.message);
@@ -131,7 +119,6 @@ async function updateAnnouncement(req, res, next) {
     if (!body) {
       return res.status(400).json({ error: 'Le contenu est requis' });
     }
-    // Nouvelle image uploadée : on remplace et on supprime l'ancien fichier ; sinon on conserve.
     let imagePath;
     if (req.file) {
       const oldPath = await announcementModel.findImagePath(req.params.id);
@@ -144,7 +131,7 @@ async function updateAnnouncement(req, res, next) {
       body,
       isImportant: req.body.is_important === true || req.body.is_important === 'true',
       isPinned: req.body.is_pinned === true || req.body.is_pinned === 'true',
-      imagePath, // undefined si pas de nouveau fichier → l'image existante est conservée
+      imagePath,
     });
     if (!updated) return res.status(404).json({ error: 'Annonce introuvable' });
     res.status(200).json(updated);
@@ -164,7 +151,6 @@ async function deleteAnnouncement(req, res, next) {
   }
 }
 
-// Sert l'image uploadée d'une annonce (accessible à tout utilisateur authentifié).
 async function getAnnouncementImage(req, res, next) {
   try {
     const imagePath = await announcementModel.findImagePath(req.params.id);

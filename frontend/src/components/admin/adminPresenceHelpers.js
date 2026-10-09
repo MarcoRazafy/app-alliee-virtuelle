@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react';
 
-// Constantes et helpers de la page Présence admin (extraits pour alléger AdminPresence).
-
 export const PRESENCE_META = {
   present: { label: 'Présent', cls: 'present' },
   late: { label: 'En retard', cls: 'late' },
@@ -52,8 +50,6 @@ export function formatMonthLabel(month) {
   );
 }
 
-// Piège le focus dans une modale + gère Échap et le focus initial. Renvoie la ref à poser
-// sur l'élément dialogue.
 export function useDialogFocus(onClose) {
   const dialogRef = useRef(null);
   const onCloseRef = useRef(onClose);

@@ -3,7 +3,6 @@ import * as hierarchyService from '../../services/hierarchyService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { IconLayers, IconFolder, IconChecklist, IconChevronDown, IconPlus, IconPencil, IconTrash, IconDots } from '../icons';
 
-// Menu d'actions d'un nœud : un seul bouton « … » qui déplie Ajouter / Renommer / Supprimer.
 function NodeActionsMenu({ open, onToggle, onClose, actions, disabled, triggerLabel }) {
   return (
     <span className="tree-node-actions tree-menu">
@@ -42,8 +41,6 @@ function NodeActionsMenu({ open, onToggle, onClose, actions, disabled, triggerLa
   );
 }
 
-// Arbre Space > Folder > List. onSelectList(listId, list) est appelé au clic sur
-// une liste, pour que la page parente puisse filtrer ses tâches sur cette liste.
 function HierarchyTree({
   onSelectList,
   onAddTask,
@@ -52,19 +49,14 @@ function HierarchyTree({
   refreshKey = 0,
 }) {
   const [tree, setTree] = useState([]);
-  // Un seul formulaire de création ouvert à la fois : { type: 'space'|'folder'|'list', parentId }
   const [creating, setCreating] = useState(null);
   const [newName, setNewName] = useState('');
-  // Renommage inline : { type, id } du nœud en cours de renommage.
   const [renaming, setRenaming] = useState(null);
   const [renameName, setRenameName] = useState('');
-  // Noeuds repliés (par id d'espace/dossier). Par défaut tout est déplié.
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [busyId, setBusyId] = useState(null);
-  // Menu « … » actuellement ouvert, identifié par une clé unique (`type:id`).
   const [openMenu, setOpenMenu] = useState(null);
 
-  // Ferme le menu ouvert dès qu'on clique en dehors de tout menu d'actions.
   useEffect(() => {
     if (!openMenu) return undefined;
     function handleClickOutside(e) {

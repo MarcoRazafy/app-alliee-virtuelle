@@ -1,6 +1,3 @@
-/* Fiche détail tâche — mise en page façon ClickUp (Phase 1) :
-   grille de propriétés, édition inline, temps compact, commentaires en rail droit. */
-
 .tk-topbar {
   display: flex;
   align-items: center;
@@ -15,7 +12,6 @@
   flex-wrap: wrap;
 }
 
-/* Actions en pied (Refaire / Supprimer), séparées du contenu par un filet. */
 .tk-footer {
   display: flex;
   justify-content: flex-end;
@@ -26,14 +22,12 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* Deux colonnes : détail ~80 % + rail commentaires ~20 % (min 260px pour rester utilisable). */
 .tk-layout {
   display: grid;
   grid-template-columns: minmax(0, 4fr) minmax(260px, 1fr);
   gap: 20px;
   align-items: start;
 }
-/* Sous 1000px : les commentaires passent DESSOUS le détail (responsive). */
 @media (max-width: 1000px) {
   .tk-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -45,8 +39,6 @@
   gap: 20px;
   min-width: 0;
 }
-/* Le rail remplit la hauteur de la ligne (= hauteur du détail) pour que le composeur
-   se cale EN BAS (façon panneau d'activité ClickUp), au lieu de flotter en haut. */
 .tk-rail {
   min-width: 0;
   align-self: stretch;
@@ -64,10 +56,9 @@
   min-height: 0;
 }
 .tk-rail .cmt-composer {
-  margin-top: auto; /* pousse le champ + Envoyer tout en bas du rail */
+  margin-top: auto;
 }
 
-/* --- En-tête --- */
 .tk-breadcrumb {
   display: inline-block;
   margin-bottom: 10px;
@@ -100,7 +91,6 @@
   outline: none;
 }
 
-/* --- Grille de propriétés --- */
 .tk-props {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -145,7 +135,6 @@
   font-size: 13.5px;
   color: var(--color-text-primary);
 }
-/* Ligne pleine largeur (2 colonnes) — ex. pièces jointes : label en haut, contenu en bloc. */
 .tk-prop--full {
   grid-column: 1 / -1;
   align-items: flex-start;
@@ -162,7 +151,6 @@
   font-size: 13.5px;
   color: var(--color-text-primary);
 }
-/* Libellé « Pièces jointes » qui sert de bouton d'import (sans bordure). */
 .tk-attach-trigger {
   cursor: pointer;
   transition: color 0.15s ease;
@@ -200,7 +188,6 @@
   flex-wrap: wrap;
   gap: 10px;
 }
-/* Assigné : pastille photo (ou initiales) + nom. Cliquable côté admin (→ messagerie). */
 .tk-assignee-chip {
   display: inline-flex;
   align-items: center;
@@ -248,7 +235,6 @@ button.tk-assignee-chip:hover .tk-assignee-name {
   padding: 4px 10px;
   font-size: 12px;
 }
-/* Ligne « Dates » : 📅 début → 📅 échéance (échéance en rouge). */
 .tk-dates {
   display: inline-flex;
   align-items: center;
@@ -270,14 +256,12 @@ button.tk-assignee-chip:hover .tk-assignee-name {
   height: 14px;
   color: var(--color-text-muted);
 }
-/* Échéance mise en évidence en rouge (comme la date d'échéance ClickUp). */
 .tk-date-due {
   color: var(--color-error);
 }
 .tk-date-due svg {
   color: var(--color-error);
 }
-/* Échéance cliquable (admin) : bouton dépouillé, léger surlignage au survol. */
 button.tk-date-part {
   padding: 2px 6px;
   border: none;
@@ -300,15 +284,12 @@ button.tk-date-part:hover {
   border: 1px solid var(--color-border);
   border-radius: 8px;
 }
-/* Contrôle date natif : aligne le rendu du navigateur sur le thème
-   (sinon le texte de la date reste noir sur fond sombre = invisible). */
 [data-theme='dark'] .tk-date-input {
   color-scheme: dark;
 }
 [data-theme='light'] .tk-date-input {
   color-scheme: light;
 }
-/* Idem pour les champs datetime-local de la saisie manuelle de temps (admin). */
 [data-theme='dark'] .manual-time-fields input {
   color-scheme: dark;
 }
@@ -316,7 +297,6 @@ button.tk-date-part:hover {
   color-scheme: light;
 }
 
-/* Bouton « Afficher plus / moins » du Suivi du temps (3 sessions par défaut). */
 .tk-history-toggle {
   display: inline-flex;
   align-items: center;
@@ -337,7 +317,6 @@ button.tk-date-part:hover {
   background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
-/* --- Temps compact --- */
 .tk-time {
   display: inline-flex;
   align-items: center;
@@ -394,7 +373,6 @@ button.tk-date-part:hover {
   color: var(--color-success);
 }
 
-/* --- Gestion des assignés (dépliable) --- */
 .tk-assign-manage {
   margin: 0 0 18px;
   padding: 14px;
@@ -417,15 +395,12 @@ button.tk-date-part:hover {
   color: var(--color-text-muted);
 }
 
-/* Section liée dans la carte principale (ex. Suivi du temps sous la description),
-   séparée par un filet plutôt que par une carte distincte. */
 .tk-card-section {
   margin-top: 22px;
   padding-top: 22px;
   border-top: 1px solid var(--color-border);
 }
 
-/* --- Description --- */
 .tk-desc-block {
   margin-top: 6px;
 }
@@ -470,7 +445,6 @@ button.tk-date-part:hover {
   color: var(--color-text-secondary);
 }
 
-/* --- Fenêtre modale (tâche ouverte par-dessus une liste) --- */
 .task-modal-overlay {
   position: fixed;
   inset: 0;
@@ -490,11 +464,7 @@ button.tk-date-part:hover {
   margin: auto;
   padding: 28px 28px 32px;
   border-radius: 16px;
-  /* Surface « carte » (blanc en clair) plutôt que le gris de fond de page. */
   background: var(--color-bg-secondary);
-  /* La modale est rendue en portail dans <body>, HORS du conteneur applicatif qui
-     définit la couleur de texte de base. Sans ça, tout texte sans couleur explicite
-     (cellules de tableau, commentaires…) retombe sur le noir par défaut du navigateur. */
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
   box-shadow: var(--card-shadow);
@@ -525,12 +495,9 @@ button.tk-date-part:hover {
   width: 16px;
   height: 16px;
 }
-/* Laisse la place au bouton fermer (les actions admin ne passent pas dessous). */
 .task-modal-body .tk-topbar {
   padding-right: 44px;
 }
-/* Dans la modale, la carte principale est aplatie : la modale EST la surface blanche
-   (pas de carte-dans-carte). La page pleine, elle, garde sa carte. */
 .task-modal .tk-card,
 .task-modal .tk-rail-card,
 .task-modal .tk-create {
@@ -540,7 +507,6 @@ button.tk-date-part:hover {
   border-radius: 0;
   padding: 0;
 }
-/* La modale « Créer une tâche » : la carte est la modale (pas de double carte), largeur adaptée. */
 .task-modal .tk-create {
   max-width: none;
   margin: 0;
@@ -548,17 +514,14 @@ button.tk-date-part:hover {
 .task-modal--create {
   max-width: 840px;
 }
-/* Laisse la place au bouton fermer (le titre ne passe pas dessous). */
 .task-modal .tk-create-head {
   padding-right: 40px;
 }
-/* Dans la modale, le rail commentaires est séparé du détail par un filet vertical (façon panneau). */
 .task-modal .tk-rail {
   padding-left: 22px;
   border-left: 1px solid var(--color-border);
 }
 @media (max-width: 1000px) {
-  /* Empilé : le filet passe en haut du bloc commentaires. */
   .task-modal .tk-rail {
     padding-left: 0;
     padding-top: 22px;
@@ -581,7 +544,6 @@ button.tk-date-part:hover {
   }
 }
 
-/* Créateur de la tâche : identité + rôle (un admin l'a assignée, un employé l'a proposée). */
 .tk-creator {
   display: inline-flex;
   align-items: center;
@@ -604,8 +566,6 @@ button.tk-date-part:hover {
   border-color: color-mix(in srgb, var(--color-accent) 32%, transparent);
 }
 
-/* « Créée par » cliquable : ouvre une conversation avec la personne qui a assigné la tâche,
-   pour lui demander une précision sans quitter le fil de la tâche. */
 button.tk-creator--link {
   padding: 4px 8px;
   margin: -4px -8px;
@@ -623,7 +583,6 @@ button.tk-creator--link:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
-/* L'invitation à écrire reste discrète, et ne se révèle qu'à l'interaction. */
 .tk-creator-ask {
   display: inline-flex;
   align-items: center;
@@ -642,20 +601,17 @@ button.tk-creator--link:hover .tk-creator-ask,
 button.tk-creator--link:focus-visible .tk-creator-ask {
   opacity: 1;
 }
-/* Sur écran tactile (pas de survol), l'invitation reste toujours visible. */
 @media (hover: none) {
   .tk-creator-ask {
     opacity: 1;
   }
 }
 
-/* Correction d'une session de chrono (admin) : chrono oublié, doublon. */
 .tk-session-actions-col {
   width: 1%;
   white-space: nowrap;
   text-align: right;
 }
-/* Les deux actions restent groupées et alignées à droite de la ligne. */
 .tk-session-actions-col .icon-link-btn {
   width: 34px;
   height: 34px;
@@ -671,8 +627,6 @@ button.tk-creator--link:focus-visible .tk-creator-ask {
   padding: 16px;
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
 }
-/* Champs côte à côte, libellé AU-DESSUS de son champ : sans ça les libellés se collaient
-   à l'horizontale contre les champs (« Début[…] Fin[…] »), illisible. */
 .tk-session-edit-fields {
   display: flex;
   flex-wrap: wrap;
@@ -701,8 +655,6 @@ button.tk-creator--link:focus-visible .tk-creator-ask {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
-/* Le sélecteur de date natif (et son icône) suit le thème, sinon il s'affiche en clair
-   sur fond sombre — même correctif que pour les autres champs de date de l'app. */
 [data-theme='dark'] .tk-session-edit input { color-scheme: dark; }
 [data-theme='light'] .tk-session-edit input { color-scheme: light; }
 

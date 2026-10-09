@@ -10,8 +10,6 @@ const { FINISHED_STATUSES } = require('../utils/lateTasks');
 const { DateTime } = require('luxon');
 const dailyModel = require('../models/daily.model');
 
-// L'utilisateur est-il l'un des assignés de la tâche ? (task issu de findById → contient `assignees`)
-// Repli sur assigned_to si la liste n'est pas chargée, pour ne jamais être moins permissif qu'avant.
 function isTaskAssignee(task, userId) {
   if (!task) return false;
   if (task.assigned_to === userId) return true;
@@ -20,14 +18,9 @@ function isTaskAssignee(task, userId) {
 
 function canAccessTask(task, user) {
   if (user.role === 'ADMIN') return true;
-  // Le propriétaire (proposeur) peut gérer sa proposition DECLAREE — pièces jointes, commentaires…
-  // Les autres employés ne la voient pas (une DECLAREE n'est assignée qu'à son proposeur).
-  // Les actions sensibles (chrono, complétion) restent bloquées par leur propre contrôle de statut.
   return isTaskAssignee(task, user.id);
 }
 
-// Journée de TRAVAIL, qui se termine à 2 h du matin (voir utils/businessDay) : le travail
-// d'un poste de nuit reste rattaché à la journée où il a commencé.
 const todayDateString = businessDayNow;
 
 async function listTasks(req, res, next) {
@@ -53,7 +46,6 @@ async function getTask(req, res, next) {
 
     const isOwner = isTaskAssignee(task, req.user.id);
     const isAdmin = req.user.role === 'ADMIN';
-    // DECLAREE reste caché aux autres employés, mais le propriétaire (proposeur) peut voir sa tâche « Non validée ».
     if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin && !isOwner) return res.status(404).json({ error: 'Tâche introuvable' });
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
@@ -70,7 +62,6 @@ async function getTask(req, res, next) {
       assigned_to: task.assigned_to,
       assignee_name: task.assignee_name,
       assignees: task.assignees || [],
-      // Qui a créé la tâche : un admin l'a assignée, un employé l'a proposée.
       created_by: task.created_by,
       creator_name: task.creator_name,
       creator_has_avatar: task.creator_has_avatar,
@@ -92,7 +83,6 @@ async function validateTask(req, res, next) {
   } catch (err) { return next(err); }
 }
 
-// Transfère la tâche à UNE seule personne : remplace tous les assignés par elle. Admin uniquement.
 async function reassignTask(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
@@ -103,14 +93,12 @@ async function reassignTask(req, res, next) {
     const assignee = await userModel.findById(newAssigneeId);
     if (!assignee) return res.status(400).json({ error: 'Utilisateur assigné introuvable' });
 
-    // Ferme les minuteurs en cours des anciens assignés (pas de minuteur fantôme).
     for (const a of task.assignees && task.assignees.length ? task.assignees : [{ id: task.assigned_to }]) {
       const s = await taskModel.findActiveSessionForTask(task.id, a.id);
       if (s) await taskModel.stopSession(s.id);
     }
     await taskModel.setAssignees(task.id, [newAssigneeId]);
     await taskModel.updateAssignee(task.id, newAssigneeId);
-    // Une tâche déjà démarrée repart « À faire » pour que le nouvel arrivant commence proprement.
     let newStatus = task.status;
     if (task.status === taskModel.TASK_STATUS.IN_PROGRESS || task.status === 'EN_PAUSE') {
       newStatus = (await taskModel.updateStatus(task.id, taskModel.TASK_STATUS.VALIDATED)).status;
@@ -130,7 +118,6 @@ async function reassignTask(req, res, next) {
   }
 }
 
-// Ajoute une personne à la tâche = même tâche PARTAGÉE (assignation multiple). Admin uniquement.
 async function addTaskAssignee(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
@@ -158,8 +145,6 @@ async function addTaskAssignee(req, res, next) {
   }
 }
 
-// Retire une personne de la tâche. On refuse de retirer la dernière (une tâche a ≥ 1 assigné).
-// Si on retire l'assigné « principal », on bascule assigned_to vers un autre restant. Admin uniquement.
 async function removeTaskAssignee(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
@@ -196,17 +181,12 @@ async function removeTaskAssignee(req, res, next) {
   }
 }
 
-// Modifie une tâche existante (titre, description, priorité, échéance). Admin uniquement.
-// On n'impose pas « échéance dans le futur » ici : une tâche déjà en retard doit pouvoir être éditée.
 async function updateTask(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
 
     const isAdmin = req.user.role === 'ADMIN';
-    // Le créateur d'une tâche en règle le titre, la priorité et les dates — c'est lui qui
-    // l'a posée. Les autres champs qui passent par cette route (assignation, statut) ont
-    // leurs propres routes, réservées à l'admin.
     const isCreator = task.created_by === req.user.id;
     if (!isAdmin && !isCreator) {
       return res.status(403).json({
@@ -221,8 +201,6 @@ async function updateTask(req, res, next) {
     if (!isValidPriority(priority)) errors.push('Priorité invalide');
     if (!deadline) errors.push("L'échéance est requise");
 
-    // Cohérence des dates : début ≤ échéance. Le début effectif = celui fourni (admin),
-    // sinon celui déjà enregistré. On normalise en YYYY-MM-DD (composantes locales).
     const toYMD = (d) => {
       if (!d) return null;
       if (typeof d === 'string') return d.slice(0, 10);
@@ -241,7 +219,6 @@ async function updateTask(req, res, next) {
       description,
       priority,
       deadline,
-      // Chaîne vide → on garde la valeur existante.
       startDate: startDate ? String(startDate) : undefined,
     });
     await taskModel.recordAudit({
@@ -257,9 +234,6 @@ async function updateTask(req, res, next) {
   }
 }
 
-// PATCH /tasks/:id/deadline — change l'échéance, et elle seule (depuis les cartes « En
-// retard », sans ouvrir la fiche). Mêmes droits que la modification des dates dans
-// updateTask : l'admin, ou le créateur de la tâche.
 async function updateTaskDeadline(req, res, next) {
   try {
     const task = await taskModel.findById(req.params.id);
@@ -274,7 +248,6 @@ async function updateTaskDeadline(req, res, next) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || !DateTime.fromISO(deadline).isValid) {
       return res.status(400).json({ error: "Date d'échéance invalide" });
     }
-    // Même règle que la fiche : l'échéance ne précède pas le début.
     const start = task.start_date
       ? typeof task.start_date === 'string'
         ? task.start_date.slice(0, 10)
@@ -299,7 +272,6 @@ async function updateTaskDeadline(req, res, next) {
       details: { title: task.title, before, after: deadline },
     });
 
-    // Encore en retard ? L'interface l'indique : une carte qui quitte la liste doit dire pourquoi.
     const isLate = deadline < businessDayNow() && !FINISHED_STATUSES.includes(updated.status);
     return res.status(200).json({ id: updated.id, deadline: updated.deadline, is_late: isLate });
   } catch (err) {
@@ -307,8 +279,6 @@ async function updateTaskDeadline(req, res, next) {
   }
 }
 
-// Statuts qu'un admin peut poser à la main depuis la fiche (workflow visible par l'employé).
-// DECLAREE est exclue : c'est l'état « proposition » (masqué à l'employé), pas un statut de travail.
 const ADMIN_SETTABLE_STATUSES = [
   taskModel.TASK_STATUS.VALIDATED,
   taskModel.TASK_STATUS.IN_PROGRESS,
@@ -316,15 +286,6 @@ const ADMIN_SETTABLE_STATUSES = [
   taskModel.TASK_STATUS.CONFIRMED,
 ];
 
-// Change le statut d'une tâche (admin) : À faire / En cours / Terminée / Confirmée.
-// Effet de bord : en quittant « En cours », on ferme les chronos encore ouverts des assignés
-// (pas de minuteur fantôme). Le changement est historisé + audité (l'audit rafraîchit aussi
-// le dashboard temps réel via notification:new).
-// PATCH /tasks/:id/description — la personne assignée peut décrire sa tâche (préciser le
-// besoin, consigner ce qu'elle a compris), pas seulement l'admin qui l'a créée.
-// Route SÉPARÉE de PATCH /tasks/:id, qui réécrit titre, priorité, échéance et date de
-// début : y laisser entrer un employé aurait exigé un filtrage de champs à maintenir à
-// chaque évolution. Ici, la requête ne peut rien écrire d'autre que la description.
 const MAX_DESCRIPTION_LENGTH = 20000;
 
 async function updateTaskDescription(req, res, next) {
@@ -365,17 +326,12 @@ async function updateTaskStatus(req, res, next) {
 
     const requested = req.body.status;
 
-    // « À reprendre » n'est pas un statut stocké : c'est une tâche EN_COURS dont le chrono
-    // n'est plus lancé. La demander revient donc à mettre EN_COURS *et* à arrêter le chrono
-    // — sans quoi l'affichage retomberait aussitôt sur « En cours ».
     const wantsPaused = requested === 'A_REPRENDRE';
     const newStatus = wantsPaused ? taskModel.TASK_STATUS.IN_PROGRESS : requested;
 
     if (!ADMIN_SETTABLE_STATUSES.includes(newStatus)) {
       return res.status(400).json({ error: 'Statut invalide' });
     }
-    // Une tâche déjà EN_COURS qu'on repasse « À reprendre » n'est pas un non-changement :
-    // il reste son chrono à arrêter.
     if (newStatus === task.status && !wantsPaused) {
       return res.status(200).json({ id: task.id, status: task.status });
     }
@@ -425,8 +381,7 @@ async function getTaskDetail(req, res, next) {
     }
 
     const detail = await taskModel.getTaskDetail(id);
-    detail.assignees = task.assignees || []; // liste complète des personnes (assignation multiple)
-    // Une sous-tâche DECLAREE n'est pas plus visible à l'employé que sa tâche parente (DECISIONS.md)
+    detail.assignees = task.assignees || [];
     if (!isAdmin) {
       detail.subtasks = detail.subtasks.filter((s) => s.status !== taskModel.TASK_STATUS.DECLARED);
     }
@@ -475,8 +430,6 @@ async function createTask(req, res, next) {
     } = req.body;
     const isAdmin = req.user.role === 'ADMIN';
 
-    // Liste des assignés : l'admin peut en mettre PLUSIEURS (assignee_ids, ou assigned_to seul) ;
-    // un employé ne crée une tâche que pour lui-même. Le 1er est l'assigné « principal ».
     const assigneeList = isAdmin
       ? [...new Set((Array.isArray(assigneeIdsRaw) && assigneeIdsRaw.length ? assigneeIdsRaw : [assigned_to]).filter(Boolean))]
       : [req.user.id];
@@ -495,7 +448,6 @@ async function createTask(req, res, next) {
       return res.status(400).json({ errors });
     }
 
-    // Vérifie que chaque personne assignée existe.
     for (const uid of assigneeList) {
       // eslint-disable-next-line no-await-in-loop
       if (!(await userModel.findById(uid))) {
@@ -503,7 +455,6 @@ async function createTask(req, res, next) {
       }
     }
 
-    // list_id et parent_task_id sont optionnels (tâche "libre" hors hiérarchie)
     if (isAdmin && parentTaskId) {
       const parentTask = await taskModel.findById(parentTaskId);
       if (!parentTask) {
@@ -511,10 +462,6 @@ async function createTask(req, res, next) {
       }
     }
 
-    // Une tâche créée par un employé n'attend plus l'approbation d'un admin : elle est
-    // immédiatement « À faire » et démarrable, comme celle d'un admin. Le statut DECLAREE
-    // subsiste pour les propositions faites AVANT ce changement, qui restent à traiter dans
-    // « Tâches à valider ».
     const initialStatus = taskModel.TASK_STATUS.VALIDATED;
 
     const task = await taskModel.create({
@@ -525,8 +472,6 @@ async function createTask(req, res, next) {
       createdBy: req.user.id,
       priority,
       deadline,
-      // start_date et client sont désormais autorisés aussi pour une proposition d'employé
-      // (mêmes champs que l'admin) ; l'admin valide/ajuste la proposition ensuite.
       startDate: start_date || null,
       listId: listId || null,
       parentTaskId: isAdmin ? parentTaskId : null,
@@ -554,10 +499,6 @@ async function createTask(req, res, next) {
       },
     });
 
-    // Aucun email à la création d'une tâche : depuis que la validation admin a disparu, il
-    // n'y avait plus rien à décider — le message ne faisait qu'encombrer les boîtes. La
-    // création reste tracée dans le journal (CREATE_TASK ci-dessus), donc consultable.
-
     res.status(201).json({ id: task.id, status: task.status });
   } catch (err) {
     next(err);
@@ -572,12 +513,9 @@ async function startTimelog(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    // L'employé assigné OU un admin peut chronométrer la tâche (le total additionne les deux).
     if (!isTaskAssignee(task, req.user.id) && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
-    // VALIDEE/TERMINEE : premier démarrage ou redémarrage après complétion.
-    // EN_COURS : reprise d'une tâche mise en pause (chrono arrêté mais tâche pas terminée).
     const startableStatuses = [
       taskModel.TASK_STATUS.VALIDATED,
       taskModel.TASK_STATUS.IN_PROGRESS,
@@ -600,7 +538,6 @@ async function startTimelog(req, res, next) {
           throw alreadyRunning;
         }
 
-        // Bascule automatique : on arrête la session en cours sur l'autre tâche avant de démarrer celle-ci
         const stopped = await taskModel.stopSession(activeSession.id, client);
         await taskModel.recordAudit(
           {
@@ -617,8 +554,6 @@ async function startTimelog(req, res, next) {
 
       const newSession = await taskModel.startSession(taskId, req.user.id, client);
 
-      // L'admin peut chronométrer sans faire avancer le workflow de l'employé : on ne change
-      // le statut (→ EN_COURS) que lorsque c'est l'employé assigné qui démarre.
       if (!isResuming && isTaskAssignee(task, req.user.id)) {
         await taskModel.updateStatus(taskId, taskModel.TASK_STATUS.IN_PROGRESS, client);
         await taskModel.recordHistory(
@@ -696,11 +631,10 @@ async function stopTimelog(req, res, next) {
   }
 }
 
-// Tâche en cours de chronométrage par l'employé connecté (pour le widget « tâche en cours »).
 async function getActiveTask(req, res, next) {
   try {
     const active = await taskModel.findActiveTaskForEmployee(req.user.id);
-    res.status(200).json(active); // objet { task_id, title, start_time } ou null
+    res.status(200).json(active);
   } catch (err) {
     next(err);
   }
@@ -759,7 +693,6 @@ async function setMyDay(req, res, next) {
       return res.status(400).json({ error: 'task_ids doit être un tableau' });
     }
 
-    // Vérifie que chaque tâche est bien assignée à l'employé avant de l'ajouter à sa sélection
     for (const taskId of taskIds) {
       const task = await taskModel.findById(taskId);
       if (!task || !isTaskAssignee(task, req.user.id)) {
@@ -768,9 +701,6 @@ async function setMyDay(req, res, next) {
     }
 
     const date = todayDateString();
-    // Journée déjà validée : l'employé ajoute ou retire des tâches lui-même, sans demande à
-    // l'admin. Une tâche ajoutée rejoint aussi le Daily, comme celles validées le matin. Une
-    // tâche retirée du To Do reste dans le Daily : les deux listes se corrigent séparément.
     await db.withTransaction(async (client) => {
       const { wasValidated, added } = await taskModel.replaceDailySelection(req.user.id, date, taskIds, client);
       if (wasValidated) {
@@ -805,8 +735,6 @@ async function setMyDay(req, res, next) {
 async function validateMyDay(req, res, next) {
   try {
     const date = todayDateString();
-    // Valider sa journée envoie aussi ses tâches dans le Daily, terminées ou non : l'employé
-    // n'a plus à les y glisser une à une. Il retire ensuite du Daily celles qu'il n'a pas faites.
     const updatedCount = await db.withTransaction(async (client) => {
       const count = await taskModel.validateDailySelection(req.user.id, date, client);
       if (count === 0) return 0;
@@ -884,10 +812,6 @@ async function completeTask(req, res, next) {
         client
       );
 
-      // La tâche rejoint d'elle-même le Daily du jour : la marquer Terminée EST le geste,
-      // le refaire à la main dans « Ma journée » ne serait qu'une corvée de plus. Dans la
-      // même transaction que le changement de statut, pour qu'il n'existe pas de tâche
-      // terminée absente du Daily.
       await dailyModel.addDailyDone(req.user.id, todayDateString(), id, client);
     });
 
@@ -910,8 +834,6 @@ async function confirmTask(req, res, next) {
     }
 
     await db.withTransaction(async (client) => {
-      // Revalide le statut dans la transaction : un autre administrateur peut
-      // avoir confirmé ou renvoyé la tâche entre findById() et cette écriture.
       const updated = await client.query(
         `UPDATE tasks
          SET status = $1, updated_at = now()
@@ -1016,9 +938,6 @@ async function getComments(req, res, next) {
   }
 }
 
-// Les mentions sont écrites dans le contenu sous la forme `@[Nom](uuid)` : le message reste
-// la seule source de vérité (pas de table annexe à garder synchronisée) et l'affichage sait
-// reconstruire le lien. Un ancien commentaire sans balise passe simplement au travers.
 const MENTION_RE = /@\[[^\]]+\]\(([0-9a-fA-F-]{36})\)/g;
 
 function extractMentionIds(content) {
@@ -1027,8 +946,6 @@ function extractMentionIds(content) {
   return [...ids];
 }
 
-// Une entrée d'audit par personne citée : c'est ce qui alimente son centre de notifications
-// (`details.target_user_id` est la clé de visibilité côté employé).
 async function notifyMentions({ content, taskId, taskTitle, commentId, authorId, adminsOnly = false }) {
   const ids = extractMentionIds(content).filter((uid) => uid !== authorId);
   if (ids.length === 0) return;
@@ -1036,9 +953,7 @@ async function notifyMentions({ content, taskId, taskTitle, commentId, authorId,
     ids.map(async (uid) => {
       try {
         const mentioned = await userModel.findById(uid);
-        if (!mentioned) return; // citation d'un compte supprimé
-        // Une note interne n'est pas visible des employés : notifier un employé qu'il y est
-        // cité révélerait son existence (et le lien mènerait à un contenu masqué).
+        if (!mentioned) return;
         if (adminsOnly && mentioned.role !== 'ADMIN') return;
         await taskModel.recordAudit({
           userId: authorId,
@@ -1079,7 +994,6 @@ async function createComment(req, res, next) {
       isVisibleToEmployee: true,
     });
 
-    // Best-effort : une notification ratée ne doit pas faire échouer le commentaire publié.
     await notifyMentions({
       content,
       taskId: id,
@@ -1094,10 +1008,6 @@ async function createComment(req, res, next) {
   }
 }
 
-// Notes internes : admin seul, jamais visibles à l'employé (DECISIONS.md - arbitrage 3)
-// PATCH /tasks/:id/comments/:commentId — SEUL L'AUTEUR modifie son message, y compris pour un
-// admin. Corriger les mots de quelqu'un d'autre alors qu'ils restent signés à son nom serait
-// trompeur ; la modération passe par la suppression, qui elle est ouverte aux admins.
 async function updateComment(req, res, next) {
   try {
     const { id, commentId } = req.params;
@@ -1115,8 +1025,6 @@ async function updateComment(req, res, next) {
     if (!task || !canAccessTask(task, req.user)) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
-    // Une note interne n'existe pas pour un employé : 404 plutôt que 403, un refus explicite
-    // lui confirmerait qu'une note est attachée à cette tâche.
     if (comment.type === 'NOTE' && req.user.role !== 'ADMIN') {
       return res.status(404).json({ error: 'Commentaire introuvable' });
     }
@@ -1131,13 +1039,8 @@ async function updateComment(req, res, next) {
   }
 }
 
-// Emojis autorisés en réaction. Liste fermée : la colonne est courte, et accepter n'importe
-// quelle chaîne ferait d'une réaction un second canal de texte libre, non modéré.
-// « ✔️ » = le « nike » : vu, c'est noté.
 const COMMENT_REACTIONS = ['✔️'];
 
-// POST /tasks/:id/comments/:commentId/reactions — pose ou retire une réaction. Réagir, c'est
-// lire : quiconque voit le commentaire peut y réagir, y compris sur son propre message.
 async function toggleCommentReaction(req, res, next) {
   try {
     const { id, commentId } = req.params;
@@ -1155,8 +1058,6 @@ async function toggleCommentReaction(req, res, next) {
     if (!task || !canAccessTask(task, req.user)) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
-    // Une note interne n'existe pas pour un employé : 404 plutôt que 403, un refus explicite
-    // lui confirmerait qu'une note est attachée à cette tâche.
     if (comment.type === 'NOTE' && req.user.role !== 'ADMIN') {
       return res.status(404).json({ error: 'Commentaire introuvable' });
     }
@@ -1168,8 +1069,6 @@ async function toggleCommentReaction(req, res, next) {
   }
 }
 
-// DELETE /tasks/:id/comments/:commentId — l'auteur retire son message, un admin peut retirer
-// n'importe lequel (modération). Les fichiers joints partent avec.
 async function deleteComment(req, res, next) {
   try {
     const { id, commentId } = req.params;
@@ -1184,8 +1083,6 @@ async function deleteComment(req, res, next) {
     }
 
     const isAdmin = req.user.role === 'ADMIN';
-    // Une note interne n'existe pas pour un employé : 404 plutôt que 403, un refus explicite
-    // lui confirmerait qu'une note est attachée à cette tâche.
     if (comment.type === 'NOTE' && !isAdmin) {
       return res.status(404).json({ error: 'Commentaire introuvable' });
     }
@@ -1193,7 +1090,6 @@ async function deleteComment(req, res, next) {
       return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres commentaires.' });
     }
 
-    // Chemins relevés AVANT la suppression : après, la ligne n'existe plus.
     const attachments = await taskModel.findAttachmentsByComment(commentId);
     await taskModel.deleteComment(commentId);
     attachments.forEach((a) => fs.unlink(a.file_path, () => {}));
@@ -1255,7 +1151,7 @@ async function createNote(req, res, next) {
       taskTitle: task.title,
       commentId: note.id,
       authorId: req.user.id,
-      adminsOnly: true, // la note n'est visible que des admins
+      adminsOnly: true,
     });
 
     res.status(201).json(note);
@@ -1305,9 +1201,6 @@ async function uploadAttachment(req, res, next) {
       return res.status(400).json({ error: 'Fichier requis' });
     }
 
-    // Pièce jointe postée depuis un commentaire : on rattache le fichier à ce commentaire,
-    // après avoir vérifié qu'il appartient bien à CETTE tâche (sinon un fichier pourrait être
-    // greffé sur la discussion d'une autre tâche).
     let commentId = req.body?.comment_id || null;
     if (commentId) {
       const comment = await taskModel.findCommentById(commentId);
@@ -1363,8 +1256,6 @@ async function deleteAttachment(req, res, next) {
     if (!task || !canAccessTask(task, req.user)) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
-    // Les employés assignés peuvent déposer des livrables : on s'assure qu'ils ne retirent
-    // que les leurs, pour qu'un fichier déposé par un collègue ou l'admin reste intact.
     if (req.user.role !== 'ADMIN' && attachment.uploaded_by !== req.user.id) {
       return res.status(403).json({ error: 'Vous ne pouvez supprimer que les fichiers que vous avez envoyés.' });
     }
@@ -1386,11 +1277,6 @@ async function deleteAttachment(req, res, next) {
   }
 }
 
-// Suppression définitive d'une tâche (admin uniquement). Supprime aussi ses sous-tâches,
-// commentaires, chronos et pièces jointes (cascade BD). Le titre est conservé dans l'audit.
-// Supprime une tâche. Un admin peut supprimer n'importe laquelle ; un employé, uniquement
-// celles qu'il a CRÉÉES lui-même — pas celles qu'on lui a assignées, qu'il n'a pas à
-// retirer du suivi de son responsable.
 async function deleteTask(req, res, next) {
   try {
     const { id } = req.params;
@@ -1422,10 +1308,6 @@ async function deleteTask(req, res, next) {
   }
 }
 
-// Ajout manuel d'un temps de travail par l'admin (chrono oublié par l'employé). On enregistre
-// une plage début→fin déjà terminée, attribuée à l'employé assigné à la tâche.
-// Corriger une session chronométrée : cas typique du chrono resté ouvert toute la nuit
-// parce que l'employé a oublié de l'arrêter. Admin uniquement.
 async function updateTimelogEntry(req, res, next) {
   try {
     const { entryId } = req.params;
@@ -1466,7 +1348,6 @@ async function updateTimelogEntry(req, res, next) {
   }
 }
 
-// Supprimer une session erronée (doublon, chrono lancé par erreur). Admin uniquement.
 async function deleteTimelogEntry(req, res, next) {
   try {
     const { entryId } = req.params;
@@ -1496,8 +1377,6 @@ async function deleteTimelogEntry(req, res, next) {
 
 async function addManualTimelog(req, res, next) {
   try {
-    // La route déclare :taskId (POST /timelog/:taskId/manual). Lire `id` donnait undefined :
-    // la tâche n'était jamais trouvée et TOUTE saisie manuelle répondait « Tâche introuvable ».
     const { taskId: id } = req.params;
     const { start_time: startTime, end_time: endTime } = req.body;
 
@@ -1536,9 +1415,6 @@ async function addManualTimelog(req, res, next) {
   }
 }
 
-// --- Demandes de tâche supplémentaire ---
-
-// L'employé (journée déjà validée) demande à travailler une tâche précise de plus.
 async function createExtraTaskRequest(req, res, next) {
   try {
     const { task_id: taskId, message } = req.body;
@@ -1548,7 +1424,6 @@ async function createExtraTaskRequest(req, res, next) {
 
     const date = todayDateString();
 
-    // La demande n'a de sens qu'après avoir validé sa journée.
     const selection = await taskModel.findDailySelection(req.user.id, date);
     const dayValidated = selection.length > 0 && selection.every((row) => row.validated_at);
     if (!dayValidated) {
@@ -1559,7 +1434,6 @@ async function createExtraTaskRequest(req, res, next) {
     if (!task || !isTaskAssignee(task, req.user.id)) {
       return res.status(400).json({ error: 'Tâche invalide ou non assignée' });
     }
-    // On ne demande que des tâches encore actionnables (pas déjà terminées/confirmées).
     if (![taskModel.TASK_STATUS.VALIDATED, taskModel.TASK_STATUS.IN_PROGRESS].includes(task.status)) {
       return res.status(400).json({ error: "Cette tâche n'est pas disponible" });
     }
@@ -1580,7 +1454,6 @@ async function createExtraTaskRequest(req, res, next) {
       details: { task_id: taskId, date },
     });
 
-    // Prévenir les admins par email qu'une demande de tâche attend leur examen. Best-effort.
     Promise.all([userModel.findById(req.user.id).catch(() => null), userModel.findAdminEmails().catch(() => [])])
       .then(([requester, adminEmails]) =>
         mailService.sendNewTaskRequestToAdmins(
@@ -1596,7 +1469,6 @@ async function createExtraTaskRequest(req, res, next) {
   }
 }
 
-// Statut des demandes de l'employé pour aujourd'hui (pour afficher en attente / refusée).
 async function getMyExtraTaskRequests(req, res, next) {
   try {
     const requests = await extraTaskRequestModel.findByUserForDate(req.user.id, todayDateString());
@@ -1606,7 +1478,6 @@ async function getMyExtraTaskRequests(req, res, next) {
   }
 }
 
-// Liste admin (par défaut : en attente ; ?status= pour l'historique).
 async function listExtraTaskRequests(req, res, next) {
   try {
     const { status } = req.query;

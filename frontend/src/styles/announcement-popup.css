@@ -1,6 +1,3 @@
-/* Popup « nouvelle annonce » — fixé en bas à droite, non bloquant.
-   bottom = 76px pour s'empiler AU-DESSUS du chrono de connexion (.connection-chrono,
-   lui aussi en bas-droite), sinon le popup le recouvrait et le chrono « disparaissait ». */
 .ann-popup {
   position: fixed;
   right: 20px;

@@ -7,7 +7,6 @@ import '../../styles/connection-chrono.css';
 
 const POS_STORAGE_KEY = 'connection-chrono-pos';
 
-// Garde la pastille visible dans le viewport (avec une petite marge).
 function clampPos(x, y, w, h) {
   const margin = 8;
   const maxX = window.innerWidth - w - margin;
@@ -18,11 +17,6 @@ function clampPos(x, y, w, h) {
   };
 }
 
-// Chrono de connexion (présence) flottant, visible sur toutes les pages employé.
-// Indépendant du chrono de tâche : ne fait qu'afficher le temps écoulé depuis la connexion
-// (login_at), recalculé localement chaque seconde pour éviter tout polling réseau.
-// Déplaçable (souris + tactile) : pratique en mobile pour le dégager de la zone de saisie
-// des messages. La position choisie est mémorisée (localStorage).
 function ConnectionChrono({ className = '' }) {
   const [loginAt, setLoginAt] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -34,20 +28,14 @@ function ConnectionChrono({ className = '' }) {
         if (typeof p?.x === 'number' && typeof p?.y === 'number') return p;
       }
     } catch {
-      /* ignore */
     }
-    return null; // null = position par défaut (CSS : bas-droite)
+    return null;
   });
   const [dragging, setDragging] = useState(false);
   const nodeRef = useRef(null);
-  const dragRef = useRef(null); // { offsetX, offsetY, moved }
-  const gotRef = useRef(false); // login_at déjà obtenu → on arrête de re-tenter
+  const dragRef = useRef(null);
+  const gotRef = useRef(false);
 
-  // Récupère login_at de la session ouverte (lecture seule via /current : le maintien de la
-  // présence est assuré par le heartbeat global de App.jsx). RÉSILIENT : si le 1er appel
-  // échoue (course avec la redirection de connexion, socket en veille, coupure réseau), on
-  // re-tente à la (re)connexion du socket et au retour sur l'onglet, jusqu'à l'obtenir. Sans
-  // ça, un unique échec silencieux laissait le chrono invisible jusqu'au rechargement.
   useEffect(() => {
     let cancelled = false;
 
@@ -87,10 +75,6 @@ function ConnectionChrono({ className = '' }) {
     return () => window.clearInterval(interval);
   }, [loginAt]);
 
-  // Au montage (dès que le chrono s'affiche) : ramène dans le viewport une position
-  // mémorisée devenue hors-cadre. Sans ça, un viewport plus petit qu'au moment du drag
-  // (redimensionnement, rotation mobile, écran différent) laissait le chrono dessiné en
-  // dehors de l'écran → il « ne s'affichait plus » alors qu'il était bien monté.
   useLayoutEffect(() => {
     if (!loginAt || !pos || !nodeRef.current) return;
     const r = nodeRef.current.getBoundingClientRect();
@@ -100,13 +84,11 @@ function ConnectionChrono({ className = '' }) {
       try {
         localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(next));
       } catch {
-        /* ignore */
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loginAt]);
 
-  // Re-clampe la position si la fenêtre est redimensionnée / passe en mobile.
   useEffect(() => {
     function onResize() {
       setPos((prev) => {
@@ -132,7 +114,6 @@ function ConnectionChrono({ className = '' }) {
     try {
       nodeRef.current.setPointerCapture(e.pointerId);
     } catch {
-      /* ignore */
     }
   }
 
@@ -152,7 +133,6 @@ function ConnectionChrono({ className = '' }) {
         try {
           localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(prev));
         } catch {
-          /* ignore */
         }
       }
       return prev;

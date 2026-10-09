@@ -75,16 +75,12 @@ function validateDaysPayload(days, weekStartDate, { allowedStatuses }) {
   return errors;
 }
 
-// Statuts d'un planning qui comptent comme "déjà soumis" (donc plus éligibles au rattrapage
-// de la semaine en cours).
 const SUBMITTED_LIKE_STATUSES = [
   planningDates.PLANNING_STATUS.SUBMITTED,
   planningDates.PLANNING_STATUS.LOCKED,
   planningDates.PLANNING_STATUS.ADMIN_MODIFIED,
 ];
 
-// Contexte nécessaire à la règle de rattrapage : l'employé a-t-il déjà un planning pour la
-// semaine prochaine, et sa semaine en cours est-elle déjà soumise ? (2 lectures légères)
 async function employeeEditContext(userId, now, client = db) {
   const currentWeekStart = planningDates.formatDate(planningDates.getCurrentWeekStart(now));
   const nextWeekStart = planningDates.formatDate(planningDates.getNextWeekStart(now));
@@ -145,8 +141,6 @@ function buildPlanningResponse({ planning, days, weekStart, weekEnd, now, forEmp
   };
 }
 
-// ---------- Employé ----------
-
 async function getCurrentWeek(req, res, next) {
   try {
     const now = planningDates.nowInPlanningZone();
@@ -181,9 +175,6 @@ async function getNextWeek(req, res, next) {
   }
 }
 
-// Filtrage par semaine (consultation) : n'importe quelle semaine passée, actuelle ou future
-// de l'employé connecté. Toujours en lecture — can_edit reste calculé par canEmployeeEditWeek,
-// donc seule la "vraie" semaine prochaine pourra ressortir modifiable, sans logique dupliquée.
 async function getWeekByDate(req, res, next) {
   try {
     const { week_start_date: requestedDate } = req.query;
@@ -206,7 +197,6 @@ async function getWeekByDate(req, res, next) {
   }
 }
 
-// Semaine ciblée par une écriture employé : 'next' (préparation normale) ou 'current' (rattrapage).
 function planningWeekBounds(weekMode, now) {
   const weekStartDT = weekMode === 'current' ? planningDates.getCurrentWeekStart(now) : planningDates.getNextWeekStart(now);
   return {
@@ -222,7 +212,6 @@ function makeCreatePlanning(weekMode) {
       const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
       const editContext = await employeeEditContext(req.user.id, now);
-      // L'admin gère son propre planning sans la contrainte de fenêtre week-end des employés.
       if (req.user.role !== 'ADMIN' && !planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
         return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
       }
@@ -265,7 +254,6 @@ function makeUpdatePlanning(weekMode) {
       const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
       const editContext = await employeeEditContext(req.user.id, now);
-      // L'admin gère son propre planning sans la contrainte de fenêtre week-end des employés.
       if (req.user.role !== 'ADMIN' && !planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
         return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
       }
@@ -289,7 +277,6 @@ function makeUpdatePlanning(weekMode) {
 
         const metaUpdates = { general_note: generalNote ?? null };
         if (wasSubmitted) {
-          // Règle métier §6 : modifier un planning déjà soumis le repasse en brouillon.
           metaUpdates.status = planningDates.PLANNING_STATUS.DRAFT;
           metaUpdates.submitted_at = null;
         }
@@ -334,7 +321,6 @@ function makeSubmitPlanning(weekMode) {
       const { weekStart, weekEnd } = planningWeekBounds(weekMode, now);
 
       const editContext = await employeeEditContext(req.user.id, now);
-      // L'admin gère son propre planning sans la contrainte de fenêtre week-end des employés.
       if (req.user.role !== 'ADMIN' && !planningDates.canEmployeeEditWeek(weekStart, now, editContext)) {
         return res.status(403).json({ error: WINDOW_CLOSED_MESSAGE });
       }
@@ -386,7 +372,6 @@ function makeSubmitPlanning(weekMode) {
   };
 }
 
-// Semaine prochaine (préparation normale) + semaine en cours (rattrapage) partagent la même logique.
 const createNextWeekPlanning = makeCreatePlanning('next');
 const updateNextWeekPlanning = makeUpdatePlanning('next');
 const submitNextWeekPlanning = makeSubmitPlanning('next');
@@ -405,8 +390,6 @@ async function getMyPlanningHistory(req, res, next) {
   }
 }
 
-// Filtrage par semaine (liste) : reprend le même modèle que l'admin (listPlanningsForAdmin)
-// mais forcé sur l'utilisateur connecté — aucune logique de filtre dupliquée.
 async function getMyPlannings(req, res, next) {
   try {
     const now = planningDates.nowInPlanningZone();
@@ -444,8 +427,6 @@ async function getMyPlannings(req, res, next) {
     next(err);
   }
 }
-
-// ---------- Administrateur ----------
 
 async function adminListPlannings(req, res, next) {
   try {
@@ -522,8 +503,6 @@ async function adminGetPlanningDetail(req, res, next) {
     const weekStart = toDateString(planning.week_start_date);
     const weekEnd = toDateString(planning.week_end_date);
     const existingDays = await planningModel.findDaysWithSlots(planning.id);
-    // Un planning tout juste créé par un admin (POST /planning/admin) n'a encore aucune
-    // ligne planning_days : on retombe sur le squelette vide des 7 jours, comme côté employé.
     const days = existingDays.length > 0 ? existingDays : planningModel.buildEmptyWeekDays(weekStart);
     const now = planningDates.nowInPlanningZone();
 
@@ -540,7 +519,6 @@ async function adminUpdatePlanning(req, res, next) {
     const { planningId } = req.params;
     const { change_reason: changeReason, general_note: generalNote, days } = req.body;
 
-    // Le motif est désormais facultatif : une modification peut être enregistrée sans motif.
     const planning = await planningModel.findPlanningById(planningId);
     if (!planning) {
       return res.status(404).json({ error: 'Planning introuvable.' });
@@ -687,8 +665,6 @@ async function adminPlanningHistory(req, res, next) {
     next(err);
   }
 }
-
-// ---------- Présence : croise le planning déclaré du jour avec les sessions de connexion réelles ----------
 
 const ATTENDANCE_HAS_SLOTS = ['AVAILABLE', 'PARTIALLY_AVAILABLE'];
 const MANUAL_ATTENDANCE_STATUSES = new Set(['present', 'late', 'absent']);
@@ -936,7 +912,6 @@ async function adminAttendanceStats(req, res, next) {
       return res.status(400).json({ error: 'Identifiant employé invalide.' });
     }
 
-    // Deux modes : plage `start`/`end` (aujourd'hui/semaine/année/perso) OU `month` (rétro-compat).
     const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
     const { start, end } = req.query;
     let month = req.query.month || null;
@@ -944,7 +919,7 @@ async function adminAttendanceStats(req, res, next) {
     let monthEnd;
     if (start && end && DATE_ONLY.test(start) && DATE_ONLY.test(end)) {
       monthStart = planningDates.parsePlanningDate(start);
-      monthEnd = planningDates.parsePlanningDate(end).plus({ days: 1 }); // `end` inclusif → borne exclusive
+      monthEnd = planningDates.parsePlanningDate(end).plus({ days: 1 });
       if (monthEnd <= monthStart) {
         return res.status(400).json({ error: 'Plage de dates invalide.' });
       }
@@ -1029,8 +1004,6 @@ async function adminAttendanceStats(req, res, next) {
       : 0;
     summary.assessed_days = summary.present + summary.late + summary.absent + summary.partial + summary.outside;
 
-    // Temps de connexion total sur la période : somme des durées de session,
-    // bornées à la plage [monthStart, monthEnd] et jamais dans le futur (≤ now).
     let totalConnectedMinutes = 0;
     for (const session of sessionRows) {
       const login = DateTime.fromJSDate(session.login_at, { zone: planningDates.PLANNING_TIMEZONE });

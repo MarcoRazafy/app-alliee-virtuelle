@@ -8,7 +8,6 @@ const {
   WARNING_BEFORE_SECONDS,
 } = require('../src/utils/connectionLimit');
 
-// Heures de Madagascar (UTC+3), journée de travail de 2 h à 2 h (réglages par défaut).
 const at = (iso) => new Date(`${iso}+03:00`);
 const H = 3600;
 
@@ -21,7 +20,6 @@ test('additionne les sessions de la journée', () => {
 });
 
 test('une session de nuit ne compte que pour sa part avant 2 h', () => {
-  // 22 h → 4 h : 4 h sur la journée du 17 (jusqu'à 2 h), 2 h sur celle du 18.
   const night = [{ login_at: at('2026-09-17T22:00:00'), effective_logout_at: at('2026-09-18T04:00:00') }];
   assert.equal(connectedSecondsForDay(night, '2026-09-17'), 4 * H);
   assert.equal(connectedSecondsForDay(night, '2026-09-18'), 2 * H);

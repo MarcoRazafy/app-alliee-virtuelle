@@ -1,5 +1,3 @@
-/* Visionneuse plein écran d'une image ou d'un PDF joint (components/MediaPreview). Fond
-   toujours sombre, quel que soit le thème : c'est ce qui fait ressortir une image claire. */
 .media-preview {
   position: fixed;
   inset: 0;
@@ -79,7 +77,6 @@
   cursor: default;
 }
 
-/* Fichier qu'un navigateur ne sait pas afficher (Word, Excel…) : fiche + téléchargement. */
 .media-preview-file {
   display: flex;
   flex-direction: column;

@@ -22,8 +22,6 @@ import {
 } from '../components/icons';
 import { businessDayNow } from '../utils/businessDay';
 
-// Même journée de travail que côté serveur (fin à 2 h du matin) : sinon, passé minuit, le
-// compteur du jour repartait de zéro en plein poste de nuit.
 const todayDateString = businessDayNow;
 
 function Workspace() {
@@ -75,7 +73,6 @@ function Workspace() {
     loadStatsToday();
   }, [loadDay, loadStatsToday]);
 
-  // Repère les changements faits ailleurs (autre onglet, page de détail...) sans recharger la page
   useEffect(() => {
     const poll = setInterval(() => {
       loadDay();

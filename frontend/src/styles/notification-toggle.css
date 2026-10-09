@@ -1,4 +1,3 @@
-/* Panneau « Push notifications » (dans les pages Profil). Reprend le style profile-panel. */
 .notif-toggle-body {
   display: flex;
   flex-direction: column;

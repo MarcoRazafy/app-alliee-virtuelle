@@ -12,14 +12,12 @@ function BellIcon() {
   );
 }
 
-// iPhone : le push ne marche qu'en PWA installée (ajoutée à l'écran d'accueil), iOS 16.4+.
 function isIosSafariNotStandalone() {
   const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
   return isIos && !standalone;
 }
 
-// Panneau « Notifications » : active/désactive les notifications push sur CET appareil.
 export default function NotificationToggle() {
   const supported = isPushSupported();
   const [subscribed, setSubscribed] = useState(false);

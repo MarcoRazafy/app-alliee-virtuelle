@@ -1,7 +1,3 @@
-/* Classes utilitaires réutilisées à la fois par la page employé (Planning.jsx, dans
-   .planning-page) et le panneau détail admin (AdminPlanning.jsx, hors .planning-page) :
-   toutes les couleurs référencent donc directement les tokens partagés (tokens.css),
-   sans variable locale intermédiaire qui serait indéfinie hors de .planning-page. */
 .planning-page {
   display: flex;
   flex-direction: column;

@@ -21,7 +21,6 @@ function initialsOf(name) {
     .toUpperCase();
 }
 
-// Icônes neutres, sans fond (règle d'icônes)
 function Ic({ type }) {
   const c = { viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': true };
   if (type === 'mail')

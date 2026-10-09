@@ -1,9 +1,3 @@
-// Fichiers collés depuis le presse-papiers (Ctrl+V) : capture d'écran, image copiée, PDF…
-//
-// Une capture d'écran arrive sans vrai nom — « image.png » pour tous les navigateurs. Collées
-// l'une après l'autre dans un fil de discussion, elles seraient indiscernables : on les renomme
-// d'après l'instant du collage (« capture-2026-09-19-10h04.png »).
-
 const GENERIC_NAME_RE = /^(image|blob|clipboard|screenshot)(\.\w+)?$/i;
 
 const EXTENSION_BY_TYPE = {
@@ -24,13 +18,10 @@ export function pastedFileName(file, now = new Date()) {
   return `${prefix}-${stamp}.${ext}`;
 }
 
-// Fichiers d'un événement `paste`, renommés si besoin. Tableau vide quand on colle du texte :
-// l'appelant laisse alors le collage se faire normalement.
 export function filesFromPaste(event, now = new Date()) {
   const data = event?.clipboardData;
   if (!data) return [];
   let files = Array.from(data.files || []);
-  // Certains navigateurs ne remplissent que `items`.
   if (files.length === 0 && data.items) {
     files = Array.from(data.items)
       .filter((item) => item.kind === 'file')

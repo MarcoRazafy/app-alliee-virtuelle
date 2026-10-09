@@ -2,13 +2,11 @@ export const STATUS_PILL = {
   DECLAREE: { label: 'Non validée', className: 'pill--declared' },
   VALIDEE: { label: 'À faire', className: 'pill--todo' },
   EN_COURS: { label: 'En cours', className: 'pill--progress' },
-  // Statut synthétique calculé côté front (EN_COURS sans session de chrono active)
   A_REPRENDRE: { label: 'À reprendre', className: 'pill--paused' },
   TERMINEE: { label: 'Terminée', className: 'pill--done' },
   CONFIRMEE: { label: 'Confirmée', className: 'pill--confirmed' },
 };
 
-// Libellés français des priorités (les valeurs restent les enums backend FAIBLE/NORMALE/HAUTE/URGENT).
 export const PRIORITY_LABEL = {
   FAIBLE: 'Faible',
   NORMALE: 'Normale',
@@ -20,7 +18,6 @@ export function priorityLabel(priority) {
   return PRIORITY_LABEL[priority] || priority;
 }
 
-// Libellés français des statuts de compte (valeurs enum backend en français).
 export const USER_STATUS_LABEL = {
   ACTIF: 'Actif',
   SUSPENDU: 'Suspendu',
@@ -46,25 +43,14 @@ export function formatRelativeDeadline(deadline) {
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
-// Statut AFFICHÉ d'une tâche. « À reprendre » n'existe pas en base : c'est une tâche
-// commencée (EN_COURS) dont le chrono n'est plus lancé. Ce calcul doit être partagé par
-// l'employé ET l'admin — sinon la même tâche s'affiche « À reprendre » d'un côté et
-// « En cours » de l'autre, ce qui laisse croire à deux états différents.
-// `has_active_session` est fourni par l'API des listes de tâches.
 export function displayStatusOf(task) {
   if (!task) return null;
   if (task.status === 'EN_COURS' && !task.has_active_session) return 'A_REPRENDRE';
   return task.status;
 }
 
-// Statuts pour lesquels le travail est FAIT : une tâche qui les porte n'est jamais en
-// retard, même rendue après l'échéance.
 export const FINISHED_STATUSES = ['TERMINEE', 'CONFIRMEE'];
 
-// Définition unique du « retard » côté interface, jumelle de utils/lateTasks.js côté
-// serveur. Elle vivait recopiée dans les pages, en n'excluant que CONFIRMEE : une tâche
-// terminée mais pas encore confirmée par un admin apparaissait donc en retard, alors
-// qu'elle n'appelait plus rien de l'employé.
 export function isTaskLate(task, todayYMD) {
   if (!task?.deadline) return false;
   if (FINISHED_STATUSES.includes(task.status)) return false;

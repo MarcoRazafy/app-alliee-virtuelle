@@ -1,9 +1,5 @@
 const db = require('../config/database');
 
-// Demandes de tâche supplémentaire (cf. migration 012). Un employé qui a validé sa
-// journée demande une tâche précise ; l'admin approuve (→ tâche ajoutée à la sélection
-// du jour) ou refuse.
-
 async function create({ userId, taskId, date, message }) {
   const { rows } = await db.query(
     `INSERT INTO extra_task_requests (user_id, task_id, date, message)
@@ -23,7 +19,6 @@ async function findPending(userId, taskId, date) {
   return rows[0] || null;
 }
 
-// Demandes d'un employé pour un jour donné (tous statuts), avec le titre de la tâche.
 async function findByUserForDate(userId, date) {
   const { rows } = await db.query(
     `SELECT r.id, r.task_id, r.status, r.message, r.admin_note, r.reviewed_at, r.created_at,
@@ -37,7 +32,6 @@ async function findByUserForDate(userId, date) {
   return rows;
 }
 
-// Liste pour l'admin, enrichie de l'employé et de la tâche. Filtrable par statut.
 async function findForAdmin({ status } = {}) {
   const params = [];
   let where = '';
@@ -74,9 +68,6 @@ async function findById(id) {
   return rows[0] || null;
 }
 
-// Approuve la demande ET ajoute la tâche à la sélection du jour de l'employé (déjà validée),
-// pour qu'elle apparaisse aussitôt dans « Mes tâches aujourd'hui ». Idempotent : ne double
-// jamais la sélection si la tâche y est déjà.
 async function approve(id, adminId) {
   return db.withTransaction(async (client) => {
     const { rows } = await client.query(

@@ -1,4 +1,4 @@
-require('./setupTestDb'); // DOIT être en premier (bascule sur la base de test)
+require('./setupTestDb');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
@@ -13,7 +13,6 @@ async function login(identifier) {
   return res.body.token;
 }
 
-// Construit un payload de 7 jours "disponibles" à partir des dates renvoyées par l'API.
 function fullWeekPayload(days) {
   return days.map((day) => ({
     date: day.date,
@@ -24,7 +23,6 @@ function fullWeekPayload(days) {
 }
 
 async function resetEmployee() {
-  // Repart d'un employé sans aucun planning (TRUNCATE users CASCADE efface aussi ses plannings).
   await seedAll();
   employeeToken = await login(EMPLOYEE.email);
 }
@@ -48,11 +46,9 @@ test('rattrapage : un employé sans aucun planning peut éditer la semaine EN CO
 
 test("rattrapage refusé si l'employé a déjà touché la semaine prochaine (→ 403)", async () => {
   await resetEmployee();
-  // Il crée d'abord un planning pour la semaine prochaine.
   const created = await request(app).post('/api/planning/next-week').set('Authorization', `Bearer ${employeeToken}`);
   assert.equal(created.status, 201);
 
-  // Désormais la semaine en cours n'est plus éligible au rattrapage.
   const current = (await request(app).get('/api/planning/current').set('Authorization', `Bearer ${employeeToken}`)).body;
   assert.equal(current.can_edit, false);
 

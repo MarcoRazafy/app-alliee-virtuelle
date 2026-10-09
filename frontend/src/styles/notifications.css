@@ -81,7 +81,6 @@
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
 }
 
-/* Notification cliquable (#8) : redirige vers la page de l'action au clic. */
 .notification-item--clickable {
   cursor: pointer;
 }

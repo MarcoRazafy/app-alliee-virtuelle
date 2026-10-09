@@ -20,8 +20,6 @@ export function getSubtasks(id) {
   return api.get(`/api/tasks/${id}/subtasks`).then((res) => res.data);
 }
 
-// Signale aux listes ouvertes qu'une tâche a été créée/supprimée, pour qu'elles se
-// rechargent sans que l'utilisateur ait à actualiser la page.
 function notifyTasksChanged() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('tasks:changed'));
 }
@@ -40,27 +38,22 @@ export function deleteTask(id) {
   });
 }
 
-// Modifie une tâche (titre, description, priorité, échéance).
 export function updateTask(id, payload) {
   return api.patch(`/api/tasks/${id}`, payload).then((res) => res.data);
 }
 
-// Change le statut d'une tâche (admin) : VALIDEE / EN_COURS / TERMINEE / CONFIRMEE.
 export function updateTaskStatus(id, status) {
   return api.patch(`/api/tasks/${id}/status`, { status }).then((res) => res.data);
 }
 
-// Transfère la tâche à une autre personne (change le destinataire).
 export function reassignTask(id, assignedTo) {
   return api.post(`/api/tasks/${id}/reassign`, { assigned_to: assignedTo }).then((res) => res.data);
 }
 
-// Ajoute une personne à la tâche (assignation multiple partagée).
 export function addTaskAssignee(id, assignedTo) {
   return api.post(`/api/tasks/${id}/add-assignee`, { assigned_to: assignedTo }).then((res) => res.data);
 }
 
-// Retire une personne de la tâche.
 export function removeTaskAssignee(id, userId) {
   return api.delete(`/api/tasks/${id}/assignees/${userId}`).then((res) => res.data);
 }
@@ -73,10 +66,6 @@ export function rejectTask(id, motif) {
   return api.post(`/api/tasks/${id}/reject`, { motif }).then((res) => res.data);
 }
 
-// Description seule. Route distincte de updateTask, qui réécrit aussi titre, priorité et
-// échéance : la personne assignée n'a le droit de modifier que ce champ.
-// Change l'échéance seule. Rend { id, deadline, is_late } : is_late dit si la tâche reste
-// en retard, pour expliquer pourquoi une carte quitte (ou non) la liste des retards.
 export function updateTaskDeadline(id, deadline) {
   return api.patch(`/api/tasks/${id}/deadline`, { deadline }).then((res) => res.data);
 }
@@ -89,8 +78,6 @@ export function completeTask(id) {
   return api.post(`/api/tasks/${id}/complete`).then((res) => res.data);
 }
 
-// Signale au widget « tâche en cours » qu'un chrono vient de démarrer/s'arrêter,
-// pour qu'il se rafraîchisse tout de suite (sans attendre le polling de 15 s).
 function notifyTimelogChanged() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('timelog:changed'));
 }
@@ -109,7 +96,6 @@ export function stopTimelog(taskId) {
   });
 }
 
-// Correction d'une session chronométrée (admin) : chrono oublié, doublon.
 export function updateTimelogEntry(entryId, payload) {
   return api.patch(`/api/timelog/entry/${entryId}`, payload).then((res) => res.data);
 }
@@ -146,8 +132,6 @@ export function getMyActivity() {
   return api.get('/api/my-activity').then((res) => res.data);
 }
 
-// --- Demandes de tâche supplémentaire ---
-
 export function createExtraTaskRequest(taskId, message) {
   return api.post('/api/tasks/extra-requests', { task_id: taskId, message }).then((res) => res.data);
 }
@@ -180,8 +164,6 @@ export function getAttachments(taskId) {
   return api.get(`/api/tasks/${taskId}/attachments`).then((res) => res.data);
 }
 
-// `commentId` (optionnel) rattache le fichier à un commentaire : il s'affiche alors dans la
-// bulle du message, en plus de rester listé dans les pièces jointes de la tâche.
 export function uploadAttachment(taskId, file, commentId = null) {
   const formData = new FormData();
   formData.append('file', file);
@@ -199,20 +181,14 @@ export function deleteAttachment(taskId, fileId) {
   return api.delete(`/api/tasks/${taskId}/attachments/${fileId}`).then((res) => res.data);
 }
 
-// Modification : l'auteur uniquement, y compris pour un admin — on ne réécrit pas les mots
-// d'autrui sous sa signature. La modération passe par la suppression.
 export function updateComment(taskId, commentId, content) {
   return api.patch(`/api/tasks/${taskId}/comments/${commentId}`, { content }).then((res) => res.data);
 }
 
-// Retrait d'un message : l'auteur pour le sien, l'admin pour n'importe lequel (le serveur
-// tranche ; l'interface se contente de ne pas proposer le bouton là où il serait refusé).
 export function deleteComment(taskId, commentId) {
   return api.delete(`/api/tasks/${taskId}/comments/${commentId}`).then((res) => res.data);
 }
 
-// Pose ou retire une réaction (le « nike » ✔️). Rend { id, reactions } : l'état agrégé à
-// jour, sur lequel l'interface se recale après son affichage anticipé.
 export function toggleCommentReaction(taskId, commentId, emoji) {
   return api.post(`/api/tasks/${taskId}/comments/${commentId}/reactions`, { emoji }).then((res) => res.data);
 }

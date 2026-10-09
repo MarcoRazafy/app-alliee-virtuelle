@@ -3,12 +3,6 @@ import { filterProjects } from '../utils/projectSearch';
 import { IconFolder, IconSearch, IconChevronDown, IconCheckCircle } from './icons';
 import '../styles/project-picker.css';
 
-// Choix d'un projet (« Espace › Dossier › Liste ») avec recherche.
-//
-// Remplace un <select> natif : au-delà d'une dizaine de projets, il fallait dérouler une
-// liste sans pouvoir filtrer, et le chemin complet y était illisible sur une seule ligne.
-// Ici le chemin est mis en forme — le parent en gris, le nom de la liste en évidence.
-
 function pathParts(path) {
   const parts = String(path || '').split('›').map((p) => p.trim()).filter(Boolean);
   return { parents: parts.slice(0, -1), name: parts[parts.length - 1] || path || '' };
@@ -26,14 +20,11 @@ export default function ProjectPicker({ projects, value, onChange, required = fa
   );
   const results = useMemo(() => filterProjects(projects, query), [projects, query]);
 
-  // Le champ de recherche prend le focus à l'ouverture : on ouvre pour chercher.
   useEffect(() => {
     if (open) searchRef.current?.focus();
     else setQuery('');
   }, [open]);
 
-  // Fermeture au clic extérieur et à Échap — un menu qui reste ouvert par-dessus le
-  // formulaire empêche de remplir les champs suivants.
   useEffect(() => {
     if (!open) return undefined;
     function onPointerDown(event) {
@@ -96,8 +87,6 @@ export default function ProjectPicker({ projects, value, onChange, required = fa
               placeholder="Rechercher un projet…"
               aria-label="Rechercher un projet"
               onKeyDown={(e) => {
-                // Entrée choisit le premier résultat : chercher puis valider sans quitter
-                // le clavier. preventDefault, sinon le formulaire se soumettrait.
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   if (results.length > 0) choose(results[0]);

@@ -1,7 +1,3 @@
--- Corrections manuelles de présence décidées par un administrateur.
--- La valeur calculée reste disponible dans l'API : cette table ne détruit jamais
--- les sessions de connexion brutes et garde la traçabilité de la correction.
-
 ALTER TABLE user_sessions
   ADD COLUMN IF NOT EXISTS disconnect_requested_at TIMESTAMPTZ;
 

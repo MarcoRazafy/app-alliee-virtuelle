@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-/*
- * Insère quelques annonces de démonstration (avec images externes) pour tester la page Annonces.
- * Usage : node scripts/seed-announcements.js
- * Les images viennent de picsum.photos (URL internet, autorisées par la CSP `img-src https:`).
- */
 const db = require('../src/config/database');
 
 const ANNOUNCEMENTS = [
@@ -45,7 +40,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Contrainte : une seule annonce épinglée. On dépingle tout avant d'insérer la nouvelle.
   await db.query('UPDATE announcements SET is_pinned = false WHERE is_pinned = true');
 
   let inserted = 0;

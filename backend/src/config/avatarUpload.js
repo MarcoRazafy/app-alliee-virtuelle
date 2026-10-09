@@ -3,15 +3,11 @@ const path = require('path');
 const multer = require('multer');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads/avatars');
-// multer.diskStorage échoue si le dossier n'existe pas → on le crée au démarrage
-// (indispensable sur un volume persistant vide, ex. Railway).
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg'];
 
-// Même logique que config/upload.js : path.basename() + un jeu de caractères sûr
-// pour éviter qu'un nom de fichier client ne permette une écriture hors de UPLOAD_DIR
 function sanitizeFileName(originalName) {
   const baseName = path.basename(originalName);
   return baseName.replace(/[^a-zA-Z0-9._-]/g, '_');

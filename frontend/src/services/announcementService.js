@@ -12,7 +12,6 @@ export function getAnnouncement(id) {
   return api.get(`/api/announcements/${id}`).then((res) => res.data);
 }
 
-// FormData quand une image est fournie (upload), sinon JSON simple.
 function buildBody({ title, body, is_important, is_pinned, file }) {
   if (file) {
     const form = new FormData();

@@ -15,8 +15,6 @@ import {
 } from '../../utils/planningFormat';
 import { totalHoursOf, initials } from './adminPlanningHelpers';
 
-// Modale de détail/édition d'un planning par l'admin (calendrier + présence réelle + historique).
-// Extraite de AdminPlanning ; reçoit planningId + avatarUrls et remonte onSaved/onClose.
 function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
   const [detail, setDetail] = useState(null);
   const [draftDays, setDraftDays] = useState([]);
@@ -50,7 +48,6 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
     };
   }, [planningId]);
 
-  // Présence réelle de l'employé sur cette semaine, superposée au calendrier + suivi temps réel.
   useEffect(() => {
     const userId = detail?.user?.id;
     const weekStart = detail?.week_start_date;
@@ -127,7 +124,6 @@ function PlanningDetailModal({ planningId, avatarUrls, onClose, onSaved }) {
   }
 
   async function handleSave() {
-    // Le motif est facultatif : aucune validation bloquante côté client.
     setSaving(true);
     setErrors([]);
     try {

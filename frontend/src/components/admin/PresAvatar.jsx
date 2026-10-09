@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import * as avatarService from '../../services/avatarService';
 import { initials } from './adminPresenceHelpers';
 
-// Avatar d'un employé sur la page Présence (photo si dispo, sinon initiales). Extrait d'AdminPresence.
 function PresAvatar({ user }) {
   const [url, setUrl] = useState(null);
   useEffect(() => {

@@ -1,7 +1,5 @@
 const db = require('../config/database');
 
-// Liste des annonces (plus récentes d'abord) avec : nom de l'auteur, si l'utilisateur courant
-// l'a lue, et le nombre total de lecteurs.
 async function list(userId) {
   const result = await db.query(
     `SELECT a.id, a.title, a.body, a.created_at, a.updated_at, a.author_id,
@@ -37,7 +35,6 @@ async function findById(id, userId) {
 }
 
 async function create({ authorId, title, body, isImportant = false, isPinned = false, imagePath = null }) {
-  // Une seule annonce épinglée à la fois : on dépingle les autres avant.
   if (isPinned) await db.query('UPDATE announcements SET is_pinned = false WHERE is_pinned = true');
   const result = await db.query(
     `INSERT INTO announcements (author_id, title, body, is_important, is_pinned, image_path)
@@ -48,7 +45,6 @@ async function create({ authorId, title, body, isImportant = false, isPinned = f
   return result.rows[0];
 }
 
-// imagePath : nouveau chemin de fichier, ou undefined pour conserver l'image existante.
 async function update(id, { title, body, isImportant = false, isPinned = false, imagePath }) {
   if (isPinned) await db.query('UPDATE announcements SET is_pinned = false WHERE is_pinned = true AND id <> $1', [id]);
   const setImage = imagePath !== undefined;
@@ -68,13 +64,11 @@ async function remove(id) {
   await db.query('DELETE FROM announcements WHERE id = $1', [id]);
 }
 
-// Chemin du fichier image uploadé (pour le servir ou supprimer l'ancien).
 async function findImagePath(id) {
   const result = await db.query('SELECT image_path FROM announcements WHERE id = $1', [id]);
   return result.rows[0]?.image_path || null;
 }
 
-// Accusé de lecture (idempotent : ne remet pas à jour la date si déjà lu).
 async function markRead(announcementId, userId) {
   await db.query(
     `INSERT INTO announcement_reads (announcement_id, user_id)
@@ -84,7 +78,6 @@ async function markRead(announcementId, userId) {
   );
 }
 
-// Lecteurs d'une annonce (visible par tout le monde).
 async function findReaders(announcementId) {
   const result = await db.query(
     `SELECT u.id, u.full_name, r.read_at
@@ -97,7 +90,6 @@ async function findReaders(announcementId) {
   return result.rows;
 }
 
-// Nombre d'annonces non lues par l'utilisateur (pour la pastille).
 async function unreadCount(userId) {
   const result = await db.query(
     `SELECT COUNT(*)::int AS count
@@ -110,7 +102,6 @@ async function unreadCount(userId) {
   return result.rows[0].count;
 }
 
-// L'annonce non lue la plus récente (pour le popup).
 async function findLatestUnread(userId) {
   const result = await db.query(
     `SELECT a.id, a.title, a.body, a.created_at, author.full_name AS author_name

@@ -1,6 +1,3 @@
-/* Couleurs directement sur les tokens partagés (tokens.css), sans variable locale
-   intermédiaire — même choix que planning.css/week-calendar.css cette session. */
-
 .resources-page {
   display: flex;
   flex-direction: column;
@@ -168,11 +165,6 @@
   height: 18px;
 }
 
-/* ============================================================
-   Espace admin : création / renommage / partage de dossiers,
-   gestion des fichiers, modale de partage.
-   ============================================================ */
-
 .resources-count-pill {
   display: inline-grid;
   place-items: center;
@@ -199,14 +191,12 @@
   min-width: 0;
 }
 
-/* Bouton compact partagé */
 .btn-sm {
   min-height: 32px;
   padding: 0 12px;
   font-size: 0.76rem;
 }
 
-/* Ligne de dossier = bouton d'ouverture + actions au survol */
 .resources-folder-row {
   display: flex;
   align-items: center;
@@ -223,7 +213,6 @@
   background: var(--glow-accent);
 }
 
-/* L'item hérite du style de base mais devient flexible dans la ligne */
 .resources-folder-row .resources-folder-item {
   flex: 1;
   border-radius: 12px 0 0 12px;
@@ -249,11 +238,6 @@
   opacity: 1;
 }
 
-/* La remise à zéro du style natif des <button> vit désormais dans app.css, pour TOUTES les
-   pages : ici, elle ne corrigeait que les Ressources — d'où des boutons soignés sur cette
-   page et des boutons gris du navigateur dans le suivi du temps d'une tâche. */
-
-/* Formulaire d'ajout de fichier */
 .resources-file-form {
   display: flex;
   flex-wrap: wrap;
@@ -321,7 +305,6 @@
   background: var(--glow-accent);
 }
 
-/* --- Modale de partage --- */
 .resources-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -492,7 +475,6 @@
   font-size: 0.72rem;
 }
 
-/* --- Corbeille des ressources --- */
 .resources-trash-modal {
   width: min(820px, 100%);
 }
@@ -667,7 +649,6 @@
   line-height: 1.5;
 }
 
-/* --- Éditeur de document --- */
 .resources-editor-modal,
 .resources-viewer-modal {
   width: min(900px, 100%);
@@ -732,7 +713,6 @@
   border-color: var(--color-accent);
 }
 
-/* Bouton « Photo, vidéo, PDF » : poussé à droite, il se distingue de la mise en forme. */
 .resources-editor-tool--media {
   display: inline-flex;
   align-items: center;
@@ -749,8 +729,6 @@
   cursor: not-allowed;
 }
 
-/* Texte d'invite affiché tant que le document est vide. Il n'est PAS du contenu : autrefois
-   écrit dans le document, il finissait enregistré si l'on ne pensait pas à l'effacer. */
 .resources-editor-surface-wrap {
   position: relative;
 }
@@ -777,7 +755,6 @@
   font-size: 0.8rem;
 }
 
-/* Médias insérés dans un document (photo, vidéo, PDF). */
 .resource-doc-render .resource-doc-media {
   margin: 14px 0;
 }
@@ -794,8 +771,6 @@
   border-radius: 10px;
   background: #000;
 }
-/* Carte d'un PDF : lisible sur la page blanche de lecture comme sur le fond sombre de
-   l'éditeur — d'où des couleurs dérivées du texte plutôt que fixées. */
 .resource-doc-render .resource-doc-pdf {
   display: inline-flex;
   align-items: center;
@@ -825,7 +800,6 @@
 .resource-doc-render .resource-doc-pdf:hover {
   border-color: var(--color-accent);
 }
-/* Bloc d'attente pendant l'import : il réserve la place du média dans le texte. */
 .resource-doc-render .resource-doc-media--uploading {
   padding: 14px 16px;
   border: 1px dashed var(--color-border);
@@ -833,7 +807,6 @@
   color: var(--color-text-muted);
   font-size: 0.82rem;
 }
-/* Dans l'éditeur, un média est un objet d'un seul tenant : on le montre au survol. */
 .resources-editor-surface .resource-doc-media {
   border-radius: 10px;
   outline: 2px solid transparent;
@@ -844,7 +817,6 @@
   outline-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
 }
 
-/* Typographie commune du document (édition + lecture + export PDF) */
 .resource-doc-render {
   color: var(--color-text-primary);
   font-size: 0.92rem;
@@ -877,7 +849,6 @@
   margin-bottom: 4px;
 }
 
-/* --- Visionneuse --- */
 .resources-viewer-body {
   min-height: 300px;
 }
@@ -899,7 +870,6 @@
   background: var(--input-bg);
 }
 
-/* Lecteur vidéo : fond noir façon écran, la vidéo garde ses proportions sans déborder. */
 .resources-viewer-video-wrap {
   display: grid;
   place-items: center;
@@ -920,7 +890,6 @@
   border-radius: 8px;
 }
 
-/* Rendu "page blanche" du document en lecture (et cadre de l'export PDF) */
 .resources-doc-page {
   max-height: 68vh;
   overflow-y: auto;
@@ -985,7 +954,6 @@
   }
 }
 
-/* Image d'un document en lecture : un clic l'agrandit dans la visionneuse. */
 .resources-doc-page .resource-doc-render img {
   cursor: zoom-in;
 }

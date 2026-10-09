@@ -1,13 +1,9 @@
-/* Page Annonces — style tableau de bord : onglets + tri, grille de cartes 2 colonnes,
-   sidebar (épinglée / statistiques / activité). Réutilise tokens.css. */
-
 .ann-page {
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-/* --- Barre d'outils : onglets + tri + nouvelle annonce --- */
 .ann-toolbar {
   display: flex;
   align-items: center;
@@ -104,7 +100,6 @@
 .ann-new-btn { display: inline-flex; align-items: center; gap: 8px; }
 .ann-new-btn svg { width: 17px; height: 17px; }
 
-/* --- Disposition principale : contenu + sidebar --- */
 .ann-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -119,7 +114,6 @@
   gap: 16px;
 }
 
-/* --- Carte annonce --- */
 .ann-card {
   display: flex;
   flex-direction: column;
@@ -174,7 +168,7 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--color-text-secondary);
-  white-space: pre-line; /* conserve les retours à la ligne de l'aperçu */
+  white-space: pre-line;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -194,7 +188,6 @@
   object-fit: cover;
 }
 
-/* Contrôle d'upload d'image (drop-zone + aperçu), comme les autres uploads de l'app. */
 .ann-file { cursor: pointer; }
 .ann-file-drop {
   display: flex;
@@ -241,7 +234,6 @@
 
 .ann-card-foot-right { display: inline-flex; align-items: center; gap: 8px; }
 
-/* Bouton « marquer comme lu » (cible tactile confortable). */
 .ann-mark-read {
   display: inline-flex;
   align-items: center;
@@ -283,7 +275,6 @@
 .ann-more svg { width: 15px; height: 15px; }
 .ann-more:hover { text-decoration: underline; }
 
-/* --- Sidebar --- */
 .ann-sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
 .ann-side-card {
   background: var(--color-bg-secondary);
@@ -310,7 +301,6 @@
 .ann-pinned .ann-card-title { font-size: 14.5px; }
 .ann-pinned-btn { align-self: stretch; justify-content: center; margin-top: 4px; }
 
-/* Stats (4 tuiles) */
 .ann-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -328,7 +318,6 @@
 .ann-stat strong { font-size: 20px; font-weight: 800; color: var(--color-text-primary); }
 .ann-stat span:last-child { font-size: 10.5px; color: var(--color-text-muted); line-height: 1.2; }
 
-/* Activité récente */
 .ann-activity { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .ann-activity-item { display: flex; align-items: center; gap: 10px; }
 .ann-activity-bullet { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
@@ -358,7 +347,6 @@
 .ann-activity-all svg { width: 15px; height: 15px; }
 .ann-activity-all:hover { background: var(--glass-overlay); border-color: var(--color-accent-light); }
 
-/* --- État vide --- */
 .ann-empty {
   display: flex;
   flex-direction: column;
@@ -371,7 +359,6 @@
 .ann-empty svg { width: 34px; height: 34px; opacity: 0.6; }
 .ann-empty strong { color: var(--color-text-secondary); font-size: 15px; }
 
-/* --- Modale (détail + création/édition) --- */
 .ann-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -416,10 +403,6 @@
 .ann-modal-close svg { width: 18px; height: 18px; }
 .ann-modal-close:hover { background: var(--glass-overlay); color: var(--color-text-primary); }
 .ann-modal-title { margin: 0; font-size: 19px; font-weight: 800; color: var(--color-text-primary); padding-right: 30px; }
-/* Détail : l'image est montrée EN ENTIER (le `cover` d'origine la recadrait). La modale
-   défile déjà, donc une image haute passe sans problème ; `contain` + le plafond en vh
-   évitent seulement qu'une image très verticale occupe tout l'écran. `flex-shrink: 0`
-   empêche l'aplatissement dans la colonne flex de la modale. */
 .ann-modal-image {
   border-radius: 12px;
   overflow: hidden;
@@ -436,7 +419,6 @@
 }
 .ann-modal-body { margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-text-secondary); }
 
-/* Contenu riche rendu dans le détail (HTML nettoyé). */
 .ann-rich :where(p) { margin: 0 0 8px; }
 .ann-rich :where(p):last-child { margin-bottom: 0; }
 .ann-rich :where(ul, ol) { margin: 6px 0; padding-left: 22px; }
@@ -444,12 +426,8 @@
 .ann-rich :where(a) { color: var(--color-accent-lighter); text-decoration: underline; }
 .ann-rich :where(strong, b) { font-weight: 700; }
 
-/* --- Éditeur riche du formulaire --- */
 .ann-field { display: flex; flex-direction: column; gap: 6px; }
 .ann-field-label { font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary); }
-
-/* Le style de l'éditeur riche (.rte-*) est désormais dans styles/rich-text-editor.css,
-   importé par le composant RichTextEditor (donc chargé partout où il est utilisé). */
 
 .ann-badge-important {
   display: inline-flex;
@@ -468,7 +446,6 @@
 .ann-readers { border-top: 1px solid var(--color-border); padding-top: 12px; }
 .ann-readers-title { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-text-primary); }
 
-/* Bandeau dépliant : toute la ligne est cliquable, pas seulement le chevron. */
 .ann-readers-toggle {
   display: flex;
   align-items: center;
@@ -491,7 +468,6 @@
   outline: none;
   box-shadow: var(--ring-accent);
 }
-/* Le titre porte déjà sa marge basse : à l'intérieur du bouton, elle décalerait le chevron. */
 .ann-readers-toggle .ann-readers-title { margin-bottom: 0; }
 
 .ann-readers-chevron {
@@ -528,7 +504,6 @@
 .ann-check input { width: 16px; height: 16px; accent-color: var(--color-accent); }
 .ann-check svg { width: 15px; height: 15px; color: var(--color-warning); }
 
-/* --- Responsive --- */
 @media (max-width: 980px) {
   .ann-layout { grid-template-columns: 1fr; }
   .ann-sidebar { position: static; }
@@ -540,8 +515,6 @@
   .ann-grid { grid-template-columns: 1fr; }
 }
 
-/* L'activité récente est devenue cliquable (ouvre l'annonce) : le <li> est maintenant un
-   <button>, d'où la neutralisation des styles natifs et un état de survol explicite. */
 button.ann-activity-item {
   width: 100%;
   padding: 6px 8px;
@@ -565,7 +538,6 @@ button.ann-activity-item:focus-visible {
   outline-offset: 1px;
 }
 
-/* Image de l'annonce : bouton qui l'agrandit dans la visionneuse. */
 .ann-modal-image--zoomable {
   display: block;
   width: 100%;

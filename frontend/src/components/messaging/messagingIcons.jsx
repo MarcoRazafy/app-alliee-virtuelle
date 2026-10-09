@@ -1,6 +1,3 @@
-// Icônes SVG propres à la messagerie (extraites de MessagingView pour l'alléger).
-// Toutes présentationnelles, sans état.
-
 export function SendIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>

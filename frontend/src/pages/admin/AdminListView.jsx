@@ -8,7 +8,6 @@ import { formatDate } from '../../utils/formatters';
 import { IconChecklist, IconExternalLink, IconPlus, IconTrash } from '../../components/icons';
 import '../../styles/admin.css';
 
-// Ordre = celui du workflow (DECISIONS.md) : une tâche neuve tombe toujours dans "Déclarée"
 const STATUS_GROUPS = [
   { key: 'DECLAREE', label: 'Déclarée (à valider)', pill: 'declared' },
   { key: 'VALIDEE', label: 'À faire', pill: 'todo' },
@@ -41,14 +40,12 @@ function AdminListView() {
     loadTasks(listId);
   }
 
-  // Pré-sélection d'une liste quand on arrive depuis le chemin d'une tâche (state.selectList).
   useEffect(() => {
     const pre = location.state?.selectList;
     if (pre?.id) handleSelectList(pre.id, pre);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
-  // Une tâche créée/supprimée ailleurs (ex. modale « Créer une tâche ») → recharge sans actualiser.
   useEffect(() => {
     function onTasksChanged() {
       setTreeRefreshKey((k) => k + 1);
@@ -59,7 +56,6 @@ function AdminListView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedListId]);
 
-  // Ajouter une tâche = ouvrir le formulaire complet avec l'emplacement pré-rempli (modifiable).
   function goToCreateTask(list) {
     if (!list) return;
     navigate('/admin/create-task', {

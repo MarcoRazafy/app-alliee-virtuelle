@@ -1,6 +1,3 @@
-/* Barre de mise en forme d'un textarea Markdown (commentaires de tâche).
-   Discrète par défaut : elle ne doit pas concurrencer le bouton d'envoi. */
-
 .md-toolbar {
   display: flex;
   align-items: center;

@@ -3,11 +3,10 @@ import '../styles/install-prompt.css';
 
 const DISMISS_KEY = 'pwa-install-dismissed';
 
-// Déjà installée (ouverte en mode « application », pas dans un onglet de navigateur) ?
 function isStandalone() {
   return (
     window.matchMedia?.('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true // iOS
+    window.navigator.standalone === true
   );
 }
 
@@ -15,8 +14,6 @@ function isIos() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream;
 }
 
-// Bandeau « Installer l'application » : bouton d'installation natif (Android/Desktop Chrome, Edge)
-// ou instructions manuelles sur iPhone (Safari ne propose pas d'installation automatique).
 export default function InstallPrompt() {
   const [deferred, setDeferred] = useState(null);
   const [visible, setVisible] = useState(false);
@@ -26,7 +23,7 @@ export default function InstallPrompt() {
     if (isStandalone() || localStorage.getItem(DISMISS_KEY) === '1') return undefined;
 
     function onBeforeInstall(event) {
-      event.preventDefault(); // on garde la main pour déclencher l'install depuis notre bouton
+      event.preventDefault();
       setDeferred(event);
       setVisible(true);
     }
@@ -38,7 +35,6 @@ export default function InstallPrompt() {
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
 
-    // iOS : aucun événement d'installation → on affiche quand même le bandeau (instructions).
     if (isIos()) setVisible(true);
 
     return () => {

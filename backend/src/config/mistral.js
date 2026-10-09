@@ -2,7 +2,7 @@ const env = require('./env');
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const PLACEHOLDER_KEY = 'your_mistral_key_here';
-const MAX_RETRIES = 3; // réessais sur 429 (trop de requêtes) et 5xx transitoires
+const MAX_RETRIES = 3;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -38,8 +38,6 @@ async function askMistral(messages) {
       throw networkError;
     }
 
-    // 429 (quota / trop de requêtes) ou 5xx transitoire : on patiente puis on réessaie.
-    // On respecte l'en-tête Retry-After si Mistral le fournit, sinon backoff 1s / 2s / 4s.
     const retriable = response.status === 429 || response.status >= 500;
     if (retriable && attempt < MAX_RETRIES) {
       const retryAfter = Number(response.headers.get('retry-after'));

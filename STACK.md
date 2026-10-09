@@ -510,7 +510,7 @@ alliee-virtuelle/
 
 **Étape 2 - Authentification & Gestion des comptes**
 
-Avec Claude Code, on va générer :
+À produire :
 - ✅ Formulaires inscription / connexion
 - ✅ API endpoints auth (register, login, forgot password)
 - ✅ Gestion états compte (EN_ATTENTE, ACTIF, SUSPENDU, REFUSÉ)
@@ -518,10 +518,10 @@ Avec Claude Code, on va générer :
 - ✅ JWT tokens + refresh logic
 - ✅ Middleware auth middleware sur les routes protégées
 
-**Durée estimée** : 5-7 jours (avec Claude Code : 2-3 jours)
+**Durée estimée** : 5-7 jours
 
 ---
 
-**Configuration validée et prête pour l'Étape 1 - Mise en place technique avec Claude Code.**
+**Configuration validée et prête pour l'Étape 1 - Mise en place technique.**
 
 *Prochain étape : Exécuter les commandes ci-dessus et vérifier que backend + frontend démarrent.*

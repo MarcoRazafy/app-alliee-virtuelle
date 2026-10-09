@@ -22,11 +22,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
-      // PWA : rend l'app installable (mobile + desktop) via un service worker + un manifest.
       VitePWA({
-        registerType: 'autoUpdate', // met à jour l'app automatiquement à chaque nouveau déploiement
-        // Active le service worker en `npm run dev` pour pouvoir tester les notifications push
-        // en local (sinon le SW n'existe qu'en build de production).
+        registerType: 'autoUpdate',
         devOptions: { enabled: true, type: 'module' },
         includeAssets: ['favicon.ico', 'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
         manifest: {
@@ -36,7 +33,7 @@ export default defineConfig(({ mode }) => {
           lang: 'fr',
           start_url: '/',
           scope: '/',
-          display: 'standalone', // plein écran, sans barre de navigateur
+          display: 'standalone',
           orientation: 'any',
           theme_color: '#256bff',
           background_color: '#07162d',
@@ -48,21 +45,14 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
-          // Ajoute nos handlers de notifications push (push + notificationclick) au SW généré.
           importScripts: ['push-sw.js'],
-          // On ne pré-cache pas les gros visuels (images > 2 Mo du dossier employer, photo de
-          // login) : ils restent servis normalement mais n'alourdissent pas le service worker.
           globIgnores: ['**/employer/**', '**/themeImagelogin.jpeg', '**/agentIAImage-*'],
-          // Le shell de l'app (index.html) est renvoyé pour les routes du SPA…
           navigateFallback: '/index.html',
-          // …SAUF pour l'API, le temps réel et /health : jamais interceptés → toujours au réseau
-          // (donc AUCUNE donnée périmée, et /health renvoie bien le JSON du serveur, pas le SPA).
           navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/health/],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           runtimeCaching: [
             {
-              // Google Fonts (Montserrat) : mises en cache pour l'usage hors-ligne.
               urlPattern: ({ url }) =>
                 url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
               handler: 'CacheFirst',
@@ -77,16 +67,12 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     build: {
-      // html2pdf (~660 kB) est chargé à la demande (import dynamique dans ResourceViewer),
-      // il n'affecte pas le bundle initial. On relève le seuil pour ne pas alerter dessus.
       chunkSizeWarningLimit: 700,
     },
     server: {
       host: isLanMode ? '0.0.0.0' : undefined,
       port: 5173,
       strictPort: isLanMode,
-      // Autorise l'hôte des tunnels HTTPS (cloudflared) pour partager l'app en test.
-      // Les adresses IP (accès LAN) et localhost restent autorisées d'office par Vite.
       allowedHosts: ['.trycloudflare.com'],
       https: isLanMode
         ? {
@@ -96,7 +82,6 @@ export default defineConfig(({ mode }) => {
         : undefined,
       proxy: {
         '/api': 'http://127.0.0.1:3001',
-        // WebSocket temps réel (Socket.IO) : relais avec upgrade WebSocket activé.
         '/socket.io': {
           target: 'http://127.0.0.1:3001',
           ws: true,

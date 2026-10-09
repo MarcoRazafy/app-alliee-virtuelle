@@ -6,7 +6,7 @@ import AuthBanner from '../components/auth/AuthBanner';
 import PasswordInput from '../components/auth/PasswordInput';
 import SplashScreen from '../components/SplashScreen';
 
-const SPLASH_DURATION = 5000; // écran de démarrage après connexion (façon Facebook)
+const SPLASH_DURATION = 5000;
 
 function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -25,7 +25,6 @@ function Login() {
     setIsSubmitting(true);
     const success = await login(identifier, password);
     if (success) {
-      // Connexion réussie : on affiche le splash puis on entre dans le dashboard.
       setShowSplash(true);
       timerRef.current = setTimeout(() => navigate('/dashboard'), SPLASH_DURATION);
     } else {

@@ -1,11 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-// Extension explicite : ces tests sont exécutés directement par Node (node:test), qui ne
-// résout pas les imports sans extension comme le fait Vite.
 import { businessDayOf, businessDayNow, DAY_CUTOFF_HOUR } from './businessDay.js';
 
-// Ces tests construisent les dates avec les composantes LOCALES (new Date(y, m, d, h)),
-// exactement comme le navigateur d'un employé : la journée de travail est une notion locale.
 const at = (year, month, day, hour, minute = 0) => new Date(year, month - 1, day, hour, minute);
 
 test('la coupure est bien à 2 h du matin', () => {

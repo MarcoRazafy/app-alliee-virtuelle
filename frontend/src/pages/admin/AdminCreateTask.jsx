@@ -30,9 +30,7 @@ const PRIORITIES = [
   { value: 'FAIBLE', label: 'Faible', cls: 'faible' },
 ];
 
-// Aligné sur la limite backend (config/upload.js). Les fichiers sont retenus localement
-// puis envoyés APRÈS la création de la tâche (l'upload a besoin de l'id de la tâche).
-const MAX_ATTACH_SIZE = 5 * 1024 * 1024; // 5 Mo
+const MAX_ATTACH_SIZE = 5 * 1024 * 1024;
 
 function initialsOf(name) {
   return (
@@ -45,7 +43,6 @@ function initialsOf(name) {
   );
 }
 
-// Avatar d'employé : photo si disponible, sinon initiales sur fond dégradé.
 function PersonAvatar({ name, src, className = '' }) {
   return (
     <span className={`tk-person-avatar${className ? ` ${className}` : ''}`}>
@@ -54,7 +51,6 @@ function PersonAvatar({ name, src, className = '' }) {
   );
 }
 
-// Un niveau de la cascade projet (Espace / Dossier / Liste) : select + « + créer » dépliable.
 function CascadeField({
   label,
   required,
@@ -121,34 +117,27 @@ const EMPTY_FORM = {
 
 function AdminCreateTask({ isModal = false, onClose } = {}) {
   const location = useLocation();
-  // Pré-remplissage : action « Refaire » (champs de la tâche) et/ou « Ajouter une tâche » depuis un
-  // projet (placement = { spaceId, folderId, listId } → pré-sélectionne la cascade, restant modifiable).
   const prefill = location.state?.prefill || {};
   const [employees, setEmployees] = useState([]);
-  // Pièces jointes retenues localement jusqu'à la création de la tâche.
   const [pendingFiles, setPendingFiles] = useState([]);
   const [form, setForm] = useState(() => {
     const initial = { ...EMPTY_FORM, ...prefill };
     delete initial.placement;
     return initial;
   });
-  // Multi-assignation : 1 ou plusieurs employés (une tâche est créée par employé sélectionné).
   const [assignedIds, setAssignedIds] = useState(() => (prefill.assigned_to ? [prefill.assigned_to] : []));
   const [submitting, setSubmitting] = useState(false);
-  const [showAssignManage, setShowAssignManage] = useState(false); // panneau de sélection des assignés
-  const [assignSearch, setAssignSearch] = useState(''); // filtre du panneau d'assignés
-  const [avatars, setAvatars] = useState({}); // { userId: objectURL } — photos de profil
+  const [showAssignManage, setShowAssignManage] = useState(false);
+  const [assignSearch, setAssignSearch] = useState('');
+  const [avatars, setAvatars] = useState({});
 
-  // Sélection hiérarchique Space > Folder > List
   const [spaces, setSpaces] = useState([]);
   const [folders, setFolders] = useState([]);
   const [lists, setLists] = useState([]);
   const [selectedSpaceId, setSelectedSpaceId] = useState(() => prefill.placement?.spaceId || '');
   const [selectedFolderId, setSelectedFolderId] = useState('');
-  // Emplacement à appliquer en cascade au chargement (dossier puis liste, une fois chargés).
   const pendingPlacementRef = useRef(prefill.placement || null);
 
-  // Création rapide d'un nouvel espace/dossier/liste sans quitter le formulaire
   const [newSpaceName, setNewSpaceName] = useState('');
   const [showNewSpace, setShowNewSpace] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -157,8 +146,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
   const [showNewList, setShowNewList] = useState(false);
 
   useEffect(() => {
-    // Tous les utilisateurs actifs (employés ET admins) → l'admin peut aussi s'assigner
-    // une tâche à lui-même ou à un autre admin.
     userService
       .getAllUsers({ status: 'ACTIF' })
       .then(setEmployees)
@@ -169,8 +156,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
       .catch(() => setSpaces([]));
   }, []);
 
-  // Récupère les photos de profil des employés qui en ont une (blob → objectURL),
-  // nettoyées au démontage pour éviter les fuites mémoire.
   useEffect(() => {
     const withAvatar = employees.filter((emp) => emp.has_avatar);
     if (withAvatar.length === 0) return undefined;
@@ -207,7 +192,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
       .getFolders(selectedSpaceId)
       .then((data) => {
         setFolders(data);
-        // Cascade de pré-remplissage : sélectionne le dossier attendu une fois chargé.
         const pending = pendingPlacementRef.current;
         if (pending?.folderId && data.some((f) => f.id === pending.folderId)) {
           setSelectedFolderId(pending.folderId);
@@ -230,7 +214,7 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
         if (pending?.listId && data.some((l) => l.id === pending.listId)) {
           setForm((prev) => ({ ...prev, list_id: pending.listId }));
         }
-        pendingPlacementRef.current = null; // placement consommé
+        pendingPlacementRef.current = null;
       })
       .catch(() => setLists([]));
   }, [selectedFolderId]);
@@ -295,12 +279,10 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
 
   function handleFilesSelected(e) {
     const chosen = Array.from(e.target.files || []);
-    e.target.value = ''; // permet de re-sélectionner le même fichier
+    e.target.value = '';
     addPendingFiles(chosen);
   }
 
-  // Fichiers choisis au bouton OU collés dans la description (capture d'écran, PDF copié) :
-  // même contrôle de taille, même liste de pièces jointes.
   function addPendingFiles(chosen) {
     if (chosen.length === 0) return;
     const tooBig = chosen.filter((f) => f.size > MAX_ATTACH_SIZE);
@@ -333,11 +315,8 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
       if (!base.client_name) delete base.client_name;
       if (!base.client_email) delete base.client_email;
 
-      // UNE SEULE tâche, partagée par tous les employés sélectionnés (assignation multiple).
       const created = await taskService.createTask({ ...base, assignee_ids: assignedIds });
 
-      // Pièces jointes : envoyées APRÈS la création (l'upload cible l'id de la tâche).
-      // Best-effort : un échec d'upload ne remet pas en cause la tâche déjà créée.
       let attachFailed = 0;
       if (created?.id && pendingFiles.length > 0) {
         const results = await Promise.allSettled(
@@ -353,7 +332,7 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
         notifyError(`${attachFailed} pièce(s) jointe(s) n'ont pas pu être envoyées.`);
       }
       resetAll();
-      if (isModal && onClose) onClose(); // en modale : on ferme la fenêtre après création
+      if (isModal && onClose) onClose();
     } catch (err) {
       const data = err.response?.data;
       notifyError(data?.errors?.join(', ') || data?.error || 'Impossible de créer la tâche');
@@ -366,7 +345,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
     () => employees.filter((emp) => assignedIds.includes(emp.id)),
     [employees, assignedIds]
   );
-  // Employés filtrés par la recherche du panneau (nom ou poste).
   const filteredEmployees = useMemo(() => {
     const q = assignSearch.trim().toLowerCase();
     if (!q) return employees;
@@ -386,7 +364,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
 
   return (
     <form className="tk-create" onSubmit={handleSubmit}>
-      {/* En-tête : fil d'Ariane du projet + titre */}
       <div className="tk-create-head">
         {locationPath.length > 0 && <p className="tk-breadcrumb">{locationPath.join(' › ')}</p>}
         <input
@@ -401,9 +378,7 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
         />
       </div>
 
-      {/* Grille de propriétés (façon fiche détail) */}
       <div className="tk-props tk-create-props">
-        {/* Priorité */}
         <div className="tk-prop">
           <span className="tk-prop-label">
             <IconAlert /> Priorité
@@ -426,7 +401,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
           </span>
         </div>
 
-        {/* Assignés */}
         <div className="tk-prop">
           <span className="tk-prop-label">
             <IconUser /> Assignés <span className="form-required">*</span>
@@ -455,7 +429,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
           </span>
         </div>
 
-        {/* Dates : Début → Échéance */}
         <div className="tk-prop">
           <span className="tk-prop-label">
             <IconCalendarWeek /> Dates
@@ -486,7 +459,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
           </span>
         </div>
 
-        {/* Client (optionnel) */}
         <div className="tk-prop">
           <span className="tk-prop-label">
             <IconChat /> Client
@@ -510,7 +482,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
           </span>
         </div>
 
-        {/* Panneau de sélection des assignés (dépliable) */}
         {showAssignManage && (
           <div className="tk-prop tk-prop--full">
             <div className="tk-prop-value tk-prop-value--block">
@@ -584,7 +555,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
           </div>
         )}
 
-        {/* Projet (cascade Espace › Dossier › Liste) — pleine largeur, requis */}
         <div className="tk-prop tk-prop--full">
           <span className="tk-prop-label">
             <IconFolder /> Projet <span className="form-required">*</span>
@@ -637,7 +607,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
           </div>
         </div>
 
-        {/* Pièces jointes — libellé cliquable (sans bouton bordé) */}
         <div className="tk-prop tk-prop--full">
           <label className="tk-prop-label tk-attach-trigger" title="Cliquer pour joindre un fichier">
             <IconPaperclip /> Pièces jointes
@@ -674,7 +643,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
         </div>
       </div>
 
-      {/* Description */}
       <div className="tk-desc-block tk-create-desc">
         <p className="tk-section-label">Description</p>
         <RichTextEditor
@@ -685,7 +653,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
         />
       </div>
 
-      {/* Pied : actions */}
       <div className="tk-footer">
         <button type="button" className="btn-outline" onClick={resetAll} disabled={submitting}>
           Réinitialiser
@@ -698,7 +665,6 @@ function AdminCreateTask({ isModal = false, onClose } = {}) {
   );
 }
 
-// Version fenêtre modale (ouverte par-dessus la page via le pattern « background location »).
 export function CreateTaskModal() {
   const navigate = useNavigate();
   const close = () => navigate(-1);

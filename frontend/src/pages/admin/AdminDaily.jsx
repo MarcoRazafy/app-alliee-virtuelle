@@ -5,7 +5,6 @@ import { notifyError } from '../../utils/toast';
 import '../../styles/daily.css';
 import { groupByProject } from '../../utils/dailyGrouping';
 
-// YYYY-MM-DD depuis les composantes LOCALES (toISOString = UTC → décale d'un jour en UTC+, ex. Madagascar).
 function toYMD(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -90,7 +89,6 @@ function AdminDaily() {
     load();
   }, [load]);
 
-  // Photos (même mécanisme que le dashboard : on tente le blob, on ignore les échecs).
   useEffect(() => {
     let cancelled = false;
     Promise.all(

@@ -6,3 +6,4 @@ dev-dist/
 backend/uploads/*
 !backend/uploads/.gitkeep
 frontend/.cert/
+.playwright-mcp/

@@ -1,7 +1,3 @@
-// Sanitizer HTML léger (sans dépendance) pour le contenu riche des annonces.
-// Ne conserve qu'une liste blanche de balises/attributs → neutralise script, styles inline,
-// gestionnaires d'événements (onXxx) et liens javascript:. Reconstruit un arbre propre.
-
 const ALLOWED_TAGS = new Set([
   'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL',
   'A', 'UL', 'OL', 'LI', 'P', 'BR', 'SPAN', 'DIV',
@@ -9,8 +5,6 @@ const ALLOWED_TAGS = new Set([
 const ALLOWED_ATTRS = { A: ['href'] };
 const SAFE_HREF = /^(https?:|mailto:)/i;
 
-// Propriétés de style autorisées (mise en forme uniquement) : évite de perdre le gras/italique
-// quand le navigateur émet des <span style> au lieu de balises sémantiques.
 const SAFE_STYLE_PROPS = new Set(['font-weight', 'font-style', 'text-decoration', 'text-decoration-line']);
 
 function safeStyle(value) {
@@ -35,9 +29,9 @@ function cleanInto(source, out) {
     if (child.nodeType !== Node.ELEMENT_NODE) return;
 
     const tag = child.tagName;
-    if (tag === 'SCRIPT' || tag === 'STYLE') return; // supprimé, contenu inclus
+    if (tag === 'SCRIPT' || tag === 'STYLE') return;
     if (!ALLOWED_TAGS.has(tag)) {
-      cleanInto(child, out); // balise inconnue : on déballe (garde le contenu)
+      cleanInto(child, out);
       return;
     }
 
@@ -69,13 +63,6 @@ export function sanitizeHtml(dirty) {
   return out.innerHTML;
 }
 
-// Transforme les URLs des nœuds texte d'un HTML (déjà nettoyé) en liens cliquables.
-// Appliqué à TOUT contenu écrit par une personne (message, commentaire, annonce, description
-// de tâche, évaluation, document…) : on ne peut pas demander à chacun d'écrire du HTML pour
-// qu'une adresse collée devienne cliquable.
-//
-// `className` permet à la messagerie de garder son propre style de lien dans les bulles
-// colorées ; partout ailleurs, la classe générique .auto-link suffit.
 export function linkifyHtml(html, className = 'auto-link') {
   const template = document.createElement('template');
   template.innerHTML = html || '';
@@ -115,9 +102,6 @@ export function linkifyHtml(html, className = 'auto-link') {
   return template.innerHTML;
 }
 
-// Texte brut (pour aperçus, popup, validation « non vide »), en préservant les sauts de ligne :
-// les blocs (div/p/li…) et les <br> deviennent des retours à la ligne, sinon « test\ntest »
-// se retrouverait collé en « testtest ».
 const BLOCK_TAGS = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE']);
 
 export function htmlToText(html) {

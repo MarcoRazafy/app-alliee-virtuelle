@@ -44,9 +44,6 @@ const STATUS_META = {
   EN_ATTENTE: { label: 'En attente', cls: 'user-pending' },
 };
 
-// Deux états seulement : le travail est fait, ou il reste à faire. « En cours », « À faire »
-// et « À reprendre » sont des nuances de la même chose — non terminé — et les distinguer
-// ici obligeait à choisir entre trois onglets pour une même question.
 const TABS = [
   { key: 'all', label: 'Toutes' },
   { key: 'open', label: 'Non terminées' },
@@ -58,7 +55,6 @@ const DEADLINE_SORTS = [
   { value: 'desc', label: 'Échéance décroissante' },
 ];
 
-// DEADLINE_PERIODS et non PERIODS : ce nom sert déjà plus bas au filtre de présence.
 const DEADLINE_PERIODS = [
   { value: '', label: 'Toutes échéances' },
   { value: 'day', label: "Aujourd'hui" },
@@ -76,8 +72,6 @@ function initialsOf(name) {
     .join('');
 }
 
-// Une tâche est « en retard » si son échéance est passée et qu'elle n'est pas confirmée
-// (même définition que le KPI backend tasks_late, pour que compteur et onglet coïncident).
 function KpiCard({ icon, label, value, tone }) {
   return (
     <div className={`aup-kpi${tone ? ` aup-kpi--${tone}` : ''}`}>
@@ -90,7 +84,6 @@ function KpiCard({ icon, label, value, tone }) {
   );
 }
 
-// Ligne d'information. Avec `href`, la valeur devient un lien (mailto: / tel:).
 function InfoRow({ label, value, href }) {
   return (
     <div className="aup-info-row">
@@ -106,7 +99,6 @@ function InfoRow({ label, value, href }) {
   );
 }
 
-// Répartition des tâches (donut) — segments par statut.
 const STATUS_SEG = [
   { key: 'VALIDEE', label: 'À faire', color: 'var(--color-accent)' },
   { key: 'EN_COURS', label: 'En cours', color: 'var(--color-warning)' },
@@ -122,7 +114,6 @@ const PRESENCE_META = {
   off: { label: 'Repos', cls: 'off' },
 };
 
-// Filtres de période pour la présence.
 const PERIODS = [
   { key: 'today', label: "Aujourd'hui" },
   { key: 'week', label: 'Semaine' },
@@ -131,18 +122,16 @@ const PERIODS = [
   { key: 'custom', label: 'Personnalisé' },
 ];
 
-// YYYY-MM-DD à partir des composantes locales (évite le décalage de fuseau d'ISO).
 function ymdLocal(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Plage [start, end] (inclusive) pour une période donnée. null si perso incomplet.
 function periodRange(period, customStart, customEnd) {
   const now = new Date();
   const today = ymdLocal(now);
   if (period === 'today') return { start: today, end: today };
   if (period === 'week') {
-    const dow = (now.getDay() + 6) % 7; // 0 = lundi
+    const dow = (now.getDay() + 6) % 7;
     const monday = new Date(now);
     monday.setDate(now.getDate() - dow);
     return { start: ymdLocal(monday), end: today };
@@ -155,10 +144,6 @@ function periodRange(period, customStart, customEnd) {
   return null;
 }
 
-// Semaine de planning à afficher par défaut : la plus récente qui RECOUPE la période choisie
-// (la liste est triée du plus récent au plus ancien), sinon la plus récente déclarée.
-// Les dates sont des chaînes 'YYYY-MM-DD' : la comparaison lexicographique est sûre et évite
-// les décalages de fuseau d'un passage par `new Date()`.
 function pickPlanningForRange(list, range) {
   if (!list.length) return '';
   if (!range) return list[0].planning_id;
@@ -176,7 +161,6 @@ function formatMinutes(min) {
   return r ? `${h} h ${r} min` : `${h} h`;
 }
 
-// Donut en SVG (arcs via stroke-dasharray), cohérent avec les graphes maison de l'app.
 function Donut({ segments, total, size = 132, stroke = 18 }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -225,29 +209,23 @@ function AdminUserProfile() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [taskQuery, setTaskQuery] = useState('');
   const [deadlineSort, setDeadlineSort] = useState('asc');
-  // deadlinePeriod : le nom `period` sert déjà au filtre de présence plus bas.
   const [deadlinePeriod, setDeadlinePeriod] = useState('');
   const [customRange, setCustomRange] = useState({ from: '', to: '' });
-  // Tableau des tâches dépliable, REPLIÉ par défaut : la fiche s'ouvre alors sur une vue
-  // d'ensemble courte (indicateurs, présence, planning), et la liste se déroule à la demande.
-  // Le nombre de tâches reste affiché dans le titre, ce qui suffit le plus souvent.
   const [tasksOpen, setTasksOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [busy, setBusy] = useState(false);
-  // Phase 2 : présence (filtrable par période), daily du jour.
   const [period, setPeriod] = useState('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [attendance, setAttendance] = useState(null);
-  const [sessions, setSessions] = useState([]); // sessions brutes, pour correction admin
+  const [sessions, setSessions] = useState([]);
   const [editingSession, setEditingSession] = useState(null);
   const [dailyToday, setDailyToday] = useState(null);
-  // Planning / disponibilités déclarées.
   const [plannings, setPlannings] = useState([]);
   const [selectedPlanningId, setSelectedPlanningId] = useState('');
   const [planningDetail, setPlanningDetail] = useState(null);
-  const [weekSegments, setWeekSegments] = useState({}); // sessions de connexion de la semaine, par date
+  const [weekSegments, setWeekSegments] = useState({});
 
   async function load() {
     try {
@@ -266,16 +244,13 @@ function AdminUserProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Plage de la période choisie — mémorisée pour être réutilisable dans l'affichage
-  // (libellé de l'état vide) et par le sélecteur de semaine du planning.
   const currentRange = useMemo(
     () => periodRange(period, customStart, customEnd),
     [period, customStart, customEnd]
   );
 
-  // Statistiques de présence sur la période choisie (aujourd'hui / semaine / mois / année / perso).
   useEffect(() => {
-    if (!currentRange) return; // période perso incomplète → on n'appelle pas
+    if (!currentRange) return;
     setAttendance(null);
     planningService
       .getAdminAttendanceStats(id, currentRange)
@@ -283,7 +258,6 @@ function AdminUserProfile() {
       .catch(() => setAttendance(null));
   }, [id, currentRange]);
 
-  // Sessions brutes de la période : permettent de corriger une déconnexion oubliée.
   const loadSessions = useCallback(() => {
     if (!currentRange) return;
     sessionService
@@ -296,7 +270,6 @@ function AdminUserProfile() {
     loadSessions();
   }, [loadSessions]);
 
-  // Plannings (semaines) déclarés par l'employé, du plus récent au plus ancien.
   useEffect(() => {
     planningService
       .getAdminPlannings({ user_id: id })
@@ -307,14 +280,10 @@ function AdminUserProfile() {
       .catch(() => setPlannings([]));
   }, [id]);
 
-  // La semaine affichée suit la période choisie : sans ça, on pouvait lire « aucun jour
-  // planifié en août » juste au-dessus d'un planning de juillet — deux informations
-  // contradictoires à l'écran.
   useEffect(() => {
     setSelectedPlanningId(pickPlanningForRange(plannings, currentRange));
   }, [plannings, currentRange]);
 
-  // Détail (jours + créneaux) de la semaine sélectionnée.
   useEffect(() => {
     if (!selectedPlanningId) {
       setPlanningDetail(null);
@@ -326,7 +295,6 @@ function AdminUserProfile() {
       .catch(() => setPlanningDetail(null));
   }, [selectedPlanningId]);
 
-  // Sessions de connexion de la semaine → barres de présence + KPIs planning/connecté/couvert/retards.
   useEffect(() => {
     const weekStart = planningDetail?.week_start_date;
     if (!weekStart) {
@@ -351,7 +319,6 @@ function AdminUserProfile() {
     [planningDetail, weekSegments]
   );
 
-  // Daily / To Do du jour de cet employé (extrait de l'aperçu équipe).
   useEffect(() => {
     dailyService
       .getOverview()
@@ -362,7 +329,6 @@ function AdminUserProfile() {
       .catch(() => setDailyToday(null));
   }, [id]);
 
-  // Photo de profil (blob → objectURL), libérée au démontage.
   useEffect(() => {
     let obj;
     if (detail?.user?.has_avatar) {
@@ -384,12 +350,8 @@ function AdminUserProfile() {
   const todayYMD = new Date().toISOString().slice(0, 10);
   const tasks = detail?.tasks || [];
 
-  // « Terminé » = terminée ou confirmée ; tout le reste est « non terminé ». Déclaré avant
-  // les compteurs, qui s'en servent.
   const isFinished = (task) => task.status === 'TERMINEE' || task.status === 'CONFIRMEE';
 
-  // Les compteurs des onglets suivent les filtres : afficher « Non terminées 12 » alors que
-  // le tableau filtré n'en montre que 2 ferait douter de l'un ou de l'autre.
   const counts = useMemo(() => {
     const base = tasks
       .filter((t) => (priorityFilter ? t.priority === priorityFilter : true))
@@ -404,12 +366,9 @@ function AdminUserProfile() {
     const byPriority = (list) =>
       priorityFilter ? list.filter((t) => t.priority === priorityFilter) : list;
 
-    // La recherche croise le titre ET le chemin du projet : on cherche aussi bien
-    // « relire » qu'« interne », voire les deux ensemble.
     const bySearch = (list) =>
       list.filter((t) => matchesTerms([t.title, t.space_name, t.folder_name, t.list_name], taskQuery));
 
-    // Période d'échéance (jour / semaine / mois / plage saisie).
     const byPeriod = (list) => list.filter((t) => matchesPeriod(t.deadline, deadlinePeriod, new Date(), customRange));
 
     const filtered =
@@ -419,8 +378,6 @@ function AdminUserProfile() {
           ? tasks.filter(isFinished)
           : tasks;
 
-    // Une échéance absente part en fin de liste dans les deux sens : sans date, elle ne se
-    // compare à rien, et la laisser remonter en tête serait trompeur.
     const byDeadline = (a, b) => {
       const va = a.deadline ? String(a.deadline).slice(0, 10) : null;
       const vb = b.deadline ? String(b.deadline).slice(0, 10) : null;
@@ -432,12 +389,8 @@ function AdminUserProfile() {
 
     return [...byPeriod(bySearch(byPriority(filtered)))]
       .sort(byDeadline)
-      // Ce qui est fini passe EN DERNIER : ces tâches n'appellent plus d'action. Le tri de
-      // JavaScript étant stable, l'ordre par échéance est conservé dans chaque bloc.
       .sort((a, b) => Number(isFinished(a)) - Number(isFinished(b)));
   }, [tasks, taskTab, priorityFilter, taskQuery, deadlineSort, deadlinePeriod, customRange]);
-
-  // --- Correction du temps de connexion (déconnexion oubliée) ---
 
   async function saveSession(e) {
     e.preventDefault();
@@ -450,7 +403,6 @@ function AdminUserProfile() {
       setEditingSession(null);
       notifySuccess('Session corrigée');
       loadSessions();
-      // Le temps de connexion affiché plus haut est recalculé côté serveur : on le recharge.
       if (currentRange) {
         planningService.getAdminAttendanceStats(id, currentRange).then(setAttendance).catch(() => {});
       }
@@ -478,8 +430,6 @@ function AdminUserProfile() {
     [visibleTasks, page, itemsPerPage]
   );
 
-  // Changer d'onglet (ou d'employé) peut laisser sur une page qui n'existe plus dans le
-  // nouveau filtre : on revient au début plutôt que d'afficher un tableau vide.
   useEffect(() => {
     setPage(1);
   }, [taskTab, id, priorityFilter, taskQuery, deadlineSort, deadlinePeriod, customRange]);
@@ -521,9 +471,6 @@ function AdminUserProfile() {
   const status = STATUS_META[user.status] || { label: user.status, cls: 'user-refused' };
   const roleLabel = user.role === 'ADMIN' ? 'Administrateur' : 'Employé';
 
-  // Présent / en retard / absent ne sont chiffrables que sur des jours planifiés ; le temps
-  // de connexion, lui, est mesuré sur toute la plage même sans planning déclaré. Afficher
-  // des « 0 » quand rien n'est évaluable se lit comme « il n'est jamais venu », d'où l'état vide.
   const hasPlannedDays = (attendance?.days?.length || 0) > 0;
   const periodLabel = PERIODS.find((p) => p.key === period)?.label;
   const selectedPlanning = plannings.find((p) => p.planning_id === selectedPlanningId) || null;
@@ -540,7 +487,6 @@ function AdminUserProfile() {
         <IconArrowLeft /> Retour à l'équipe
       </Link>
 
-      {/* En-tête */}
       <div className="side-card aup-hero">
         <div className="aup-hero-id">
           {avatarUrl ? (
@@ -579,7 +525,6 @@ function AdminUserProfile() {
           )}
         </div>
 
-        {/* Contact & infos, intégré au bloc identité */}
         <div className="aup-hero-info">
           <InfoRow label="Email" value={user.email} href={user.email ? `mailto:${user.email}` : null} />
           <InfoRow
@@ -596,10 +541,8 @@ function AdminUserProfile() {
         </div>
       </div>
 
-      {/* Évaluation mensuelle — juste sous le bloc identité (pas de bouton/modale) */}
       <EvaluationSection userId={user.id} />
 
-      {/* KPIs */}
       <div className="aup-kpis">
         <KpiCard icon={<IconListUl />} label="Assignées" value={stats.tasks_assigned} />
         <KpiCard icon={<IconClock />} label="En cours" value={counts.progress} tone="progress" />
@@ -609,13 +552,10 @@ function AdminUserProfile() {
         <KpiCard icon={<IconBarChart />} label="Taux de complétion" value={`${stats.completion_rate}%`} tone="rate" />
       </div>
 
-      {/* Corps : tâches + contact */}
       <div className="aup-body">
         <div className="aup-main">
           <div className="side-card">
             <div className="aup-tasks-head">
-              {/* Le titre plie le tableau : sur un employé chargé, la liste occupe tout
-                  l'écran et le reste de la fiche devient inatteignable sans dérouler. */}
               <button
                 type="button"
                 className="aup-collapse-toggle"
@@ -629,7 +569,6 @@ function AdminUserProfile() {
                 <span className="side-card-title">Tâches</span>
                 <span className="aup-collapse-count">{visibleTasks.length}</span>
               </button>
-              {/* Les onglets ne servent à rien tant que le tableau est replié. */}
               {tasksOpen && (
                 <div className="aup-tabs">
                   <label className="aup-task-search">
@@ -642,8 +581,6 @@ function AdminUserProfile() {
                       aria-label="Rechercher une tâche"
                     />
                   </label>
-                  {/* Ordre et période d'échéance, à côté de la priorité : tous se combinent
-                      aux onglets plutôt que de les remplacer. */}
                   <select
                     className="filter-select"
                     value={deadlineSort}
@@ -668,8 +605,6 @@ function AdminUserProfile() {
                       </option>
                     ))}
                   </select>
-                  {/* Les deux bornes n'apparaissent qu'en mode personnalisé, et restent
-                      indépendantes : n'en renseigner qu'une reste utile. */}
                   {deadlinePeriod === 'custom' && (
                     <span className="aup-custom-range">
                       <input
@@ -691,7 +626,6 @@ function AdminUserProfile() {
                       />
                     </span>
                   )}
-                  {/* Filtre par priorité : se combine aux onglets plutôt que de les remplacer. */}
                   <select
                     className={`filter-select aup-priority-filter${priorityFilter ? ' aup-filter--on' : ''}`}
                     value={priorityFilter}
@@ -753,8 +687,6 @@ function AdminUserProfile() {
                               </span>
                             )}
                           </td>
-                          {/* stopPropagation : la ligne entière ouvre la tâche ; sans cela,
-                              ouvrir le menu de statut aurait aussi quitté la page. */}
                           <td onClick={(e) => e.stopPropagation()}>
                             <StatusDropdown
                               taskId={task.id}
@@ -830,7 +762,6 @@ function AdminUserProfile() {
         </aside>
       </div>
 
-      {/* Présence & connexion */}
       <div className="side-card">
         <div className="aup-tasks-head">
           <p className="side-card-title">Présence &amp; connexion</p>
@@ -955,8 +886,6 @@ function AdminUserProfile() {
               </div>
             )}
 
-            {/* Sessions de connexion : corrigeables, car un employé oublie parfois de se
-                déconnecter et sa session couvre alors la nuit entière. */}
             {sessions.length > 0 && (
               <div className="aup-sessions">
                 <p className="aup-sessions-title">Sessions de connexion</p>
@@ -1044,7 +973,6 @@ function AdminUserProfile() {
         )}
       </div>
 
-      {/* Planning / disponibilités déclarées */}
       <div className="side-card">
         <div className="aup-tasks-head">
           <p className="side-card-title">Planning &amp; disponibilités</p>
@@ -1097,8 +1025,6 @@ function AdminUserProfile() {
                   },
                   {
                     icon: <IconTrendingUp />,
-                    // Durée pure en valeur, nombre de jours en sous-titre : « 3 j · 8 h 17 »
-                    // se lisait comme une heure d'horloge.
                     value:
                       presenceSummary.lateDays > 0
                         ? formatPresenceHours(presenceSummary.lateMinutes)
@@ -1134,7 +1060,6 @@ function AdminUserProfile() {
         )}
       </div>
 
-      {/* Daily du jour — pleine largeur (l'activité récente a rejoint la colonne de droite) */}
       <div className="side-card">
           <p className="side-card-title">Ma journée · aujourd'hui</p>
           <div className="aup-daily-cols">

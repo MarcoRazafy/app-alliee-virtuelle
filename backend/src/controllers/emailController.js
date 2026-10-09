@@ -10,7 +10,6 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-// Construit une citation légère de l'email d'origine (sous la réponse), en texte et en HTML.
 function buildQuote(original) {
   const who = original.from_name || original.from_address || 'Expéditeur';
   const when = original.received_at ? new Date(original.received_at).toLocaleString('fr-FR') : '';
@@ -27,7 +26,6 @@ function buildQuote(original) {
   return { text, html };
 }
 
-// Liste paginée des emails (vue « Boîte mail »), + totaux.
 async function listEmails(req, res, next) {
   try {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
@@ -52,7 +50,6 @@ async function getUnreadCount(req, res, next) {
   }
 }
 
-// Détail complet d'un email (corps HTML/texte + pièces jointes).
 async function getEmail(req, res, next) {
   try {
     const email = await emailModel.getEmailById(req.params.id);
@@ -63,7 +60,6 @@ async function getEmail(req, res, next) {
   }
 }
 
-// Marque lu / non lu.
 async function markRead(req, res, next) {
   try {
     const updated = await emailModel.setRead(req.params.id, req.body.is_read !== false);
@@ -74,7 +70,6 @@ async function markRead(req, res, next) {
   }
 }
 
-// Force une synchronisation IMAP immédiate (bouton « Actualiser »).
 async function refresh(req, res, next) {
   try {
     if (!imapService.isEnabled()) {
@@ -88,7 +83,6 @@ async function refresh(req, res, next) {
   }
 }
 
-// Répond à un email : envoie depuis l'adresse de la boîte (MAIL_FROM), rattaché au fil.
 async function replyEmail(req, res, next) {
   try {
     if (!mailService.isEnabled()) {

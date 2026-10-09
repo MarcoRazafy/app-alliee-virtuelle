@@ -2,8 +2,6 @@ import { create } from 'zustand';
 
 const STORAGE_KEY = 'theme';
 
-// index.html applique déjà ce même calcul en inline avant le premier rendu (anti-flash) ;
-// on le refait ici pour que le state React reste synchronisé avec l'attribut posé sur <html>.
 function getInitialTheme() {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === 'light' || stored === 'dark') return stored;

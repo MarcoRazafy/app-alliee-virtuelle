@@ -1,14 +1,3 @@
-/*
- * Crée (ou met à jour) un compte ADMINISTRATEUR — utile pour amorcer une base de PRODUCTION
- * fraîche, où aucun seed de test n'est appliqué (les seed_*.sql sont ignorés par migrate.js).
- *
- * Usage :
- *   node scripts/create-admin.js --email admin@exemple.com --password 'MotDePasseFort' --name "Prénom Nom" [--username admin]
- *   node scripts/create-admin.js --email admin@exemple.com --password '...' --name "..." --reset-password  # met à jour un compte existant
- *
- * Ou via variables d'environnement : ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, ADMIN_USERNAME.
- * Respecte DATABASE_URL / DATABASE_SSL comme le reste de l'app.
- */
 const bcrypt = require('bcrypt');
 const db = require('../src/config/database');
 const { isValidEmail, isValidPassword } = require('../src/utils/validators');
@@ -37,8 +26,6 @@ function usageAndExit(message) {
   process.exit(1);
 }
 
-// username unique (index partiel WHERE username IS NOT NULL) : on dérive un candidat depuis
-// l'email et on ajoute un suffixe numérique tant qu'il est déjà pris.
 async function resolveUsername(preferred, email) {
   const base = (preferred || email.split('@')[0]).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 45) || 'admin';
   let candidate = base;

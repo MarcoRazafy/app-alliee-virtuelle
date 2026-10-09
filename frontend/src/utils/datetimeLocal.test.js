@@ -10,10 +10,8 @@ test('la valeur envoyée est un instant absolu, en UTC', () => {
 test('la valeur envoyée correspond à l’heure saisie À L’HEURE LOCALE, pas à l’heure UTC', () => {
   const iso = datetimeLocalToIso('2026-09-17T10:54');
   const d = new Date(iso);
-  // Relue à l'heure locale, on retrouve exactement ce qui a été tapé…
   assert.equal(d.getHours(), 10);
   assert.equal(d.getMinutes(), 54);
-  // …et l'écart avec l'UTC est celui du fuseau local (0 seulement si le poste est en UTC).
   assert.equal(d.getUTCHours(), (10 * 60 + 54 + d.getTimezoneOffset()) / 60 | 0);
 });
 

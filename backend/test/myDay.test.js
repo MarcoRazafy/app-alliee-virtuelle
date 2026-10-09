@@ -18,7 +18,7 @@ test('après validation : une tâche ajoutée est validée à l’instant et sig
   assert.equal(plan.wasValidated, true);
   assert.deepEqual(plan.added, ['c']);
   const [a, c] = plan.rows;
-  assert.equal(a.validated_at, T8); // heure d'origine conservée
+  assert.equal(a.validated_at, T8);
   assert.equal(a.validate_now, false);
   assert.equal(c.validated_at, null);
   assert.equal(c.validate_now, true);

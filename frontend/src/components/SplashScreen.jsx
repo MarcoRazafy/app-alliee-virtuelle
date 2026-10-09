@@ -1,7 +1,5 @@
 import '../styles/splash.css';
 
-// Écran de démarrage plein écran (façon Facebook) affiché brièvement après la
-// connexion : logo animé + barre de progression, avant l'accès au dashboard.
 function SplashScreen({ duration = 5000 }) {
   return (
     <div className="splash" role="status" aria-live="polite" aria-label="Chargement de votre espace">

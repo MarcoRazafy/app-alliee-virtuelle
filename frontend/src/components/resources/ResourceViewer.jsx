@@ -18,12 +18,6 @@ function saveBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-// Visionneuse unifiée : aperçu d'un fichier uploadé (PDF/image), lecture d'une vidéo, ou
-// lecture d'un document HTML créé dans la plateforme, avec téléchargement (fichier ou PDF).
-// Les vidéos font exception : elles se regardent ici et ne se téléchargent pas.
-//
-// `file.media` : PDF inséré dans un document (utils/documentMedia), servi par la route des
-// médias et non par celle des fichiers du dossier.
 function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const isDocument = file.kind === 'DOCUMENT';
   const docRef = useRef(null);
@@ -33,9 +27,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [docContent, setDocContent] = useState('');
   const [exporting, setExporting] = useState(false);
-  // PDF inséré dans le document et ouvert depuis sa carte.
   const [openedPdf, setOpenedPdf] = useState(null);
-  // Image du document agrandie : { url, name }.
   const [zoomedImage, setZoomedImage] = useState(null);
 
   const mime = file.mime_type || '';
@@ -47,8 +39,6 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
     let objectUrl;
     let cancelled = false;
 
-    // La vidéo n'a rien à précharger : la balise <video> lit en flux, directement depuis le
-    // serveur. Attendre ici le fichier entier retarderait la première image d'autant.
     if (isVideo) {
       setError(null);
       setLoading(false);
@@ -98,8 +88,6 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
     if (!docRef.current) return;
     setExporting(true);
     try {
-      // Chargé à la demande : html2pdf (jsPDF + html2canvas) est lourd et n'est utile
-      // qu'au moment d'exporter un document en PDF.
       const { default: html2pdf } = await import('html2pdf.js');
       await html2pdf()
         .set({
@@ -118,10 +106,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
     }
   }
 
-  // Clic sur la carte d'un PDF du document : ouverture dans une visionneuse par-dessus, au lieu
-  // de suivre le lien (qui afficherait le PDF brut en quittant l'application).
   function handleDocumentClick(event) {
-    // Image insérée dans le document : agrandie dans la visionneuse.
     const image = event.target.closest('img');
     if (image) {
       setZoomedImage({ url: image.currentSrc || image.src, name: image.alt || file.file_name });
@@ -133,7 +118,6 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
     setOpenedPdf({ id: card.dataset.mediaId, name: card.dataset.fileName || card.textContent });
   }
 
-  // Les vidéos du document suivent la règle des Ressources : pas d'« Enregistrer sous… ».
   function handleDocumentContextMenu(event) {
     if (event.target.closest('video')) event.preventDefault();
   }
@@ -186,9 +170,6 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
 
           {!loading && !error && !isDocument && isVideo && (
             <div className="resources-viewer-video-wrap">
-              {/* Lecture seule : ni bouton de téléchargement dans les contrôles, ni
-                  « Enregistrer la vidéo sous… » au clic droit. Le serveur refuse de son côté
-                  toute requête qui ne vient pas d'un lecteur vidéo (utils/videoAccess). */}
               <video
                 key={file.id}
                 className="resources-viewer-video"
@@ -217,7 +198,6 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
           )}
         </div>
 
-        {/* Une vidéo n'a aucune action : sans cette condition, il resterait une bande vide. */}
         {!isVideo && (
         <div className="resources-modal-foot">
           {canManage && isDocument && (
@@ -230,7 +210,6 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
               <IconDownload /> {exporting ? 'Génération…' : 'Télécharger en PDF'}
             </button>
           )}
-          {/* Pas de téléchargement pour une vidéo : elle se regarde dans l'application. */}
           {!isDocument && (
             <button type="button" className="btn-primary" onClick={handleDownloadFile}>
               <IconDownload /> Télécharger
@@ -243,10 +222,6 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
           <MediaPreview url={zoomedImage.url} type="image" name={zoomedImage.name} onClose={() => setZoomedImage(null)} />
         )}
 
-        {/* Portail vers <body> : la fenêtre du document reste le repère de ses descendants tant
-            que son animation d'ouverture tourne, la visionneuse imbriquée y serait piégée.
-            Placé DANS la fenêtre (et non dans son voile) : les événements d'un portail
-            remontent l'arbre React, et un clic sur le voile du PDF fermerait sinon les deux. */}
         {openedPdf &&
           createPortal(
             <ResourceViewer

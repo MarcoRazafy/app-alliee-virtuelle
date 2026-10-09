@@ -12,7 +12,6 @@ const mistral = require('../config/mistral');
 const TASK_STATUSES = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
 const WEEKDAYS_FR = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
-// Nom du jour de la semaine (français) à partir d'une date 'YYYY-MM-DD', sans dépendre du fuseau serveur.
 function weekdayFr(dateString) {
   const dt = DateTime.fromISO(dateString);
   return dt.isValid ? WEEKDAYS_FR[dt.weekday - 1] : null;
@@ -22,7 +21,6 @@ function defaultRange() {
   return { from: businessDayShifted(-30), to: businessDayNow() };
 }
 
-// Agrège les tâches par employé et par statut (comptes compacts, pas de dump brut).
 function summarizeTasksByEmployee(tasks, nameById) {
   const agg = new Map();
   for (const task of tasks) {
@@ -43,8 +41,6 @@ function summarizeTasksByEmployee(tasks, nameById) {
 
 const toDateString = planningDates.formatDbDate;
 
-// Fusionne le résumé hebdo (statut, heures, soumis) avec le détail jour par jour
-// (disponibilité + créneaux), regroupé par employé.
 function mergePlanningWeek(weekRows, dayRows) {
   const byName = new Map();
   for (const r of weekRows) {
@@ -77,8 +73,6 @@ function mergePlanningWeek(weekRows, dayRows) {
   return [...byName.values()];
 }
 
-// Contexte en LECTURE SEULE : instantané enrichi de la base (équipe, tâches, plannings).
-// Aucune fonction d'écriture n'est exposée à l'assistant.
 async function buildAdminContext() {
   const { from, to } = defaultRange();
   const now = planningDates.nowInPlanningZone();
@@ -155,9 +149,6 @@ async function buildEmployeeContext(userId) {
   };
 }
 
-// Guide de navigation/utilisation, injecté dans les prompts pour que l'assistant sache aider
-// un nouvel utilisateur à SE SERVIR de l'application (où aller, comment faire une action).
-// À garder synchronisé avec les menus réels (AdminLayout.jsx / EmployeeLayout.jsx).
 const APP_TASK_CYCLE = `Cycle d'une tâche : un employé DÉCLARE une tâche (statut "déclarée" = simple proposition), l'admin la VALIDE ; une fois faite, l'employé la marque TERMINÉE, puis l'admin la CONFIRME (= "complétée"). Une tâche créée directement par l'admin est VALIDÉE d'emblée.`;
 
 const APP_MESSAGING_GUIDE = `Messagerie (icône BULLE en haut) : discussions privées à deux ET conversations de GROUPE.
@@ -247,17 +238,14 @@ Données personnelles de l'employé (JSON) :
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Mémoire du chatbot : on renvoie au modèle les derniers échanges de la conversation en cours.
-const HISTORY_LIMIT = 8; // nombre d'échanges (question+réponse) rappelés au modèle
-const HISTORY_ANSWER_MAX = 1000; // borne la longueur des réponses passées (maîtrise des tokens)
+const HISTORY_LIMIT = 8;
+const HISTORY_ANSWER_MAX = 1000;
 
 function trimForHistory(text) {
   if (!text) return '';
   return text.length > HISTORY_ANSWER_MAX ? `${text.slice(0, HISTORY_ANSWER_MAX)}…` : text;
 }
 
-// Génère une réponse Mistral pour une question (avec mention éventuelle d'une pièce jointe).
-// sessionId + excludeId servent à rappeler l'historique de la conversation (mémoire).
 async function generateAnswer(question, attachmentName, requester, sessionId = null, excludeId = null) {
   const isAdmin = requester.role === 'ADMIN';
   const context = isAdmin ? await buildAdminContext() : await buildEmployeeContext(requester.id);
@@ -265,7 +253,6 @@ async function generateAnswer(question, attachmentName, requester, sessionId = n
     ? `${question}\n\n[L'utilisateur a joint un fichier nommé « ${attachmentName} ». Tu ne peux pas ouvrir son contenu ; base-toi sur le nom et la question.]`
     : question;
 
-  // Historique de la session → messages user/assistant intercalés (mémoire du fil).
   const history = await aiModel.findSessionHistory(sessionId, requester.id, {
     limit: HISTORY_LIMIT,
     excludeId,
@@ -295,14 +282,11 @@ async function ask(req, res, next) {
     if (!question) {
       return res.status(400).json({ error: 'La question est requise' });
     }
-    // Le front envoie l'id de la conversation en cours ; sinon le modèle en génère un.
     const validSessionId = sessionId && UUID_RE.test(sessionId) ? sessionId : null;
     const attachment = req.file
       ? { path: req.file.path, name: req.file.originalname, type: req.file.mimetype }
       : null;
 
-    // On passe la session pour que le modèle se souvienne des échanges précédents (le nouvel
-    // échange n'est pas encore enregistré à ce stade, donc pas besoin d'excludeId ici).
     const { answer, context } = await generateAnswer(question, attachment?.name, req.user, validSessionId);
 
     const conversation = await aiModel.createConversation({
@@ -330,14 +314,12 @@ async function getHistory(req, res, next) {
   }
 }
 
-// Édition d'un message : nouvelle question → nouvelle réponse générée.
 async function editConversation(req, res, next) {
   try {
     const conversation = await aiModel.findConversationById(req.params.id, req.user.id);
     if (!conversation) return res.status(404).json({ error: 'Échange introuvable' });
     const question = typeof req.body.question === 'string' ? req.body.question.trim() : '';
     if (!question) return res.status(400).json({ error: 'La question est requise' });
-    // Ré-édition : on rappelle l'historique de la session en excluant l'échange qu'on réécrit.
     const { answer } = await generateAnswer(
       question,
       conversation.attachment_name,

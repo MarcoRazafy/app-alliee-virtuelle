@@ -1,7 +1,5 @@
 import api from './api';
 
-// Une génération IA (surtout une réponse longue comme un guide) peut dépasser le timeout
-// global de 10 s. On accorde un délai plus large aux requêtes qui appellent le modèle.
 const AI_TIMEOUT = 60000;
 
 export function askAssistant(question, sessionId, file = null) {

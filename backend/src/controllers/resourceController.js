@@ -11,10 +11,6 @@ const { MEDIA_URL_PREFIX, extractMediaIds, mediaKind, isUuid } = require('../uti
 
 const FOLDER_TYPES = ['INTERNE', 'CLIENT', 'ADMIN'];
 
-// Espace « Admin » : ressources internes à l'équipe d'administration, qu'un employé ne doit
-// jamais voir. Attention, les routes de LECTURE des ressources sont ouvertes à tout
-// utilisateur connecté (seule l'écriture exige requireAdmin) : la confidentialité repose
-// donc entièrement sur ce filtre, appliqué au dossier ET à chaque fichier servi.
 const ADMIN_ONLY_FOLDER_TYPES = new Set(['ADMIN']);
 
 function canReadFolderType(type, user) {
@@ -23,14 +19,11 @@ function canReadFolderType(type, user) {
 }
 const PERMISSION_TYPES = ['LECTURE_SEULE', 'LECTURE_ECRITURE'];
 
-// Étiquette courte lisible (ex: "PDF", "PNG") dérivée de l'extension du fichier uploadé.
 function labelFromFileName(fileName) {
   const ext = path.extname(fileName).replace('.', '').toUpperCase();
   return ext || 'Fichier';
 }
 
-// Assainissement minimal du HTML des documents (auteurs = admins, donc risque faible) :
-// on retire les balises <script>, les gestionnaires on*, et les URLs javascript:.
 function sanitizeHtml(html) {
   if (typeof html !== 'string') return '';
   return html
@@ -67,8 +60,6 @@ async function getFolderFiles(req, res, next) {
     if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
-    // 404 plutôt que 403 : pour un employé, un dossier de l'espace admin ne doit pas même
-    // exister — un 403 confirmerait son existence.
     if (!canReadFolderType(folder.type, req.user)) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
@@ -173,8 +164,6 @@ async function deleteFolder(req, res, next) {
   }
 }
 
-// Upload réel d'un fichier (PDF, image, Word...) : le binaire est déjà écrit sur
-// disque par multer (config/resourceUpload), on n'enregistre ici que les métadonnées.
 async function uploadFile(req, res, next) {
   try {
     const { id } = req.params;
@@ -211,7 +200,6 @@ async function uploadFile(req, res, next) {
   }
 }
 
-// Création d'un document éditable (contenu HTML rédigé dans la plateforme).
 async function createDocument(req, res, next) {
   try {
     const { id } = req.params;
@@ -247,7 +235,6 @@ async function createDocument(req, res, next) {
   }
 }
 
-// Mise à jour d'un document (titre et/ou contenu).
 async function updateDocument(req, res, next) {
   try {
     const { id } = req.params;
@@ -269,7 +256,6 @@ async function updateDocument(req, res, next) {
   }
 }
 
-// Métadonnées + contenu d'un fichier/document (utilisé pour ouvrir un document en lecture/édition).
 async function getFile(req, res, next) {
   try {
     const { id } = req.params;
@@ -280,7 +266,6 @@ async function getFile(req, res, next) {
     if (!canReadFolderType(file.folder_type, req.user)) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
-    // On n'expose jamais le chemin disque au client.
     const { file_path: _filePath, ...safe } = file;
     res.status(200).json(safe);
   } catch (err) {
@@ -288,7 +273,6 @@ async function getFile(req, res, next) {
   }
 }
 
-// Sert le binaire d'un fichier uploadé, en inline (aperçu) ou en attachment (téléchargement).
 async function serveFile(req, res, next, { disposition }) {
   try {
     const { id } = req.params;
@@ -299,8 +283,6 @@ async function serveFile(req, res, next, { disposition }) {
       file.folder_deleted_at ||
       file.kind !== 'FILE' ||
       !file.file_path ||
-      // Aperçu et téléchargement servent le binaire : sans ce filtre, connaître l'id d'un
-      // fichier de l'espace admin aurait suffi à le récupérer.
       !canReadFolderType(file.folder_type, req.user)
     ) {
       return res.status(404).json({ error: 'Fichier introuvable' });
@@ -309,16 +291,12 @@ async function serveFile(req, res, next, { disposition }) {
       return res.status(404).json({ error: 'Fichier absent du stockage' });
     }
 
-    // Vidéo : lecture dans l'application uniquement (voir utils/videoAccess).
     if (isVideoMime(file.mime_type)) {
       const refused = videoAccessError({ disposition, fetchDest: req.get('Sec-Fetch-Dest') });
       if (refused) return res.status(403).json({ error: refused });
-      // Pas de copie dans un cache partagé (proxy, CDN) : la vidéo reste derrière l'authentification.
       res.setHeader('Cache-Control', 'private');
     }
 
-    // res.sendFile gère les requêtes partielles (Range → 206) : le lecteur peut sauter au
-    // milieu d'une vidéo sans en recevoir le début, et la lecture démarre sans attendre la fin.
     if (file.mime_type) res.type(file.mime_type);
     const encoded = encodeURIComponent(file.file_name);
     res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encoded}`);
@@ -479,7 +457,6 @@ async function permanentlyDeleteFile(req, res, next) {
     if (file.kind === 'FILE' && file.file_path) {
       fs.unlink(file.file_path, () => {});
     }
-    // Un document part avec ses médias — sauf ceux qu'un autre document cite encore.
     if (file.kind === 'DOCUMENT') {
       const removed = await resourceModel.deleteUnreferencedMedia(extractMediaIds(file.content));
       removed.forEach((m) => fs.unlink(m.file_path, () => {}));
@@ -497,12 +474,6 @@ async function permanentlyDeleteFile(req, res, next) {
   }
 }
 
-// --- Médias insérés dans les documents -----------------------------------------------
-
-// POST /resources/folders/:id/media — importe une photo, une vidéo ou un PDF à insérer dans
-// un document. Le fichier est déjà écrit sur le disque par multer (config/resourceUpload,
-// qui applique aussi la limite de 20 Mo hors vidéos) ; on vérifie ici qu'il a sa place
-// dans un document.
 async function uploadDocumentMedia(req, res, next) {
   try {
     const { id } = req.params;
@@ -537,8 +508,6 @@ async function uploadDocumentMedia(req, res, next) {
   }
 }
 
-// GET /resources/media/:id — sert un média de document. Mêmes règles que les fichiers :
-// espace Admin réservé aux admins, vidéos lisibles dans l'application seulement.
 async function serveDocumentMedia(req, res, next) {
   try {
     const { id } = req.params;
@@ -557,16 +526,12 @@ async function serveDocumentMedia(req, res, next) {
     res.setHeader('Cache-Control', 'private');
     res.type(media.mime_type);
     res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(media.file_name)}`);
-    // Requêtes partielles (Range) gérées par sendFile : une vidéo se lit en flux et s'avance.
     return sendFileOr404(res, path.resolve(media.file_path), 'Média introuvable');
   } catch (err) {
     next(err);
   }
 }
 
-// DELETE /resources/media/:id — retire un média importé puis abandonné (retiré du texte, ou
-// document jamais enregistré). Refusé tant qu'un document le cite : l'éditeur ne voit que
-// le document ouvert, pas les autres, et supprimer ici casserait leur affichage.
 async function deleteDocumentMedia(req, res, next) {
   try {
     const { id } = req.params;
@@ -601,8 +566,6 @@ async function shareFolder(req, res, next) {
     if (!folder || folder.deleted_at) {
       return res.status(404).json({ error: 'Dossier introuvable' });
     }
-    // Partager un dossier de l'espace admin promettrait un accès que la lecture refuse
-    // ensuite : mieux vaut le refuser franchement ici.
     if (ADMIN_ONLY_FOLDER_TYPES.has(folder.type)) {
       return res.status(400).json({
         error: "Un dossier de l'espace Admin ne peut pas être partagé : il est réservé aux administrateurs",

@@ -11,9 +11,6 @@ const PRIORITY_DOT_CLASS = {
   FAIBLE: 'priority-dot--faible',
 };
 
-// Calcule l'urgence d'une deadline (date) par rapport à aujourd'hui, en raisonnant en jours
-// calendaires locaux. On parse d'abord un éventuel préfixe "YYYY-MM-DD" pour éviter les décalages
-// de fuseau (une colonne SQL `date` sérialisée en ISO minuit UTC peut basculer d'un jour).
 function deadlineInfo(raw) {
   if (!raw) return null;
   const m = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -92,11 +89,8 @@ function DraggableTask({ task, index, column, order, moveTask, onToggleTask, dis
 
   drag(drop(ref));
 
-  // Une carte "demandable" (journée validée, colonne disponible) reste visuellement active
-  // — surlignée non verrouillée — car son bouton doit être cliquable.
   const locked = disabled && !requestable;
   const dl = deadlineInfo(task.deadline);
-  // Chemin du projet (Espace › Dossier › Liste) pour situer l'origine de la tâche.
   const taskPath = [task.space_name, task.folder_name, task.list_name].filter(Boolean).join(' › ');
 
   const canToggle = !disabled && typeof onToggleTask === 'function';
@@ -109,8 +103,6 @@ function DraggableTask({ task, index, column, order, moveTask, onToggleTask, dis
       className={`task-card${isDragging ? ' task-card--dragging' : ''}${locked ? ' task-card--locked' : ''}${
         requestable ? ' task-card--requestable' : ''
       }`}
-      // Le double-clic bascule la tâche d'une colonne à l'autre. On ignore les clics venant
-      // d'un bouton de la carte (« Demander »), qui a sa propre action.
       onDoubleClick={(event) => {
         if (!canToggle) return;
         if (event.target.closest('button')) return;
@@ -199,9 +191,6 @@ function DragDropTasks({
   selectedTitle = "Mes tâches aujourd'hui",
   selectedEmptyLabel = 'Glissez des tâches ici, ou double-cliquez dessus.',
 }) {
-  // Double-clic : bascule la tâche dans l'autre colonne, à la fin. Le glisser-déposer reste
-  // possible, mais il est pénible au doigt sur un téléphone — et c'est là que la page sert
-  // le plus. La tâche est ajoutée à la fin plutôt qu'à une position devinée.
   function toggleTaskColumn(fromColumn, fromIndex) {
     if (validated) return;
     const toColumn = fromColumn === 'available' ? 'selected' : 'available';

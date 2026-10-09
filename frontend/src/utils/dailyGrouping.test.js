@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-// Extension explicite : ces tests sont exécutés directement par Node (node:test).
 import { groupByProject, projectPath, priorityRank } from './dailyGrouping.js';
 
 const task = (title, priority, space, folder, list) => ({
@@ -42,7 +41,6 @@ test('les groupes sont classés sur leur tâche la plus urgente', () => {
     task('a', 'FAIBLE', 'E', 'D', 'Alpha'),
     task('b', 'URGENT', 'E', 'D', 'Zeta'),
   ]);
-  // Zeta passe devant Alpha malgré l'ordre alphabétique : c'est lui qui porte l'urgence.
   assert.deepEqual(groups.map((g) => g.project), ['E › D › Zeta', 'E › D › Alpha']);
 });
 

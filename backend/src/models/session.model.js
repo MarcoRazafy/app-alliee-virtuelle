@@ -2,24 +2,14 @@ const db = require('../config/database');
 const env = require('../config/env');
 const realtime = require('../realtime/io');
 
-// « En ligne maintenant » (pastille verte) : court, c'est un état instantané.
 const STALE_AFTER_SECONDS = env.presenceHeartbeatTimeoutSeconds;
-// Clôture d'une session abandonnée : long. Confondre les deux coupait le temps de connexion
-// d'employés au travail dès que leur onglet passait en arrière-plan.
 const ABANDON_AFTER_SECONDS = env.sessionAbandonTimeoutSeconds;
 const DISCONNECT_GRACE_SECONDS = env.presenceDisconnectGraceSeconds;
 
-// Chrono de connexion (présence) : indépendant du chrono de tâche (table timelog).
-// Une ligne = une période "connecté" (login -> déconnexion ou fermeture de l'application).
-
 async function startSession(userId) {
-  // Répare d'abord une éventuelle présence/tâche abandonnée lors d'une ancienne
-  // fermeture brutale, avant de reprendre une session pour ce compte.
   await expireStaleSessions({ userId });
 
   return db.withTransaction(async (client) => {
-    // Plusieurs onglets représentent une seule présence utilisateur : ils rafraîchissent
-    // la même session ouverte au lieu de créer des intervalles qui se chevauchent.
     const result = await client.query(
       `INSERT INTO user_sessions (user_id, login_at, last_seen_at, disconnect_requested_at)
        VALUES ($1, now(), now(), NULL)
@@ -32,10 +22,6 @@ async function startSession(userId) {
   });
 }
 
-// Heartbeat : PROLONGE une session de présence déjà ouverte (rafraîchit last_seen et annule
-// une éventuelle demande de déconnexion sur rechargement). Ne CRÉE JAMAIS de session : ainsi,
-// rouvrir l'application avec un token encore valide, SANS se reconnecter, ne rend pas le
-// compte "actif". Seule une vraie connexion (login → startSession) ouvre une session.
 async function extendSession(userId) {
   const result = await db.query(
     `UPDATE user_sessions
@@ -49,9 +35,6 @@ async function extendSession(userId) {
 
 const heartbeatSession = extendSession;
 
-// pagehide est envoyé aussi bien à la fermeture qu'au rechargement. On mémorise
-// donc l'intention sans fermer immédiatement : un heartbeat du document rechargé
-// l'annulera, tandis que le nettoyeur serveur la confirmera après la tolérance.
 async function requestDisconnect(userId) {
   const result = await db.query(
     `UPDATE user_sessions
@@ -60,14 +43,10 @@ async function requestDisconnect(userId) {
      RETURNING id, disconnect_requested_at`,
     [userId]
   );
-  // Transition de présence (départ) → rafraîchit le dashboard temps réel des admins.
   if (result.rows[0]) realtime.broadcast('presence:update', {});
   return result.rows[0] || null;
 }
 
-// Clôture les présences sans heartbeat et, dans la même transaction, tout chrono
-// de tâche devenu orphelin. Le serveur appelle cette fonction périodiquement : la
-// correction ne dépend donc pas de la réouverture du navigateur ni de la page admin.
 async function expireStaleSessions({ userId = null } = {}) {
   const result = await db.withTransaction(async (client) => {
     const expiredResult = await client.query(
@@ -99,21 +78,13 @@ async function expireStaleSessions({ userId = null } = {}) {
       [ABANDON_AFTER_SECONDS, DISCONNECT_GRACE_SECONDS, userId]
     );
 
-    // NOTE : on n'arrête PLUS le chrono de tâche ici. Le faire punissait un employé au
-    // travail dès qu'un heartbeat manquait, et lui faisait perdre le temps écoulé depuis.
-    // Un chrono ne s'arrête donc que sur action explicite (bouton, ou déconnexion), et un
-    // oubli se corrige depuis « Suivi du temps » de la tâche (admin).
     return { sessionsClosed: expiredResult.rowCount, timelogsClosed: 0 };
   });
 
-  // Des présences se sont réellement fermées (heartbeat expiré / grâce écoulée) →
-  // transition de présence, on rafraîchit le dashboard temps réel des admins.
   if (result.sessionsClosed > 0) realtime.broadcast('presence:update', {});
   return result;
 }
 
-// Ferme toute session restée ouverte pour cet utilisateur (défensif : gère aussi le cas
-// de plusieurs onglets ou d'une session jamais fermée proprement lors d'une session précédente).
 async function closeOpenSessions(userId) {
   const result = await db.query(
     `UPDATE user_sessions
@@ -122,13 +93,10 @@ async function closeOpenSessions(userId) {
      RETURNING id, user_id, login_at, logout_at, last_seen_at, disconnect_requested_at`,
     [userId]
   );
-  // Déconnexion explicite → transition de présence, rafraîchit le dashboard temps réel.
   if (result.rows.length > 0) realtime.broadcast('presence:update', {});
   return result.rows;
 }
 
-// Sessions qui chevauchent au moins partiellement [rangeStartIso, rangeEndIso[.
-// Une session ouverte ne s'étend que jusqu'au dernier heartbeat + délai de tolérance.
 async function findSessionsOverlappingRange(userId, rangeStartIso, rangeEndIso) {
   const result = await db.query(
     `SELECT id, login_at, logout_at, last_seen_at, disconnect_requested_at,
@@ -160,7 +128,6 @@ async function findSessionsOverlappingRange(userId, rangeStartIso, rangeEndIso) 
   return result.rows;
 }
 
-// Version groupée de findSessionsOverlappingRange pour plusieurs utilisateurs (page présence).
 async function findSessionsForUsersOverlapping(userIds, rangeStartIso, rangeEndIso) {
   if (!userIds || userIds.length === 0) return [];
   const result = await db.query(
@@ -193,11 +160,6 @@ async function findSessionsForUsersOverlapping(userIds, rangeStartIso, rangeEndI
   return result.rows;
 }
 
-// IDs des utilisateurs réellement "en ligne" MAINTENANT. Définition unique de la présence,
-// partagée par la pastille de la messagerie et le dashboard temps réel : session ouverte,
-// AUCUNE déconnexion demandée (fermeture d'onglet signalée), ET heartbeat récent.
-// Un utilisateur passe donc hors-ligne dès la fermeture, sans attendre que le nettoyeur
-// écrive logout_at.
 async function findLiveUserIds(userIds = null) {
   const result = await db.query(
     `SELECT DISTINCT user_id FROM user_sessions
@@ -210,8 +172,6 @@ async function findLiveUserIds(userIds = null) {
   return result.rows.map((row) => row.user_id);
 }
 
-// Session actuellement ouverte (s'il y en a une) : utilisé pour le chrono flottant, qui
-// affiche la durée de connexion écoulée depuis login_at.
 async function findOpenSession(userId) {
   const result = await db.query(
     `SELECT id, login_at, last_seen_at
@@ -227,11 +187,6 @@ async function findOpenSession(userId) {
   return result.rows[0] || null;
 }
 
-// --- Correction administrative des sessions de connexion -------------------
-// Cas d'usage : l'employé a oublié de se déconnecter, sa session couvre la nuit entière
-// et gonfle son temps de connexion.
-
-// Sessions brutes (avec leur id) sur une plage de dates locales 'YYYY-MM-DD' inclusive.
 async function findSessionsForUserRange(userId, startDate, endDate) {
   const result = await db.query(
     `SELECT id, login_at, logout_at, last_seen_at,
@@ -252,8 +207,6 @@ async function findSessionById(sessionId) {
   return result.rows[0] || null;
 }
 
-// Corrige les bornes d'une session. `last_seen_at` est aligné sur la déconnexion pour que
-// la session ne soit pas considérée « encore vivante » par le calcul de présence.
 async function updateSessionTimes(sessionId, loginAt, logoutAt) {
   const result = await db.query(
     `UPDATE user_sessions

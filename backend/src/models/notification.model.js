@@ -5,33 +5,23 @@ const MESSAGE_FILTER = `
   AND a.action NOT ILIKE '%MESSAGE%'
 `;
 
-// Seules ces actions produisent une notification. Le centre de notifications ne doit contenir
-// que ce qui APPELLE UNE ACTION ou informe directement la personne — sinon il se remplit de
-// télémétrie (démarrages de chrono, modifications de tâche, validations de journée) et le
-// badge devient un bruit qu'on cesse de lire.
-//
-// Le journal d'audit, lui, reste COMPLET : il assure la traçabilité et alimente
-// « Activité récente » de la fiche employé. On filtre uniquement l'affichage.
 const NOTIFIABLE_ACTIONS = [
-  // --- Une décision est attendue ---
-  'CREATE_TASK', // tâche assignée, ou proposition d'employé à valider
+  'CREATE_TASK',
   'REQUEST_EXTRA_TASK',
   'APPROVE_EXTRA_TASK',
   'REJECT_EXTRA_TASK',
-  'COMPLETE_TASK', // travail terminé, à confirmer
+  'COMPLETE_TASK',
   'SUBMIT_WEEKLY_PLANNING',
   'REGISTER_USER',
 
-  // --- Le sort de mon travail ---
   'VALIDATE_TASK',
   'CONFIRM_TASK',
-  'REJECT_TASK', // renvoyée : je dois la reprendre
+  'REJECT_TASK',
   'UPDATE_TASK_STATUS',
-  'REASSIGN_TASK', // une tâche m'est confiée
+  'REASSIGN_TASK',
   'DELETE_TASK',
   'MENTION_IN_COMMENT',
 
-  // --- Mon compte / mon temps (corrections faites par un admin) ---
   'APPROVE_USER',
   'REJECT_USER',
   'SUSPEND_USER',
@@ -44,7 +34,6 @@ const NOTIFIABLE_ACTIONS = [
   'UPDATE_USER_SESSION',
   'DELETE_USER_SESSION',
 
-  // --- Diffusion / partage ---
   'PUBLISH_ANNOUNCEMENT',
   'SHARE_FOLDER',
 ];

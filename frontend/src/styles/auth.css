@@ -8,8 +8,6 @@
   position: relative;
   overflow: hidden;
   font-family: var(--font-family);
-  /* Image de fond (public/themeImagelogin.jpeg) en plein cadre, sous un voile dégradé
-     (couleur du thème) pour garder la carte et le texte lisibles. Thème-aware. */
   background-image:
     linear-gradient(
       160deg,
@@ -24,7 +22,6 @@
   color: var(--color-text-primary);
 }
 
-/* --- Atmosphère animée (nuages + particules), au-dessus du fond, derrière la carte --- */
 .auth-atmos {
   position: absolute;
   inset: 0;
@@ -68,7 +65,6 @@
   animation: auth-drift-c 38s ease-in-out infinite;
 }
 
-/* Champ d'étoiles/particules discret (parallaxe lente + scintillement). */
 .auth-stars {
   position: absolute;
   inset: -20%;
@@ -111,14 +107,12 @@
   to { transform: translate3d(-60px, -40px, 0); }
 }
 
-/* Thème clair : particules plus discrètes (moins de contraste sur fond clair). */
 :root[data-theme='light'] .auth-stars { opacity: 0.35; }
 
 @media (prefers-reduced-motion: reduce) {
   .auth-cloud, .auth-stars { animation: none; }
 }
 
-/* Halos lumineux flottants en arrière-plan : mouvement discret, coût CPU quasi nul (transform only) */
 .auth-page::before,
 .auth-page::after {
   content: '';
@@ -169,7 +163,6 @@
   z-index: 1;
   width: 100%;
   max-width: 424px;
-  /* Surface + fin liseré lumineux en haut (profondeur douce, moderne). */
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 6%, transparent), transparent 26%),
     var(--color-bg-secondary);
@@ -181,7 +174,6 @@
   animation: auth-card-in 0.55s var(--ease-out) both;
 }
 
-/* Fin trait dégradé en haut de carte (accent) — signature visuelle discrète. */
 .auth-card::before {
   content: '';
   position: absolute;
@@ -218,7 +210,6 @@
   height: auto;
   filter: var(--logo-filter);
   transform-origin: center;
-  /* Entrée (une fois), puis flottement smooth en boucle qui démarre après l'entrée. */
   animation:
     auth-logo-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both,
     auth-logo-float 5s ease-in-out 0.9s infinite;
@@ -235,7 +226,6 @@
   }
 }
 
-/* Flottement discret : léger va-et-vient vertical + micro-rotation. transform only. */
 @keyframes auth-logo-float {
   0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
   50% { transform: translateY(-7px) rotate(-1.6deg) scale(1.015); }
@@ -316,7 +306,6 @@
   color: var(--color-text-muted);
 }
 
-/* Champ mot de passe avec bouton "afficher / masquer" (œil). */
 .auth-password-wrap {
   position: relative;
   display: flex;

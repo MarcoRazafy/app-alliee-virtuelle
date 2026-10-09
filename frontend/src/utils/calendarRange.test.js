@@ -2,9 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeHourRange } from './calendarRange.js';
 
-// La grille n'affiche plus les 24 heures : elle se borne aux créneaux réels (+1 h de marge).
-// Ces cas verrouillent le calcul de la plage, dont dépend tout le positionnement des blocs.
-
 test('sans aucun créneau, repli sur 07:00-20:00', () => {
   assert.deepEqual(computeHourRange([], {}), { startHour: 7, endHour: 20 });
   assert.deepEqual(computeHourRange(undefined, undefined), { startHour: 7, endHour: 20 });

@@ -1,11 +1,9 @@
 import api from './api';
 
-// Annuaire léger (tout utilisateur connecté) : utilisé pour démarrer une conversation
 export function getUsers() {
   return api.get('/api/users/directory').then((res) => res.data);
 }
 
-// Gestion des comptes (admin uniquement)
 export function getAllUsers(filters = {}) {
   return api.get('/api/users', { params: filters }).then((res) => res.data);
 }
@@ -18,7 +16,6 @@ export function getUserDetail(id) {
   return api.get(`/api/users/${id}/detail`).then((res) => res.data);
 }
 
-// Notes internes admin sur un employé
 export function getUserNotes(id) {
   return api.get(`/api/users/${id}/notes`).then((res) => res.data);
 }

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { IconX } from '../icons';
 import { PRESENCE_META, formatDayLabel, useDialogFocus } from './adminPresenceHelpers';
 
-// Modale de correction administrative d'une présence journalière. Extraite d'AdminPresence.
 function AttendanceCorrectionDialog({ employee, date, onClose, onSave }) {
   const existing = employee.manual_correction;
   const [status, setStatus] = useState(existing?.status || 'automatic');

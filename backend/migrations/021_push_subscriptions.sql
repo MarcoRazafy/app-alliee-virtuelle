@@ -1,5 +1,3 @@
--- Abonnements aux notifications push (Web Push API). Un abonnement = un appareil/navigateur
--- pour un utilisateur. L'endpoint est unique côté navigateur → sert de clé d'upsert.
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -1,4 +1,3 @@
--- Notes internes sur un employé, visibles uniquement des admins (fiche employé).
 CREATE TABLE IF NOT EXISTS user_notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

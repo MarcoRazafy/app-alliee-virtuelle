@@ -1,6 +1,3 @@
-// Icônes SVG + mini-graphe de la page Assistant IA (extraits pour alléger AdminAssistant).
-
-// Étoile "sparkle" façon Gemini (une grande + une petite) pour représenter l'assistant.
 export function RobotIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -122,7 +119,6 @@ export function DownloadIcon() {
   );
 }
 
-// Mini graphe en ligne (sparkline) à partir d'une série de nombres.
 export function Sparkline({ points, color = 'var(--color-accent)' }) {
   if (!points || points.length < 2) return null;
   const w = 100;

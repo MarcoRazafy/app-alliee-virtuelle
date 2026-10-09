@@ -9,7 +9,6 @@ function ProtectedRoute({ children, role }) {
   const checkDayValidated = useAuthStore((state) => state.checkDayValidated);
   const location = useLocation();
 
-  // Récupère l'état de validation du jour (côté serveur) pour les employés, une fois par session.
   useEffect(() => {
     if (isAuthenticated && user?.role === 'EMPLOYEE' && dayValidated === null) {
       checkDayValidated();
@@ -24,9 +23,6 @@ function ProtectedRoute({ children, role }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Redirection d'ENTRÉE : à l'arrivée sur l'espace (le dashboard), un employé qui n'a pas
-  // encore validé sa journée est dirigé vers « Ma journée ». Le reste de l'application reste
-  // librement accessible ensuite (ce n'est PAS un blocage global).
   if (user?.role === 'EMPLOYEE' && location.pathname === '/dashboard') {
     if (dayValidated === null) {
       return (

@@ -1,5 +1,3 @@
-/* Ces variables reprennent les tokens partagés (tokens.css) au lieu d'une palette
-   propre à cette page, pour rester visuellement identique au reste de l'app. */
 .employee-stats-page {
   --employee-stats-primary: var(--color-accent);
   --employee-stats-primary-strong: var(--color-accent-lighter);
@@ -283,8 +281,6 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Ces KPI sont des métriques (pas des états) → icônes neutres, sans pastille ni
-   blob de coin coloré. Les variantes de couleur sont volontairement neutralisées. */
 .employee-stats-kpi-card--confirmed,
 .employee-stats-kpi-card--average,
 .employee-stats-kpi-card--time,

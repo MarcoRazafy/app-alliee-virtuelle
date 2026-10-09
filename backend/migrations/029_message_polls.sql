@@ -1,5 +1,3 @@
--- Sondages dans la messagerie : un sondage est porté par un message (message_polls.message_id),
--- avec ses options et les votes. Suppression du message → suppression en cascade du sondage.
 CREATE TABLE IF NOT EXISTS message_polls (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,

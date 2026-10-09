@@ -1,12 +1,7 @@
-/* ============================================================================
-   Section d'évaluation mensuelle (admin) — affichée directement sur la fiche employé.
-   ============================================================================ */
-
 .eval-section {
   margin-bottom: 18px;
 }
 
-/* En-tête : bouton de repli (mois + résumé) à gauche, navigation par mois à droite. */
 .eval-section-head {
   display: flex;
   align-items: center;
@@ -14,7 +9,6 @@
   gap: 16px;
   flex-wrap: wrap;
 }
-/* Bordure seulement quand la section est dépliée (sinon un trait flotte sous l'en-tête). */
 .eval-section--open .eval-section-head {
   padding-bottom: 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
@@ -57,7 +51,6 @@
   font-weight: 700;
   color: var(--color-text-primary);
 }
-/* Résumé du mois quand la section est repliée. */
 .eval-summary {
   display: inline-flex;
   align-items: center;
@@ -85,7 +78,6 @@
   text-transform: uppercase;
   color: var(--color-accent-lighter, var(--color-accent));
 }
-/* Navigation par mois */
 .eval-monthnav {
   display: flex;
   align-items: center;
@@ -133,7 +125,6 @@
   background: var(--color-accent);
 }
 
-/* Historique (chips des mois évalués) */
 .eval-history {
   display: flex;
   flex-wrap: wrap;
@@ -163,7 +154,6 @@
   font-weight: 600;
 }
 
-/* Corps défilant : 4 critères en grille 2×2, le reste en pleine largeur. */
 .eval-body {
   padding: 18px 0 0;
   display: grid;
@@ -171,7 +161,6 @@
   align-items: start;
   gap: 16px;
 }
-/* Le commentaire global, la visibilité, le chargement : toute la largeur. */
 .eval-global,
 .eval-visibility,
 .eval-loading {
@@ -183,7 +172,6 @@
   color: var(--color-text-muted);
 }
 
-/* Critère */
 .eval-criterion {
   border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
   border-radius: 14px;
@@ -246,7 +234,6 @@
   color: var(--color-error);
 }
 
-/* Zone de commentaire (teintée selon la note) */
 .eval-comment {
   width: 100%;
   font-family: var(--font-family);
@@ -282,7 +269,6 @@
   border-color: var(--color-error);
 }
 
-/* Liste de remarques d'un critère */
 .eval-items {
   display: flex;
   flex-direction: column;
@@ -294,8 +280,6 @@
   color: var(--color-text-muted);
   font-style: italic;
 }
-/* Une remarque = une barre pleine colorée (verte = bon, rouge = mauvais), texte blanc.
-   Petite pastille pour basculer bon/mauvais + croix pour retirer, en blanc translucide. */
 .eval-item {
   display: flex;
   align-items: center;
@@ -304,7 +288,6 @@
   border-radius: 10px;
   color: #fff;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
-  /* La barre s'ajuste à son texte : une remarque courte n'occupe pas toute la largeur. */
   width: fit-content;
   max-width: 100%;
 }
@@ -347,9 +330,6 @@
   width: 14px;
   height: 14px;
 }
-/* Auto-dimensionnement : le pseudo-élément reproduit le texte saisi dans la même cellule
-   de grille que la zone de saisie → la cellule prend la taille du contenu (largeur ET
-   hauteur), sans JavaScript. `data-value` est tenu à jour par le composant. */
 .eval-item-sizer {
   display: inline-grid;
   align-items: stretch;
@@ -366,12 +346,10 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-/* Le miroir invisible dicte la taille (l'espace insécable garde une ligne pleine hauteur). */
 .eval-item-sizer::after {
   content: attr(data-value) ' ';
   visibility: hidden;
 }
-/* Champ transparent sur la barre colorée → le texte apparaît blanc sur le fond plein. */
 .eval-item-input {
   width: 100%;
   min-width: 0;
@@ -412,7 +390,6 @@
   height: 15px;
 }
 
-/* Commentaire global */
 .eval-global {
   display: flex;
   flex-direction: column;
@@ -429,7 +406,6 @@
   color: var(--color-text-muted);
 }
 
-/* Visibilité */
 .eval-visibility {
   display: flex;
   align-items: flex-start;
@@ -458,7 +434,6 @@
   color: var(--color-text-muted);
 }
 
-/* Développement & évolution : champs libres, 2 par ligne. */
 .eval-dev {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -478,13 +453,10 @@
   color: var(--color-text-primary);
 }
 
-/* Commentaire global : pleine largeur sous les champs de développement. */
 .eval-global {
   margin-top: 18px;
 }
 
-/* Pied de section : visibilité à gauche, enregistrement à droite. Collant en bas de
-   l'écran pendant la saisie → le bouton reste atteignable sans remonter/descendre. */
 .eval-section-footer {
   position: sticky;
   bottom: 0;
@@ -515,7 +487,6 @@
   white-space: nowrap;
 }
 
-/* Sous 680px, les grilles repassent en une seule colonne. */
 @media (max-width: 680px) {
   .eval-body,
   .eval-dev {
@@ -523,11 +494,6 @@
   }
 }
 
-/* --- Écrans étroits -----------------------------------------------------------------
-   L'en-tête tenait tout sur une ligne : titre du mois, « Évaluée par … le … » et les
-   flèches de navigation. Le libellé de l'auteur est en white-space: nowrap et ne pouvait
-   donc pas rétrécir : il passait PAR-DESSUS le titre. Chaque partie prend désormais sa
-   propre ligne. */
 @media (max-width: 560px) {
   .eval-section-toggle {
     flex-direction: column;
@@ -535,7 +501,6 @@
     gap: 8px;
   }
 
-  /* margin-left: auto poussait le résumé à droite d'une ligne qu'il ne partage plus. */
   .eval-summary {
     margin-left: 0;
     padding-left: 0;
@@ -547,7 +512,6 @@
     align-items: flex-start;
   }
 
-  /* La navigation par mois passe sous le titre, alignée à gauche comme le reste. */
   .eval-monthnav {
     width: 100%;
     justify-content: flex-start;
@@ -557,10 +521,6 @@
     font-size: 18px;
   }
 
-  /* Remarque : la pastille d'auteur est en nowrap et ne rétrécit pas. Sur une barre
-     étroite, elle débordait par la droite en recouvrant le texte. Elle passe donc à la
-     ligne sous la remarque, et la barre s'aligne en haut pour que l'icône reste en
-     face de la première ligne. */
   .eval-item {
     flex-wrap: wrap;
     align-items: flex-start;
@@ -573,9 +533,6 @@
   }
 }
 
-/* ============================================================================
-   Vue employé « Mes évaluations » (lecture seule, dans la page Profil).
-   ============================================================================ */
 .profile-evaluations {
   margin-top: 20px;
 }
@@ -675,9 +632,6 @@
 .myeval-remark-text {
   min-width: 0;
   word-break: break-word;
-  /* Une suite de caractères sans espace (copier-coller, saisie accidentelle) doit se
-     couper plutôt que d'élargir la barre au-delà de la carte — même règle que la saisie
-     côté admin (.eval-item-sizer). */
   overflow-wrap: anywhere;
 }
 .myeval-remark--good {
@@ -686,7 +640,6 @@
 .myeval-remark--bad {
   background: var(--color-error);
 }
-/* Champs de développement (texte libre) côté employé. */
 .myeval-dev-text {
   margin: 0;
   padding: 8px 11px;
@@ -699,11 +652,9 @@
   background: var(--glass-overlay);
 }
 
-/* En-tête devenu statique : les 4 critères ne se replient plus. */
 .eval-section-toggle--static {
   cursor: default;
 }
-/* Qui a rempli l'évaluation du mois affiché. */
 .eval-author {
   padding: 2px 9px;
   border-radius: 999px;
@@ -713,7 +664,6 @@
   font-weight: 600;
 }
 
-/* Repli du bloc « Développement & évolution » (les critères restent visibles). */
 .eval-dev-toggle {
   grid-column: 1 / -1;
   display: flex;
@@ -745,7 +695,6 @@
   white-space: nowrap;
 }
 
-/* Auteur d'une remarque, sur la barre colorée : lisible sans voler la vedette au texte. */
 .eval-item-author {
   flex-shrink: 0;
   padding: 2px 8px;
@@ -755,13 +704,11 @@
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-  /* Assez large pour « Prénom Nom · 3 sept. à 17:36 » sans tronquer dans le cas courant. */
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Auteur d'un champ libre, à côté de son libellé. */
 .eval-field-author {
   margin-left: 8px;
   padding: 1px 8px;
@@ -774,31 +721,22 @@
   white-space: nowrap;
 }
 
-/* Date de dernière modification, accolée au nom dans les deux pastilles ci-dessus : en
-   retrait, pour que le nom reste ce qu'on lit en premier. */
 .eval-stamp-date {
   font-weight: 500;
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Éditeur riche dans l'évaluation -------------------------------------------
-   Les champs sont nombreux (7 en deux colonnes) : la hauteur par défaut de
-   l'éditeur (130px) rendrait le bloc interminable. Sélecteurs descendants plutôt
-   qu'une classe de variante, pour l'emporter sur rich-text-editor.css quel que
-   soit l'ordre de chargement des feuilles de style. */
 .eval-dev .rte-surface {
   min-height: 68px;
   max-height: 220px;
   padding: 9px 12px;
   font-size: 13.5px;
 }
-/* Le commentaire global est le message de synthèse : un peu plus de place. */
 .eval-global .rte-surface {
   min-height: 96px;
   font-size: 13.5px;
 }
-/* Barre d'outils compacte, pour ne pas manger la hauteur du champ lui-même. */
 .eval-dev .rte-toolbar,
 .eval-global .rte-toolbar {
   padding: 3px 5px;
@@ -816,8 +754,6 @@
   height: 15px;
 }
 
-/* Mise en forme restituée côté employé (contenu riche nettoyé). Sans ces règles, une
-   liste s'afficherait sans puce ni retrait, le navigateur n'en héritant pas ici. */
 .myeval-global :where(ul, ol),
 .myeval-dev-text :where(ul, ol) {
   margin: 6px 0;

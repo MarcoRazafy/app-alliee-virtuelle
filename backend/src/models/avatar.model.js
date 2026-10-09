@@ -5,7 +5,6 @@ async function findByUserId(userId) {
   return result.rows[0] || null;
 }
 
-// Un utilisateur n'a qu'un seul avatar : remplace l'existant (contrainte UNIQUE sur user_id)
 async function upsert({ userId, fileName, filePath, fileSize, fileType }) {
   const result = await db.query(
     `INSERT INTO user_avatars (user_id, file_name, file_path, file_size, file_type, uploaded_at)

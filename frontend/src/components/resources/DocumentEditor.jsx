@@ -13,9 +13,6 @@ import {
 import { IconPaperclip, IconX } from '../icons';
 import { filesFromPaste } from '../../utils/clipboardFiles';
 
-// Éditeur de texte riche léger (contentEditable + document.execCommand), sans dépendance.
-// Sert à créer ou modifier un document HTML stocké dans resources_files.content, dans lequel
-// on peut insérer des photos, des vidéos et des PDF (utils/documentMedia).
 const TOOLBAR = [
   { cmd: 'bold', label: 'G', title: 'Gras', style: { fontWeight: 800 } },
   { cmd: 'italic', label: 'I', title: 'Italique', style: { fontStyle: 'italic' } },
@@ -38,21 +35,13 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
   const [title, setTitle] = useState(existing?.file_name || '');
   const [saving, setSaving] = useState(false);
   const [empty, setEmpty] = useState(true);
-  // La liste des fichiers ne transmet pas le contenu des documents (trop lourd) : à
-  // l'édition, il faut aller le chercher. Sans cela, l'éditeur s'ouvrait vide et enregistrer
-  // remplaçait le document existant par une page blanche.
   const needsContent = Boolean(existing?.id && existing.content === undefined);
   const [loadingContent, setLoadingContent] = useState(needsContent);
 
-  // Médias : ceux que le document citait à l'ouverture, et ceux importés depuis. C'est ce qui
-  // permet d'effacer du disque ce qui a été abandonné (voir mediaIdsToDelete).
   const initialIdsRef = useRef([]);
   const sessionIdsRef = useRef([]);
-  // Imports en cours : jeton du bloc d'attente → AbortController.
   const uploadsRef = useRef(new Map());
   const [uploadCount, setUploadCount] = useState(0);
-  // Dernière position du curseur dans le texte : ouvrir le sélecteur de fichier fait perdre
-  // la sélection, or le média doit s'insérer là où l'on écrivait.
   const savedRangeRef = useRef(null);
   const mountedRef = useRef(true);
   const targetFolderId = existing?.folder_id || folderId;
@@ -83,8 +72,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
         })
         .catch((err) => {
           if (cancelled) return;
-          // Surtout ne pas laisser éditer un document dont on n'a pas le contenu : enregistrer
-          // l'écraserait.
           notifyError(err.response?.data?.error || 'Impossible de charger le document');
           onClose?.();
         })
@@ -97,8 +84,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
     return () => {
       cancelled = true;
     };
-    // onClose est volontairement absent : le recharger à chaque rendu du parent relancerait
-    // la lecture du document et effacerait la saisie en cours.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing, needsContent]);
 
@@ -115,7 +100,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
     return () => window.document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
 
-  // Fermer l'onglet pendant l'envoi d'une vidéo perdrait des minutes de transfert.
   useEffect(() => {
     if (uploadCount === 0) return undefined;
     const warn = (event) => {
@@ -128,7 +112,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
 
   function exec(action) {
     editorRef.current?.focus();
-    // Entrée crée un paragraphe <p>, comme le reste du document, et non un <div>.
     window.document.execCommand('defaultParagraphSeparator', false, 'p');
     if (action.block) {
       window.document.execCommand('formatBlock', false, action.block);
@@ -147,16 +130,12 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
     if (range && editor.contains(range.commonAncestorContainer)) {
       selection.addRange(range);
     } else {
-      // Jamais cliqué dans le texte : le média va à la fin.
       const end = window.document.createRange();
       end.selectNodeContents(editor);
       end.collapse(false);
       selection.addRange(end);
     }
     window.document.execCommand('insertHTML', false, html);
-    // Mémoriser tout de suite la nouvelle position : l'événement selectionchange arrive plus
-    // tard, et plusieurs fichiers choisis d'un coup s'inséraient sinon tous au point de départ
-    // — donc dans l'ordre inverse de la sélection.
     if (selection.rangeCount > 0) savedRangeRef.current = selection.getRangeAt(0).cloneRange();
     setEmpty(false);
   }
@@ -173,8 +152,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
       return;
     }
 
-    // Un bloc d'attente prend la place du média tout de suite : on peut continuer à écrire
-    // pendant qu'une vidéo de plusieurs minutes s'envoie, sans perdre l'endroit où elle ira.
     const token = `up-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     insertAtCaret(
       `<figure class="resource-doc-media resource-doc-media--uploading" contenteditable="false" data-upload-token="${token}">` +
@@ -191,14 +168,11 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
         onProgress: (loaded, total) => {
           const percent = uploadPercent(loaded, total);
           const label = placeholder()?.querySelector('.resource-doc-upload-label');
-          // textContent, jamais innerHTML : le nom du fichier vient de l'utilisateur.
           if (label && percent !== null) label.textContent = `Import de ${file.name}… ${percent} %`;
         },
       });
       sessionIdsRef.current.push(media.id);
       const node = placeholder();
-      // Bloc d'attente supprimé pendant l'envoi : on n'insère rien, le média sera effacé à la
-      // fermeture puisque le document ne le cite pas.
       if (node) {
         const template = window.document.createElement('template');
         template.innerHTML = mediaHtml({ id: media.id, kind: media.kind, fileName: file.name });
@@ -224,8 +198,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
     files.forEach((file) => uploadOne(file));
   }
 
-  // Effacement en arrière-plan : un échec (409 si un autre document cite le média) ne doit
-  // ni bloquer ni alarmer, le média reste simplement en place.
   function discardMedia(ids) {
     ids.forEach((id) => resourceService.deleteDocumentMedia(id).catch(() => {}));
   }
@@ -255,7 +227,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
       return;
     }
     const editor = editorRef.current;
-    // Filet de sécurité : un bloc d'attente n'a rien à faire dans un document enregistré.
     editor?.querySelectorAll('[data-upload-token]').forEach((node) => node.remove());
     const content = editor?.innerHTML || '';
     setSaving(true);
@@ -264,8 +235,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
         ? await resourceService.updateDocument(existing.id, { file_name: name, content })
         : await resourceService.createDocument(targetFolderId, { file_name: name, content });
       notifySuccess(existing?.id ? 'Document mis à jour' : 'Document créé');
-      // APRÈS l'enregistrement : le serveur vérifie qu'aucun document ne cite plus le média,
-      // il doit donc déjà voir le nouveau contenu.
       discardMedia(
         mediaIdsToDelete({
           initialIds: initialIdsRef.current,
@@ -340,7 +309,6 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
             className="resources-editor-tool resources-editor-tool--media"
             title="Insérer une photo, une vidéo ou un PDF à l'endroit du curseur"
             disabled={loadingContent}
-            // mousedown sans défaut : le texte garde sa sélection, le média ira au bon endroit.
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => mediaInputRef.current?.click()}
           >
@@ -359,15 +327,12 @@ function DocumentEditor({ folderId, document: existing, onClose, onSaved }) {
             aria-multiline="true"
             onInput={() => setEmpty(isEditorEmpty(editorRef.current))}
             onFocus={() => window.document.execCommand('defaultParagraphSeparator', false, 'p')}
-            // Capture d'écran ou fichier collé : inséré comme par le bouton « Photo, vidéo, PDF ».
             onPaste={(event) => {
               const pasted = filesFromPaste(event);
               if (pasted.length === 0) return;
               event.preventDefault();
               pasted.forEach((file) => uploadOne(file));
             }}
-            // Dans un bloc non éditable, un lien redevient cliquable : sans ce garde, cliquer
-            // sur la carte d'un PDF quitterait l'éditeur et ferait perdre la saisie.
             onClick={(e) => {
               if (e.target.closest('a')) e.preventDefault();
             }}

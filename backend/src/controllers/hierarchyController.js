@@ -5,8 +5,6 @@ function validateName(name) {
   return typeof name === 'string' && name.trim().length > 0 && name.length <= 150;
 }
 
-// --- Spaces ---
-
 async function listSpaces(req, res, next) {
   try {
     const spaces = await hierarchyModel.findAllSpaces();
@@ -96,8 +94,6 @@ async function deleteSpace(req, res, next) {
     next(err);
   }
 }
-
-// --- Folders ---
 
 async function listFolders(req, res, next) {
   try {
@@ -190,8 +186,6 @@ async function deleteFolder(req, res, next) {
     next(err);
   }
 }
-
-// --- Lists ---
 
 async function listLists(req, res, next) {
   try {

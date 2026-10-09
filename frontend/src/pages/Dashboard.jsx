@@ -30,8 +30,6 @@ import {
 } from '../components/icons';
 import { businessDayNow } from '../utils/businessDay';
 
-// « Aujourd'hui » au sens de la journée de travail (fin à 2 h du matin), comme le serveur :
-// à 1 h, un employé de nuit doit voir le temps de la journée qu'il est en train de finir.
 const todayDateString = businessDayNow;
 
 const QUICK_LINKS = [
@@ -320,9 +318,6 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* dashboard-activity porte l'écart avec le bloc précédent. La classe .workspace-grid
-          qui le précède est partagée avec la page Espace de travail : lui ajouter une marge
-          aurait déplacé cette autre page sans raison. */}
       <div className="side-card dashboard-activity">
         <div className="side-card-header">
           <p className="side-card-title">Activité récente</p>

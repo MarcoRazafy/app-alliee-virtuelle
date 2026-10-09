@@ -1,13 +1,7 @@
-/* Page Utilisateurs (admin) — réutilise tokens, shell admin, .task-table, filtres.
-   Ajoute : onglets, avatars (photo ou initiales), lignes cliquables, cartes de
-   demandes d'accès. Le drawer de détail réutilise EmployeeDetailPanel (.emp-drawer). */
-
 .ausers-page {
   display: flex;
   flex-direction: column;
 }
-
-/* --- Onglets --- */
 
 .ausers-tabs {
   display: flex;
@@ -65,8 +59,6 @@
   font-weight: 700;
 }
 
-/* --- Avatar (photo ou initiales) --- */
-
 .user-avatar {
   flex-shrink: 0;
   display: inline-flex;
@@ -93,14 +85,10 @@
   font-size: 11px;
 }
 
-/* --- Filtres --- */
-
 .ausers-search {
   min-width: 240px;
   flex: 0 1 280px;
 }
-
-/* --- Table employés --- */
 
 .ausers-row {
   cursor: pointer;
@@ -170,8 +158,6 @@
   color: var(--color-success);
 }
 
-/* --- Pills de statut utilisateur --- */
-
 .pill--user-active {
   background: rgba(34, 197, 94, 0.14);
   color: var(--color-success);
@@ -191,8 +177,6 @@
   background: var(--input-bg);
   color: var(--color-text-secondary);
 }
-
-/* --- Demandes d'accès --- */
 
 .ausers-bulk {
   margin-bottom: 16px;
@@ -259,7 +243,6 @@
   font-size: 12.5px;
 }
 
-/* --- Drawer profil : en-tête centré (photo, nom, statut, action) --- */
 .uinfo-hero {
   display: flex;
   flex-direction: column;
@@ -332,8 +315,6 @@
   flex: 1;
   justify-content: center;
 }
-
-/* --- Drawer infos personnelles --- */
 
 .uinfo-list {
   display: flex;
@@ -411,7 +392,6 @@
   }
 }
 
-/* Badge « Admin » dans la liste Équipe (distingue les administrateurs des employés). */
 .ausers-role-tag {
   display: inline-block;
   margin-left: 8px;

@@ -16,7 +16,6 @@ import '../../styles/admin-assistant.css';
 import { filesFromPaste } from '../../utils/clipboardFiles';
 import MediaPreview from '../../components/MediaPreview';
 
-// Suggestions avec icône (cartes cliquables sur l'écran d'accueil).
 const SUGGESTIONS = [
   { icon: IconUsers, text: 'Qui a le plus de tâches confirmées ce mois-ci ?' },
   { icon: IconClock, text: 'Combien de tâches sont en retard actuellement ?' },
@@ -30,7 +29,7 @@ function AdminAssistant() {
   const [kpis, setKpis] = useState(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false); // tiroir d'historique (mobile)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null);
@@ -40,7 +39,6 @@ function AdminAssistant() {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState('');
   const [pendingFile, setPendingFile] = useState(null);
-  // Image d'une conversation agrandie dans la visionneuse : { url, name, entry }.
   const [imagePreview, setImagePreview] = useState(null);
   const [attachmentUrls, setAttachmentUrls] = useState({});
   const [recognizing, setRecognizing] = useState(false);
@@ -62,15 +60,11 @@ function AdminAssistant() {
     loadHistory();
   }, []);
 
-  // Plein écran mobile : masque l'en-tête de l'app tant qu'on est sur le chatbot (le bouton
-  // retour de l'en-tête interne permet de revenir). Retiré à la sortie de la page.
   useEffect(() => {
     document.body.classList.add('chat-fullscreen');
     return () => document.body.classList.remove('chat-fullscreen');
   }, []);
 
-  // Champ de question multi-ligne : s'agrandit selon le contenu (borné à ~160px) et revient
-  // à sa taille de départ quand il est vidé (après envoi).
   useEffect(() => {
     const el = questionRef.current;
     if (!el) return;
@@ -78,7 +72,6 @@ function AdminAssistant() {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [question]);
 
-  // KPI de l'écran d'accueil : semaine courante vs semaine précédente.
   useEffect(() => {
     const cur = weekRange(0);
     const prev = weekRange(1);
@@ -104,7 +97,6 @@ function AdminAssistant() {
       .catch(() => {});
   }, []);
 
-  // Regroupe les échanges à plat en conversations (par session_id)
   const sessions = useMemo(() => {
     const map = new Map();
     history.forEach((row) => {
@@ -116,7 +108,6 @@ function AdminAssistant() {
       const sorted = [...rows].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       const titled = sorted.find((r) => r.title);
       const last = sorted[sorted.length - 1];
-      // Sous-titre = aperçu de la dernière réponse (1re ligne, sans markdown).
       const preview = (last.answer || last.question || '').replace(/[*_`#>-]/g, '').split('\n').find((l) => l.trim()) || '';
       return {
         id,
@@ -151,7 +142,6 @@ function AdminAssistant() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [activeMessages.length, loading, activeSessionId]);
 
-  // Récupère les blobs des pièces jointes image (sans annulation : voir messagerie).
   useEffect(() => {
     activeMessages
       .filter((m) => m.has_attachment && isImageType(m.attachment_type) && !attachmentFetchedRef.current.has(m.id))
@@ -166,7 +156,6 @@ function AdminAssistant() {
       });
   }, [activeMessages]);
 
-  // Entrée = envoyer, Maj+Entrée = nouvelle ligne (isComposing : ne pas couper une saisie IME).
   function handleQuestionKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
@@ -295,7 +284,6 @@ function AdminAssistant() {
     fileRef.current.click();
   }
 
-  // Dictée vocale (Web Speech API — écrit dans le champ).
   function toggleDictation() {
     if (recognizing) {
       recognitionRef.current?.stop();
@@ -328,7 +316,6 @@ function AdminAssistant() {
     if (!entry.has_attachment) return null;
     if (isImageType(entry.attachment_type)) {
       return attachmentUrls[entry.id] ? (
-        // Agrandie dans la visionneuse de l'application, et non dans un nouvel onglet.
         <button
           type="button"
           className="ai-attach-image"
@@ -635,7 +622,6 @@ function AdminAssistant() {
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={handleQuestionKeyDown}
-                // Capture d'écran ou fichier collé : joint à la question, comme par le trombone.
                 onPaste={(event) => {
                   const pasted = filesFromPaste(event);
                   if (pasted.length === 0) return;

@@ -7,12 +7,9 @@ const { validateRegister, validateLogin, validateUpdateProfile } = require('../m
 
 const router = express.Router();
 
-// Limite les tentatives de connexion/inscription par IP (anti brute-force).
-// Actif UNIQUEMENT en production : en local/tunnel, tous les clients partagent souvent la
-// même IP (proxy) et seraient bloqués ensemble ; les tests enchaînent aussi les connexions.
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 tentatives / IP / fenêtre
+  windowMs: 15 * 60 * 1000,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez dans quelques minutes.' },

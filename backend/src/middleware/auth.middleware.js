@@ -2,8 +2,6 @@ const { verifyToken } = require('../utils/jwt.util');
 const { AUTH_COOKIE, parseCookieHeader } = require('../utils/cookies');
 
 function authMiddleware(req, res, next) {
-  // Token accepté depuis le cookie httpOnly (navigateur) OU l'en-tête Authorization: Bearer
-  // (clients API / tests). Le cookie est privilégié quand les deux sont présents.
   const authHeader = req.headers.authorization;
   const bearer = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const token = parseCookieHeader(req.headers.cookie)[AUTH_COOKIE] || bearer;

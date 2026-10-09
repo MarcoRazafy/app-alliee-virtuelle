@@ -34,9 +34,8 @@ const EMPTY_NEW_TASK = {
   client_email: '',
 };
 
-const MAX_ATTACH_SIZE = 5 * 1024 * 1024; // 5 Mo (aligné au backend)
+const MAX_ATTACH_SIZE = 5 * 1024 * 1024;
 
-// Aplatit l'arborescence Espace > Projet > Liste en une liste d'options « Espace › Projet › Liste ».
 function flattenLists(tree) {
   const out = [];
   (tree || []).forEach((space) => {
@@ -49,9 +48,6 @@ function flattenLists(tree) {
   return out;
 }
 
-// Ordres d'affichage proposés. « Plus récentes » est le défaut : une tâche qu'on vient de
-// créer doit se voir tout de suite, alors qu'un tri par échéance la renvoyait en dernière
-// page dès que son échéance était lointaine.
 const SORT_OPTIONS = [
   { value: 'recent', label: 'Plus récentes' },
   { value: 'oldest', label: 'Plus anciennes' },
@@ -59,8 +55,6 @@ const SORT_OPTIONS = [
   { value: 'deadline_desc', label: 'Échéance lointaine' },
 ];
 
-// Comparaison sûre : une date absente part en fin de liste plutôt que de remonter en tête
-// par accident (une valeur vide se compare mal).
 function byDate(field, direction) {
   return (a, b) => {
     const va = a[field] ? new Date(a[field]).getTime() : null;
@@ -80,8 +74,6 @@ function sortTasks(list, sort) {
   return rows.sort(byDate('created_at', 'desc'));
 }
 
-// `task` et non la seule échéance : « En retard » dépend AUSSI du statut — une tâche
-// terminée après l'échéance n'est pas en retard, elle est faite.
 function matchesDeadlineRange(task, range) {
   if (!range) return true;
 
@@ -89,8 +81,6 @@ function matchesDeadlineRange(task, range) {
   if (!deadline) return false;
 
   if (range === 'late') {
-    // Même définition que côté admin (utils/taskStatus), pour que l'employé et son
-    // responsable comptent la même chose.
     const now = new Date();
     const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     return isTaskLate(task, todayYMD);
@@ -117,8 +107,6 @@ function matchesDeadlineRange(task, range) {
 function MyTasks() {
   const location = useLocation();
   const [tasks, setTasks] = useState([]);
-  // Sélection pour suppression groupée. Ne concerne QUE les tâches créées par l'employé :
-  // il ne peut pas supprimer celles qu'on lui a confiées.
   const [sort, setSort] = useState('recent');
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleting, setDeleting] = useState(false);
@@ -131,16 +119,14 @@ function MyTasks() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTask, setNewTask] = useState(EMPTY_NEW_TASK);
-  const [pendingFiles, setPendingFiles] = useState([]); // pièces jointes retenues jusqu'à la création
+  const [pendingFiles, setPendingFiles] = useState([]);
 
   function handleFilesSelected(e) {
     const chosen = Array.from(e.target.files || []);
-    e.target.value = ''; // permet de re-sélectionner le même fichier
+    e.target.value = '';
     addPendingFiles(chosen);
   }
 
-  // Fichiers choisis au bouton OU collés dans la description (capture d'écran, PDF copié) :
-  // même contrôle de taille, même liste de pièces jointes.
   function addPendingFiles(chosen) {
     if (chosen.length === 0) return;
     const tooBig = chosen.filter((f) => f.size > MAX_ATTACH_SIZE);
@@ -153,7 +139,6 @@ function MyTasks() {
   function removePendingFile(index) {
     setPendingFiles((cur) => cur.filter((_, i) => i !== index));
   }
-  // Projets (listes) proposés au choix — optionnel — à la création d'une tâche (#4).
   const [projectLists, setProjectLists] = useState([]);
 
   useEffect(() => {
@@ -163,7 +148,6 @@ function MyTasks() {
       .catch(() => setProjectLists([]));
   }, []);
 
-  // La deadline doit être strictement postérieure à aujourd'hui (validation backend).
   const minDeadline = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -173,9 +157,6 @@ function MyTasks() {
   async function loadTasks() {
     try {
       const data = await taskService.getTasks();
-      // Le statut affiché vient désormais de `has_active_session`, fourni par l'API : plus
-      // besoin d'un appel par tâche pour savoir si le chrono tourne (et l'admin lit la
-      // même information, donc les deux côtés affichent le même statut).
       const enriched = await Promise.all(
         data.map(async (task) => {
           const displayStatus = displayStatusOf(task);
@@ -197,7 +178,6 @@ function MyTasks() {
 
   useEffect(() => {
     loadTasks();
-    // Recharge la liste après création d'une tâche (sans actualiser la page).
     const onTasksChanged = () => loadTasks();
     window.addEventListener('tasks:changed', onTasksChanged);
     return () => window.removeEventListener('tasks:changed', onTasksChanged);
@@ -220,7 +200,6 @@ function MyTasks() {
         client_email: newTask.client_email.trim() || null,
       });
 
-      // Pièces jointes : envoyées APRÈS la création (best-effort, comme côté admin).
       let attachFailed = 0;
       if (created?.id && pendingFiles.length > 0) {
         const results = await Promise.allSettled(
@@ -264,11 +243,8 @@ function MyTasks() {
 
   const paginatedTasks = filteredTasks.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  // Tâche créée par l'employé lui-même : la seule qu'il puisse supprimer.
   const isMine = (task) => Boolean(user?.id && task.created_by === user.id);
 
-  // La sélection porte sur la liste FILTRÉE, pas seulement la page affichée : sinon
-  // « tout sélectionner » ne ferait qu'une page et le compte serait trompeur.
   const mineInView = filteredTasks.filter(isMine);
   const selectedInView = mineInView.filter((t) => selectedIds.includes(t.id));
   const allMineSelected = mineInView.length > 0 && selectedInView.length === mineInView.length;
@@ -291,8 +267,6 @@ function MyTasks() {
 
     setDeleting(true);
     try {
-      // En série plutôt qu'en parallèle : si l'une échoue, les précédentes sont déjà
-      // parties et le rechargement montrera exactement ce qui reste.
       for (const task of selectedInView) {
         await taskService.deleteTask(task.id);
       }
@@ -382,8 +356,6 @@ function MyTasks() {
                 {paginatedTasks.map((task) => (
                   <tr key={task.id} className={selectedIds.includes(task.id) ? 'mt-row--selected' : undefined}>
                     <td className="mt-select-col">
-                      {/* Case à cocher seulement sur ses propres tâches : proposer de
-                          sélectionner ce qu'on ne peut pas supprimer serait une impasse. */}
                       {isMine(task) && (
                         <input
                           type="checkbox"
@@ -395,8 +367,6 @@ function MyTasks() {
                     </td>
                     <td>
                       <span className="mt-title-cell">
-                        {/* Point bleu : repère les tâches que l'employé a créées lui-même,
-                            les seules qu'il puisse supprimer. */}
                         {isMine(task) && (
                           <span className="mt-mine-dot" title="Tâche que vous avez créée" aria-label="Tâche que vous avez créée" />
                         )}
@@ -472,7 +442,6 @@ function MyTasks() {
             </p>
 
             <form className="tk-create-modal-form" onSubmit={handleCreateTask}>
-              {/* Titre */}
               <input
                 className="tk-create-title"
                 value={newTask.title}
@@ -483,9 +452,7 @@ function MyTasks() {
                 autoFocus
               />
 
-              {/* Propriétés */}
               <div className="tk-props">
-                {/* Priorité */}
                 <div className="tk-prop">
                   <span className="tk-prop-label">
                     <IconAlert /> Priorité
@@ -508,7 +475,6 @@ function MyTasks() {
                   </span>
                 </div>
 
-                {/* Dates : Début → Échéance */}
                 <div className="tk-prop">
                   <span className="tk-prop-label">
                     <IconCalendarWeek /> Dates
@@ -537,7 +503,6 @@ function MyTasks() {
                   </span>
                 </div>
 
-                {/* Client (optionnel) */}
                 <div className="tk-prop">
                   <span className="tk-prop-label">
                     <IconChat /> Client
@@ -559,7 +524,6 @@ function MyTasks() {
                   </span>
                 </div>
 
-                {/* Projet (pleine largeur, requis) */}
                 <div className="tk-prop tk-prop--full">
                   <span className="tk-prop-label">
                     <IconFolder /> Projet <span className="form-required">*</span>
@@ -574,7 +538,6 @@ function MyTasks() {
                   </div>
                 </div>
 
-                {/* Pièces jointes — libellé cliquable (sans bouton bordé) */}
                 <div className="tk-prop tk-prop--full">
                   <label className="tk-prop-label tk-attach-trigger" title="Cliquer pour joindre un fichier">
                     <IconPaperclip /> Pièces jointes
@@ -611,7 +574,6 @@ function MyTasks() {
                 </div>
               </div>
 
-              {/* Description */}
               <div className="tk-desc-block tk-create-desc">
                 <p className="tk-section-label">Description</p>
                 <RichTextEditor
@@ -622,7 +584,6 @@ function MyTasks() {
                 />
               </div>
 
-              {/* Pied */}
               <div className="tk-footer">
                 <button type="button" className="btn-outline" onClick={() => setCreateOpen(false)}>
                   Annuler

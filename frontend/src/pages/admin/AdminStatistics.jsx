@@ -18,8 +18,7 @@ function AdminStatistics() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [view, setView] = useState('tasks'); // 'tasks' | 'presence'
-  // Relevé de temps d'une personne ouvert depuis la feuille d'équipe : { employee, week }.
+  const [view, setView] = useState('tasks');
   const [selectedPerson, setSelectedPerson] = useState(null);
 
   const [chartMetric, setChartMetric] = useState('hours_worked_seconds');
@@ -63,8 +62,6 @@ function AdminStatistics() {
     return { totalHours, activeEmployees, employeeCount: stats.by_employee.length };
   }, [stats]);
 
-  // Ne sert plus qu'à l'export CSV depuis que le tableau par employé a laissé place à la
-  // feuille de temps hebdomadaire : un ordre alphabétique stable suffit.
   const sortedByEmployee = useMemo(() => {
     if (!stats) return [];
     return [...stats.by_employee].sort((a, b) => a.full_name.localeCompare(b.full_name));
@@ -77,7 +74,6 @@ function AdminStatistics() {
     return rows.slice(0, 8);
   }, [stats, boardMetric]);
 
-  // Onglet Présence : employés triés par temps de connexion décroissant.
   const presenceRows = useMemo(() => {
     if (!stats) return [];
     return [...stats.by_employee].sort(
@@ -347,9 +343,6 @@ function AdminStatistics() {
             )}
           </section>
 
-          {/* Une personne sélectionnée remplace la feuille d'équipe par son relevé détaillé,
-              comme un « écran suivant » : garder les deux à l'écran doublerait la hauteur
-              d'une page déjà longue. */}
           {selectedPerson ? (
             <WeeklyTimesheet
               employee={selectedPerson.employee}

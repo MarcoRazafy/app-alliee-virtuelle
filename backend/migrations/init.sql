@@ -1,9 +1,5 @@
--- L'Alliée Virtuelle - Schema PostgreSQL
--- 14 tables pour la gestion des tâches avec chronométrage
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 1. USERS
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -18,7 +14,6 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
--- 2. TASKS
 CREATE TABLE IF NOT EXISTS tasks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
@@ -35,7 +30,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 
--- 3. TASK_HISTORY
 CREATE TABLE IF NOT EXISTS task_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -47,7 +41,6 @@ CREATE TABLE IF NOT EXISTS task_history (
 );
 CREATE INDEX IF NOT EXISTS idx_task_history_task_id ON task_history(task_id);
 
--- 4. TASK_COMMENTS
 CREATE TABLE IF NOT EXISTS task_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -60,7 +53,6 @@ CREATE TABLE IF NOT EXISTS task_comments (
 );
 CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON task_comments(task_id);
 
--- 5. TASK_ATTACHMENTS
 CREATE TABLE IF NOT EXISTS task_attachments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -73,7 +65,6 @@ CREATE TABLE IF NOT EXISTS task_attachments (
 );
 CREATE INDEX IF NOT EXISTS idx_task_attachments_task_id ON task_attachments(task_id);
 
--- 6. TIMELOG
 CREATE TABLE IF NOT EXISTS timelog (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -86,7 +77,6 @@ CREATE TABLE IF NOT EXISTS timelog (
 CREATE INDEX IF NOT EXISTS idx_timelog_task_id ON timelog(task_id);
 CREATE INDEX IF NOT EXISTS idx_timelog_employee_id ON timelog(employee_id);
 
--- 7. MESSAGE_GROUPS
 CREATE TABLE IF NOT EXISTS message_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
@@ -106,7 +96,6 @@ CREATE TABLE IF NOT EXISTS message_group_members (
 );
 CREATE INDEX IF NOT EXISTS idx_message_group_members_user_id ON message_group_members(user_id);
 
--- 8. MESSAGES
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -121,7 +110,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_author_id ON messages(author_id);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_messages_group_id ON messages(group_id);
 
--- 9. MESSAGE_CONVERSATIONS
 CREATE TABLE IF NOT EXISTS message_conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     participant1_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -131,7 +119,6 @@ CREATE TABLE IF NOT EXISTS message_conversations (
 );
 CREATE INDEX IF NOT EXISTS idx_message_conversations_participant1 ON message_conversations(participant1_id);
 
--- 10. RESOURCES_FOLDERS
 CREATE TABLE IF NOT EXISTS resources_folders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
@@ -143,7 +130,6 @@ CREATE TABLE IF NOT EXISTS resources_folders (
 );
 CREATE INDEX IF NOT EXISTS idx_resources_folders_parent ON resources_folders(parent_folder_id);
 
--- 11. RESOURCES_FILES
 CREATE TABLE IF NOT EXISTS resources_files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     folder_id UUID NOT NULL REFERENCES resources_folders(id) ON DELETE CASCADE,
@@ -156,7 +142,6 @@ CREATE TABLE IF NOT EXISTS resources_files (
 );
 CREATE INDEX IF NOT EXISTS idx_resources_files_folder_id ON resources_files(folder_id);
 
--- 12. RESOURCES_SHARES
 CREATE TABLE IF NOT EXISTS resources_shares (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     folder_id UUID NOT NULL REFERENCES resources_folders(id) ON DELETE CASCADE,
@@ -168,7 +153,6 @@ CREATE TABLE IF NOT EXISTS resources_shares (
 );
 CREATE INDEX IF NOT EXISTS idx_resources_shares_folder_id ON resources_shares(folder_id);
 
--- 13. AUDIT_LOG
 CREATE TABLE IF NOT EXISTS audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -181,7 +165,6 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
 
--- 14. USER_DAILY_SELECTION
 CREATE TABLE IF NOT EXISTS user_daily_selection (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -193,7 +176,6 @@ CREATE TABLE IF NOT EXISTS user_daily_selection (
 );
 CREATE INDEX IF NOT EXISTS idx_user_daily_selection_user_date ON user_daily_selection(user_id, date);
 
--- 15. AI_CONVERSATIONS
 CREATE TABLE IF NOT EXISTS ai_conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -204,9 +186,5 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_ai_conversations_admin_id ON ai_conversations(admin_id);
-
--- (Données de test retirées : une base fraîche ne contient que le schéma.
---  Le 1er administrateur est créé au déploiement via scripts/bootstrap-admin.js
---  ou la commande `npm run create-admin`.)
 
 COMMIT;

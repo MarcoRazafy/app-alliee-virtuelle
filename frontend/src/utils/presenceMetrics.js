@@ -180,9 +180,6 @@ export function formatPresenceMinutes(minutes) {
   return `${rest} min`;
 }
 
-// Durée cumulée en heures décimales (« 8,3 h »). À utiliser pour les totaux de retard :
-// le format « 8 h 17 » de formatPresenceMinutes se lit comme une heure d'horloge (8h17 du
-// matin) alors qu'il s'agit d'un cumul.
 export function formatPresenceHours(minutes) {
   const rounded = Math.max(0, Math.round(minutes));
   if (rounded < 60) return `${rounded} min`;
@@ -201,9 +198,6 @@ export function computeDayPresence(day, segments = [], options = {}) {
   const elapsedPlanned = clipIntervals(planned, elapsedLimit);
   const covered = intersectIntervals(planned, sessions);
   const missing = subtractIntervals(elapsedPlanned, sessions);
-  // Le retard porte sur le premier créneau de la journée. Une connexion uniquement
-  // pendant un créneau ultérieur relève d'une présence partielle, pas d'un retard artificiel
-  // de plusieurs heures par rapport au matin.
   const firstRelevantSession = planned.length > 0
     ? sessions.find((session) => session.end > planned[0].start && session.start < planned[0].end)
     : null;

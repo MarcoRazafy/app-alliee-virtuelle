@@ -28,7 +28,6 @@ test('une recherche vide accepte tout', () => {
 });
 
 test('un tableau de morceaux permet de croiser plusieurs champs', () => {
-  // Le titre porte « Relire », le chemin porte « Facturation » : la recherche croise les deux.
   const parts = ['Relire le contrat', 'Espace Opérations › Clients › Facturation'];
   assert.ok(matchesTerms(parts, 'relire facturation'));
   assert.equal(matchesTerms(parts, 'relire marketing'), false);

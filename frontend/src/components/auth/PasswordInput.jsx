@@ -1,6 +1,5 @@
 import { useState } from 'react';
 
-// Champ mot de passe avec bouton "afficher / masquer" (œil). Réutilisé sur login + inscription.
 function EyeIcon({ off }) {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">

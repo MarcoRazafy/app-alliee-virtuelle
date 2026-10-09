@@ -7,14 +7,9 @@ import { IconBell, IconX } from './icons';
 import { htmlToText } from '../utils/sanitizeHtml';
 import '../styles/announcement-popup.css';
 
-// Popup affiché quand il existe une annonce non lue (à la connexion / navigation, et en temps
-// réel via announcement:new). L'utilisateur peut « Marquer comme lu » ou ouvrir l'annonce.
 export default function AnnouncementPopup() {
   const navigate = useNavigate();
   const [announcement, setAnnouncement] = useState(null);
-  // Annonces déjà écartées pendant cette session (pour ne pas re-popup en boucle).
-  // Un ref (et non un state) pour que la vérif reste correcte dans les callbacks socket,
-  // qui capturent la 1re instance de la fonction (deps [] de l'effet).
   const dismissedRef = useRef(new Set());
 
   function refresh() {
@@ -37,9 +32,6 @@ export default function AnnouncementPopup() {
     const socket = getSocket();
     const onNew = () => refresh();
     socket.on('announcement:new', onNew);
-    // Rattrapage : si le socket s'était déconnecté (onglet en arrière-plan, veille, coupure
-    // réseau), on re-vérifie à la (re)connexion → l'annonce ratée en direct apparaît sans
-    // avoir à rafraîchir la page manuellement.
     socket.on('connect', onNew);
     return () => {
       socket.off('announcement:new', onNew);
@@ -59,7 +51,6 @@ export default function AnnouncementPopup() {
     try {
       await announcementService.markAnnouncementRead(announcement.id);
     } catch {
-      /* best-effort */
     }
     dismiss();
   }

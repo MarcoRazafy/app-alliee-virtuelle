@@ -1,30 +1,14 @@
 #!/usr/bin/env node
-/*
- * Runner de migrations SQL.
- *
- * Applique automatiquement les migrations manquantes, dans le bon ordre, une seule fois
- * chacune. L'état est mémorisé dans la table `schema_migrations` : plus besoin de se
- * souvenir de ce qui a déjà été joué.
- *
- * Usage :
- *   node scripts/migrate.js            # applique les migrations en attente
- *   node scripts/migrate.js --status   # liste appliquées / en attente (n'exécute rien)
- *   node scripts/migrate.js --baseline # marque toutes les migrations comme déjà appliquées
- *                                       #   (pour une base existante, SANS les rejouer)
- */
 const fs = require('fs');
 const path = require('path');
 const db = require('../src/config/database');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'migrations');
 
-// On ne gère QUE le schéma : init.sql + fichiers numérotés (002_x.sql…).
-// Les fichiers seed_*.sql et autres sont ignorés (ce ne sont pas des migrations).
 function isMigrationFile(name) {
   return name === 'init.sql' || /^\d+.*\.sql$/.test(name);
 }
 
-// Ordre d'application : init.sql en premier, puis par numéro croissant.
 function migrationOrderKey(name) {
   if (name === 'init.sql') return -1;
   const match = name.match(/^(\d+)/);
@@ -87,8 +71,6 @@ async function runMigrate() {
   for (const file of pending) {
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
     process.stdout.write(`  ▶ ${file} ... `);
-    // Chaque migration est jouée dans sa propre transaction : en cas d'échec, rien n'est
-    // laissé à moitié appliqué, et elle sera re-tentée au prochain lancement.
     await db.withTransaction(async (client) => {
       await client.query(sql);
       await client.query('INSERT INTO schema_migrations (name) VALUES ($1)', [file]);

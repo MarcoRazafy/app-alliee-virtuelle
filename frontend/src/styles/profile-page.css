@@ -1,5 +1,3 @@
-/* Ces variables reprennent les tokens partagés (tokens.css) au lieu de couleurs
-   propres à cette page, pour rester visuellement identique au reste de l'app. */
 .employee-profile-page {
   --profile-bg: var(--color-bg-primary);
   --profile-surface: var(--color-bg-secondary);
@@ -281,7 +279,6 @@
   flex: 1;
 }
 
-/* Métriques de profil : icônes monochromes neutres, sans pastille colorée */
 .profile-metric-icon {
   width: 40px;
   height: 54px;

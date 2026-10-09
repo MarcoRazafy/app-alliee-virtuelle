@@ -1,4 +1,4 @@
-require('./setupTestDb'); // DOIT être en premier (bascule sur la base de test)
+require('./setupTestDb');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
@@ -25,7 +25,6 @@ before(async () => {
   employeeId = ids.employeeId;
   adminToken = await login(ADMIN.email);
   employeeToken = await login(EMPLOYEE.email);
-  // L'admin crée une tâche assignée à l'employé → génère un audit CREATE_TASK.
   await request(app)
     .post('/api/tasks')
     .set('Authorization', `Bearer ${adminToken}`)

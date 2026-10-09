@@ -1,4 +1,4 @@
-require('./setupTestDb'); // DOIT être en premier (bascule sur la base de test)
+require('./setupTestDb');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
@@ -36,7 +36,7 @@ test("POST /api/tasks — l'admin crée une tâche assignée à l'employé → 2
     .send({ title: 'Tâche intégration', priority: 'NORMALE', deadline: futureDate(), assigned_to: employeeId });
   assert.equal(res.status, 201);
   assert.ok(res.body.id, 'la tâche créée doit avoir un id');
-  assert.equal(res.body.status, 'VALIDEE'); // une tâche créée par un admin est directement validée
+  assert.equal(res.body.status, 'VALIDEE');
 });
 
 test("POST /api/tasks — deadline dans le passé → 400", async () => {

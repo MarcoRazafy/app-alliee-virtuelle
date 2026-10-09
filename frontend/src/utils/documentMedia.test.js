@@ -62,7 +62,6 @@ test('abandon : on efface seulement ce qui a été importé pendant l’édition
 });
 
 test('enregistré : on efface ce qui n’est plus cité, ancien comme nouveau', () => {
-  // A (d'origine) retiré, B (nouveau) gardé, C (nouveau) inséré puis retiré.
   assert.deepEqual(mediaIdsToDelete({ initialIds: [A], sessionIds: [B, C], finalIds: [B], saved: true }).sort(), [A, C].sort());
 });
 

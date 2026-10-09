@@ -9,7 +9,6 @@ function ZoomIcon() {
   );
 }
 
-// Réglage du zoom d'affichage, par appareil (clic = niveau suivant : 80/90/100/110 %).
 function ZoomControl({ className = '' }) {
   const zoom = useZoomStore((state) => state.zoom);
   const cycleZoom = useZoomStore((state) => state.cycleZoom);

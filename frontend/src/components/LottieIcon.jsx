@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Lottie from 'lottie-react';
 import useThemeStore from '../store/themeStore';
 
-// Convertit une couleur CSS ("rgb(184, 196, 217)" ou "#256bff") en [r,g,b] normalisé 0..1
-// (format attendu par les couleurs Lottie).
 function cssColorToRgb01(str) {
   if (!str) return null;
   const m = str.match(/rgba?\(([^)]+)\)/i);
@@ -21,8 +19,6 @@ function cssColorToRgb01(str) {
   return null;
 }
 
-// Clone l'animation et force toutes les couleurs de remplissage (fl) et de contour (st)
-// vers `rgb`. Rend l'icône monochrome et theme-aware, comme un SVG en currentColor.
 function colorize(data, rgb) {
   const clone = structuredClone(data);
   const applyTo = (c) => {
@@ -30,7 +26,6 @@ function colorize(data, rgb) {
     if (c.a === 0 && Array.isArray(c.k)) {
       c.k = [rgb[0], rgb[1], rgb[2], c.k[3] ?? 1];
     } else if (Array.isArray(c.k)) {
-      // couleur animée par keyframes
       c.k.forEach((kf) => {
         if (kf && Array.isArray(kf.s)) kf.s = [rgb[0], rgb[1], rgb[2], kf.s[3] ?? 1];
       });
@@ -47,13 +42,6 @@ function colorize(data, rgb) {
   return clone;
 }
 
-// Joue une animation Lottie servie depuis /public (ex. src="/icone/message.json").
-// - `fallback` s'affiche tant que le JSON n'est pas prêt (aucun saut visuel).
-// - `color` (optionnel) recolore l'animation :
-//     • "currentColor" → suit la couleur héritée (donc le thème clair/sombre, comme un SVG)
-//     • une couleur CSS ("#256bff") → force cette couleur
-//     • absent → couleurs d'origine conservées (ex. le vert du badge succès)
-// - Déclencheurs : "mount" (défaut, joue une fois), "hover" (au survol), ou `loop`.
 export default function LottieIcon({
   src,
   className,
@@ -67,7 +55,7 @@ export default function LottieIcon({
   const [rgb, setRgb] = useState(null);
   const wrapperRef = useRef(null);
   const lottieRef = useRef(null);
-  const theme = useThemeStore((state) => state.theme); // re-résout la couleur au changement de thème
+  const theme = useThemeStore((state) => state.theme);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +70,6 @@ export default function LottieIcon({
     };
   }, [src]);
 
-  // Résout la couleur cible (explicite ou currentColor du wrapper), re-calculée au changement de thème.
   useEffect(() => {
     if (!color) {
       setRgb(null);

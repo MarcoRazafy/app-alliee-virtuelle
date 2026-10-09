@@ -6,7 +6,6 @@ const mailService = require('../services/mail.service');
 const { sendFileOr404 } = require('../utils/sendFile');
 const { businessDayNow } = require('../utils/businessDay');
 
-// Annuaire minimal, ouvert à tout utilisateur connecté (nécessaire pour démarrer une conversation)
 async function listDirectory(req, res, next) {
   try {
     const users = await userModel.findActiveExcept(req.user.id);
@@ -22,7 +21,6 @@ async function getUserAvatar(req, res, next) {
     const { id } = req.params;
     const user = await userModel.findById(id);
 
-    // L'annuaire de messagerie n'expose que les membres actifs de l'équipe.
     if (!user || user.status !== userModel.USER_STATUS.ACTIVE) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
@@ -76,7 +74,6 @@ async function approveUser(req, res, next) {
       );
     });
 
-    // Email de validation à l'employé (best-effort : n'interrompt pas la réponse).
     mailService.sendAccountApproved(user).catch(() => {});
 
     res.status(200).json({ status: userModel.USER_STATUS.ACTIVE });
@@ -112,7 +109,6 @@ async function rejectUser(req, res, next) {
       );
     });
 
-    // Email d'information à l'employé (best-effort).
     mailService.sendAccountRejected(user, motif).catch(() => {});
 
     res.status(200).json({ status: userModel.USER_STATUS.REJECTED });
@@ -218,8 +214,6 @@ async function getUserDetail(req, res, next) {
     const [stats, tasks, recentActivity, avatar, dailySelection] = await Promise.all([
       taskModel.computeEmployeeStats(id),
       taskModel.findTasksForEmployee(id),
-      // 60 entrées : de quoi parcourir un vrai historique dans la fiche (affiché par pages
-      // de 10), sans alourdir la réponse — chaque ligne est courte.
       taskModel.findRecentAuditForUser(id, 60),
       avatarModel.findByUserId(id),
       taskModel.findDailySelection(id, today),
@@ -233,7 +227,6 @@ async function getUserDetail(req, res, next) {
         position: user.position,
         status: user.status,
         has_avatar: !!avatar,
-        // Champs contact/identité pour la fiche employé (vue admin).
         role: user.role,
         username: user.username,
         phone_number: user.phone_number,
@@ -243,7 +236,6 @@ async function getUserDetail(req, res, next) {
       },
       stats,
       tasks,
-      // Tâches que l'employé a sélectionnées dans « Ma journée » aujourd'hui (onglet "Aujourd'hui").
       daily_task_ids: dailySelection.map((row) => row.task_id),
       recent_activity: recentActivity,
     });
@@ -252,7 +244,6 @@ async function getUserDetail(req, res, next) {
   }
 }
 
-// --- Notes internes admin sur un employé ---
 async function listUserNotes(req, res, next) {
   try {
     const notes = await userModel.listNotes(req.params.id);
@@ -272,7 +263,6 @@ async function createUserNote(req, res, next) {
     if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
 
     const note = await userModel.createNote(req.params.id, req.user.id, content);
-    // Renvoie la note enrichie de l'auteur (l'admin courant) pour un affichage immédiat.
     res.status(201).json({ ...note, author_name: req.user.full_name || null });
   } catch (err) {
     next(err);
@@ -289,13 +279,11 @@ async function deleteUserNote(req, res, next) {
   }
 }
 
-// --- Évaluations mensuelles -------------------------------------------------
 
 const EVAL_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const EVAL_RATINGS = ['good', 'bad'];
-const EVAL_MAX_ITEMS = 30; // garde-fou par critère
+const EVAL_MAX_ITEMS = 30;
 const UUID_RE = /^[0-9a-fA-F-]{36}$/;
-// Champs texte libre « développement / carrière » de l'évaluation.
 const EVAL_TEXT_FIELDS = [
   'forces_actuelles',
   'competences_ameliorer',
@@ -306,9 +294,6 @@ const EVAL_TEXT_FIELDS = [
   'prochaine_etape',
 ];
 
-// Les champs libres de l'évaluation portent du HTML de mise en forme (gras, listes) : le
-// balisage compte dans la limite, d'où un plafond plus haut que pour du texte brut. Il reste
-// une borne de sécurité, pas une contrainte de rédaction.
 const EVAL_RICH_MAX = 12000;
 
 function cleanComment(value, max) {
@@ -318,14 +303,6 @@ function cleanComment(value, max) {
   return trimmed.slice(0, max);
 }
 
-// Normalise une liste de remarques d'un critère : [{ rating, comment, author_id, updated_at }].
-// On ignore les entrées sans note valide OU sans commentaire.
-//
-// Auteur ET date répondent à la même question — « qui a touché cette remarque, et quand » — et
-// suivent donc la même règle que les champs libres (migration 035) : on les conserve tant que la
-// remarque est INCHANGÉE, et on les réattribue à l'éditeur courant dès que son texte ou sa note
-// change. Sans ça, un simple ré-enregistrement de la fiche daterait tout le mois d'aujourd'hui.
-// La signature note+texte sert de repère : l'index de la liste ne survit pas à une suppression.
 function cleanItems(value, authorId, previousItems, nowIso) {
   if (!Array.isArray(value)) return [];
   const previousBySignature = new Map();
@@ -349,7 +326,6 @@ function cleanItems(value, authorId, previousItems, nowIso) {
     .slice(0, EVAL_MAX_ITEMS);
 }
 
-// Admin : historique complet des évaluations d'un employé.
 async function listUserEvaluations(req, res, next) {
   try {
     const target = await userModel.findById(req.params.id);
@@ -361,7 +337,6 @@ async function listUserEvaluations(req, res, next) {
   }
 }
 
-// Admin : crée ou met à jour l'évaluation d'un mois (mois = 'YYYY-MM').
 async function upsertUserEvaluation(req, res, next) {
   try {
     const { month } = req.params;
@@ -371,8 +346,6 @@ async function upsertUserEvaluation(req, res, next) {
     const target = await userModel.findById(req.params.id);
     if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
 
-    // La version enregistrée sert de référence à toute la traçabilité ci-dessous : sans elle,
-    // impossible de distinguer une vraie modification d'un simple ré-enregistrement.
     const previous = await userModel.getEvaluation(req.params.id, month);
     const nowIso = new Date().toISOString();
 
@@ -385,19 +358,14 @@ async function upsertUserEvaluation(req, res, next) {
       autonomie_items: cleanItems(b.autonomie_items, req.user.id, previous?.autonomie_items, nowIso),
       adaptabilite_items: cleanItems(b.adaptabilite_items, req.user.id, previous?.adaptabilite_items, nowIso),
     };
-    // Champs libres « développement / carrière ».
     for (const f of EVAL_TEXT_FIELDS) data[f] = cleanComment(b[f], EVAL_RICH_MAX);
 
-    // Auteur ET date de chaque champ libre : on ne les réattribue QUE si le texte a changé.
-    // Relire et réenregistrer une fiche ne doit pas s'approprier ce qu'un collègue a écrit,
-    // ni faire croire que la remarque du mois dernier vient d'être revue.
     const fieldAuthors = { ...(previous?.field_authors || {}) };
     const fieldUpdatedAt = { ...(previous?.field_updated_at || {}) };
     for (const field of [...EVAL_TEXT_FIELDS, 'global_comment']) {
       const before = previous ? previous[field] || null : null;
       const after = data[field] || null;
       if (after === null) {
-        // Champ vidé → plus d'auteur ni de date à afficher.
         delete fieldAuthors[field];
         delete fieldUpdatedAt[field];
       } else if (after !== before) {
@@ -415,8 +383,6 @@ async function upsertUserEvaluation(req, res, next) {
   }
 }
 
-// Employé : ses propres évaluations (commentaire global toujours visible ;
-// détail des critères seulement si l'admin l'a rendu visible).
 async function listMyEvaluations(req, res, next) {
   try {
     const evaluations = await userModel.listEvaluationsForEmployee(req.user.id);

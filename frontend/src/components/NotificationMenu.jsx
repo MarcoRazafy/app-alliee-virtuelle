@@ -96,24 +96,20 @@ function eventText(item) {
   };
 }
 
-// Cible de redirection quand on clique sur une notification (#8) : selon le type d'entité et le
-// rôle, on ouvre la page où l'action se réalise (valider un accès, une tâche, un planning…).
-// Renvoie null si aucune page pertinente (la notif n'est alors pas cliquable).
 function resolveLink(item, isAdmin) {
   const { entity_type: type, entity_id: id, action, details } = item;
-  if (action === 'DELETE_TASK') return null; // la tâche n'existe plus
-  if (type === 'announcement') return `/announcements?open=${id}`; // ouvre l'annonce directement
+  if (action === 'DELETE_TASK') return null;
+  if (type === 'announcement') return `/announcements?open=${id}`;
   if (type === 'task') return `/tasks/${id}`;
   if (type === 'task_attachment' && details?.task_id) return `/tasks/${details.task_id}`;
-  // Mention : on ouvre la tâche ET on cible le commentaire concerné.
   if (type === 'task_comment' && details?.task_id) return `/tasks/${details.task_id}?comment=${id}`;
   if (type === 'extra_task_requests') return isAdmin ? '/admin/task-requests' : '/tasks';
   if (type === 'weekly_planning' || type === 'attendance_override') {
     return isAdmin ? '/admin/planning' : '/planning';
   }
-  if (type === 'user') return isAdmin ? '/admin/users' : null; // inscription / validation d'accès
+  if (type === 'user') return isAdmin ? '/admin/users' : null;
   if (type && type.startsWith('resources_')) return isAdmin ? '/admin/resources' : '/resources';
-  if (type && type.startsWith('task_')) return isAdmin ? '/admin/lists' : '/tasks'; // espace/projet/liste
+  if (type && type.startsWith('task_')) return isAdmin ? '/admin/lists' : '/tasks';
   if (action === 'VALIDATE_MY_DAY') return isAdmin ? '/admin/validate' : null;
   return null;
 }
@@ -128,7 +124,6 @@ function NotificationMenu() {
   const [loadError, setLoadError] = useState(false);
   const rootRef = useRef(null);
 
-  // Clic sur une notification : redirige vers la page de l'action (si pertinente) et ferme le menu.
   function handleItemClick(item) {
     const link = resolveLink(item, isAdmin);
     if (!link) return;
@@ -160,7 +155,6 @@ function NotificationMenu() {
     }
 
     poll();
-    // Le polling n'est plus qu'un secours (le temps réel gère l'instantané) → intervalle allongé.
     const interval = window.setInterval(poll, 30000);
     return () => {
       cancelled = true;
@@ -168,8 +162,6 @@ function NotificationMenu() {
     };
   }, []);
 
-  // Temps réel : à chaque nouvelle activité (WebSocket), on rafraîchit immédiatement le
-  // centre de notifications. On ignore nos propres actions (jamais notifiées à soi-même).
   useEffect(() => {
     const socket = getSocket();
     const me = getUser();

@@ -1,4 +1,4 @@
-require('./setupTestDb'); // DOIT être en premier (bascule sur la base de test)
+require('./setupTestDb');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
@@ -35,10 +35,8 @@ test('fermeture du navigateur (disconnect) → hors-ligne immédiatement', async
 });
 
 test('réouverture SANS reconnexion (heartbeat seul) ne recrée pas de session', async () => {
-  // On simule la fermeture effective de la session (ce que fait le nettoyeur après la grâce).
   await db.query('UPDATE user_sessions SET logout_at = now() WHERE user_id = $1 AND logout_at IS NULL', [employeeId]);
 
-  // Un heartbeat (envoyé automatiquement à l'ouverture de l'app) ne doit PAS rendre actif.
   const hb = await request(app).post('/api/sessions/heartbeat').set('Authorization', `Bearer ${token}`);
   assert.equal(hb.body.login_at, null, 'le heartbeat ne renvoie aucune session ouverte');
 

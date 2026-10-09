@@ -1,6 +1,5 @@
 import api from './api';
 
-// Construit le corps de requête : FormData si une pièce jointe est fournie, sinon JSON simple.
 function buildBody(content, file) {
   if (file) {
     const form = new FormData();
@@ -19,7 +18,6 @@ export function sendGlobalMessage(content, file = null) {
   return api.post('/api/messages/global', buildBody(content, file)).then((res) => res.data);
 }
 
-// Sondages : création (canal GLOBAL/PRIVATE/GROUP) et vote.
 export function createPoll({ scope, target_id, question, options, allow_multiple }) {
   return api
     .post('/api/messages/polls', { scope, target_id, question, options, allow_multiple })
@@ -42,8 +40,6 @@ export function sendPrivateMessage(userId, content, file = null) {
   return api.post(`/api/messages/private/${userId}`, buildBody(content, file)).then((res) => res.data);
 }
 
-// Un message -> une conversation privée par destinataire. Chacun ne voit que sa propre conversation
-// (DECISIONS.md : les destinataires ne voient jamais la liste des autres).
 export function sendMessageToMultiple(userIds, content) {
   return Promise.all(userIds.map((userId) => sendPrivateMessage(userId, content)));
 }
@@ -67,9 +63,6 @@ export function getGroupAvatarBlob(groupId) {
   return api.get(`/api/message-groups/${groupId}/avatar`, { responseType: 'blob' }).then((res) => res.data);
 }
 
-// --- Gestion d'un groupe (créateur ou admin, sauf « quitter ») ---
-
-// Renommer et/ou changer la photo. `name` et/ou `file` optionnels.
 export function updateGroup(groupId, { name, file } = {}) {
   if (file) {
     const form = new FormData();
@@ -104,8 +97,6 @@ export function sendGroupMessage(groupId, content, file = null) {
   return api.post(`/api/message-groups/${groupId}/messages`, buildBody(content, file)).then((res) => res.data);
 }
 
-// --- Actions sur un message ---
-
 export function editMessage(id, content) {
   return api.patch(`/api/messages/${id}`, { content }).then((res) => res.data);
 }
@@ -118,8 +109,6 @@ export function reactMessage(id, emoji) {
   return api.post(`/api/messages/${id}/react`, { emoji }).then((res) => res.data);
 }
 
-// Transférer un message (texte + pièce jointe) vers global / privé / groupe.
-// target = { type: 'global' | 'private' | 'group', id?: string }
 export function forwardMessage(id, target) {
   return api
     .post(`/api/messages/${id}/forward`, { target_type: target.type, target_id: target.id })

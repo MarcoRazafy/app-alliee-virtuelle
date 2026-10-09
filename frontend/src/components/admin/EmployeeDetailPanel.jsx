@@ -12,16 +12,12 @@ const STATUS_PILL = {
   DECLAREE: { label: 'Déclarée', cls: 'declared' },
   VALIDEE: { label: 'À faire', cls: 'todo' },
   EN_COURS: { label: 'En cours', cls: 'progress' },
-  // Statut affiché (pas en base) : commencée mais chrono à l'arrêt. Même libellé que
-  // côté employé, sinon la même tâche paraît dans deux états différents.
   A_REPRENDRE: { label: 'À reprendre', cls: 'paused' },
   EN_PAUSE: { label: 'En pause', cls: 'paused' },
   TERMINEE: { label: 'Terminée', cls: 'done' },
   CONFIRMEE: { label: 'Confirmée', cls: 'confirmed' },
 };
 
-// Filtre par statut des tâches de l'employé (mêmes libellés que le dashboard principal,
-// mais groupés pour couvrir tous les statuts possibles du panneau).
 const TASK_FILTERS = [
   { key: 'all', label: 'Tout', has: () => true },
   { key: 'todo', label: 'À faire', has: (s) => s === 'VALIDEE' || s === 'DECLAREE' },
@@ -45,8 +41,8 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [motifs, setMotifs] = useState({});
   const [noteDrafts, setNoteDrafts] = useState({});
-  const [taskTab, setTaskTab] = useState('all'); // 'all' = toutes les tâches, 'daily' = sélection du jour
-  const [statusFilter, setStatusFilter] = useState('all'); // filtre par statut (Tout/À faire/En cours/Effectuées)
+  const [taskTab, setTaskTab] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -63,7 +59,6 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
     load();
   }, [load]);
 
-  // Charge la photo de profil si l'employé en a une
   useEffect(() => {
     let objectUrl;
     if (detail?.user?.has_avatar) {
@@ -82,7 +77,6 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
     };
   }, [detail]);
 
-  // Fermeture au clavier (Échap) — réflexe attendu sur un panneau superposé
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onClose();
@@ -147,8 +141,6 @@ function EmployeeDetailPanel({ employeeId, onClose }) {
         ) : (
           <>
             <header className="emp-drawer-head">
-              {/* Photo et nom mènent à la fiche complète : ce panneau n'est qu'un aperçu,
-                  et c'est là qu'on cherche naturellement à cliquer pour aller plus loin. */}
               <Link
                 to={`/admin/users/${detail.user.id}`}
                 className="emp-drawer-idlink"

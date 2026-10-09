@@ -1,7 +1,3 @@
-/* Feuille de temps hebdomadaire (temps de connexion par employé et par jour).
-   Grille dense : la colonne des noms reste visible pendant le défilement horizontal,
-   sinon on ne sait plus à qui appartient la ligne qu'on lit. */
-
 .wkc-panel {
   padding: 0;
   overflow: hidden;
@@ -24,7 +20,6 @@
   color: var(--color-text-primary);
 }
 
-/* --- Navigation de semaine --- */
 
 .wkc-nav {
   display: flex;
@@ -109,7 +104,6 @@
   cursor: default;
 }
 
-/* --- Grille --- */
 
 .wkc-scroll {
   overflow-x: auto;
@@ -139,8 +133,6 @@
   color: var(--color-text-muted);
 }
 
-/* Colonne des noms figée à gauche : sans elle, le défilement horizontal fait perdre
-   de vue à qui appartient la ligne. */
 .wkc-th-name,
 .wkc-td-name {
   position: sticky;
@@ -184,11 +176,8 @@
 .wkc-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Sans min-width, un élément flex refuse de descendre sous la largeur de son texte :
-     l'ellipse ne se déclencherait jamais et la colonne s'élargirait à l'infini. */
   min-width: 0;
 }
-/* Forme courte réservée aux écrans étroits (voir la requête média plus bas). */
 .wkc-name--short {
   display: none;
 }
@@ -214,7 +203,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Une cellule remplie se repère d'un coup d'œil, sans avoir à lire les chiffres. */
 .wkc-cell--filled {
   background: color-mix(in srgb, var(--color-accent) 12%, transparent);
   color: var(--color-text-primary);
@@ -240,7 +228,6 @@
   color: var(--color-text-muted);
 }
 
-/* --- Pied : total de l'équipe --- */
 
 .wkc-table tfoot th,
 .wkc-table tfoot td {
@@ -271,11 +258,6 @@
   }
 }
 
-/* Sur mobile, la colonne des noms est le vrai problème : figée à gauche, elle occupe une
-   place qu'aucun défilement ne rend, et il ne restait qu'une journée visible sur sept.
-   On la resserre sur trois leviers — nom abrégé, avatar plus petit, marges réduites — et
-   on rétrécit les colonnes de jour d'autant : quatre journées tiennent alors à l'écran.
-   Le nom entier reste accessible en ouvrant la fiche de la personne. */
 @media (max-width: 600px) {
   .wkc-table th,
   .wkc-table td {
@@ -298,8 +280,6 @@
   .wkc-person-btn {
     gap: 7px;
   }
-  /* La colonne figée doit rester étroite sur mobile (voir plus haut) : le badge devient un
-     simple point, assez pour repérer un admin sans élargir la colonne. */
   .wkc-role-badge {
     width: 7px;
     height: 7px;
@@ -323,7 +303,6 @@
     font-size: 11px;
   }
 
-  /* « Total équipe » élargirait la colonne figée à lui seul : il tient sur deux lignes. */
   .wkc-foot-label {
     font-size: 11px;
     white-space: normal;
@@ -331,7 +310,6 @@
   }
 }
 
-/* Admins listés avec l'équipe : le badge évite de les confondre avec les employés. */
 .wkc-role-badge {
   flex-shrink: 0;
   padding: 1px 7px;
@@ -344,7 +322,6 @@
   letter-spacing: 0.02em;
 }
 
-/* --- Nom cliquable : ouvre le relevé de temps de la personne ----------------------- */
 .wkc-person-btn {
   display: inline-flex;
   align-items: center;
@@ -370,7 +347,6 @@
   box-shadow: var(--ring-accent);
 }
 
-/* --- Relevé de temps d'une personne ------------------------------------------------ */
 
 .wkc-head--detail {
   align-items: center;
@@ -409,7 +385,6 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* Toute la ligne du jour est cliquable, pas seulement le chevron. */
 .wkc-day-head {
   display: flex;
   align-items: center;
@@ -457,7 +432,6 @@
   color: var(--color-text-muted);
 }
 
-/* Le total de la journée est l'information qu'on cherche en premier : poussé à droite. */
 .wkc-day-total {
   margin-left: auto;
   font-size: 13px;
@@ -538,13 +512,11 @@
   font-weight: 600;
 }
 
-/* --- Correction d'une entrée de temps ---------------------------------------------- */
 
 .wkc-sheet-th-actions {
   width: 78px;
 }
 
-/* Discrètes au repos : le relevé se lit d'abord, il ne se corrige qu'exceptionnellement. */
 .wkc-sheet-actions {
   white-space: nowrap;
   opacity: 0;
@@ -615,9 +587,7 @@
   font-size: 12.5px;
 }
 
-/* --- Correction du temps de connexion d'une cellule -------------------------------- */
 
-/* La cellule entière est cliquable : viser un chiffre de trois caractères serait pénible. */
 .wkc-cell-btn {
   width: 100%;
   padding: 4px 2px;
@@ -724,14 +694,12 @@
   gap: 2px;
 }
 
-/* Dans la modale, le formulaire occupe toute la ligne de la session éditée. */
 .wkc-session .wkc-sheet-edit {
   width: 100%;
   padding: 0;
 }
 
 
-/* Temps de connexion du jour, en regard du temps passé sur les tâches. */
 .wkc-day-connection {
   display: inline-flex;
   align-items: center;
@@ -745,7 +713,6 @@
   width: 13px;
   height: 13px;
 }
-/* Le total des tâches n'est plus le premier élément poussé à droite. */
 .wkc-day-connection + .wkc-day-total {
   margin-left: 16px;
 }

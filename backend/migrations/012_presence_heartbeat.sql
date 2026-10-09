@@ -1,6 +1,3 @@
--- Présence fiable : heartbeat serveur, fermeture implicite des sessions devenues inactives
--- et garantie d'une seule session ouverte par utilisateur.
-
 ALTER TABLE user_sessions
   ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
 
@@ -15,8 +12,6 @@ ALTER TABLE user_sessions
   ALTER COLUMN last_seen_at SET DEFAULT now(),
   ALTER COLUMN last_seen_at SET NOT NULL;
 
--- Les anciennes données peuvent contenir plusieurs sessions ouvertes pour un même compte.
--- On conserve la plus récente et on clôt les autres à leur dernière activité connue.
 WITH ranked_open_sessions AS (
   SELECT id,
          ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY last_seen_at DESC, login_at DESC, id DESC) AS row_number

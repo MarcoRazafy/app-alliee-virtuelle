@@ -36,7 +36,6 @@ import { toDatetimeLocal, datetimeLocalToIso } from '../utils/datetimeLocal';
 
 const EDIT_PRIORITIES = ['FAIBLE', 'NORMALE', 'HAUTE', 'URGENT'];
 
-// Initiales d'un nom (2 lettres max) pour le repli quand il n'y a pas de photo.
 function assigneeInitials(name) {
   return String(name || '')
     .trim()
@@ -46,7 +45,6 @@ function assigneeInitials(name) {
     .join('');
 }
 
-// Petite pastille photo d'un assigné (photo de profil si dispo, sinon initiales).
 function AssigneeAvatar({ user }) {
   const [url, setUrl] = useState(null);
   useEffect(() => {
@@ -74,8 +72,6 @@ function AssigneeAvatar({ user }) {
   );
 }
 
-// Ligne de propriété (icône · libellé · valeur), façon ClickUp.
-// `full` = ligne pleine largeur (2 colonnes) avec valeur en bloc (ex. pièces jointes).
 function PropRow({ icon, label, children, full = false }) {
   return (
     <div className={`tk-prop${full ? ' tk-prop--full' : ''}`}>
@@ -96,7 +92,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const params = useParams();
   const id = taskId || params.id;
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // ?comment=<id> : cible d'une notification de mention
+  const [searchParams] = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'ADMIN';
   const Layout = isAdmin ? AdminLayout : EmployeeLayout;
@@ -109,22 +105,19 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const [breadcrumbData, setBreadcrumbData] = useState(null);
   const [manualTime, setManualTime] = useState({ start: '', end: '' });
   const [addingManualTime, setAddingManualTime] = useState(false);
-  // Verrou synchrone : l'état ci-dessus ne change qu'au rendu suivant, trop tard pour arrêter
-  // un second clic arrivé dans la foulée — deux entrées identiques étaient alors créées.
   const addingManualTimeRef = useRef(false);
-  const [editingSession, setEditingSession] = useState(null); // correction d'une session de chrono
+  const [editingSession, setEditingSession] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [pickAssignee, setPickAssignee] = useState('');
-  // Édition inline (admin) : titre, description, gestion des assignés.
   const [editingTitle, setEditingTitle] = useState(false);
-  
+
   const [titleDraft, setTitleDraft] = useState('');
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState('');
   const [showAssignManage, setShowAssignManage] = useState(false);
-  const [showAllHistory, setShowAllHistory] = useState(false); // Suivi du temps : 3 derniers par défaut
-  const [editingDeadline, setEditingDeadline] = useState(false); // échéance éditable au clic (admin)
-  const [editingStart, setEditingStart] = useState(false); // date de début éditable au clic (admin)
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [editingDeadline, setEditingDeadline] = useState(false);
+  const [editingStart, setEditingStart] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -148,7 +141,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     loadData();
   }, [loadData]);
 
-  // Repère les changements faits ailleurs — mais on ne rafraîchit pas pendant une édition inline.
   useEffect(() => {
     const poll = setInterval(() => {
       if (!editingTitle && !editingDesc) loadData();
@@ -216,9 +208,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
       notifyError(err.response?.data?.error || 'Impossible de marquer la tâche comme terminée');
     }
   }
-
-  // Passe une date ISO au format attendu par <input type="datetime-local">, en heure LOCALE
-  // (toISOString donnerait de l'UTC, décalant l'heure affichée de plusieurs heures).
 
   function startEditSession(session) {
     setEditingSession({
@@ -340,8 +329,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     }
   }
 
-  // Enregistre une modification partielle : updateTask exige titre + priorité + échéance,
-  // on renvoie donc les valeurs actuelles fusionnées avec le champ modifié.
   async function savePatch(partial) {
     try {
       await taskService.updateTask(id, {
@@ -361,11 +348,9 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     }
   }
 
-  // Dates en YYYY-MM-DD (comparables lexicographiquement = chronologiquement).
   const startYMD = task?.start_date ? String(task.start_date).slice(0, 10) : '';
   const deadlineYMD = task?.deadline ? String(task.deadline).slice(0, 10) : '';
 
-  // Début : refusé s'il est postérieur à l'échéance.
   function handleStartChange(value) {
     if (!value) return;
     if (deadlineYMD && value > deadlineYMD) {
@@ -376,7 +361,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     setEditingStart(false);
   }
 
-  // Échéance : refusée si antérieure à la date de début.
   function handleDeadlineChange(value) {
     if (!value) return;
     if (startYMD && value < startYMD) {
@@ -432,7 +416,7 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
   const totalSeconds = history.reduce((sum, session) => sum + (session.duration_seconds || 0), 0);
   const sortedHistory = [...history].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-  const HISTORY_PREVIEW = 3; // nombre de sessions visibles avant « Afficher plus »
+  const HISTORY_PREVIEW = 3;
   const visibleHistory = showAllHistory ? sortedHistory : sortedHistory.slice(0, HISTORY_PREVIEW);
   const displayStatus = task.status === 'EN_COURS' && !activeSession ? 'A_REPRENDRE' : task.status;
   const assignees =
@@ -442,17 +426,9 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
         ? [{ id: task.assigned_to, full_name: task.assignee_name || 'Employé' }]
         : [];
   const canTime = ['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status);
-  // L'employé assigné dépose ses livrables lui-même : le serveur l'autorise déjà, seule
-  // l'interface le lui refusait. Il ne pourra retirer que ses propres envois.
   const isAssignee = assignees.some((a) => a.id === user?.id);
   const canAttach = isAdmin || isAssignee;
-  // La personne assignée décrit sa tâche, pas seulement l'admin qui l'a créée : c'est elle
-  // qui sait ce qu'il y a à y consigner. Elle passe par la route dédiée à la description,
-  // qui ne peut rien écrire d'autre. Déclaré ICI, après isAssignee : plus haut, la constante
-  // aurait été évaluée avant lui et le rendu aurait échoué.
   const canEditDescription = isAdmin || isAssignee;
-  // Créateur de la tâche : il en règle le titre, la priorité et les dates, et peut la
-  // supprimer. Le statut et l'assignation restent à l'admin — ce ne sont pas les siens.
   const isCreator = Boolean(task?.created_by && task.created_by === user?.id);
   const canEditTask = isAdmin || isCreator;
   const canDeleteTask = canEditTask;
@@ -469,7 +445,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
       <div className="tk-layout">
         <div className="tk-main">
-          {/* En-tête : fil d'Ariane + titre + propriétés + description */}
           <div className="side-card tk-card">
             {breadcrumbData && (
               <span className="tk-breadcrumb">
@@ -547,8 +522,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
 
               {task.creator_name && (
                 <PropRow icon={<IconUser />} label="Créée par">
-                  {/* Cliquable pour ouvrir une conversation avec la personne qui a assigné la
-                      tâche : c'est à elle qu'on demande une précision. Inutile si c'est soi-même. */}
                   {task.created_by && task.created_by !== user?.id ? (
                     <button
                       type="button"
@@ -560,8 +533,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                       }
                       title={`Poser une question à ${task.creator_name}`}
                     >
-                      {/* Même pastille que pour les assignés : photo si la personne en a une,
-                          initiales sinon. Elle était figée sur les initiales ici. */}
                       <AssigneeAvatar
                         user={{
                           id: task.created_by,
@@ -734,7 +705,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               </div>
             </div>
 
-            {/* Gestion des assignés (admin) — dépliable depuis « Gérer ». */}
             {isAdmin && showAssignManage && (
               <div className="tk-assign-manage">
                 <div className="assignee-chips">
@@ -784,7 +754,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               </div>
             )}
 
-            {/* Description */}
             <div className="tk-desc-block">
               <p className="tk-section-label">Description</p>
               {canEditDescription && editingDesc ? (
@@ -822,7 +791,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               )}
             </div>
 
-          {/* Suivi du temps détaillé — même carte que la description, séparé par un filet. */}
           <div className="tk-card-section">
             <p className="side-card-title" style={{ marginBottom: '16px' }}>
               Suivi du temps
@@ -851,8 +819,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                           <td>{session.duration_seconds != null ? formatDurationShort(session.duration_seconds) : '-'}</td>
                           {isAdmin && (
                             <td className="tk-session-actions-col">
-                              {/* Une session encore en cours n'a pas de fin à corriger :
-                                  on l'arrête d'abord depuis le chrono. */}
                               {session.end_time && session.id && (
                                 <>
                                   <button
@@ -950,11 +916,10 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
               </form>
             )}
           </div>
-          </div>{/* fin de la carte : propriétés + description + suivi du temps */}
+          </div>
 
         </div>
 
-        {/* Rail commentaires (colonne droite ~20 %, passe dessous en responsive) */}
         <aside className="tk-rail">
           <div className="side-card tk-rail-card">
             <p className="side-card-title" style={{ marginBottom: '16px' }}>
@@ -965,8 +930,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
         </aside>
       </div>
 
-      {/* « Refaire » reste réservé à l'admin. La suppression s'ouvre à qui a CRÉÉ la tâche :
-          un employé peut retirer ce qu'il s'est ajouté, pas ce qu'on lui a confié. */}
       {(isAdmin || canDeleteTask) && (
         <div className="tk-footer">
           {isAdmin && ['CONFIRMEE', 'TERMINEE'].includes(task.status) && (
@@ -985,7 +948,6 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   return isModal ? content : <Layout {...layoutProps}>{content}</Layout>;
 }
 
-// Version fenêtre modale (ouverte par-dessus la liste via le pattern « background location »).
 export function TaskDetailModal() {
   const { id } = useParams();
   const navigate = useNavigate();

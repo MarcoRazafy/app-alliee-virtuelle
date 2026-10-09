@@ -13,16 +13,11 @@ import { NIKE, findReaction, reactorsLabel, reactorsTitle, toggleReactionLocally
 import { filesFromPaste } from '../utils/clipboardFiles';
 import MediaPreview from './MediaPreview';
 
-// Les mentions restent stockées dans le contenu sous la forme `@[Nom](uuid)`, en texte brut.
-// Leur découpage à l'affichage est désormais assuré par <Markdown/> (prop renderMention),
-// pour qu'une mention placée dans une puce ou en gras reste dans son bloc.
-
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 
-// Images qu'un navigateur affiche directement (les mêmes que celles acceptées en pièce jointe).
 function isPreviewableImage(type) {
   return ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(type);
-} // aligné sur la limite serveur (config/upload.js)
+}
 
 function initialsOf(name) {
   return (
@@ -43,7 +38,6 @@ function SendIcon() {
   );
 }
 
-// Panneau d'activité (commentaires + notes internes admin), façon ClickUp.
 function CommentSection({ taskId, focusCommentId = null }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -55,9 +49,9 @@ function CommentSection({ taskId, focusCommentId = null }) {
   const [asNote, setAsNote] = useState(false);
   const [sending, setSending] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
-  const [avatarUrls, setAvatarUrls] = useState({}); // author_id → objectURL de la photo
-  const [people, setPeople] = useState([]); // annuaire, pour les mentions
-  const [mentionQuery, setMentionQuery] = useState(null); // texte tapé après « @ » (null = fermé)
+  const [avatarUrls, setAvatarUrls] = useState({});
+  const [people, setPeople] = useState([]);
+  const [mentionQuery, setMentionQuery] = useState(null);
   const inputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -74,7 +68,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     load();
   }, [load]);
 
-  // Fil unique trié chronologiquement : commentaires + notes internes (taguées).
   const items = useMemo(
     () =>
       [
@@ -84,7 +77,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     [comments, notes]
   );
 
-  // Photos de profil des auteurs (une fois par auteur, repli initiales si échec/absent).
   const fetchedRef = useRef(new Set());
   const urlsRef = useRef({});
   useEffect(() => {
@@ -92,11 +84,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
   }, [avatarUrls]);
   useEffect(() => () => Object.values(urlsRef.current).forEach((u) => u && URL.revokeObjectURL(u)), []);
 
-  // Le drapeau « monté » vaut pour le COMPOSANT, pas pour une exécution d'effet. Avec un
-  // drapeau par exécution, la photo n'apparaissait jamais en développement : StrictMode
-  // lance l'effet, le nettoie (drapeau à false), puis le relance — mais fetchedRef avait
-  // déjà mémorisé l'auteur, donc la seconde exécution ne redemandait rien et la réponse de
-  // la première était jetée. Restaient les initiales.
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -105,8 +92,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     };
   }, []);
 
-  // Téléchargement partagé : le cache fetchedRef garantit une seule requête par personne,
-  // quelle que soit la source (auteur d'un message, ou personne proposée après « @ »).
   const loadAvatars = useCallback((ids) => {
     const need = [...new Set(ids)].filter((id) => id && !fetchedRef.current.has(id));
     if (need.length === 0) return;
@@ -118,7 +103,7 @@ function CommentSection({ taskId, focusCommentId = null }) {
         if (mountedRef.current) setAvatarUrls((cur) => ({ ...cur, [id]: url }));
         else URL.revokeObjectURL(url);
       } catch {
-        fetchedRef.current.delete(id); // autorise une nouvelle tentative
+        fetchedRef.current.delete(id);
       }
     });
   }, []);
@@ -127,8 +112,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     loadAvatars(items.filter((it) => it.has_avatar).map((it) => it.author_id));
   }, [items, loadAvatars]);
 
-  // Édition en place : { id, content }. Un seul message à la fois, pour ne pas semer des
-  // brouillons non enregistrés dans tout le fil.
   const [editing, setEditing] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const editRef = useRef(null);
@@ -148,12 +131,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     }
   }
 
-  // Réaction « nike » ✔️. Affichage anticipé : la coche répond au clic, puis se recale sur la
-  // réponse du serveur (qui peut compter une réaction posée au même moment par quelqu'un
-  // d'autre). En cas d'échec, on revient à l'état d'avant.
-  //
-  // Un clic est ignoré tant que le précédent n'a pas répondu : deux réponses arrivant dans le
-  // désordre pourraient sinon laisser affiché l'état intermédiaire.
   const reactingRef = useRef(new Set());
 
   function setItemReactions(item, reactions) {
@@ -183,8 +160,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     if (!window.confirm(`Supprimer ${label} ? Les fichiers joints seront également retirés.`)) return;
     try {
       await taskService.deleteComment(taskId, item.id);
-      // Rechargement plutôt que retrait local : le fil mélange commentaires et notes, qui
-      // proviennent de deux appels distincts.
       await load();
       notifySuccess('Commentaire supprimé');
     } catch (err) {
@@ -193,7 +168,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
   }
 
   async function submit() {
-    // Un fichier seul (sans texte) est un envoi valide : on ne bloque plus sur le contenu.
     if ((!content.trim() && !pendingFile) || sending) return;
     setSending(true);
     try {
@@ -202,7 +176,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
           ? await taskService.createNote(taskId, content || pendingFile.name)
           : await taskService.createComment(taskId, content || pendingFile.name);
 
-      // La pièce jointe part APRÈS : elle doit référencer l'identifiant du message.
       if (pendingFile) {
         try {
           await taskService.uploadAttachment(taskId, pendingFile, created?.id);
@@ -222,8 +195,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     }
   }
 
-  // Arrivée depuis une notification de mention : on amène le commentaire à l'écran et on le
-  // souligne brièvement, sinon on atterrit sur la tâche sans savoir lequel est concerné.
   const focusedRef = useRef(null);
   useEffect(() => {
     if (!focusCommentId || items.length === 0) return;
@@ -235,7 +206,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     return () => clearTimeout(timer);
   }, [focusCommentId, items.length]);
 
-  // Annuaire chargé une fois : sert à proposer les personnes après « @ ».
   useEffect(() => {
     userService
       .getUsers()
@@ -243,7 +213,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
       .catch(() => setPeople([]));
   }, []);
 
-  // Détecte un « @ » en cours de frappe (mot courant, jusqu'à l'emplacement du curseur).
   function handleContentChange(event) {
     const value = event.target.value;
     setContent(value);
@@ -258,13 +227,10 @@ function CommentSection({ taskId, focusCommentId = null }) {
     return people.filter((p) => !q || (p.full_name || '').toLowerCase().includes(q)).slice(0, 6);
   }, [mentionQuery, people]);
 
-  // Photos des personnes proposées après « @ » : seulement celles réellement affichées
-  // (6 au plus), et non tout l'annuaire.
   useEffect(() => {
     loadAvatars(mentionMatches.filter((p) => p.has_avatar).map((p) => p.id));
   }, [mentionMatches, loadAvatars]);
 
-  // Remplace le « @… » en cours par la balise complète `@[Nom](uuid)`.
   function insertMention(person) {
     const el = inputRef.current;
     const caret = el?.selectionStart ?? content.length;
@@ -292,22 +258,18 @@ function CommentSection({ taskId, focusCommentId = null }) {
 
   function pickFile(event) {
     const file = event.target.files?.[0];
-    event.target.value = ''; // permet de re-choisir le même fichier après un retrait
+    event.target.value = '';
     acceptFile(file);
   }
 
-  // Coller une capture d'écran ou un fichier copié : il est joint au commentaire, comme par le
-  // trombone. Un commentaire porte un seul fichier.
   function handlePaste(event) {
     const pasted = filesFromPaste(event);
-    if (pasted.length === 0) return; // du texte : collage normal
+    if (pasted.length === 0) return;
     event.preventDefault();
     acceptFile(pasted[0]);
     if (pasted.length > 1) notifyInfo(`Un seul fichier par commentaire : « ${pasted[0].name} » a été joint.`);
   }
 
-  // Images jointes : chargées une fois (Blob authentifié → objectURL) pour s'afficher en
-  // miniature dans le fil ; libérées au démontage. Même principe que les photos de profil.
   const [attachmentUrls, setAttachmentUrls] = useState({});
   const attachmentFetchedRef = useRef(new Set());
   const attachmentUrlsRef = useRef({});
@@ -332,8 +294,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
     });
   }, [items]);
 
-  // Aperçu plein écran : { url, type, name, attachment, temporary }. `temporary` : objectURL
-  // créé pour l'occasion (PDF), à libérer à la fermeture — contrairement aux miniatures.
   const [preview, setPreview] = useState(null);
   async function openPreview(attachment) {
     const cached = attachmentUrls[attachment.id];
@@ -399,13 +359,7 @@ function CommentSection({ taskId, focusCommentId = null }) {
                       modifié
                     </span>
                   )}
-                  {/* Le serveur reste l'autorité : on n'affiche chaque bouton que là où il
-                      aboutirait, pour ne pas proposer une action qui serait refusée.
-                      Modifier = l'auteur seul ; supprimer = l'auteur ou un admin. */}
                   <span className="cmt-actions">
-                    {/* Tant que personne n'a réagi, la coche se propose ici, avec les autres
-                        actions. Dès la première réaction, c'est la pastille sous le message
-                        qui sert d'interrupteur : deux boutons pour la même chose brouilleraient. */}
                     {!findReaction(it.reactions, NIKE) && (
                       <button
                         type="button"
@@ -441,9 +395,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
                     )}
                   </span>
                 </div>
-                {/* Le contenu est du texte brut : <Markdown/> en fait le rendu (gras, listes,
-                    liens) et lui confie aussi les mentions, pour qu'une mention placée dans
-                    une puce reste une mention au lieu de couper le bloc en deux. */}
                 {editing?.id === it.id ? (
                   <div className="cmt-edit">
                     <textarea
@@ -506,8 +457,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
                 {(it.attachments || []).length > 0 && (
                   <div className="cmt-files">
                     {it.attachments.map((att) =>
-                      // Image : miniature dans le fil, agrandie au clic. PDF : ouvert dans la
-                      // visionneuse. Autres fichiers (Word, Excel…) : téléchargés, comme avant.
                       isPreviewableImage(att.file_type) ? (
                         <button
                           type="button"
@@ -555,8 +504,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
                         <IconCheck />
                         <span className="cmt-reaction-count">{nike.count}</span>
                       </button>
-                      {/* Les noms en clair, pas seulement dans l'infobulle : sur téléphone,
-                          il n'y a pas de survol pour la faire apparaître. */}
                       <span className="cmt-reaction-who">{reactorsLabel(nike.users, user?.id)}</span>
                     </div>
                   );
@@ -604,7 +551,6 @@ function CommentSection({ taskId, focusCommentId = null }) {
           placeholder={isAdmin && asNote ? 'Écrire une note interne…' : 'Écrivez un commentaire…'}
           rows={2}
           onKeyDown={(e) => {
-            // Le sélecteur de mention est ouvert : Entrée choisit la 1re personne au lieu d'envoyer.
             if (e.key === 'Enter' && !e.shiftKey && mentionMatches.length > 0) {
               e.preventDefault();
               insertMention(mentionMatches[0]);
@@ -637,16 +583,12 @@ function CommentSection({ taskId, focusCommentId = null }) {
         )}
 
         <div className="cmt-composer-foot">
-          {/* Mise en forme et pièce jointe sur la même ligne : deux rangées d'icônes
-              mangeraient de la hauteur dans une fenêtre déjà étroite. */}
           <div className="cmt-tools-row">
             <MarkdownToolbar
               targetRef={inputRef}
               value={content}
               onChange={(next) => {
                 setContent(next);
-                // Une insertion de mise en forme n'est pas une frappe : le sélecteur de
-                // mention resterait ouvert sur une recherche devenue caduque.
                 setMentionQuery(null);
               }}
               disabled={sending}

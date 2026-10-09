@@ -21,7 +21,7 @@ import {
 import { notifyError } from '../../utils/toast';
 import { computeHourRange } from '../../utils/calendarRange';
 
-const ROW_HEIGHT = 40; // px par heure
+const ROW_HEIGHT = 40;
 const SNAP_MINUTES = 15;
 const MIN_DURATION_MINUTES = 15;
 
@@ -37,8 +37,6 @@ function snapMinutes(minutes) {
   return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
 }
 
-// Les bornes suivent la plage affichée (et non plus minuit → minuit), sinon un clic en haut
-// de la grille renverrait 00:00 au lieu de l'heure réellement représentée à cet endroit.
 function clampMinutes(minutes, range) {
   return Math.max(range.startMinutes, Math.min(range.endMinutes, minutes));
 }
@@ -47,7 +45,6 @@ function offsetToMinutes(offsetY, range) {
   return clampMinutes(range.startMinutes + snapMinutes((offsetY / ROW_HEIGHT) * 60), range);
 }
 
-// Calcule les bornes (minutes) affichées en temps réel pour le bloc en cours de manipulation.
 function computeLivePreview(drag, range) {
   if (drag.mode === 'create') {
     return { start: Math.min(drag.anchor, drag.current), end: Math.max(drag.anchor, drag.current) };
@@ -70,7 +67,6 @@ function SlotBlock({ day, slot, slotIndex, canEdit, drag, range, onHandlePointer
   const preview = isLive ? computeLivePreview(drag, range) : null;
   const startMinutes = preview ? preview.start : timeToMinutes(slot.start_time);
   const endMinutes = preview ? preview.end : timeToMinutes(slot.end_time);
-  // Origine = début de la plage affichée, pas minuit.
   const top = ((startMinutes - range.startMinutes) / 60) * ROW_HEIGHT;
   const height = Math.max(6, ((endMinutes - startMinutes) / 60) * ROW_HEIGHT);
   const statusClass = day.availability_status === 'PARTIALLY_AVAILABLE' ? 'cal-slot--partial' : 'cal-slot--available';
@@ -223,18 +219,15 @@ function PresenceDetailPanel({ day, dayIndex, summary, onClose, panelRef }) {
   );
 }
 
-// Saisie rapide des plages d'une journée au format texte (ex. « 08h-12h | 13h-18h »),
-// en complément du glisser-déposer. Appliquée à la validation (Entrée / perte de focus).
 function DayRangeInput({ day, onApply }) {
   const canonical = formatSlotsAsRanges(day.time_slots);
   const [text, setText] = useState(canonical);
-  // Resynchronise le champ quand les plages changent ailleurs (drag, statut, copie).
   useEffect(() => {
     setText(canonical);
   }, [canonical]);
 
   function commit() {
-    if (text.trim() === canonical) return; // rien de neuf saisi
+    if (text.trim() === canonical) return;
     onApply(day, text);
   }
 
@@ -257,8 +250,6 @@ function DayRangeInput({ day, onApply }) {
   );
 }
 
-// Détecte le mode mobile (réévalué au redimensionnement) pour désactiver le glisser-déposer
-// et basculer sur l'éditeur empilé, plus adapté aux petits écrans / au tactile.
 function useIsMobile(breakpoint = 900) {
   const query = `(max-width: ${breakpoint}px)`;
   const [isMobile, setIsMobile] = useState(
@@ -274,8 +265,6 @@ function useIsMobile(breakpoint = 900) {
   return isMobile;
 }
 
-// Carte d'édition d'une journée sur mobile : statut + liste des plages (supprimables) + ajout
-// d'une plage via deux sélecteurs d'heure natifs (Début / Fin) et un bouton « Add ».
 function MobileDayCard({ day, index, statusOptions, onStatusChange, onSlotsChange }) {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -366,8 +355,6 @@ function MobileDayCard({ day, index, statusOptions, onStatusChange, onSlotsChang
   );
 }
 
-// Éditeur empilé (mobile) : une carte par jour. Remplace le glisser-déposer, trop petit et
-// peu pratique au doigt sur la grille horizontale.
 function MobileDayEditor({ days, statusOptions, onStatusChange, onSlotsChange }) {
   return (
     <div className="cal-mobile-editor">
@@ -403,8 +390,6 @@ function WeekCalendarGrid({
   const presenceDetailRef = useRef(null);
   const presenceTriggerRef = useRef(null);
   const hasPresenceData = sessionSegmentsByDate !== undefined;
-  // Plage horaire affichée + liste des heures : partagées par la colonne de gauche et les
-  // lignes de fond de chaque jour, qui doivent itérer sur EXACTEMENT le même tableau.
   const { startHour, endHour } = useMemo(
     () => computeHourRange(days, sessionSegmentsByDate, canEdit),
     [days, sessionSegmentsByDate, canEdit]
@@ -448,9 +433,9 @@ function WeekCalendarGrid({
   }
 
   function handleColumnPointerDown(event, day) {
-    if (!canEdit || isMobile) return; // mobile : édition via l'éditeur empilé, pas le drag
+    if (!canEdit || isMobile) return;
     if (!HAS_SLOTS_STATUSES.includes(day.availability_status)) return;
-    if (event.target.closest('.cal-slot')) return; // laisse le bloc gérer son propre drag (resize/move)
+    if (event.target.closest('.cal-slot')) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     const minutes = minutesFromEvent(day.date, event.clientY);
     setDrag({ mode: 'create', date: day.date, anchor: minutes, current: minutes });
@@ -462,9 +447,6 @@ function WeekCalendarGrid({
     setDrag((current) => (current ? { ...current, current: minutes } : current));
   }
 
-  // Le pointeur est toujours capturé sur la colonne (pas sur le bloc/la poignée cliqués) :
-  // c'est la colonne qui porte les handlers pointermove/pointerup, et la capture "retargete"
-  // tous les événements suivants vers l'élément capturant, quel que soit l'endroit du clic initial.
   function handleSlotHandlePointerDown(event, day, slotIndex, edge) {
     event.stopPropagation();
     if (!canEdit || isMobile) return;
@@ -526,9 +508,6 @@ function WeekCalendarGrid({
     onSlotsChange(day.date, day.time_slots.filter((_, index) => index !== slotIndex));
   }
 
-  // Applique une saisie texte de plages (« 08h-12h | 13h-18h ») à une journée. Bascule
-  // automatiquement le statut sur « Disponible » si des plages sont saisies sur un jour sans
-  // statut compatible, pour que les plages soient conservées (comme pour le glisser-déposer).
   function applyRangeText(day, text) {
     const result = parseTimeRanges(text);
     if (!result.ok) {
@@ -557,8 +536,6 @@ function WeekCalendarGrid({
         {days.map((day, dayIndex) => {
           const isDrawable = canEdit && HAS_SLOTS_STATUSES.includes(day.availability_status);
           const presenceSummary = presenceWeek?.days[day.date];
-          // Tout statut posé qui ne porte pas de plages (Indisponible / Congé / Maladie)
-          // s'affiche « bloqué » (hachuré) avec son libellé.
           const isBlocked =
             canEdit && day.availability_status && !HAS_SLOTS_STATUSES.includes(day.availability_status);
           return (
@@ -707,8 +684,6 @@ function WeekCalendarGrid({
         )}
       </div>
 
-      {/* Légende : sans elle, les bandes hachurées et les nuances de couleur des blocs de
-          présence n'étaient explicités que par une infobulle au survol. */}
       {hasPresenceData && (
         <ul className="cal-legend">
           {['ontime', 'late', 'off', 'missing'].map((variant) => (

@@ -27,8 +27,6 @@ async function findFolderById(folderId) {
 }
 
 async function findFilesByFolder(folderId) {
-  // On ne remonte pas la colonne content (potentiellement lourde) dans la liste :
-  // le contenu d'un document est chargé à la demande via findFileById.
   const result = await db.query(
     `SELECT f.id, f.file_name, f.file_type, f.file_size, f.kind, f.mime_type,
             f.created_at, f.updated_at, f.created_by, u.full_name AS created_by_name
@@ -116,9 +114,6 @@ async function updateDocument(id, { fileName, content }) {
 
 async function findFileById(id) {
   const result = await db.query(
-    // folder.type est indispensable au contrôle d'accès : les routes de lecture sont
-    // ouvertes à tout utilisateur connecté, c'est donc ici qu'on saura si le fichier
-    // appartient à l'espace réservé aux administrateurs.
     `SELECT f.*, folder.deleted_at AS folder_deleted_at, folder.type AS folder_type,
             u.full_name AS created_by_name
      FROM resources_files f
@@ -214,8 +209,6 @@ async function findFilePathsInFolderTree(folderId) {
   return result.rows.map((row) => row.file_path);
 }
 
-// --- Médias insérés dans les documents (photo, vidéo, PDF) ---
-
 async function createDocumentMedia({ folderId, fileName, filePath, mimeType, fileSize, createdBy }) {
   const result = await db.query(
     `INSERT INTO resources_document_media (folder_id, file_name, file_path, mime_type, file_size, created_by)
@@ -228,7 +221,6 @@ async function createDocumentMedia({ folderId, fileName, filePath, mimeType, fil
 
 async function findDocumentMediaById(id) {
   const result = await db.query(
-    // Le type du dossier porte le contrôle d'accès, comme pour findFileById.
     `SELECT m.*, folder.type AS folder_type, folder.deleted_at AS folder_deleted_at
      FROM resources_document_media m
      JOIN resources_folders folder ON folder.id = m.folder_id
@@ -238,13 +230,6 @@ async function findDocumentMediaById(id) {
   return result.rows[0] || null;
 }
 
-// Supprime les médias qu'AUCUN document ne cite plus, corbeille comprise : un document mis à
-// la corbeille peut être restauré, il doit alors retrouver ses images. Rend les chemins disque
-// des lignes effacées, que l'appelant retire ensuite du stockage.
-//
-// Le contrôle et la suppression tiennent dans une seule requête : entre un SELECT de
-// vérification et un DELETE séparés, un document enregistré entre-temps pourrait citer le
-// média qu'on s'apprête à effacer.
 async function deleteUnreferencedMedia(ids) {
   if (!ids || ids.length === 0) return [];
   const result = await db.query(

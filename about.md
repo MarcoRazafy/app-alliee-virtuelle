@@ -1,7 +1,7 @@
 # L'Alliée Virtuelle — Description du projet
 
-> Document de contexte destiné à être fourni à un assistant IA (Claude). Il décrit
-> l'application, sa stack, son architecture, ses fonctionnalités et ses règles métier.
+> Document de référence du projet. Il décrit l'application, sa stack, son
+> architecture, ses fonctionnalités et ses règles métier.
 
 ## 1. Vue d'ensemble
 

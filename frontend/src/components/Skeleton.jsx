@@ -1,6 +1,5 @@
 import '../styles/skeleton.css';
 
-// Primitive : un bloc gris animé (shimmer). w/h acceptent nombre (px) ou chaîne CSS.
 export function Skeleton({ w = '100%', h = 14, r = 8, className = '', style }) {
   return (
     <span
@@ -11,7 +10,6 @@ export function Skeleton({ w = '100%', h = 14, r = 8, className = '', style }) {
   );
 }
 
-// Plusieurs lignes de texte (la dernière plus courte).
 export function SkeletonText({ lines = 3, gap = 8 }) {
   return (
     <span className="sk-text" style={{ gap }}>
@@ -77,7 +75,6 @@ function SkFilterBar() {
   );
 }
 
-// Squelette de page complet, adapté à la mise en page (variant).
 export function PageSkeleton({ variant = 'cards', rows = 6, cards = 6 }) {
   if (variant === 'stats') {
     return (
@@ -157,7 +154,6 @@ export function PageSkeleton({ variant = 'cards', rows = 6, cards = 6 }) {
     );
   }
 
-  // 'cards' (défaut)
   return (
     <div className="pgsk">
       <div className="sk-cards">

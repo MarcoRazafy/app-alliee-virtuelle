@@ -1,13 +1,3 @@
-/*
- * Amorçage automatique du 1er administrateur au démarrage (déploiement).
- * Piloté par variables d'environnement — le mot de passe NE doit JAMAIS être commité :
- *   ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME  (et ADMIN_USERNAME facultatif)
- *
- * Comportement (toujours sûr, ne bloque jamais le boot — sort en code 0) :
- *   - variables absentes         → ignoré silencieusement
- *   - compte déjà présent         → ignoré (pas de doublon, pas de réinitialisation)
- *   - sinon                        → crée l'administrateur (rôle ADMIN, statut ACTIF)
- */
 const bcrypt = require('bcrypt');
 const db = require('../src/config/database');
 const { isValidEmail, isValidPassword } = require('../src/utils/validators');
@@ -58,7 +48,6 @@ async function run() {
 
 run()
   .catch((err) => {
-    // Ne jamais bloquer le démarrage du serveur à cause de l'amorçage admin.
     console.error('⚠️  bootstrap-admin : erreur non bloquante :', err.message);
   })
   .finally(async () => {

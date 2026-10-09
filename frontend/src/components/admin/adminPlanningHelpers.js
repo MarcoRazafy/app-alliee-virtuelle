@@ -1,12 +1,9 @@
 import { toDateInputValue, HAS_SLOTS_STATUSES, timeToMinutes } from '../../utils/planningFormat';
 
-// Helpers purs de la page/modale Planning admin (extraits pour alléger AdminPlanning).
-
 export function todayDateInputValue() {
   return toDateInputValue(new Date());
 }
 
-// Décale une date (chaîne YYYY-MM-DD) de n jours et renvoie une chaîne YYYY-MM-DD.
 export function shiftDays(dateString, days) {
   const date = new Date(dateString);
   date.setDate(date.getDate() + days);

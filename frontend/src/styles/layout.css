@@ -1,5 +1,3 @@
-/* Coquille avec sidebar (employé pour l'instant, admin réutilisera la même structure) */
-
 .shell {
   display: flex;
   min-height: calc(100vh / var(--ui-zoom, 1));
@@ -8,20 +6,12 @@
   font-family: var(--font-family);
 }
 
-/* La sidebar garde toujours son identité sombre (--sidebar-*), qu'elle ne
-   change jamais avec le thème clair/sombre du reste de l'application.
-   position: sticky + align-self: flex-start l'empêche de s'étirer à la hauteur
-   du contenu (comportement par défaut d'un enfant flex) : sans ça, dès qu'une
-   page a beaucoup de contenu (ex: Planning), la sidebar défile avec la page
-   au lieu de rester fixe à l'écran. overflow-y gère le cas où la nav elle-même
-   dépasserait 100vh (petits écrans avec beaucoup de liens). */
 .sidebar {
   width: 236px;
   flex-shrink: 0;
   align-self: flex-start;
   position: sticky;
   top: 0;
-  /* `vh` ignore le zoom → on divise par --ui-zoom pour que le sidebar fasse vraiment 100vh visuel. */
   height: calc(100vh / var(--ui-zoom, 1));
   overflow-y: auto;
   display: flex;
@@ -30,28 +20,23 @@
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
   color: var(--sidebar-text);
-  /* Firefox */
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--color-accent) 55%, transparent) var(--sidebar-bg);
 }
-/* Scrollbar custom du menu latéral (fine, arrondie, teintée accent, effet flottant). */
 .sidebar::-webkit-scrollbar {
   width: 8px;
 }
-/* Supprime les flèches natives ▲▼ (sinon rendu clair du thème OS qui casse le style). */
 .sidebar::-webkit-scrollbar-button {
   display: none;
   width: 0;
   height: 0;
 }
-/* Track de la couleur de la sidebar : plus de fond blanc qui transparaît sous le pouce. */
 .sidebar::-webkit-scrollbar-track {
   background: var(--sidebar-bg);
 }
 .sidebar::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--color-accent) 42%, transparent);
   border-radius: 999px;
-  /* Bordure de la couleur de la track → le pouce paraît flotter avec une marge. */
   border: 2px solid var(--sidebar-bg);
   background-clip: padding-box;
   min-height: 44px;
@@ -69,7 +54,6 @@
   margin-bottom: 28px;
 }
 
-/* Le mot-symbole "L'Alliée Virtuelle" est déjà intégré à l'image : pas de texte à côté */
 .sidebar-logo {
   width: 132px;
   height: auto;
@@ -82,7 +66,6 @@
   flex: 1;
 }
 
-/* Groupes de navigation (Piloter / Collaborer / Administrer) */
 .sidebar-group {
   display: flex;
   flex-direction: column;
@@ -129,7 +112,6 @@
   color: var(--color-on-accent);
 }
 
-/* Item parent avec sous-menu (Messagerie → Global / Équipe / Groupes) */
 .sidebar-subnav {
   display: flex;
   flex-direction: column;
@@ -304,8 +286,6 @@
   margin: 0;
 }
 
-/* --- Contenu principal --- */
-
 .shell-main {
   flex: 1;
   min-width: 0;
@@ -367,9 +347,6 @@
 
 .shell-content {
   padding: 28px 32px 56px;
-  /* Plein écran : aucune largeur maximale, le contenu occupe toute la largeur disponible
-     (plus de bandes vides à gauche/droite). Le padding conserve l'espacement de respiration ;
-     les pages en "breakout" (assistant, messagerie) le neutralisent elles-mêmes. */
   max-width: none;
   width: 100%;
 }
@@ -380,8 +357,6 @@
   gap: 12px;
 }
 
-/* --- Menu mobile (sidebar en tiroir sous 900px) --- */
-
 .mobile-menu-btn,
 .sidebar-close-btn {
   display: none;
@@ -391,19 +366,12 @@
   display: none;
 }
 
-/* Logo "marque seule" (le pictogramme) : affiché uniquement quand le rail est replié. */
 .sidebar-logo-mark {
   display: none;
   width: 40px;
   height: auto;
 }
 
-/* ---------------------------------------------------------------------------
-   Rail repliable façon Slack : la sidebar est réduite à ses icônes et se
-   déploie en overlay au survol (ou au focus clavier) SANS pousser le contenu
-   (marge droite négative = l'espace occupé reste celui du rail).
-   Comportement desktop uniquement : en mobile la sidebar reste un drawer plein.
---------------------------------------------------------------------------- */
 @media (min-width: 901px) {
   .sidebar--rail {
     width: 76px;
@@ -412,7 +380,6 @@
       box-shadow 0.18s ease;
   }
 
-  /* --- État replié : on masque le texte, on centre les icônes --- */
   .sidebar--rail .sidebar-logo {
     display: none;
   }
@@ -436,7 +403,6 @@
     display: none;
   }
 
-  /* Carte CTA (espace employé) réduite à son icône quand le rail est replié. */
   .sidebar--rail .sidebar-cta {
     padding: 14px 0;
     text-align: center;
@@ -457,7 +423,6 @@
     position: relative;
   }
 
-  /* Badge → pastille compacte ancrée sur l'icône quand le rail est replié. */
   .sidebar--rail .sidebar-badge {
     position: absolute;
     top: 3px;
@@ -467,9 +432,6 @@
     font-size: 10px;
   }
 
-  /* --- Déploiement au survol / focus clavier : le menu élargi POUSSE le contenu ---
-     (plus de margin négative → il occupe réellement 236px et décale la page au lieu de
-     la recouvrir ; la transition de width anime le décalage en douceur). */
   .sidebar--rail:hover,
   .sidebar--rail:focus-within {
     width: 236px;
@@ -616,14 +578,10 @@
     padding: 14px 16px;
   }
 
-  /* Chatbot en plein écran sur mobile : la page pose la classe `chat-fullscreen` sur <body>,
-     on masque alors l'en-tête de l'app (le retour se fait via le bouton dans l'assistant). */
   body.chat-fullscreen .shell-header {
     display: none;
   }
 }
-
-/* --- Menu utilisateur --- */
 
 .user-menu {
   position: relative;
@@ -733,8 +691,6 @@
   cursor: not-allowed;
 }
 
-/* --- Barre de recherche --- */
-
 .search-input {
   position: relative;
   display: flex;
@@ -803,9 +759,6 @@
   background: var(--glass-overlay);
 }
 
-/* Déconnexion en pied de barre latérale. Vit ici et non dans admin.css : les deux espaces
-   l'utilisent, et admin.css n'est chargé que du côté admin — la règle y était invisible
-   pour l'espace employé. */
 .sidebar-logout {
   display: flex;
   align-items: center;
@@ -835,9 +788,6 @@
     display: none;
   }
 
-  /* Le menu utilisateur (avatar + profil + déconnexion) débordait de la barre sur un
-     écran étroit : masquer seulement son libellé ne suffisait pas. On le retire donc
-     entièrement — « Profil » et « Déconnexion » sont tous deux dans la navigation. */
   .user-menu {
     display: none;
   }
@@ -850,9 +800,6 @@
     font-size: 18px;
   }
 
-  /* Les boutons d'action ont une largeur fixe et ne rétrécissent pas : sur un écran étroit,
-     leur somme dépassait la barre et élargissait TOUTE la page, ce qui donnait l'impression
-     que chaque section était coupée. Ils passent donc à la ligne plutôt que de déborder. */
   .shell-header-actions {
     gap: 8px;
     flex-wrap: wrap;
@@ -860,9 +807,6 @@
   }
 }
 
-/* Chrono de temps de connexion : affiché dans les deux espaces (employé et admin). La règle
-   de base, dans connection-chrono.css, est en display:none ; ce sélecteur composé l'emporte
-   sur elle sans avoir à modifier ce fichier. */
 .connection-chrono.connection-chrono--visible {
   display: inline-flex;
 }

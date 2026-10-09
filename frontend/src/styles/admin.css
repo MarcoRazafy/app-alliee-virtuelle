@@ -1,10 +1,3 @@
-/* Espace administrateur — réutilise les tokens partagés (tokens.css) et le shell
-   commun (layout.css / app.css). Ce fichier ne porte que le spécifique admin :
-   étiquette de rôle dans la sidebar, dashboard de suivi temps réel, et le tiroir
-   de détail employé. Tout est piloté par les variables de thème → clair + sombre. */
-
-/* --- Ajouts à la sidebar partagée --- */
-
 .sidebar-role-tag {
   display: block;
   margin: -12px 4px 22px;
@@ -20,15 +13,11 @@
   text-align: center;
 }
 
-/* .sidebar-logout vit désormais dans layout.css : les deux espaces s'en servent,
-   et admin.css n'est chargé que côté admin. */
 
-/* Le dashboard admin exploite toute la largeur (grilles de cartes) */
 .shell-content--wide {
   max-width: none;
 }
 
-/* --- États de chargement --- */
 
 .admin-loading {
   display: flex;
@@ -54,7 +43,6 @@
   animation: app-spin 0.8s linear infinite;
 }
 
-/* --- Barre d'outils (indicateur direct + actions) --- */
 
 .admin-toolbar {
   display: flex;
@@ -71,8 +59,6 @@
   gap: 8px;
   padding: 8px 14px;
   border-radius: 999px;
-  /* background: rgba(34, 197, 94, 0.1); */
-  /* border: 1px solid rgba(34, 197, 94, 0.3); */
   color: var(--color-success);
   font-size: 12.5px;
   font-weight: 700;
@@ -114,7 +100,6 @@
   border-top-color: var(--color-accent-light);
 }
 
-/* --- Cartes indicateurs (KPI) --- */
 
 .admin-kpi-grid {
   display: grid;
@@ -123,7 +108,6 @@
   margin-bottom: 24px;
 }
 
-/* Cartes KPI cliquables (raccourcis dashboard) + panneau « Tâches en cours ». */
 .admin-kpi-card--clickable {
   cursor: pointer;
   text-decoration: none;
@@ -200,8 +184,6 @@
   .admin-kpi-card:hover { transform: none; }
 }
 
-/* Couleur d'icône réservée au sémantique : actifs = vert, retard = rouge.
-   « En cours » n'est pas un état → icône neutre. Pas de pastille ni de blob de coin. */
 .admin-kpi-card--green { color: var(--color-success); }
 .admin-kpi-card--blue { color: var(--color-text-secondary); }
 .admin-kpi-card--red { color: var(--color-error); }
@@ -249,7 +231,6 @@
   font-size: 11.5px;
 }
 
-/* --- Barre de filtres --- */
 
 .admin-filter-bar {
   display: flex;
@@ -259,7 +240,6 @@
   margin-bottom: 22px;
 }
 
-/* Barre de recherche de la liste des tâches (au-dessus des filtres). */
 .atv-search {
   margin-bottom: 14px;
   max-width: 420px;
@@ -285,7 +265,6 @@
   text-decoration: underline;
 }
 
-/* --- Grille de suivi employés --- */
 
 .monitor-grid {
   display: grid;
@@ -513,7 +492,6 @@
   transform: translateX(3px);
 }
 
-/* --- Tiroir de détail employé --- */
 
 .emp-drawer-overlay {
   position: fixed;
@@ -565,7 +543,6 @@
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-/* Zone tactile étendue à 44×44px sans agrandir le bouton (règle touch-target). */
 .emp-drawer-close::after {
   content: '';
   position: absolute;
@@ -673,7 +650,6 @@
   flex-direction: column;
 }
 
-/* Onglets "Tâches" / "Aujourd'hui" dans le panneau de détail employé. */
 .emp-drawer-tasks-tabs {
   display: inline-flex;
   gap: 4px;
@@ -685,7 +661,6 @@
   align-self: flex-start;
 }
 
-/* Filtre par statut des tâches (Tout / À faire / En cours / Effectuées) dans le panneau. */
 .emp-drawer-filter {
   display: flex;
   flex-wrap: wrap;
@@ -973,7 +948,6 @@
   white-space: nowrap;
 }
 
-/* --- Formulaire de création de tâche --- */
 
 .admin-form {
   display: grid;
@@ -1059,7 +1033,6 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
-/* Chevron custom + suppression de la flèche native (uniquement les <select>, pas les textarea). */
 .form-select {
   appearance: none;
   -webkit-appearance: none;
@@ -1100,12 +1073,8 @@
   cursor: not-allowed;
 }
 
-/* Popup natif du <select> aligné sur le thème : sinon la liste d'options s'affiche
-   en clair (fond blanc) par-dessus un modal sombre, comme sur l'ancien rendu.
-   color-scheme force le navigateur à peindre le menu déroulant natif en sombre. */
 [data-theme='dark'] .form-select { color-scheme: dark; }
 [data-theme='light'] .form-select { color-scheme: light; }
-/* Repli explicite pour les navigateurs qui stylent les <option> (couleurs cohérentes). */
 .form-select option {
   background: var(--color-bg-secondary);
   color: var(--color-text-primary);
@@ -1113,13 +1082,11 @@
 .form-select option:disabled {
   color: var(--color-text-muted);
 }
-/* La ligne « placeholder » (valeur vide) reste discrète tant qu'on n'a rien choisi. */
 .form-select:invalid,
 .form-select:has(option[value=""]:checked) {
   color: var(--color-text-muted);
 }
 
-/* Le sélecteur de date natif s'aligne sur le thème courant (icône lisible) */
 [data-theme='dark'] .form-input[type='date'] { color-scheme: dark; }
 [data-theme='light'] .form-input[type='date'] { color-scheme: light; }
 
@@ -1182,7 +1149,6 @@
   padding: 9px 16px;
 }
 
-/* Sélecteur de priorité en pastilles */
 .priority-chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -1216,7 +1182,6 @@
   background: var(--glow-accent);
 }
 
-/* --- Aperçu latéral (sticky) --- */
 
 .admin-form-side {
   position: sticky;
@@ -1325,7 +1290,6 @@
   color: var(--color-accent-lighter);
 }
 
-/* --- Responsive --- */
 
 @media (max-width: 980px) {
   .admin-form {
@@ -1355,7 +1319,6 @@
   }
 }
 
-/* --- Page Listes (arborescence + tâches par statut) --- */
 
 .lists-shell {
   display: grid;
@@ -1377,26 +1340,18 @@
 .lists-panel--tree {
   position: sticky;
   top: 20px;
-  /* « sticky » ne colle à rien tant que le panneau est plus haut que l'écran : avec beaucoup
-     d'espaces, l'arborescence s'étirait vers le bas et il fallait dérouler toute la page pour
-     atteindre les derniers projets. On borne donc le panneau à la hauteur visible et c'est
-     l'arbre qui défile à l'intérieur. */
   max-height: calc(100vh - 40px);
   display: flex;
   flex-direction: column;
 }
 
-/* min-height: 0 est indispensable — sans lui, un enfant flex refuse de rétrécir sous la
-   taille de son contenu et le défilement interne ne s'active jamais. */
 .lists-panel--tree .lists-tree {
   overflow-y: auto;
   min-height: 0;
-  /* La barre de défilement se colle au bord du panneau plutôt qu'au texte. */
   margin-right: -8px;
   padding-right: 8px;
 }
 
-/* « + Nouvel espace » reste atteignable quelle que soit la position dans l'arbre. */
 .lists-panel--tree .tree-add-root {
   position: sticky;
   top: 0;
@@ -1419,7 +1374,6 @@
   margin: 0;
 }
 
-/* --- Arborescence --- */
 
 .lists-tree {
   display: flex;
@@ -1542,12 +1496,10 @@
   gap: 4px;
 }
 
-/* Menu d'actions « … » : positionne le panneau déroulant sous le bouton. */
 .tree-menu {
   position: relative;
 }
 
-/* Bouton « … » : sans bordure ni fond au repos (juste l'icône). */
 .tree-menu-trigger {
   display: inline-flex;
   align-items: center;
@@ -1579,7 +1531,6 @@
   opacity: 0.5;
 }
 
-/* Panneau déroulant du menu d'actions. */
 .tree-menu-panel {
   position: absolute;
   top: calc(100% + 4px);
@@ -1644,8 +1595,6 @@
   color: var(--color-error);
 }
 
-/* Indentation via padding (et non margin) : avec width:100% + box-sizing:border-box,
-   le padding reste dans la largeur du panneau, alors qu'une margin-left la ferait déborder. */
 .tree-list-item {
   padding: 2px 3px 2px 26px;
   cursor: default;
@@ -1739,7 +1688,6 @@
   color: var(--color-text-secondary);
 }
 
-/* --- Panneau tâches --- */
 
 .lists-empty {
   display: flex;
@@ -1966,7 +1914,6 @@
 
 }
 
-/* --- Page Tâches à valider --- */
 
 .validate-page {
   display: flex;
@@ -1991,8 +1938,6 @@
   cursor: pointer;
 }
 
-/* Cases à cocher custom (sélection des tâches) : carré arrondi contour, coche blanche sur
-   fond accent quand cochée — au lieu de la case blanche native (moche en mode sombre). */
 .validate-selectall input,
 .validate-card-check input {
   appearance: none;
@@ -2040,7 +1985,6 @@
   color: var(--color-text-muted);
 }
 
-/* Barre d'actions groupées */
 .validate-bulk {
   display: flex;
   align-items: center;
@@ -2071,7 +2015,6 @@
   min-width: 0;
 }
 
-/* Liste de cartes */
 .validate-list {
   display: flex;
   flex-direction: column;
@@ -2123,13 +2066,11 @@
   gap: 12px;
 }
 
-/* Le titre occupe l'espace : le pill + l'icône « ouvrir » restent alignés à droite. */
 .validate-card-top .validate-card-title {
   flex: 1;
   min-width: 0;
 }
 
-/* Icône ↗ pour ouvrir la page détail de la tâche. */
 .validate-card-open {
   display: inline-flex;
   align-items: center;
@@ -2167,7 +2108,6 @@
   color: var(--color-accent-lighter);
 }
 
-/* Chemin du projet (Espace › Dossier › Liste) sur une carte de tâche, cliquable vers Projets. */
 .validate-project-path {
   display: inline-flex;
   align-items: center;
@@ -2290,7 +2230,6 @@
   padding: 10px 18px;
 }
 
-/* Tiroir de détail (réutilise .emp-drawer) */
 .validate-detail-head {
   padding-right: 40px;
 }
@@ -2329,7 +2268,6 @@
   }
 }
 
-/* --- Page Tâches en retard --- */
 
 .late-page {
   display: flex;
@@ -2348,7 +2286,6 @@
   box-shadow: var(--card-shadow);
 }
 
-/* Rouge sémantique (= retard), sans pastille de fond */
 .late-summary-icon {
   flex-shrink: 0;
   display: inline-flex;
@@ -2405,8 +2342,6 @@
   margin-top: 4px;
 }
 
-/* Échéance modifiable sur place (cartes « En retard ») : lue comme le reste de la ligne,
-   le crayon signale qu'on peut cliquer. */
 .deadline-edit-trigger {
   display: inline-flex;
   align-items: center;
@@ -2484,12 +2419,9 @@
   cursor: not-allowed;
 }
 
-/* Carte d'une tâche en retard : la carte « À valider » (validate-card), cliquable en entier. */
 .late-card {
   cursor: pointer;
 }
-/* Dans la ligne d'infos, le badge est plus compact que dans l'ancien tableau : il suit
-   l'échéance au lieu d'occuper sa propre colonne. */
 .validate-card-meta .late-badge {
   padding: 2px 9px;
   font-size: 11.5px;
@@ -2528,9 +2460,6 @@
   }
 }
 
-/* ============================================================================
-   Demandes de tâche supplémentaire (page admin /admin/task-requests)
-   ============================================================================ */
 .atr-page {
   display: flex;
   flex-direction: column;
@@ -2859,7 +2788,6 @@
   color: var(--color-error);
 }
 
-/* Onglets de la page Tâches (À valider / En retard) */
 .atv-tabs {
   display: flex;
   gap: 4px;
@@ -2916,7 +2844,6 @@
   font-weight: 700;
 }
 
-/* Multi-assignation à la création d'une tâche : liste de cases à cocher (1 ou plusieurs employés). */
 .assignee-hint,
 .assignee-note {
   font-weight: 400;
@@ -2951,7 +2878,6 @@
 .assignee-check input { flex-shrink: 0; }
 .assignee-empty { margin: 4px; font-size: 13px; color: var(--color-text-muted); }
 
-/* Barre d'outils de la page « Tâches » : onglets à gauche, bouton créer à droite. */
 .atv-toolbar {
   display: flex;
   align-items: center;
@@ -2968,7 +2894,6 @@
 }
 .atv-create-btn svg { width: 17px; height: 17px; }
 
-/* Pièces jointes à la création d'une tâche : fichiers retenus localement avant l'envoi. */
 .create-attach-hint {
   display: block;
   margin-top: 8px;
@@ -3034,9 +2959,6 @@
   height: 14px;
 }
 
-/* Photo + nom de l'en-tête du panneau employé : lien vers la fiche complète. Reprend
-   la mise en page de .emp-drawer-head, le lien prenant la place de ses deux premiers
-   enfants — sinon l'avatar et l'identité s'empileraient. */
 .emp-drawer-idlink {
   display: flex;
   align-items: center;
@@ -3062,9 +2984,6 @@
 }
 
 
-/* --- « Tâches en retard » : sélection et suppression groupée ------------------------
-   Une liste de retards se purge souvent en lot (tâches abandonnées, doublons de test) :
-   sans sélection, il fallait ouvrir chaque fiche pour en supprimer une. */
 
 .late-bulk-bar {
   display: flex;
@@ -3108,5 +3027,3 @@
   width: 14px;
   height: 14px;
 }
-
-

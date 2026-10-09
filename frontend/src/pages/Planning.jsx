@@ -47,8 +47,6 @@ function PresenceSummaryCards({ summary, loading }) {
   }
   if (!summary) return null;
 
-  // Durée pure en valeur, nombre de jours en sous-titre : « 3 j · 8 h 17 » se lisait
-  // comme une heure d'horloge. Même formatage que la fiche employé côté admin.
   const lateValue = summary.lateDays > 0 ? formatPresenceHours(summary.lateMinutes) : 'Aucun';
   const lateHint =
     summary.lateDays > 0
@@ -135,8 +133,6 @@ function QuickAddForm({ days, canEdit, onAdd }) {
 }
 
 function Planning() {
-  // Le planning est accessible à l'employé ET à l'admin (pour son propre planning) : on choisit
-  // le layout selon le rôle. AdminLayout ignore les props title/subtitle (il n'utilise que children).
   const isAdmin = useAuthStore((state) => state.user?.role === 'ADMIN');
   const Layout = isAdmin ? AdminLayout : EmployeeLayout;
   const [currentWeek, setCurrentWeek] = useState(null);
@@ -151,8 +147,6 @@ function Planning() {
   const [browsedWeek, setBrowsedWeek] = useState(null);
   const [browsing, setBrowsing] = useState(false);
 
-  // Chrono de connexion (présence), indépendant du chrono de tâche : uniquement affiché
-  // sur la semaine actuelle (lecture seule), une semaine future ne pouvant avoir de connexion réelle.
   const [sessionSegmentsByDate, setSessionSegmentsByDate] = useState({});
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [hasSessionSnapshot, setHasSessionSnapshot] = useState(false);
@@ -169,7 +163,6 @@ function Planning() {
         const [current, next] = await Promise.all([planningService.getCurrentWeekPlanning(), planningService.getNextWeekPlanning()]);
         setCurrentWeek(current);
         setNextWeek(next);
-        // La semaine éditée est la semaine prochaine (normal) ou, en rattrapage, la semaine en cours.
         const target = Boolean(current.can_edit) && !next.can_edit ? current : next;
         setDraftDays(toDraftDays(target.days));
         setDraftNote(target.planning?.general_note || '');
@@ -199,8 +192,6 @@ function Planning() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Suivi temps réel : rafraîchit périodiquement les sessions de connexion pour que la
-  // bande de présence s'étende et change de couleur en direct (à l'heure / en retard).
   useEffect(() => {
     const weekStart = currentWeek?.week_start_date;
     if (!weekStart) return undefined;
@@ -240,14 +231,10 @@ function Planning() {
     loadMyPlannings(weekStart || undefined);
   }
 
-  // Semaine réellement éditée : la semaine prochaine (cas normal) ou, en rattrapage, la
-  // semaine en cours (nouvel employé / oubli — voir backend canEmployeeEditWeek).
   const editingCurrentWeek = Boolean(currentWeek?.can_edit) && !nextWeek?.can_edit;
   const editTarget = editingCurrentWeek ? currentWeek : nextWeek;
   const canEdit = Boolean(editTarget?.can_edit);
 
-  // Réinitialise le brouillon quand la semaine cible change (ex. après avoir soumis le
-  // rattrapage, l'édition repasse sur la semaine prochaine).
   useEffect(() => {
     if (!editTarget) return;
     setDraftDays(toDraftDays(editTarget.days));
@@ -255,8 +242,6 @@ function Planning() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editTarget?.week_start_date]);
 
-  // Tous les indicateurs sont dérivés des mêmes segments que la grille. Les sessions qui
-  // se chevauchent sont fusionnées et ne sont donc jamais comptées deux fois.
   const presenceSummary = useMemo(
     () => (currentWeek && hasSessionSnapshot ? computeWeekPresence(currentWeek.days, sessionSegmentsByDate) : null),
     [currentWeek, sessionSegmentsByDate, hasSessionSnapshot]
@@ -280,8 +265,6 @@ function Planning() {
     setDraftDays((days) => days.map((day) => (day.date === date ? { ...day, note } : day)));
   }
 
-  // Petite fonction dédiée pour ajouter rapidement une plage jour+heure sans passer par le
-  // glisser-déposer : le résultat s'affiche immédiatement dans la grille, comme un tracé manuel.
   function handleQuickAdd(date, startTime, endTime) {
     if (!date) return;
     if (!startTime || !endTime || endTime <= startTime) {

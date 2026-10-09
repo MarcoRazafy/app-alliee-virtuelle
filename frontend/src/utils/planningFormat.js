@@ -1,6 +1,3 @@
-// Constantes et formatteurs partagés entre la page employé (Planning.jsx) et la page
-// admin (AdminPlanning.jsx), pour ne jamais dupliquer ces règles d'affichage.
-
 export const WEEKDAY_LABELS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
 export const EMPLOYEE_STATUS_OPTIONS = [
@@ -61,15 +58,12 @@ export function formatWeekRange(weekStart, weekEnd) {
   return `${start} - ${end}`;
 }
 
-// Version compacte ("15 janv. - 21 janv.") pour les listes déroulantes de semaines.
 export function formatWeekRangeShort(weekStart, weekEnd) {
   const start = new Date(weekStart).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   const end = new Date(weekEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   return `${start} - ${end}`;
 }
 
-// Liste de semaines (lundi -> dimanche) pour peupler un filtre déroulant : futureCount
-// semaines à venir puis pastCount semaines passées, la plus récente en premier.
 export function generateWeekOptions({ pastCount = 12, futureCount = 1 } = {}) {
   const todayMonday = getMondayOf(toDateInputValue(new Date()));
   const options = [];
@@ -114,11 +108,9 @@ export function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-// Ramène une date quelconque au lundi de sa semaine (utilisé par tous les filtres "semaine"
-// côté employé et admin, pour ne jamais interroger le backend avec une date hors-lundi).
 export function getMondayOf(dateString) {
   const date = new Date(dateString);
-  const weekday = date.getDay(); // 0 = dimanche ... 6 = samedi (heure locale)
+  const weekday = date.getDay();
   const diff = weekday === 0 ? -6 : 1 - weekday;
   date.setDate(date.getDate() + diff);
   return toDateInputValue(date);
@@ -131,8 +123,6 @@ export function minutesToTime(totalMinutes) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-// Deux plages d'une même journée ne peuvent pas se chevaucher (même règle que le backend,
-// vérifiée aussi côté client pour un retour instantané pendant le glisser-déposer).
 export function slotsOverlap(slots) {
   const sorted = [...slots].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
   for (let i = 1; i < sorted.length; i += 1) {
@@ -141,12 +131,11 @@ export function slotsOverlap(slots) {
   return false;
 }
 
-// Parse un horaire souple saisi à la main : "8", "8h", "8h30", "08:00", "8:30" → minutes.
 function parseTimeToken(raw) {
   const token = raw.trim().toLowerCase().replace(/\s+/g, '');
-  let match = token.match(/^(\d{1,2})[:.](\d{2})$/); // 08:00 / 8.30
-  if (!match) match = token.match(/^(\d{1,2})h(\d{2})?$/); // 8h / 08h30
-  if (!match) match = token.match(/^(\d{1,2})$/); // 8
+  let match = token.match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!match) match = token.match(/^(\d{1,2})h(\d{2})?$/);
+  if (!match) match = token.match(/^(\d{1,2})$/);
   if (!match) return null;
   const hours = Number(match[1]);
   const minutes = match[2] ? Number(match[2]) : 0;
@@ -155,9 +144,6 @@ function parseTimeToken(raw) {
   return total > 24 * 60 ? null : total;
 }
 
-// Convertit une saisie type "08h - 12h | 13h - 18h" en plages { start_time, end_time }.
-// Séparateurs de plages : | , ; retour à la ligne. Séparateur début/fin : - – — ou "à"/"to".
-// Renvoie { ok: true, slots } ou { ok: false, error } (message lisible pour l'utilisateur).
 export function parseTimeRanges(input) {
   const text = (input || '').trim();
   if (!text) return { ok: true, slots: [] };
@@ -176,8 +162,6 @@ export function parseTimeRanges(input) {
   return { ok: true, slots };
 }
 
-// Reconstruit la chaîne "08:00 - 12:00 | 13:00 - 18:00" à partir des plages (pré-remplissage
-// du champ texte). Trie par heure de début pour un affichage stable.
 export function formatSlotsAsRanges(slots) {
   return [...(slots || [])]
     .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))

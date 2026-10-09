@@ -1,6 +1,6 @@
 # Dashboard administrateur — Override
 
-Ce fichier adapte le Master généré à l'identité existante et aux contraintes du dashboard opérationnel.
+Ce fichier adapte le Master à l'identité existante et aux contraintes du dashboard opérationnel.
 
 ## Règles prioritaires
 

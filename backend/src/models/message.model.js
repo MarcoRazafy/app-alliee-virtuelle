@@ -1,7 +1,5 @@
 const db = require('../config/database');
 
-// Colonnes d'un message enrichies pour l'affichage. Un message supprimé (deleted_at) masque
-// son contenu et sa pièce jointe. `m` = alias de la table messages, `u` = auteur.
 const MSG_COLS = `
   m.id, m.author_id, u.full_name AS author_name, m.channel_type,
   CASE WHEN m.deleted_at IS NOT NULL THEN NULL ELSE m.content END AS content,
@@ -12,7 +10,6 @@ const MSG_COLS = `
   (m.attachment_path IS NOT NULL AND m.deleted_at IS NULL) AS has_attachment
 `;
 
-// Réactions agrégées par emoji (count + mine = l'utilisateur courant a réagi). userParam = placeholder $N.
 function reactionsSql(userParam) {
   return `COALESCE((
     SELECT json_agg(json_build_object('emoji', e.emoji, 'count', e.count, 'mine', e.mine) ORDER BY e.emoji)
@@ -23,8 +20,6 @@ function reactionsSql(userParam) {
   ), '[]'::json) AS reactions`;
 }
 
-// Sondage attaché à un message (null s'il n'y en a pas) : question, options + votes + « mon vote ».
-// userParam = placeholder $N de l'utilisateur courant (pour marquer ses propres votes).
 function pollSql(userParam) {
   return `(
     SELECT CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object(
@@ -46,7 +41,6 @@ function pollSql(userParam) {
   ) AS poll`;
 }
 
-// Aperçu de conversation : gère les messages supprimés et les pièces jointes seules.
 function previewSql(subWhere) {
   return `(SELECT CASE
       WHEN deleted_at IS NOT NULL THEN 'Message supprimé'
@@ -233,7 +227,6 @@ async function createGroup({ name, creatorId, memberIds, avatarPath = null }, cl
   return group;
 }
 
-// Chemin de l'avatar d'un groupe, uniquement si l'utilisateur en est membre.
 async function findGroupAvatarForMember(groupId, userId) {
   const result = await db.query(
     `SELECT g.avatar_path
@@ -266,7 +259,6 @@ async function markGroupAsRead(groupId, userId) {
   );
 }
 
-// IDs de tous les membres d'un groupe (pour pousser un événement temps réel à chacun).
 async function findGroupMemberIds(groupId) {
   const result = await db.query(
     `SELECT user_id FROM message_group_members WHERE group_id = $1`,
@@ -290,9 +282,6 @@ async function createGroupMessage(groupId, authorId, content, attachment = null,
   return findEnrichedMessageById(inserted.rows[0].id, authorId, client);
 }
 
-// --- Gestion de groupe (renommer / photo / membres / supprimer / quitter) ---
-
-// Groupe brut, sans exigence d'appartenance (pour contrôler les permissions : created_by).
 async function findGroupById(groupId) {
   const result = await db.query(
     `SELECT id, name, created_by, avatar_path FROM message_groups WHERE id = $1`,
@@ -334,7 +323,6 @@ async function removeGroupMember(groupId, userId) {
   await db.query(`DELETE FROM message_group_members WHERE group_id = $1 AND user_id = $2`, [groupId, userId]);
 }
 
-// Plus ancien membre restant (hors utilisateur exclu) : pour transférer la propriété si le créateur quitte.
 async function findOldestMember(groupId, excludeUserId) {
   const result = await db.query(
     `SELECT user_id FROM message_group_members
@@ -345,12 +333,10 @@ async function findOldestMember(groupId, excludeUserId) {
   return result.rows[0]?.user_id || null;
 }
 
-// Suppression : membres + messages effacés en cascade (ON DELETE CASCADE).
 async function deleteGroup(groupId) {
   await db.query(`DELETE FROM message_groups WHERE id = $1`, [groupId]);
 }
 
-// Message source d'un transfert : contenu + pièce jointe complète.
 async function findMessageForForward(id) {
   const result = await db.query(
     `SELECT id, author_id, channel_type, group_id, recipient_id, deleted_at, content,
@@ -361,9 +347,6 @@ async function findMessageForForward(id) {
   return result.rows[0] || null;
 }
 
-// --- Message unique (édition / suppression / réactions) ---
-
-// Ligne brute (pour vérifier l'auteur, le type, le chemin de la pièce jointe).
 async function findRawMessageById(id) {
   const result = await db.query(
     `SELECT id, author_id, channel_type, group_id, recipient_id, deleted_at, attachment_path, attachment_name, attachment_type
@@ -373,7 +356,6 @@ async function findRawMessageById(id) {
   return result.rows[0] || null;
 }
 
-// Message enrichi (comme dans les listes) pour renvoyer après édition/réaction.
 async function findEnrichedMessageById(id, userId, client = db) {
   const result = await client.query(
     `SELECT ${MSG_COLS}, ${reactionsSql('$2')}, ${pollSql('$2')}
@@ -396,7 +378,6 @@ async function softDeleteMessage(id) {
   await db.query(`UPDATE messages SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`, [id]);
 }
 
-// Ajoute la réaction, ou la retire si elle existait déjà (toggle). Renvoie le message enrichi.
 async function toggleReaction(messageId, userId, emoji) {
   const inserted = await db.query(
     `INSERT INTO message_reactions (message_id, user_id, emoji)
@@ -414,10 +395,6 @@ async function toggleReaction(messageId, userId, emoji) {
   return findEnrichedMessageById(messageId, userId);
 }
 
-// --- Sondages ---
-
-// Crée le message porteur (selon le canal) + le sondage + ses options, en transaction.
-// `content` du message = la question (pour les aperçus de conversation et notifications).
 async function createPoll({ authorId, question, allowMultiple, options, scope, recipientId, groupId }) {
   return db.withTransaction(async (client) => {
     let messageId;
@@ -462,7 +439,6 @@ async function createPoll({ authorId, question, allowMultiple, options, scope, r
   });
 }
 
-// Contexte d'un sondage (canal, destinataire/groupe, auteur) — pour les contrôles d'accès et le temps réel.
 async function findPollContext(pollId) {
   const r = await db.query(
     `SELECT m.id AS message_id, m.channel_type, m.recipient_id, m.group_id, m.author_id
@@ -473,7 +449,6 @@ async function findPollContext(pollId) {
   return r.rows[0] || null;
 }
 
-// Remplace le vote de l'utilisateur : en choix simple on garde 1 option, en multiple on garde les N valides.
 async function votePoll(pollId, userId, optionIds) {
   return db.withTransaction(async (client) => {
     const poll = await client.query('SELECT allow_multiple FROM message_polls WHERE id = $1', [pollId]);

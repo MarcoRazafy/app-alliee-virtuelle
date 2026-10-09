@@ -53,15 +53,10 @@ async function register(req, res, next) {
       birthDate,
     });
 
-    // Notification in-app aux administrateurs (via l'audit_log → centre de notifications +
-    // temps réel). L'auteur = le nouvel utilisateur, donc les admins la voient. Best-effort.
     taskModel
       .recordAudit({ userId: user.id, action: 'REGISTER_USER', entityType: 'user', entityId: user.id })
       .catch(() => {});
 
-    // Prévient les administrateurs qu'une inscription attend validation (best-effort : ne doit
-    // jamais faire échouer l'inscription si l'email ou la base admin pose problème). On y ajoute
-    // les destinataires supplémentaires configurés (REGISTRATION_NOTIFY_EMAILS), sans droits admin.
     userModel
       .findAdminEmails()
       .then((adminEmails) =>
@@ -69,7 +64,6 @@ async function register(req, res, next) {
       )
       .catch(() => {});
 
-    // Accusé de réception au nouvel inscrit : « compte créé, en attente de validation ». Best-effort.
     mailService.sendAccountPending(user).catch(() => {});
 
     res.status(201).json({
@@ -106,20 +100,12 @@ async function login(req, res, next) {
     }
 
 
-    // La sélection de la journée est faite UNE SEULE FOIS par jour : elle persiste toute la
-    // journée. Se reconnecter le même jour ne la remet plus à zéro (l'employé retrouve sa
-    // sélection déjà validée). Le lendemain, une nouvelle date = nouvelle sélection.
 
     const token = generateToken(user);
 
-    // Chrono de connexion (présence) : indépendant du chrono de tâche, jamais visible
-    // à l'employé autrement que comme une plage colorée sur son planning de la semaine.
     await sessionModel.startSession(user.id);
-    // Nouvelle présence (arrivée) → rafraîchit le dashboard temps réel des admins.
     realtime.broadcast('presence:update', {});
 
-    // Le navigateur reçoit le token dans un cookie httpOnly (invisible au JS → anti-XSS).
-    // Le token reste aussi dans le corps pour les clients non-navigateur (tests, API).
     res.cookie(AUTH_COOKIE, token, authCookieOptions(env.nodeEnv));
 
     res.status(200).json({
@@ -181,12 +167,10 @@ async function updateProfile(req, res, next) {
       description,
     } = req.body;
 
-    // Email modifiable : refuser s'il est déjà utilisé par un autre compte.
     if (email && (await userModel.emailTakenByOther(email, req.user.id))) {
       return res.status(409).json({ error: 'Un compte existe déjà avec cet email' });
     }
 
-    // Champs non fournis : on conserve la valeur actuelle (pas d'écrasement involontaire).
     const current = await userModel.findById(req.user.id);
     const updated = await userModel.updateProfile(req.user.id, {
       firstName,
@@ -235,7 +219,6 @@ async function uploadAvatar(req, res, next) {
       fileType: req.file.mimetype,
     });
 
-    // Remplace l'ancien fichier une fois le nouveau enregistré en base
     if (previous && previous.file_path !== avatar.file_path) {
       fs.unlink(previous.file_path, () => {});
     }
@@ -284,10 +267,8 @@ async function changePassword(req, res, next) {
 
 async function logout(req, res, next) {
   try {
-    // Un chrono ne doit jamais rester actif après une déconnexion ; la présence se ferme aussi.
     await connectionLimit.endPresence(req.user.id, { timelogAuditAction: 'AUTO_STOP_TIMELOG_LOGOUT' });
 
-    // Supprime le cookie d'authentification côté navigateur.
     res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(env.nodeEnv), maxAge: undefined });
 
     res.status(200).json({ message: 'Déconnexion réussie' });

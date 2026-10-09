@@ -32,8 +32,6 @@ import useAnnouncementUnread from '../../hooks/useAnnouncementUnread';
 import '../../styles/app.css';
 import '../../styles/layout.css';
 
-// Navigation : liens simples + un lien "parent" repliable (accordéon).
-// Le parent (children) ne mène à aucune page : cliquer déplie/replie ses sous-éléments.
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: IconDashboard, end: true },
   {
@@ -52,10 +50,8 @@ const NAV_ITEMS = [
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
 
-// Feuilles navigables aplaties : sert à la recherche de page.
 const FLAT_ITEMS = NAV_ITEMS.flatMap((item) => (item.children ? item.children : [item]));
 
-// Groupes à déplier automatiquement selon la page active.
 function activeGroups(pathname) {
   const open = {};
   NAV_ITEMS.forEach((item) => {
@@ -81,21 +77,16 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
   const searchRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  // La navigation mobile se referme automatiquement dès qu'on change de page
   useEffect(() => {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
-  // Déplie automatiquement le groupe dont une page enfant devient active,
-  // sans refermer ceux que l'utilisateur a déjà ouverts manuellement.
   useEffect(() => {
     setOpenMenus((prev) => ({ ...prev, ...activeGroups(location.pathname) }));
   }, [location.pathname]);
 
   useEffect(() => {
     let objectUrl;
-    // Ne tente le téléchargement que si un avatar existe réellement, pour éviter
-    // un 404 systématique pour tous les comptes qui n'en ont pas encore défini
     api
       .get('/api/auth/me')
       .then((res) => {
@@ -122,7 +113,6 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Raccourci Ctrl+K / Cmd+K pour aller directement à la recherche de page
   useEffect(() => {
     function handleKeydown(e) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -147,9 +137,6 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
     navigate('/login');
   }
 
-  // Rendu d'une feuille de navigation (lien simple ou sous-élément).
-  // Tant que la journée n'est pas validée, seule la page en cours reste accessible
-  // (règle métier : au moins une tâche sélectionnée + validation avant le reste de l'app).
   function renderLeaf(item, isSub = false) {
     const { to, label, icon: Icon, end } = item;
     const isActive = end ? location.pathname === to : location.pathname.startsWith(to);
@@ -212,10 +199,8 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
 
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => {
-            // Lien simple
             if (!item.children) return renderLeaf(item);
 
-            // Lien parent repliable (accordéon)
             const { label, icon: Icon, children } = item;
             const isOpen = !!openMenus[label];
             return (
@@ -260,8 +245,6 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
           </Link>
         )}
 
-        {/* Déconnexion dans la navigation, comme côté admin. Sur mobile, le menu du haut est
-            masqué (il débordait de l'écran) : c'est ici qu'on se déconnecte. */}
         <button type="button" className="sidebar-logout" onClick={handleLogout}>
           <IconLogout />
           <span>Déconnexion</span>

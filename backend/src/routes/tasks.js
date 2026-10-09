@@ -7,31 +7,23 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// Routes statiques déclarées avant /tasks/:id pour éviter tout conflit de matching
 router.get('/tasks/late', authMiddleware.requireRole('ADMIN'), taskController.getLateTasks);
 
-// Demandes de tâche supplémentaire (après validation de la journée).
-// Déclarées ici, avant /tasks/:id, sinon "extra-requests" serait pris pour un :id.
 router.post('/tasks/extra-requests', taskController.createExtraTaskRequest);
 router.get('/tasks/extra-requests/me', taskController.getMyExtraTaskRequests);
 router.get('/tasks/extra-requests', authMiddleware.requireRole('ADMIN'), taskController.listExtraTaskRequests);
 router.post('/tasks/extra-requests/:id/approve', authMiddleware.requireRole('ADMIN'), taskController.approveExtraTaskRequest);
 router.post('/tasks/extra-requests/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectExtraTaskRequest);
 
-// Employé
 router.get('/tasks', taskController.listTasks);
 router.get('/tasks/:id', taskController.getTask);
 router.post('/tasks/:id/complete', taskController.completeTask);
 
 router.post('/timelog/:taskId/start', taskController.startTimelog);
 router.post('/timelog/:taskId/stop', taskController.stopTimelog);
-// Tâche en cours de chronométrage (widget employé). Avant /timelog/:taskId sinon 'active' = :taskId.
 router.get('/timelog/active', taskController.getActiveTask);
 router.get('/timelog/:taskId', taskController.getTimelogHistory);
-// Ajout manuel d'un temps (admin) : chrono oublié, saisi a posteriori.
 router.post('/timelog/:taskId/manual', authMiddleware.requireRole('ADMIN'), taskController.addManualTimelog);
-// Correction d'une session chronométrée (chrono oublié, doublon). Admin uniquement.
-// « entry » en préfixe pour ne pas entrer en conflit avec /timelog/:taskId.
 router.patch('/timelog/entry/:entryId', authMiddleware.requireRole('ADMIN'), taskController.updateTimelogEntry);
 router.delete('/timelog/entry/:entryId', authMiddleware.requireRole('ADMIN'), taskController.deleteTimelogEntry);
 
@@ -45,11 +37,8 @@ router.get('/tasks/:id/subtasks', taskController.getSubtasks);
 
 router.get('/tasks/:id/comments', taskController.getComments);
 router.post('/tasks/:id/comments', taskController.createComment);
-// Modification : l'auteur uniquement (on ne réécrit pas les mots d'autrui sous sa signature).
 router.patch('/tasks/:id/comments/:commentId', taskController.updateComment);
-// Retrait d'un message : l'auteur pour le sien, l'admin pour n'importe lequel.
 router.delete('/tasks/:id/comments/:commentId', taskController.deleteComment);
-// Réaction (le « nike » ✓) : quiconque voit le commentaire peut y réagir.
 router.post('/tasks/:id/comments/:commentId/reactions', taskController.toggleCommentReaction);
 
 router.get('/tasks/:id/attachments', taskController.getAttachments);
@@ -57,36 +46,21 @@ router.post('/tasks/:id/attachments', handleSingleUpload, taskController.uploadA
 router.delete('/tasks/:id/attachments/:fileId', taskController.deleteAttachment);
 router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 
-// Admin
-// Création ouverte à tous : un admin crée une tâche directement actionnable ;
-// un employé crée une proposition (DECLAREE) que l'admin doit valider.
 router.post('/tasks', taskController.createTask);
 router.post('/tasks/:id/validate', authMiddleware.requireRole('ADMIN'), taskController.validateTask);
 router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskController.confirmTask);
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);
 router.get('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.getNotes);
 router.post('/tasks/:id/notes', authMiddleware.requireRole('ADMIN'), taskController.createNote);
-// Modification d'une tâche (admin) : titre, description, priorité, échéance.
-// Titre, priorité, dates : admin pour toutes les tâches, employé pour CELLES QU'IL A CRÉÉES.
-// Le contrôle a besoin de la tâche pour comparer son créateur à l'appelant : il vit donc
-// dans le contrôleur. L'assignation et le statut ont leurs propres routes, restées admin.
 router.patch('/tasks/:id', taskController.updateTask);
-// Description seule : ouverte à la personne assignée (contrôle dans le contrôleur), pour
-// qu'elle puisse décrire sa tâche. Volontairement distincte de la route ci-dessus.
 router.patch('/tasks/:id/description', taskController.updateTaskDescription);
-// Échéance seule : modifiable depuis les cartes « En retard » sans réécrire le reste.
 router.patch('/tasks/:id/deadline', taskController.updateTaskDeadline);
-// Changement de statut d'une tâche (admin) : À faire / En cours / Terminée / Confirmée.
 router.patch('/tasks/:id/status', authMiddleware.requireRole('ADMIN'), taskController.updateTaskStatus);
 
-// Assignation (admin) : transférer à une seule personne, ajouter une personne, ou en retirer une.
 router.post('/tasks/:id/reassign', authMiddleware.requireRole('ADMIN'), taskController.reassignTask);
 router.post('/tasks/:id/add-assignee', authMiddleware.requireRole('ADMIN'), taskController.addTaskAssignee);
 router.delete('/tasks/:id/assignees/:userId', authMiddleware.requireRole('ADMIN'), taskController.removeTaskAssignee);
 
-// Suppression d'une tâche (admin) : supprime aussi ses sous-tâches, commentaires, chronos… (CASCADE).
-// Suppression : admin pour toutes, employé pour CELLES QU'IL A CRÉÉES. Le contrôle est dans
-// le contrôleur, qui a besoin de la tâche pour comparer son créateur à l'appelant.
 router.delete('/tasks/:id', taskController.deleteTask);
 
 module.exports = router;

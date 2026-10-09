@@ -23,9 +23,6 @@ async function findConversations(adminId, limit = 200) {
   return result.rows;
 }
 
-// Derniers échanges d'une session (une discussion), dans l'ordre chronologique, pour donner
-// de la MÉMOIRE au chatbot : on renvoie ces question/réponse au modèle avec la nouvelle question.
-// excludeId permet d'ignorer l'échange en cours (cas de la ré-édition d'un message).
 async function findSessionHistory(sessionId, adminId, { limit = 8, excludeId = null } = {}) {
   if (!sessionId) return [];
   const params = [sessionId, adminId];
@@ -42,7 +39,7 @@ async function findSessionHistory(sessionId, adminId, { limit = 8, excludeId = n
       LIMIT $${params.length}`,
     params
   );
-  return result.rows.reverse(); // du plus ancien au plus récent
+  return result.rows.reverse();
 }
 
 async function findConversationById(id, adminId) {
@@ -80,7 +77,6 @@ async function updateConversation(id, adminId, { question, answer }) {
   return result.rows[0] || null;
 }
 
-// Titre stocké sur toutes les lignes de la session (une discussion) pour rester cohérent.
 async function renameSession(sessionId, adminId, title) {
   const result = await db.query(
     `UPDATE ai_conversations SET title = $3 WHERE session_id = $1 AND admin_id = $2 RETURNING id`,

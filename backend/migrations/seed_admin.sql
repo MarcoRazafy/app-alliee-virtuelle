@@ -1,10 +1,3 @@
--- L'Alliée Virtuelle - Données d'exemple pour l'espace admin (Étape 5)
--- À exécuter après init.sql, seed_messages_resources.sql et seed_ucan.sql :
---   psql -U postgres -h localhost -d alliee_virtuelle -f migrations/seed_admin.sql
--- Mot de passe en clair pour tous les nouveaux comptes : test123
-
--- ===== UTILISATEURS =====
-
 INSERT INTO users (email, password_hash, full_name, phone_number, position, role, status)
 SELECT 'marie.dupont@alliee.test', '$2b$10$FNIunH.GxVxj4jaEtOMUWO2h3TQdZSaBVLaAecBnaXEUjPSuO3uv2',
        'Marie Dupont', '+33611111111', 'Comptable', 'EMPLOYEE', 'ACTIF'
@@ -20,7 +13,6 @@ SELECT 'sophie.martin@alliee.test', '$2b$10$FNIunH.GxVxj4jaEtOMUWO2h3TQdZSaBVLaA
        'Sophie Martin', '+33633333333', 'Designer', 'EMPLOYEE', 'ACTIF'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'sophie.martin@alliee.test');
 
--- Demandes d'accès en attente
 INSERT INTO users (email, password_hash, full_name, phone_number, position, role, status)
 SELECT 'julien.petit@alliee.test', '$2b$10$FNIunH.GxVxj4jaEtOMUWO2h3TQdZSaBVLaAecBnaXEUjPSuO3uv2',
        'Julien Petit', '+33644444444', 'Développeur', 'EMPLOYEE', 'EN_ATTENTE'
@@ -31,15 +23,11 @@ SELECT 'lea.bernard@alliee.test', '$2b$10$FNIunH.GxVxj4jaEtOMUWO2h3TQdZSaBVLaAec
        'Léa Bernard', '+33655555555', 'Marketing', 'EMPLOYEE', 'EN_ATTENTE'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'lea.bernard@alliee.test');
 
--- Compte suspendu
 INSERT INTO users (email, password_hash, full_name, phone_number, position, role, status)
 SELECT 'thomas.roux@alliee.test', '$2b$10$FNIunH.GxVxj4jaEtOMUWO2h3TQdZSaBVLaAecBnaXEUjPSuO3uv2',
        'Thomas Roux', '+33666666666', 'Commercial', 'EMPLOYEE', 'SUSPENDU'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'thomas.roux@alliee.test');
 
--- ===== TÂCHES (10, statuts variés, 3 en retard) =====
-
--- Marie Dupont
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
 SELECT 'Clôturer les comptes du mois précédent', 'Clôture comptable et rapprochement bancaire',
        (SELECT id FROM users WHERE email = 'marie.dupont@alliee.test'),
@@ -61,7 +49,6 @@ SELECT 'Vérifier les notes de frais', 'Contrôle des notes de frais de l''équi
        'NORMALE', 'CONFIRMEE', CURRENT_DATE - INTERVAL '8 days', CURRENT_DATE - INTERVAL '10 days'
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Vérifier les notes de frais');
 
--- Karim Haddad
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
 SELECT 'Traiter les tickets urgents', 'File de tickets support prioritaires en retard',
        (SELECT id FROM users WHERE email = 'karim.haddad@alliee.test'),
@@ -83,7 +70,6 @@ SELECT 'Former le nouvel arrivant', 'Session de formation sur les outils support
        'FAIBLE', 'DECLAREE', CURRENT_DATE + INTERVAL '8 days', CURRENT_DATE
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Former le nouvel arrivant');
 
--- Sophie Martin
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
 SELECT 'Créer les visuels campagne', 'Bannières et visuels réseaux sociaux pour la campagne de rentrée',
        (SELECT id FROM users WHERE email = 'sophie.martin@alliee.test'),
@@ -112,9 +98,6 @@ SELECT 'Maquettes application mobile', 'Wireframes et maquettes haute-fidélité
        'FAIBLE', 'DECLAREE', CURRENT_DATE + INTERVAL '12 days', CURRENT_DATE
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Maquettes application mobile');
 
--- ===== SESSIONS TIMELOG (dont 2 actives) =====
-
--- Sessions actives (end_time IS NULL) sur les 2 tâches EN_COURS
 INSERT INTO timelog (task_id, employee_id, start_time)
 SELECT (SELECT id FROM tasks WHERE title = 'Préparer la déclaration TVA'),
        (SELECT id FROM users WHERE email = 'marie.dupont@alliee.test'),
@@ -131,7 +114,6 @@ WHERE NOT EXISTS (
   SELECT 1 FROM timelog WHERE task_id = (SELECT id FROM tasks WHERE title = 'Traiter les tickets urgents') AND end_time IS NULL
 );
 
--- Sessions terminées, pour les tâches TERMINEE / CONFIRMEE
 INSERT INTO timelog (task_id, employee_id, start_time, end_time, duration_seconds)
 SELECT (SELECT id FROM tasks WHERE title = 'Clôturer les comptes du mois précédent'),
        (SELECT id FROM users WHERE email = 'marie.dupont@alliee.test'),
@@ -155,8 +137,6 @@ SELECT (SELECT id FROM tasks WHERE title = 'Concevoir le nouveau logo'),
        (SELECT id FROM users WHERE email = 'sophie.martin@alliee.test'),
        now() - INTERVAL '4 days 5 hours', now() - INTERVAL '4 days', 18000
 WHERE NOT EXISTS (SELECT 1 FROM timelog WHERE task_id = (SELECT id FROM tasks WHERE title = 'Concevoir le nouveau logo'));
-
--- ===== AUDIT LOG (quelques entrées) =====
 
 INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
 SELECT (SELECT id FROM users WHERE email = 'admin@alliee.test'), 'CREATE_TASK', 'task',

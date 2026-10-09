@@ -5,24 +5,14 @@ import { STATUS_PILL } from '../utils/taskStatus';
 import { notifySuccess, notifyError } from '../utils/toast';
 import { IconChevronDown } from './icons';
 
-// Statut d'une tâche cliquable (façon ClickUp) : pastille + menu déroulant. DECLAREE (proposition)
-// exclue — c'est un état de workflow, pas un statut à poser à la main. Réservé à l'admin.
-// Le menu est rendu dans un portail (position: fixed) pour échapper à tout contexte de stacking.
 const OPTIONS = [
   { value: 'VALIDEE', label: 'À faire', cls: 'todo' },
   { value: 'EN_COURS', label: 'En cours', cls: 'progress' },
-  // « À reprendre » n'est pas un statut stocké : le serveur le traduit en EN_COURS et
-  // arrête le chrono en cours. C'est la façon de renvoyer une tâche au travail sans la
-  // laisser paraître activement chronométrée.
   { value: 'A_REPRENDRE', label: 'À reprendre', cls: 'paused' },
   { value: 'TERMINEE', label: 'Terminée', cls: 'done' },
   { value: 'CONFIRMEE', label: 'Confirmée', cls: 'confirmed' },
 ];
 
-// props :
-//  - taskId, status : la tâche et son statut réel (enum backend)
-//  - displayStatus  : statut affiché sur la pastille (ex. A_REPRENDRE), défaut = status
-//  - onChanged(newStatus) : appelé après un changement réussi (pour recharger la liste/fiche)
 export default function StatusDropdown({ taskId, status, displayStatus, onChanged }) {
   const shown = displayStatus || status;
   const [open, setOpen] = useState(false);
@@ -109,9 +99,6 @@ export default function StatusDropdown({ taskId, status, displayStatus, onChange
                 key={opt.value}
                 type="button"
                 role="option"
-                // Comparaison sur le statut AFFICHÉ : « À reprendre » et « En cours » partagent
-                // le même statut en base, seul l'affiché les distingue. Sans cela, « En cours »
-                // serait marqué actif sur une tâche à reprendre, et « À reprendre » jamais.
                 aria-selected={shown === opt.value}
                 className={`status-menu-item${shown === opt.value ? ' status-menu-item--active' : ''}`}
                 onClick={() => pick(opt.value)}

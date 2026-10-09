@@ -11,8 +11,6 @@ function Messaging() {
       breadcrumb={[{ label: 'Accueil', to: '/dashboard' }, { label: 'Messagerie' }]}
       subtitle="Échangez avec votre équipe en temps réel"
     >
-      {/* `employeeId` = identifiant de l'interlocuteur, transmis par les pages qui ouvrent
-          une conversation ciblée (ex. « Créée par » dans le détail d'une tâche). */}
       <MessagingView
         initialRecipientId={location.state?.employeeId || null}
         channelNonce={location.key}

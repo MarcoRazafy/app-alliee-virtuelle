@@ -22,7 +22,6 @@ async function findByUsername(username) {
   return result.rows[0] || null;
 }
 
-// Login : accepte indifféremment un email ou un nom d'utilisateur
 async function findByEmailOrUsername(identifier) {
   const result = await db.query('SELECT * FROM users WHERE email = $1 OR username = $1', [identifier]);
   return result.rows[0] || null;
@@ -33,7 +32,6 @@ async function findById(id) {
   return result.rows[0] || null;
 }
 
-// Renvoie le sous-ensemble des ids fournis qui correspond à des utilisateurs existants
 async function findExistingIds(ids) {
   if (ids.length === 0) return [];
   const result = await db.query('SELECT id FROM users WHERE id = ANY($1::uuid[])', [ids]);
@@ -52,8 +50,6 @@ async function create({
   birthDate,
   fullName,
 }) {
-  // full_name reste alimenté (beaucoup de code existant s'appuie dessus) : dérivé de
-  // firstName + lastName si fournis, sinon on retombe sur fullName (rétrocompatibilité)
   const resolvedFullName = firstName || lastName ? `${firstName || ''} ${lastName || ''}`.trim() : fullName;
 
   const result = await db.query(
@@ -85,7 +81,6 @@ async function updatePasswordHash(id, passwordHash) {
   await db.query('UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2', [passwordHash, id]);
 }
 
-// full_name reste dérivé de first_name + last_name pour rester cohérent avec create()
 async function updateProfile(id, { firstName, lastName, phone, postalAddress, birthDate, position, email, description }) {
   const fullName = `${firstName} ${lastName}`.trim();
   const result = await db.query(
@@ -101,13 +96,11 @@ async function updateProfile(id, { firstName, lastName, phone, postalAddress, bi
   return result.rows[0];
 }
 
-// Vrai si l'email est déjà utilisé par un AUTRE utilisateur (pour la modification de profil).
 async function emailTakenByOther(email, exceptUserId) {
   const result = await db.query('SELECT 1 FROM users WHERE email = $1 AND id <> $2 LIMIT 1', [email, exceptUserId]);
   return result.rowCount > 0;
 }
 
-// Annuaire minimal pour démarrer une conversation : seuls les comptes actifs, sans données sensibles
 async function findActiveExcept(userId) {
   const result = await db.query(
     `SELECT u.id, u.full_name, u.email, u.role, (a.id IS NOT NULL) AS has_avatar
@@ -120,7 +113,6 @@ async function findActiveExcept(userId) {
   return result.rows;
 }
 
-// Gestion admin : liste complète avec filtres
 async function findAllFiltered({ status, role, search } = {}) {
   const conditions = [];
   const params = [];
@@ -152,7 +144,6 @@ async function findAllFiltered({ status, role, search } = {}) {
   return result.rows;
 }
 
-// Emails des administrateurs actifs — destinataires des notifications de nouvelle inscription.
 async function findAdminEmails() {
   const result = await db.query(
     'SELECT email FROM users WHERE role = $1 AND status = $2',
@@ -186,7 +177,6 @@ async function promoteToAdmin(id, client = db) {
   return result.rows[0];
 }
 
-// --- Notes internes admin sur un employé (fiche employé) ---
 async function listNotes(userId) {
   const result = await db.query(
     `SELECT n.id, n.content, n.created_at, n.author_id, a.full_name AS author_name
@@ -217,8 +207,6 @@ async function deleteNote(noteId, userId) {
   return result.rows[0] || null;
 }
 
-// --- Évaluations mensuelles -------------------------------------------------
-
 const EVALUATION_COLUMNS = `id, user_id, to_char(period_month, 'YYYY-MM') AS month,
   visible_to_employee, global_comment,
   delais_items, qualite_items, autonomie_items, adaptabilite_items,
@@ -226,7 +214,6 @@ const EVALUATION_COLUMNS = `id, user_id, to_char(period_month, 'YYYY-MM') AS mon
   formations_recommandees, nouvelles_responsabilites, prochaine_etape,
   created_by, created_at, updated_at, updated_by, field_authors, field_updated_at`;
 
-// Champs texte libre « développement / carrière » de l'évaluation.
 const EVALUATION_TEXT_FIELDS = [
   'forces_actuelles',
   'competences_ameliorer',
@@ -239,9 +226,6 @@ const EVALUATION_TEXT_FIELDS = [
 
 const EVALUATION_ITEM_KEYS = ['delais_items', 'qualite_items', 'autonomie_items', 'adaptabilite_items'];
 
-// Les remarques portent l'id de leur auteur (dans le JSONB) : on résout les noms en une seule
-// requête, plutôt que de figer le nom au moment de l'écriture (il suivrait alors mal un
-// changement d'identité) ou d'imposer un appel par remarque côté client.
 async function attachAuthorNames(rows) {
   const ids = new Set();
   rows.forEach((row) => {
@@ -276,7 +260,6 @@ async function attachAuthorNames(rows) {
   });
 }
 
-// Toutes les évaluations d'un employé, du mois le plus récent au plus ancien (vue admin, complète).
 async function listEvaluations(userId) {
   const result = await db.query(
     `SELECT ${EVALUATION_COLUMNS} FROM employee_evaluations
@@ -286,7 +269,6 @@ async function listEvaluations(userId) {
   return attachAuthorNames(result.rows);
 }
 
-// Une évaluation précise (mois = 'YYYY-MM'), ou null.
 async function getEvaluation(userId, month) {
   const result = await db.query(
     `SELECT ${EVALUATION_COLUMNS} FROM employee_evaluations
@@ -296,8 +278,6 @@ async function getEvaluation(userId, month) {
   return result.rows[0] || null;
 }
 
-// Crée ou met à jour l'évaluation d'un mois (unique par user_id + mois).
-// data.*_items = tableaux [{ rating, comment }] (déjà validés par le contrôleur).
 async function upsertEvaluation(userId, month, createdBy, data) {
   const result = await db.query(
     `INSERT INTO employee_evaluations (
@@ -346,8 +326,6 @@ async function upsertEvaluation(userId, month, createdBy, data) {
   return result.rows[0];
 }
 
-// Évaluations visibles par l'employé lui-même : on renvoie toujours le mois + commentaire
-// global ; le détail (les listes de remarques) n'est inclus que si visible_to_employee = true.
 async function listEvaluationsForEmployee(userId) {
   const rows = await listEvaluations(userId);
   return rows

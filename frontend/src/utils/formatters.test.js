@@ -11,7 +11,7 @@ test('formatClock : toujours HH:MM:SS avec zéros de tête', () => {
 
 test('formatDurationShort : format court lisible', () => {
   assert.equal(formatDurationShort(0), '0min');
-  assert.equal(formatDurationShort(90), '1min'); // 1 min 30 s tronqué à la minute
+  assert.equal(formatDurationShort(90), '1min');
   assert.equal(formatDurationShort(3600), '1h 00min');
   assert.equal(formatDurationShort(7320), '2h 02min');
 });
@@ -19,5 +19,5 @@ test('formatDurationShort : format court lisible', () => {
 test('formatBytes : octets / Ko / Mo', () => {
   assert.equal(formatBytes(512), '512 o');
   assert.equal(formatBytes(2048), '2 Ko');
-  assert.equal(formatBytes(1572864), '1.5 Mo'); // 1,5 × 1024 × 1024
+  assert.equal(formatBytes(1572864), '1.5 Mo');
 });

@@ -258,7 +258,6 @@ function StatCard({ icon, label, value, format, helper, variant }) {
 function MyStats() {
   const initialRange = computeRange('month');
   const [preset, setPreset] = useState('month');
-  // Relevé d'une personne ouvert depuis la grille de l'équipe : { employee, week }.
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
@@ -532,9 +531,6 @@ function MyStats() {
           </>
         )}
 
-        {/* Même parcours que côté admin — la grille de l'équipe, puis le relevé d'une
-            personne — mais en LECTURE SEULE : un employé consulte, il ne corrige pas. Une
-            erreur se signale à un admin, qui a les outils pour la reprendre. */}
         {selectedPerson ? (
           <WeeklyTimesheet
             employee={selectedPerson.employee}

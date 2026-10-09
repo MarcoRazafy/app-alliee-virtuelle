@@ -2,9 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const businessDay = require('../src/utils/businessDay');
 
-// Le fuseau de l'organisation est Indian/Antananarivo (UTC+3) : les instants sont donc
-// écrits avec ce décalage explicite, pour que ces tests ne dépendent pas du fuseau de la
-// machine qui les exécute — c'est précisément le piège que ce module corrige.
 const AT = (iso) => businessDay.businessDayOf(iso);
 
 test('la coupure par défaut est à 2 h du matin', () => {
@@ -30,7 +27,6 @@ test('une heure ordinaire donne la date du jour', () => {
 });
 
 test('le même instant donne le même jour, quel que soit le fuseau où il est écrit', () => {
-  // 01:00 à Antananarivo = 22:00 UTC la veille : deux écritures du même instant.
   assert.equal(AT('2026-09-08T01:00:00+03:00'), AT('2026-09-07T22:00:00Z'));
 });
 
@@ -56,7 +52,6 @@ test('l’expression SQL cible bien le fuseau de l’organisation et la coupure'
   assert.match(sql, /::date$/);
 });
 
-// --- Répartition d'une connexion sur les journées de travail ------------------------
 const SPLIT = businessDay.splitSecondsByBusinessDay;
 
 test('une journée ordinaire tombe entièrement sur son jour', () => {
@@ -97,13 +92,9 @@ test('le total réparti égale toujours la durée réelle de la connexion', () =
 });
 
 test('les deux variantes SQL traitent différemment les colonnes avec et sans fuseau', () => {
-  // TIMESTAMPTZ : on convertit d'abord vers l'heure de l'organisation.
   const tz = businessDay.sqlBusinessDay('login_at');
   assert.match(tz, /AT TIME ZONE 'Indian\/Antananarivo'/);
 
-  // TIMESTAMP sans fuseau : la valeur EST déjà une heure locale. Y appliquer AT TIME ZONE
-  // ferait dépendre le résultat du fuseau de la session PostgreSQL — différent en local
-  // et sur Railway, où une entrée de 4 h du matin basculait sur la veille.
   const naive = businessDay.sqlBusinessDayNaive('start_time');
   assert.doesNotMatch(naive, /AT TIME ZONE/);
   assert.match(naive, /interval '2 hours'/);

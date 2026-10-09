@@ -21,8 +21,6 @@ function ReloadIcon() {
   );
 }
 
-// Bouton d'en-tête : recharge la page courante (window.location.reload).
-// Une brève rotation donne un retour visuel avant le rechargement.
 function ReloadButton({ className = '' }) {
   const [spinning, setSpinning] = useState(false);
 

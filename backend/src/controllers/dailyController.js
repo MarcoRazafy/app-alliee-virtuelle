@@ -3,24 +3,16 @@ const taskModel = require('../models/task.model');
 const db = require('../config/database');
 const { businessDayNow } = require('../utils/businessDay');
 
-// « Aujourd'hui » au sens de la journée de TRAVAIL (voir utils/businessDay) : un employé
-// de nuit qui enregistre sa journée à 1 h du matin la rattache bien à la veille.
 const todayDateString = businessDayNow;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// GET /api/daily/done?date=YYYY-MM-DD
-// Renvoie ma sélection Daily (done) + le POOL disponible = MES tâches assignées non encore
-// dans le Daily (via findAssignedTasks → toujours l'utilisateur courant, quel que soit le rôle).
 async function getMyDailyDone(req, res, next) {
   try {
     const date = DATE_RE.test(req.query.date) ? req.query.date : todayDateString();
     const done = await dailyModel.findDailyDone(req.user.id, date);
     const doneIds = new Set(done.map((t) => t.id));
     const assigned = await taskModel.findAssignedTasks(req.user.id);
-    // On exclut du pool : les tâches TERMINÉES ou CONFIRMÉES (le travail est fait, on ne
-    // l'ajoute plus), les DECLAREE (propositions non validées) et celles déjà dans le Daily.
-    // Une tâche terminée pendant la journée y entre d'elle-même à sa complétion.
     const available = assigned.filter(
       (t) => !['TERMINEE', 'CONFIRMEE', 'DECLAREE'].includes(t.status) && !doneIds.has(t.id)
     );
@@ -30,7 +22,6 @@ async function getMyDailyDone(req, res, next) {
   }
 }
 
-// PUT /api/daily/done { date?, task_ids: [] } → remplace ma sélection Daily du jour
 async function saveMyDailyDone(req, res, next) {
   try {
     const date = DATE_RE.test(req.body.date) ? req.body.date : todayDateString();
@@ -38,7 +29,6 @@ async function saveMyDailyDone(req, res, next) {
     if (raw === null) return res.status(400).json({ error: 'task_ids doit être un tableau' });
 
     const ids = raw.filter((id) => typeof id === 'string' && UUID_RE.test(id));
-    // Sécurité : on ne garde que les tâches réellement assignées à l'employé.
     const assigned = ids.length
       ? (
           await db.query(
@@ -58,7 +48,6 @@ async function saveMyDailyDone(req, res, next) {
   }
 }
 
-// GET /api/daily/admin?date=YYYY-MM-DD (admin) → par employé : To Do (jour validé) + Daily (tâches faites)
 async function getOverview(req, res, next) {
   try {
     const date = DATE_RE.test(req.query.date) ? req.query.date : todayDateString();

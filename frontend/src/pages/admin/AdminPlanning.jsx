@@ -46,8 +46,6 @@ function SummaryCards({ summary }) {
 
 function AdminPlanning() {
   const [filters, setFilters] = useState({
-    // Par défaut : la semaine courante ("Cette semaine"), pas la semaine renvoyée
-    // par l'API (fenêtre d'édition, souvent la semaine prochaine).
     week_start_date: getMondayOf(todayDateInputValue()),
     user_id: '',
     status: '',
@@ -156,7 +154,6 @@ function AdminPlanning() {
     handleFilterChange('week_start_date', getMondayOf(value));
   }
 
-  // Raccourcis de semaine (lundi de la semaine courante / suivante).
   const currentWeekStart = getMondayOf(todayDateInputValue());
   const nextWeekStart = shiftDays(currentWeekStart, 7);
 

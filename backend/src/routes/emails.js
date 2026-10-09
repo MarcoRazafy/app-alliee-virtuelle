@@ -4,7 +4,6 @@ const authMiddleware = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
-// Boîte mail entrante : réservée aux administrateurs.
 router.use(authMiddleware, authMiddleware.requireRole('ADMIN'));
 
 router.get('/emails', emailController.listEmails);

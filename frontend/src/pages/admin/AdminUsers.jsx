@@ -70,7 +70,6 @@ function EmployeesTab({ onSelect }) {
   const [positionFilter, setPositionFilter] = useState('');
 
   function load() {
-    // Toute l'équipe, admins inclus (pas de filtre de rôle).
     userService
       .getAllUsers({ search, status: statusFilter || undefined })
       .then(setUsers)

@@ -1,7 +1,3 @@
--- Tables historiquement créées à la main (jamais capturées en migration) : on les ajoute
--- ici pour qu'une base fraîche (bâtie uniquement depuis les migrations) soit complète.
--- Idempotent : sans effet sur les bases qui les possèdent déjà.
-
 CREATE TABLE IF NOT EXISTS extra_task_requests (
   id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

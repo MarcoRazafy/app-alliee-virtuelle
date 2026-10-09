@@ -7,7 +7,7 @@ test('accountApproved : sujet + html + texte, avec le nom', () => {
   assert.match(mail.subject, /approuvé/i);
   assert.match(mail.html, /Jane Doe/);
   assert.match(mail.text, /Jane Doe/);
-  assert.match(mail.html, /Se connecter/); // bouton de connexion présent
+  assert.match(mail.html, /Se connecter/);
 });
 
 test('accountRejected : inclut le motif quand fourni', () => {

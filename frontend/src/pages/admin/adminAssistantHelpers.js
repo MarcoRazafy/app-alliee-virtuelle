@@ -1,5 +1,3 @@
-// Helpers purs de la page Assistant IA (extraits pour alléger AdminAssistant).
-
 export function newId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, (c) => {
@@ -16,10 +14,9 @@ export function isoDate(d) {
   return d.toISOString().slice(0, 10);
 }
 
-// Plage d'une semaine (lundi→dimanche) ; offsetWeeks=0 = semaine courante (bornée à aujourd'hui).
 export function weekRange(offsetWeeks = 0) {
   const now = new Date();
-  const day = (now.getDay() + 6) % 7; // 0 = lundi
+  const day = (now.getDay() + 6) % 7;
   const monday = new Date(now);
   monday.setDate(now.getDate() - day - offsetWeeks * 7);
   const sunday = new Date(monday);

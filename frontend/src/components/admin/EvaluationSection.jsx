@@ -22,7 +22,6 @@ const CRITERIA = [
 ];
 const ITEM_KEYS = CRITERIA.map((c) => `${c.key}_items`);
 
-// Champs libres « développement / carrière », avec une amorce concrète en placeholder.
 const TEXT_FIELDS = [
   {
     key: 'forces_actuelles',
@@ -75,8 +74,6 @@ function monthLabel(key) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-// Date d'enregistrement de l'évaluation. `formatDateTime` (utilitaire partagé) omet
-// l'année : sur une fiche qui remonte plusieurs mois en arrière, elle est indispensable.
 function formatSavedAt(value) {
   if (!value) return null;
   const d = new Date(value);
@@ -90,9 +87,6 @@ function formatSavedAt(value) {
   });
 }
 
-// Date ET heure affichées à côté d'un nom, dans une pastille : « 3 sept. à 17:36 ». Le mois
-// est abrégé et l'année n'apparaît que si ce n'est pas l'année en cours, pour que l'heure
-// tienne sans faire déborder la pastille (une fiche peut remonter loin en arrière).
 function formatShortDate(value) {
   if (!value) return null;
   const d = new Date(value);
@@ -106,10 +100,6 @@ function formatShortDate(value) {
   return `${day} à ${time}`;
 }
 
-// Pastille « qui a touché ce contenu, et quand ». Partagée par les remarques (sur le fond
-// coloré du critère) et par les champs libres (à côté du libellé) : seule la classe change,
-// pour que les deux ne divergent jamais dans leur formulation. La date reste courte, le
-// survol donne le jour et l'heure exacts.
 function AuthorStamp({ className, name, at, prefix = '' }) {
   const short = formatShortDate(at);
   if (!name && !short) return null;
@@ -125,22 +115,15 @@ function AuthorStamp({ className, name, at, prefix = '' }) {
   );
 }
 
-// Un champ riche « vidé » garde du balisage résiduel (`<br>`, `<div><br></div>`) : la chaîne
-// n'est pas vide alors que le champ l'est à l'écran. On juge donc le vide sur le TEXTE, sinon
-// un champ effacé compterait comme rempli et se verrait attribuer un auteur et une date.
 function isFilled(html) {
   return Boolean(htmlToText(html || '').trim());
 }
 
-// Champs riches de l'évaluation : les 7 champs de développement + le commentaire global.
 const RICH_FIELD_KEYS = [...TEXT_FIELDS.map((f) => f.key), 'global_comment'];
 
-// Les évaluations saisies AVANT l'éditeur riche contiennent du texte brut. Le charger tel
-// quel dans l'éditeur écraserait ses retours à la ligne (en HTML, ce ne sont que des espaces)
-// et interpréterait un « < » comme une balise. On le convertit donc une fois, à l'ouverture.
 function toRichValue(value) {
   const text = value || '';
-  if (!text || /<[a-z][\s\S]*>/i.test(text)) return text; // déjà du HTML
+  if (!text || /<[a-z][\s\S]*>/i.test(text)) return text;
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
 }
 
@@ -163,8 +146,6 @@ function formFromEvaluation(ev) {
   f.visible_to_employee = Boolean(ev.visible_to_employee);
   f.global_comment = toRichValue(ev.global_comment);
   for (const itemsKey of ITEM_KEYS) {
-    // On conserve auteur ET date : le serveur ne les réattribue qu'aux remarques dont le
-    // texte ou la note a changé, mais il les affiche depuis ce qu'on lui renvoie.
     f[itemsKey] = Array.isArray(ev[itemsKey])
       ? ev[itemsKey].map((it) => ({
           rating: it.rating,
@@ -179,28 +160,21 @@ function formFromEvaluation(ev) {
   return f;
 }
 
-// Section d'évaluation mensuelle affichée sur la fiche employé (admin). Repliée par défaut
-// (résumé du mois), elle contient 4 critères notés (listes de remarques bonnes/mauvaises),
-// 7 champs de développement, le commentaire global et la visibilité employé.
 export default function EvaluationSection({ userId }) {
   const [history, setHistory] = useState([]);
   const [month, setMonth] = useState(CURRENT_MONTH);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [devOpen, setDevOpen] = useState(false); // seul le bloc « développement » se replie
+  const [devOpen, setDevOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   const evaluatedMonths = useMemo(() => new Set(history.map((h) => h.month)), [history]);
   const currentEvaluation = useMemo(() => history.find((h) => h.month === month), [history, month]);
-  // Auteur et date de chaque champ libre, tels qu'enregistrés (vides tant que rien n'a été
-  // sauvegardé — les fiches antérieures à la migration 036 n'ont pas de date, on n'affiche
-  // alors que le nom).
   const fieldAuthors = currentEvaluation?.field_author_names || {};
   const fieldDates = currentEvaluation?.field_updated_at || {};
   const savedAtLabel = formatSavedAt(currentEvaluation?.updated_at);
 
-  // Toute modification passe par ici → marque la saisie comme non enregistrée.
   const updateForm = useCallback((updater) => {
     setForm(updater);
     setDirty(true);
@@ -219,13 +193,11 @@ export default function EvaluationSection({ userId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  // (Re)charge le formulaire depuis le serveur : la saisie repart « propre ».
   useEffect(() => {
     setForm(formFromEvaluation(history.find((h) => h.month === month)));
     setDirty(false);
   }, [month, history]);
 
-  // Filet de sécurité : prévient avant de quitter la page avec une saisie non enregistrée.
   useEffect(() => {
     if (!dirty) return undefined;
     const onBeforeUnload = (e) => {
@@ -252,8 +224,6 @@ export default function EvaluationSection({ userId }) {
   async function handleSave() {
     setSaving(true);
     try {
-      // On envoie une chaîne vide pour un champ riche vidé de son texte : le serveur y voit
-      // alors un champ effacé et retire son auteur et sa date, au lieu de conserver un `<br>`.
       const payload = { ...form };
       for (const key of RICH_FIELD_KEYS) {
         if (!isFilled(payload[key])) payload[key] = '';
@@ -274,8 +244,6 @@ export default function EvaluationSection({ userId }) {
   const filledDevFields = TEXT_FIELDS.filter(({ key }) => isFilled(form[key])).length;
   const hasContent = remarkCount > 0 || filledDevFields > 0 || isFilled(form.global_comment);
 
-  // Résumé affiché quand la section est repliée : toujours explicite sur le contenu,
-  // même à zéro (« 0 remarque » plutôt qu'un simple « privée » énigmatique).
   const summary = !hasContent
     ? 'Pas encore évaluée'
     : [
@@ -287,7 +255,6 @@ export default function EvaluationSection({ userId }) {
         .filter(Boolean)
         .join(' · ');
 
-  // On masque l'historique quand il ne ferait que répéter le mois déjà affiché en titre.
   const showHistory = history.length > 1 || (history.length === 1 && history[0].month !== month);
 
   return (
@@ -299,7 +266,6 @@ export default function EvaluationSection({ userId }) {
             <span className="eval-section-title">{monthLabel(month)}</span>
           </span>
           <span className="eval-summary">
-            {/* Qui a rempli ce mois : utile dès qu'il y a plusieurs administrateurs. */}
             {(currentEvaluation?.updated_by_name || currentEvaluation?.updated_at) && (
               <span className="eval-author">
                 {currentEvaluation.updated_by_name
@@ -385,8 +351,6 @@ export default function EvaluationSection({ userId }) {
                             >
                               {item.rating === 'good' ? <IconCheckCircle /> : <IconAlert />}
                             </button>
-                            {/* La grille + le pseudo-élément miroir dimensionnent la zone de
-                                saisie sur son contenu : une remarque courte reste courte. */}
                             <span className="eval-item-sizer" data-value={item.comment || ''}>
                               <textarea
                                 className="eval-item-input"
@@ -421,8 +385,6 @@ export default function EvaluationSection({ userId }) {
                 })}
               </div>
 
-              {/* Développement & évolution : repliable, contrairement aux 4 critères
-                  ci-dessus qui restent toujours à l'écran. */}
               <button
                 type="button"
                 className="eval-dev-toggle"
@@ -444,8 +406,6 @@ export default function EvaluationSection({ userId }) {
               <div className="eval-dev">
                 {TEXT_FIELDS.map(({ key, label, placeholder }) => (
                   <div className="eval-dev-field" key={key}>
-                    {/* Plus un <label for> : la zone de saisie est un div[role=textbox]
-                        (éditeur riche), que l'attribut for ne peut pas désigner. */}
                     <span className="eval-dev-label">
                       {label}
                       <AuthorStamp
@@ -465,7 +425,6 @@ export default function EvaluationSection({ userId }) {
                 ))}
               </div>
 
-              {/* Commentaire global — toujours visible par l'employé */}
               <div className="eval-global">
                 <span className="eval-global-label">
                   Commentaire global <span className="eval-global-hint">(toujours visible par l'employé)</span>

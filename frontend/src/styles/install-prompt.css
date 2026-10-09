@@ -1,4 +1,3 @@
-/* Bandeau « Installer l'application » (PWA) — fixé en bas, discret, responsive. */
 .pwa-install {
   position: fixed;
   left: 50%;

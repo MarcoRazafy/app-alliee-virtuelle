@@ -1,10 +1,5 @@
 const db = require('../config/database');
 
-// To Do d'un employé = sa sélection « Ma journée » validée (user_daily_selection).
-// Daily  d'un employé = les tâches qu'il a glissées comme faites (user_daily_done).
-// Chaque tâche porte le nom de son projet (liste) pour le regroupement côté front.
-
-// --- Sélection Daily (tâches faites), par jour ---
 async function findDailyDone(userId, date) {
   const result = await db.query(
     `SELECT d.task_id AS id, t.title, t.priority, t.deadline, d.created_at,
@@ -21,11 +16,6 @@ async function findDailyDone(userId, date) {
   return result.rows;
 }
 
-// Ajoute une tâche au Daily du jour sans toucher aux autres, à la suite de celles déjà
-// présentes. Utilisé quand une tâche est marquée Terminée : elle « glisse » d'elle-même dans
-// le Daily, au lieu d'obliger l'employé à refaire le geste à la main.
-// ON CONFLICT DO NOTHING : la contrainte d'unicité (user, tâche, date) rend l'opération
-// rejouable — terminer puis rouvrir puis re-terminer ne crée pas de doublon.
 async function addDailyDone(userId, date, taskId, client = db) {
   await client.query(
     `INSERT INTO user_daily_done (user_id, task_id, selected_order, date)
@@ -55,7 +45,6 @@ async function replaceDailyDone(userId, date, taskIds) {
   });
 }
 
-// --- Vue admin : par employé, To Do (jour validé) + Daily (tâches faites) pour la date ---
 async function getDailyOverview(date) {
   const employees = (
     await db.query(`SELECT id, full_name, position FROM users WHERE role = 'EMPLOYEE' ORDER BY full_name ASC`)

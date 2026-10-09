@@ -1,6 +1,3 @@
-// Icônes inline (SVG, trait 2px, currentColor) — aucune dépendance ajoutée,
-// même style que les icônes déjà utilisées dans ThemeToggle/AuthBanner.
-
 function base(children, props) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" {...props}>
@@ -19,7 +16,6 @@ export const IconWorkspace = (props) =>
     props
   );
 
-// Grille de panneaux — glyphe classique de tableau de bord.
 export const IconDashboard = (props) =>
   base(
     <>
@@ -132,7 +128,6 @@ export const IconSearch = (props) =>
 export const IconChevronDown = (props) =>
   base(<path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
 
-// Chevrons horizontaux : navigation de semaine en semaine (feuille de temps).
 export const IconChevronLeft = (props) =>
   base(<path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
 
@@ -204,7 +199,6 @@ export const IconTrendingUp = (props) =>
     props
   );
 
-// Coche seule, branche droite plus longue que la gauche : le « nike » des réactions.
 export const IconCheck = (props) =>
   base(
     <path d="M4.5 12.5l4.5 4.5L20 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />,
@@ -235,7 +229,6 @@ export const IconBell = (props) =>
     props
   );
 
-// Flèches circulaires : actualiser / recharger.
 export const IconRefresh = (props) =>
   base(
     <>
@@ -247,7 +240,6 @@ export const IconRefresh = (props) =>
     props
   );
 
-// Flèche de réponse (répondre à un email).
 export const IconReply = (props) =>
   base(
     <>
@@ -257,7 +249,6 @@ export const IconReply = (props) =>
     props
   );
 
-// Enveloppe : icône de la boîte mail.
 export const IconMail = (props) =>
   base(
     <>
@@ -267,7 +258,6 @@ export const IconMail = (props) =>
     props
   );
 
-// Mégaphone : icône des annonces (distincte de la cloche des notifications).
 export const IconMegaphone = (props) =>
   base(
     <>
@@ -283,7 +273,6 @@ export const IconMegaphone = (props) =>
     props
   );
 
-// Trois points verticaux (menu d'actions « … »).
 export const IconDots = (props) =>
   base(
     <>
@@ -294,7 +283,6 @@ export const IconDots = (props) =>
     props
   );
 
-// Étoile (annonce « Importante »).
 export const IconStar = (props) =>
   base(
     <path
@@ -307,7 +295,6 @@ export const IconStar = (props) =>
     props
   );
 
-// Épingle (annonce épinglée).
 export const IconPin = (props) =>
   base(
     <>
@@ -322,7 +309,6 @@ export const IconPin = (props) =>
     props
   );
 
-// Flèche « Transférer » (partage vers une autre discussion).
 export const IconForward = (props) =>
   base(
     <>
@@ -332,7 +318,6 @@ export const IconForward = (props) =>
     props
   );
 
-// Éditeur riche : lien, liste à puces, liste numérotée.
 export const IconLink = (props) =>
   base(
     <>
@@ -409,7 +394,6 @@ export const IconDownload = (props) =>
     props
   );
 
-// Œil — prévisualiser / voir un fichier.
 export const IconEye = (props) =>
   base(
     <>

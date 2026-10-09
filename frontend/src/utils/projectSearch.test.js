@@ -22,7 +22,6 @@ test('la recherche ignore la casse', () => {
 });
 
 test('chaque mot compte séparément, sans ordre imposé', () => {
-  // « factu clients » : les deux mots sont dans le chemin, mais pas côte à côte.
   assert.deepEqual(paths(filterProjects(PROJECTS, 'factu clients')), [
     'Espace Opérations › Clients › Facturation',
   ]);

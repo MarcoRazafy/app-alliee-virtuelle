@@ -4,7 +4,7 @@
 
 Style : dashboard opérationnel sombre, calme, précis et orienté action.
 
-Le moteur UI/UX Pro Max recommande une base « Modern Dark » et une typographie de dashboard dense. La palette générée utilise l'ambre comme couleur primaire ; cette proposition l'adapte pour préserver l'identité bleue existante. L'ambre reste sémantique : temps, attente et avertissement. Le bleu reste réservé à la navigation active et aux actions principales.
+La référence retenue est une base « Modern Dark » et une typographie de dashboard dense. La palette de départ utilise l'ambre comme couleur primaire ; cette proposition l'adapte pour préserver l'identité bleue existante. L'ambre reste sémantique : temps, attente et avertissement. Le bleu reste réservé à la navigation active et aux actions principales.
 
 ## Couleurs
 

@@ -1,5 +1,3 @@
--- Sélection « Daily » d'un employé : les tâches qu'il glisse comme « faites » dans la journée.
--- Parallèle à user_daily_selection (le To Do), mais sans validation (le Daily se remplit librement).
 CREATE TABLE IF NOT EXISTS user_daily_done (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -1,12 +1,3 @@
-/**
- * Associe les portraits générés de frontend/public/employer aux profils employés.
- *
- * Les fichiers sont copiés dans uploads/avatars, puis servis par les routes
- * d'avatar authentifiées existantes. Marco Razafimamonjy est volontairement
- * exclu et son avatar éventuel n'est jamais modifié.
- *
- * Lancer : npm run seed:employee-photos
- */
 const fs = require('fs');
 const path = require('path');
 const db = require('../src/config/database');

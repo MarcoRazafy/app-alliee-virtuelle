@@ -25,9 +25,6 @@ import '../../styles/resources.css';
 const TABS = [
   { value: 'INTERNE', label: 'Interne' },
   { value: 'CLIENT', label: 'Client' },
-  // Espace réservé à l'équipe d'administration : le serveur refuse ce type à un employé
-  // (dossiers, listes de fichiers, aperçu et téléchargement), et la page employé ne
-  // propose pas l'onglet. L'onglet n'existe donc QUE dans cette page admin.
   { value: 'ADMIN', label: 'Admin' },
 ];
 
@@ -41,10 +38,9 @@ function AdminResources() {
   const [fileSearch, setFileSearch] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState([]);
   const [uploading, setUploading] = useState(false);
-  // Pourcentage envoyé (null = inconnu) : une vidéo peut mettre plusieurs minutes à partir.
   const [uploadProgress, setUploadProgress] = useState(null);
   const [viewerFile, setViewerFile] = useState(null);
-  const [editor, setEditor] = useState(null); // { document } (édition) ou { document: null } (création)
+  const [editor, setEditor] = useState(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [trash, setTrash] = useState({ folders: [], files: [] });
   const [trashLoading, setTrashLoading] = useState(false);
@@ -211,8 +207,6 @@ function AdminResources() {
     }
   }
 
-  // Fermer l'onglet pendant l'envoi d'une vidéo perdrait des minutes de transfert : le
-  // navigateur demande confirmation tant que l'import n'est pas terminé.
   useEffect(() => {
     if (!uploading) return undefined;
     const warn = (event) => {

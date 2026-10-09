@@ -13,7 +13,7 @@ Ce dossier transforme l'audit de l'interface actuelle en une proposition concrè
 - [`captures/maquette-dashboard-admin.png`](./captures/maquette-dashboard-admin.png) : aperçu desktop de la proposition.
 - [`captures/maquette-dashboard-admin-mobile.png`](./captures/maquette-dashboard-admin-mobile.png) : aperçu mobile de la proposition.
 
-Le fichier généré par UI/UX Pro Max reste disponible dans [`../design-system/alliee-virtuelle/MASTER.md`](../design-system/alliee-virtuelle/MASTER.md). Le présent dossier l'adapte à la marque et aux usages observés dans l'application.
+Le fichier de référence du design system reste disponible dans [`../design-system/alliee-virtuelle/MASTER.md`](../design-system/alliee-virtuelle/MASTER.md). Le présent dossier l'adapte à la marque et aux usages observés dans l'application.
 
 ## Ouvrir la maquette
 

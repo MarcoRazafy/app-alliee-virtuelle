@@ -4,10 +4,6 @@ const env = require('../config/env');
 const emailModel = require('../models/email.model');
 const { broadcast } = require('../realtime/io');
 
-// Boîte mail entrante : on se connecte à Gmail en IMAP, on rattrape les mails récents au
-// démarrage, puis on reste en écoute (IDLE) pour recevoir les nouveaux en temps réel.
-// Inerte sans IMAP_USER/IMAP_PASS (mot de passe d'application Google, en variables d'env).
-
 const enabled = Boolean(env.imapUser && env.imapPass);
 const ACCOUNT = env.imapUser;
 const MAILBOX = 'INBOX';
@@ -20,7 +16,6 @@ function isEnabled() {
   return enabled;
 }
 
-// Parse un message brut et l'insère (sans doublon). Renvoie la ligne insérée, ou null.
 async function handleMessage(msg) {
   try {
     const parsed = await simpleParser(msg.source);
@@ -58,7 +53,6 @@ async function handleMessage(msg) {
   }
 }
 
-// Récupère ce qui est plus récent que le dernier UID stocké (ou les N derniers au 1er run).
 async function syncNew() {
   if (syncing || !client) return;
   syncing = true;
@@ -67,8 +61,6 @@ async function syncNew() {
     let range;
     let byUid;
     if (maxUid > 0) {
-      // Tout ce qui a un UID supérieur. (IMAP renvoie au pire le dernier message déjà connu,
-      // que le ON CONFLICT DO NOTHING ignore — pas de doublon.)
       range = `${maxUid + 1}:*`;
       byUid = true;
     } else {
@@ -115,7 +107,6 @@ async function connectAndWatch() {
     client = null;
     setTimeout(connectAndWatch, 15000);
   });
-  // Nouveau(x) message(s) arrivé(s) pendant l'écoute IDLE → on synchronise.
   client.on('exists', () => {
     syncNew();
   });
@@ -147,13 +138,11 @@ async function stop() {
     try {
       await client.logout();
     } catch {
-      /* ignore */
     }
     client = null;
   }
 }
 
-// Déclenche une synchro à la demande (bouton « Actualiser » de la page).
 async function refresh() {
   if (!client) return false;
   await syncNew();

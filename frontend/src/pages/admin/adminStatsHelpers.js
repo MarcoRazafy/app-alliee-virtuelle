@@ -1,7 +1,5 @@
 import { formatDurationShort } from '../../utils/formatters';
 
-// Constantes et helpers purs de la page Statistiques (extraits pour l'alléger).
-
 export const PRESETS = [
   { id: 'day', label: "Aujourd'hui" },
   { id: 'week', label: '7 jours' },
@@ -10,9 +8,6 @@ export const PRESETS = [
   { id: 'custom', label: 'Personnalisé' },
 ];
 
-// Ordre du workflow. Couleurs = palette catégorielle validée (CVD ΔE 16.8, vision
-// normale 16.3) ; DECLAREE reste un neutre délibéré (état « pas encore actionné »),
-// toujours accompagné d'un label direct + légende (encodage secondaire).
 export const STATUS_ORDER = ['DECLAREE', 'VALIDEE', 'EN_COURS', 'TERMINEE', 'CONFIRMEE'];
 export const STATUS_INFO = {
   DECLAREE: { label: 'Déclarée', color: '#64748b' },

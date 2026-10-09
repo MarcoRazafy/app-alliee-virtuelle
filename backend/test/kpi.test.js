@@ -2,8 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { computeCompletionRate } = require('../src/utils/kpi');
 
-// Taux de complétion = tâches CONFIRMEE / assignées, arrondi à une décimale (ex : 66.7).
-
 test('aucune tâche assignée → taux de 0 (pas de division par zéro)', () => {
   assert.equal(computeCompletionRate(0, 0), 0);
   assert.equal(computeCompletionRate(5, 0), 0);

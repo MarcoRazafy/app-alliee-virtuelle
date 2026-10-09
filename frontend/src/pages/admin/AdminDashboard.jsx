@@ -34,7 +34,6 @@ const STATUS_FILTERS = [
   { value: 'TERMINEE', label: 'Effectuées' },
 ];
 
-// Chrono qui s'incrémente en direct pour une session de tâche encore ouverte
 function LiveClock({ startTime }) {
   const [elapsed, setElapsed] = useState(0);
 
@@ -71,10 +70,8 @@ function AdminDashboard() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [avatarUrls, setAvatarUrls] = useState({});
-  // Raccourcis des cartes KPI : filtrer les employés actifs / afficher le panneau des tâches en cours.
   const [activeOnly, setActiveOnly] = useState(false);
   const [showInProgressPanel, setShowInProgressPanel] = useState(false);
-  // Totaux équipe du jour pour la card « To Do / Daily » (nb d'items à faire / faits).
   const [dailyCounts, setDailyCounts] = useState({ todo: 0, daily: 0 });
 
   function load() {
@@ -86,12 +83,10 @@ function AdminDashboard() {
         setLastUpdate(new Date());
       })
       .catch((err) => {
-        // Pas de toast si la session vient d'expirer / se déconnecter (401) : appel de fond.
         if (!err.isAuthError) notifyError(err.response?.data?.error || 'Impossible de charger le tableau de bord');
       })
       .finally(() => setRefreshing(false));
 
-    // Totaux To Do / Daily de l'équipe (silencieux, appel de fond).
     dailyService
       .getOverview()
       .then((d) => {
@@ -106,9 +101,7 @@ function AdminDashboard() {
 
   useEffect(() => {
     load();
-    // Le polling n'est plus qu'un secours (le temps réel gère l'instantané) → intervalle allongé.
     const poll = setInterval(load, 30000);
-    // Recharge quand une tâche est créée/supprimée dans l'app (sans actualiser).
     const onTasksChanged = () => load();
     window.addEventListener('tasks:changed', onTasksChanged);
     return () => {
@@ -117,8 +110,6 @@ function AdminDashboard() {
     };
   }, []);
 
-  // Temps réel : rafraîchit le tableau de bord dès qu'une activité (tâches/chrono via
-  // notification:new) ou une présence (connexion/déconnexion via presence:update) change.
   useEffect(() => {
     const socket = getSocket();
     socket.on('notification:new', load);
@@ -132,8 +123,6 @@ function AdminDashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    // Le tableau de bord reçoit parfois des données anciennes sans `has_avatar`;
-    // on tente donc le même chargement que dans la page Planning pour chaque employé.
     Promise.all((data?.employees || []).map(async (employee) => {
       try { return [employee.id, URL.createObjectURL(await avatarService.getUserAvatarBlob(employee.id))]; }
       catch { return null; }
@@ -165,7 +154,6 @@ function AdminDashboard() {
     );
   }, [data, query, activeOnly]);
 
-  // Toutes les tâches en cours (aplaties depuis les employés), pour le panneau « Tâches en cours ».
   const inProgressTasks = useMemo(() => {
     if (!data) return [];
     return data.employees.flatMap((employee) =>
@@ -354,7 +342,6 @@ function AdminDashboard() {
           {visibleEmployees.map((employee) => {
             const todo = byPriority(employee.todo);
             const inProgress = byPriority(employee.in_progress);
-            // "Actif" = connecté à son compte (session ouverte), plus besoin d'avoir démarré une tâche.
             const isActive = employee.is_connected;
 
             return (

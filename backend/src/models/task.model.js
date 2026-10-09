@@ -1,9 +1,6 @@
 const db = require('../config/database');
 const { planSelection } = require('../utils/myDay');
 
-// Journée de TRAVAIL, terminée à 2 h du matin et non à minuit (voir utils/businessDay) :
-// regrouper par `::date` coupait en deux le poste d'un employé de nuit, et CURRENT_DATE
-// dépendait du fuseau de la session PostgreSQL — différent en local et sur Railway.
 const { sqlBusinessDay: DAY, sqlToday } = require('../utils/businessDay');
 const { sqlIsLate } = require('../utils/lateTasks');
 const TODAY = sqlToday();
@@ -20,9 +17,6 @@ const TASK_STATUS = {
 };
 
 async function findAssignedTasks(userId, { status, priority, deadline, listId } = {}) {
-  // L'employé voit une tâche s'il fait partie de ses assignés (assignation multiple).
-  // Les propositions DECLAREE (créées par l'employé lui-même) sont désormais visibles
-  // dans « Mes tâches » avec le libellé « Non validée », en attente d'approbation admin.
   const conditions = [
     'EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $1)',
   ];
@@ -46,8 +40,6 @@ async function findAssignedTasks(userId, { status, priority, deadline, listId } 
   }
 
   const result = await db.query(
-    // created_by : « Mes tâches » distingue celles que l'employé a créées lui-même — lui
-    // seul peut les supprimer, et il doit pouvoir les repérer dans la liste.
     `SELECT t.id, t.title, t.description, t.priority, t.status, t.deadline, t.list_id, t.parent_task_id,
             t.created_by, t.created_at, t.client_name, t.client_email, tl.name AS list_name,
             tf.name AS folder_name, ts.name AS space_name,
@@ -64,7 +56,6 @@ async function findAssignedTasks(userId, { status, priority, deadline, listId } 
   return result.rows;
 }
 
-// Vue admin : toutes les tâches, tous employés confondus (nécessaire pour confirm/reject)
 async function findAllTasks({ status, priority, deadline, listId, activeOnly = false } = {}) {
   const conditions = [];
   const params = [];
@@ -139,7 +130,7 @@ async function create({
   title,
   description,
   assignedTo,
-  assigneeIds, // liste optionnelle (assignation multiple) ; sinon on retombe sur assignedTo
+  assigneeIds,
   createdBy,
   priority,
   deadline,
@@ -150,9 +141,6 @@ async function create({
   clientEmail,
   status,
 }) {
-  // Source de vérité des personnes : assigneeIds si fourni, sinon [assignedTo]. Le 1er sert
-  // d'assigné « principal » (colonne assigned_to, gardée pour la compatibilité), et TOUS sont
-  // écrits dans task_assignees. Tâche + assignés créés de façon atomique (transaction).
   const assignees = [...new Set((assigneeIds && assigneeIds.length ? assigneeIds : [assignedTo]).filter(Boolean))];
   const primary = assignees[0] || assignedTo;
   return db.withTransaction(async (client) => {
@@ -189,9 +177,6 @@ async function create({
   });
 }
 
-// --- Assignés multiples (task_assignees) ---
-
-// Liste des personnes assignées à une tâche (id + nom), triées par nom.
 async function getAssignees(taskId) {
   const result = await db.query(
     `SELECT u.id, u.full_name
@@ -203,7 +188,6 @@ async function getAssignees(taskId) {
   return result.rows;
 }
 
-// L'utilisateur est-il assigné à la tâche ? (source de vérité pour les permissions)
 async function isAssignee(taskId, userId) {
   const result = await db.query(
     `SELECT 1 FROM task_assignees WHERE task_id = $1 AND user_id = $2`,
@@ -212,7 +196,6 @@ async function isAssignee(taskId, userId) {
   return result.rowCount > 0;
 }
 
-// Ajoute une personne à une tâche (sans doublon). Met à jour assigned_to si vide.
 async function addAssignee(taskId, userId, client = db) {
   await client.query(
     `INSERT INTO task_assignees (task_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
@@ -220,12 +203,10 @@ async function addAssignee(taskId, userId, client = db) {
   );
 }
 
-// Retire une personne d'une tâche.
 async function removeAssignee(taskId, userId, client = db) {
   await client.query(`DELETE FROM task_assignees WHERE task_id = $1 AND user_id = $2`, [taskId, userId]);
 }
 
-// Remplace TOUS les assignés d'une tâche par la liste donnée (utilisé pour un transfert).
 async function setAssignees(taskId, userIds, client = db) {
   await client.query(`DELETE FROM task_assignees WHERE task_id = $1`, [taskId]);
   for (const uid of [...new Set(userIds.filter(Boolean))]) {
@@ -236,7 +217,6 @@ async function setAssignees(taskId, userIds, client = db) {
   }
 }
 
-// Sous-tâches d'une tâche parente
 async function findSubtasks(parentTaskId) {
   const result = await db.query(
     `SELECT id, title, priority, status, deadline
@@ -246,7 +226,6 @@ async function findSubtasks(parentTaskId) {
   return result.rows;
 }
 
-// Vue détail "ClickUp" : tâche + fil d'Ariane (space/folder/list) + sous-tâches + temps total
 async function getTaskDetail(taskId) {
   const taskResult = await db.query(
     `SELECT t.id, t.title, t.description, t.assigned_to, t.created_by, t.priority, t.status,
@@ -302,9 +281,7 @@ async function updateStatus(taskId, status, client = db) {
   return result.rows[0];
 }
 
-// Modifie les champs éditables d'une tâche (titre, description, priorité, échéance).
 async function updateTask(taskId, { title, description, priority, deadline, startDate }, client = db) {
-  // start_date : COALESCE → on ne l'écrase que si une valeur est explicitement fournie.
   const result = await client.query(
     `UPDATE tasks
        SET title = $2, description = $3, priority = $4, deadline = $5,
@@ -316,11 +293,6 @@ async function updateTask(taskId, { title, description, priority, deadline, star
   return result.rows[0] || null;
 }
 
-// Ne touche QUE l'échéance. updateTask réécrit aussi titre, priorité et description (NULL si
-// absente) : l'utiliser depuis une carte qui ne connaît que l'échéance effacerait la
-// description, et écraserait une modification faite entre-temps par quelqu'un d'autre.
-// deadline::text : une colonne DATE lue par pg devient un objet Date à minuit LOCAL, que le
-// JSON transforme en « veille à 21:00Z » — on rend la chaîne telle qu'enregistrée.
 async function updateDeadline(taskId, deadline, client = db) {
   const result = await client.query(
     `UPDATE tasks SET deadline = $2, updated_at = now()
@@ -331,9 +303,6 @@ async function updateDeadline(taskId, deadline, client = db) {
   return result.rows[0] || null;
 }
 
-// Ne touche QUE la description. Fonction distincte de updateTask, qui réécrit titre,
-// priorité et échéance : l'employé n'a le droit de modifier que ce champ, et une requête
-// qui ne peut rien écrire d'autre vaut mieux qu'un contrôle à ne pas oublier.
 async function updateDescription(taskId, description, client = db) {
   const result = await client.query(
     `UPDATE tasks SET description = $2, updated_at = now()
@@ -344,7 +313,6 @@ async function updateDescription(taskId, description, client = db) {
   return result.rows[0] || null;
 }
 
-// Réassigne une tâche à une autre personne (transfert). Ne touche qu'au destinataire.
 async function updateAssignee(taskId, assigneeId, client = db) {
   const result = await client.query(
     `UPDATE tasks SET assigned_to = $2, updated_at = now() WHERE id = $1
@@ -368,13 +336,8 @@ async function recordAudit({ userId, action, entityType, entityId, details }, cl
      VALUES ($1, $2, $3, $4, $5)`,
     [userId, action, entityType, entityId, details ? JSON.stringify(details) : null]
   );
-  // Temps réel : signale une nouvelle activité pour rafraîchir les notifications. Chaque
-  // client re-fetch (la visibilité par utilisateur, dont l'exclusion de ses propres actions,
-  // reste appliquée côté serveur). actorId permet à l'auteur d'ignorer sa propre action.
   realtime.broadcast('notification:new', { actorId: userId, action, entityType });
 }
-
-// --- Timelog ---
 
 async function findActiveSessionForEmployee(employeeId) {
   const result = await db.query(
@@ -384,8 +347,6 @@ async function findActiveSessionForEmployee(employeeId) {
   return result.rows[0] || null;
 }
 
-// Tâche actuellement chronométrée par l'employé (chrono en cours), avec son titre — pour le
-// widget « tâche en cours » affiché en haut de l'espace employé. null si aucun chrono actif.
 async function findActiveTaskForEmployee(employeeId) {
   const result = await db.query(
     `SELECT tl.task_id, tl.start_time, t.title
@@ -428,13 +389,6 @@ async function stopSession(sessionId, client = db) {
   return result.rows[0];
 }
 
-// Saisie manuelle d'un temps de travail (admin) : chrono oublié, on enregistre a posteriori
-// une plage début→fin déjà terminée. La durée est calculée par la BD.
-// Les colonnes de timelog sont SANS fuseau et le chrono y écrit now() : l'heure y est donc
-// celle de la session PostgreSQL (UTC sur Railway, Madagascar en local). Une heure reçue du
-// client doit être ramenée à cette même convention, sinon elle se décale des vraies sessions.
-// On reçoit un instant absolu (ISO), converti avec AT TIME ZONE current_setting('TimeZone').
-// Une ancienne valeur sans fuseau reste lue à l'heure de la session : même résultat qu'avant.
 const SESSION_LOCAL = (param) => `(${param}::timestamptz AT TIME ZONE current_setting('TimeZone'))`;
 
 async function addManualTimelog(taskId, employeeId, startTime, endTime, client = db) {
@@ -453,8 +407,6 @@ async function findTimelogById(entryId) {
   return result.rows[0] || null;
 }
 
-// Corrige une session chronométrée. La durée est TOUJOURS recalculée à partir des bornes :
-// la laisser à la main du client ferait diverger le total affiché de l'intervalle réel.
 async function updateTimelogEntry(entryId, startTime, endTime) {
   const result = await db.query(
     `UPDATE timelog
@@ -486,13 +438,8 @@ async function findTimelogHistory(taskId) {
   return result.rows;
 }
 
-// --- Ma journée ---
-
 async function findDailySelection(userId, date) {
   const result = await db.query(
-    // Le regroupement de « Ma journée » affiche l'emplacement complet (espace › dossier ›
-    // liste) : le seul nom de liste ne suffit pas à situer une tâche quand deux dossiers
-    // ont une liste homonyme.
     `SELECT s.task_id, s.selected_order, s.validated_at,
             t.title, t.description, t.priority, t.status, t.deadline, t.list_id,
             tl.name AS list_name, tf.name AS folder_name, ts.name AS space_name
@@ -517,10 +464,6 @@ async function validateDailySelection(userId, date, client = db) {
   return result.rowCount;
 }
 
-// Remplace la sélection du jour par la liste ordonnée reçue (drag-drop côté front).
-// Une journée déjà validée le RESTE (voir utils/myDay) : les tâches présentes gardent leur
-// heure de validation, les nouvelles sont validées à l'instant. Rend { wasValidated, added }.
-// `client` : à fournir pour s'inscrire dans une transaction de l'appelant.
 async function replaceDailySelection(userId, date, taskIds, client = null) {
   const run = async (c) => {
     const previous = await c.query(
@@ -549,13 +492,6 @@ async function replaceDailySelection(userId, date, taskIds, client = null) {
   return client ? run(client) : db.withTransaction(run);
 }
 
-// --- Commentaires & notes ---
-
-// onlyType filtre strictement côté serveur : jamais confié au frontend de séparer NOTE/COMMENT
-// Réactions d'un commentaire, agrégées par emoji : combien, si le lecteur en fait partie, et
-// QUI — un « vu » n'a d'intérêt que si l'on sait qui l'a posé. L'identifiant accompagne le
-// nom : c'est lui qui permet d'écrire « Vous » sans confondre deux homonymes. `viewerParam` = placeholder $N
-// du lecteur ; `commentExpr` = expression SQL de l'identifiant du commentaire.
 function commentReactionsSql(viewerParam, commentExpr = 'c.id') {
   return `COALESCE((
     SELECT json_agg(json_build_object('emoji', e.emoji, 'count', e.count, 'mine', e.mine, 'users', e.users)
@@ -574,8 +510,6 @@ function commentReactionsSql(viewerParam, commentExpr = 'c.id') {
 
 async function findComments(taskId, { onlyType, viewerId = null } = {}) {
   const conditions = ['c.task_id = $1'];
-  // $2 = lecteur, pour marquer ses propres réactions. Toujours présent, même à null :
-  // la position des paramètres suivants ne dépend ainsi pas de sa présence.
   const params = [taskId, viewerId];
   if (onlyType) {
     params.push(onlyType);
@@ -608,17 +542,12 @@ async function createComment({ taskId, authorId, content, type, isVisibleToEmplo
   return result.rows[0];
 }
 
-// Pose la réaction si elle n'existe pas, la retire sinon — un clic de plus annule, comme
-// partout ailleurs. Rend l'état agrégé à jour du commentaire, pour que l'interface se cale
-// sur la vérité du serveur (deux personnes peuvent réagir au même moment).
 async function toggleCommentReaction(commentId, userId, emoji) {
   const removed = await db.query(
     `DELETE FROM task_comment_reactions WHERE comment_id = $1 AND user_id = $2 AND emoji = $3 RETURNING id`,
     [commentId, userId, emoji]
   );
   if (removed.rowCount === 0) {
-    // ON CONFLICT : un double clic très rapide enverrait deux insertions ; la seconde ne doit
-    // pas lever d'erreur d'unicité.
     await db.query(
       `INSERT INTO task_comment_reactions (comment_id, user_id, emoji) VALUES ($1, $2, $3)
        ON CONFLICT (comment_id, user_id, emoji) DO NOTHING`,
@@ -631,8 +560,6 @@ async function toggleCommentReaction(commentId, userId, emoji) {
   ]);
   return result.rows[0].reactions;
 }
-
-// --- Pièces jointes ---
 
 async function findAttachments(taskId) {
   const result = await db.query(
@@ -651,9 +578,7 @@ async function findAttachmentById(attachmentId) {
   return result.rows[0] || null;
 }
 
-// Utilisé pour vérifier qu'un commentaire cible appartient bien à la tâche visée.
 async function findCommentById(commentId) {
-  // `type` remonte aussi : une NOTE est réservée aux admins, l'appelant doit pouvoir le voir.
   const result = await db.query(
     'SELECT id, task_id, author_id, type FROM task_comments WHERE id = $1',
     [commentId]
@@ -661,9 +586,6 @@ async function findCommentById(commentId) {
   return result.rows[0] || null;
 }
 
-// Fichiers portés par un commentaire. La colonne comment_id est ON DELETE SET NULL : sans
-// cette liste, supprimer un commentaire laisserait ses fichiers orphelins sur le disque ET
-// dans les pièces jointes de la tâche, comme s'ils n'avaient jamais appartenu au message.
 async function findAttachmentsByComment(commentId) {
   const result = await db.query(
     'SELECT id, file_path FROM task_attachments WHERE comment_id = $1',
@@ -672,8 +594,6 @@ async function findAttachmentsByComment(commentId) {
   return result.rows;
 }
 
-// edited_at reste NULL tant que le message n'a pas été corrigé : c'est ce qui permet
-// d'afficher la mention « modifié » sans la coller à tous les commentaires.
 async function updateCommentContent(commentId, content) {
   const result = await db.query(
     `UPDATE task_comments
@@ -704,22 +624,12 @@ async function deleteAttachment(attachmentId) {
   await db.query('DELETE FROM task_attachments WHERE id = $1', [attachmentId]);
 }
 
-// Suppression d'une tâche (admin). Les tables liées (historique, commentaires, pièces jointes,
-// chronos, demandes, sous-tâches via parent_task_id) sont supprimées en cascade par la BD.
 async function deleteTask(taskId, client = db) {
   await client.query('DELETE FROM tasks WHERE id = $1', [taskId]);
 }
 
-// --- Admin : supervision ---
-
-// Tâches en retard : deadline dépassée ET pas confirmée (une CONFIRMEE n'est jamais en retard - DECISIONS.md)
 async function findLateTasks() {
   const result = await db.query(
-    // has_active_session : indispensable pour distinguer « En cours » de « À reprendre ».
-    // Sans lui, displayStatusOf afficherait « À reprendre » sur TOUTE tâche en cours.
-    // Chemin projet (espace › dossier › liste) : la liste des retards s'affiche désormais en
-    // cartes, comme « À valider », qui le montrent et permettent d'ouvrir le projet.
-    // LEFT JOIN : une tâche sans liste reste en retard, elle n'a simplement pas de chemin.
     `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.assigned_to,
             u.full_name AS assigned_to_name, t.start_date::text AS start_date,
             t.list_id, tl.name AS list_name, tf.id AS folder_id, tf.name AS folder_name,
@@ -738,7 +648,6 @@ async function findLateTasks() {
   return result.rows;
 }
 
-// Vue admin : toutes les tâches d'un employé, y compris DECLAREE (l'admin voit tout)
 async function findTasksForEmployee(userId) {
   const result = await db.query(
     `SELECT t.id, t.title, t.priority, t.status, t.deadline, t.list_id,
@@ -795,7 +704,6 @@ async function findRecentAuditForUser(userId, limit = 10) {
   return result.rows;
 }
 
-// Suivi en temps réel : employés actifs, tâches réellement en cours (session active), tâches en retard
 async function computeRealtimeDashboard() {
   const employeesResult = await db.query(
     `SELECT u.id, u.full_name, u.position,
@@ -810,12 +718,10 @@ async function computeRealtimeDashboard() {
       (SELECT COUNT(*) FROM tasks WHERE ${sqlIsLate()})::INTEGER AS tasks_late
   `);
 
-  // 3 requêtes groupées sur tous les employés plutôt que 3 requêtes par employé (N+1)
   const employeeIds = employeesResult.rows.map((employee) => employee.id);
 
   const [todoResult, inProgressResult, doneResult, connectedUserIds] = await Promise.all([
     db.query(
-      // Uniquement les tâches que l'employé a sélectionnées dans « Ma journée » aujourd'hui.
       `SELECT id, assigned_to, title, priority FROM tasks
        WHERE assigned_to = ANY($1::uuid[]) AND status = 'VALIDEE'
          AND EXISTS (SELECT 1 FROM user_daily_selection uds
@@ -824,8 +730,6 @@ async function computeRealtimeDashboard() {
       [employeeIds]
     ),
     db.query(
-      // Toutes les tâches EN_COURS de la sélection du jour (LEFT JOIN : qu'un chrono soit
-      // actif ou non). session_start_time n'est renseigné que si un chrono tourne réellement.
       `SELECT t.id, t.assigned_to, t.title, t.priority, tl.start_time AS session_start_time
        FROM tasks t
        LEFT JOIN timelog tl ON tl.task_id = t.id AND tl.end_time IS NULL
@@ -843,8 +747,6 @@ async function computeRealtimeDashboard() {
                      WHERE uds.task_id = t.id AND uds.user_id = t.assigned_to AND uds.date = ${TODAY})`,
       [employeeIds]
     ),
-    // "Actif" = réellement en ligne (définition partagée : session ouverte, pas de
-    // déconnexion signalée, heartbeat récent) — pas juste logout_at NULL.
     sessionModel.findLiveUserIds(employeeIds),
   ]);
 

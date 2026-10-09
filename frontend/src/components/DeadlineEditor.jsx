@@ -4,9 +4,6 @@ import { formatDate } from '../utils/formatters';
 import { notifyError, notifySuccess } from '../utils/toast';
 import { IconCheck, IconPencil, IconX } from './icons';
 
-// Date 'YYYY-MM-DD' à partir d'une échéance reçue du serveur, lue à l'heure du navigateur.
-// Une colonne DATE arrive en JSON comme « minuit local du serveur » ; ne garder que les dix
-// premiers caractères de la chaîne ISO décalerait d'un jour selon le fuseau.
 function toYMD(value) {
   if (!value) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return String(value);
@@ -16,15 +13,11 @@ function toYMD(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-// 'YYYY-MM-DD' → Date à minuit LOCAL (new Date('2026-12-31') serait minuit UTC).
 function localDate(ymd) {
   const [y, m, d] = ymd.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
 
-// Échéance modifiable sur place : « Échéance : 26 juin 2026 ✎ » devient un sélecteur de date.
-// Enregistrement explicite (✓ ou Entrée), jamais à la perte du focus : le calendrier natif
-// retire le focus du champ pendant qu'on choisit, un enregistrement au blur partirait trop tôt.
 export default function DeadlineEditor({ taskId, deadline, startDate, onChanged }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
@@ -35,12 +28,9 @@ export default function DeadlineEditor({ taskId, deadline, startDate, onChanged 
   useEffect(() => {
     if (!editing) return;
     inputRef.current?.focus();
-    // Ouvre directement le calendrier : un clic de moins. Refusé par certains navigateurs hors
-    // geste utilisateur ; le champ reste alors utilisable normalement.
     try {
       inputRef.current?.showPicker?.();
     } catch {
-      /* pas de calendrier automatique : rien à faire */
     }
   }, [editing]);
 
@@ -64,7 +54,6 @@ export default function DeadlineEditor({ taskId, deadline, startDate, onChanged 
     try {
       const result = await taskService.updateTaskDeadline(taskId, value);
       const label = formatDate(localDate(value));
-      // La carte va quitter la liste si la tâche n'est plus en retard : le message dit pourquoi.
       notifySuccess(
         result.is_late ? `Échéance modifiée : ${label}` : `Échéance reportée au ${label} : la tâche n'est plus en retard`
       );
@@ -101,7 +90,6 @@ export default function DeadlineEditor({ taskId, deadline, startDate, onChanged 
             save();
           }
           if (e.key === 'Escape') {
-            // Ne ferme que l'édition, pas une fenêtre qui l'entourerait.
             e.stopPropagation();
             cancel();
           }

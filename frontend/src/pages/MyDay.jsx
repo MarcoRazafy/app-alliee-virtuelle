@@ -21,7 +21,6 @@ const today = new Date().toLocaleDateString('fr-FR', {
 const todayShort = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 
 
-// Date + heure d'envoi (validation), ex. « 13/08/2026 à 16:45 ».
 function formatSubmit(ts) {
   if (!ts) return null;
   const d = new Date(ts);
@@ -30,8 +29,6 @@ function formatSubmit(ts) {
   return `${date} à ${time}`;
 }
 
-// Champ de recherche d'une section (To Do ou Daily). `hidden` : nombre de tâches masquées,
-// rappelé sous le champ — sans lui, une liste filtrée peut passer pour une liste vide.
 function TaskSearch({ value, onChange, hidden, placeholder, label }) {
   return (
     <div className="myday-search">
@@ -58,30 +55,22 @@ function MyDay() {
   const setDayValidated = useAuthStore((state) => state.setDayValidated);
   const storedDayValidated = useAuthStore((state) => state.dayValidated);
   const user = useAuthStore((state) => state.user);
-  // Section « Daily » : 2ᵉ glisser-déposer (tâches faites aujourd'hui), envoyé au clic sur « Valider ».
   const [dailyAvailable, setDailyAvailable] = useState([]);
   const [dailySelected, setDailySelected] = useState([]);
   const [dailyDirty, setDailyDirty] = useState(false);
   const [savingDaily, setSavingDaily] = useState(false);
   const [dailySubmittedAt, setDailySubmittedAt] = useState(null);
-  // Recherches : une par section. Avec beaucoup de tâches, retrouver la bonne à l'œil dans
-  // quatre colonnes devient pénible.
   const [todoQuery, setTodoQuery] = useState('');
   const [dailyQuery, setDailyQuery] = useState('');
-  // Recherche : titre ou emplacement du projet, sans accents et mot par mot.
   const taskMatches = (task, query) =>
     matchesTerms([task.title, task.space_name, task.folder_name, task.list_name], query);
   const todoMatches = (task) => taskMatches(task, todoQuery);
   const dailyMatches = (task) => taskMatches(task, dailyQuery);
-  // File d'enregistrement du To Do après validation (voir queueTodoSave).
   const todoSaveRef = useRef({ running: false, next: null });
 
-  // Recharge tout l'état. En mode « journée validée », on l'appelle aussi en polling pour voir
-  // apparaître les tâches nouvellement assignées et les changements de statut.
   const load = useCallback(async () => {
     const [allTasks, myDay] = await Promise.all([taskService.getTasks(), taskService.getMyDay()]);
 
-    // Une tâche pas encore terminée (VALIDEE ou EN_COURS) reste sélectionnable pour aujourd'hui
     const selectableTasks = allTasks.filter((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
 
     const selectedIds = new Set(myDay.map((item) => item.task_id));
@@ -111,22 +100,17 @@ function MyDay() {
     load().catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les tâches'));
   }, [load]);
 
-  // Polling seulement en mode validé : sinon on écraserait le drag-drop en cours de l'employé.
   const platformAccessible = validated || storedDayValidated === true || (tasksLoaded && noTasksAvailable);
   const platformAccessibleRef = useRef(platformAccessible);
   platformAccessibleRef.current = platformAccessible;
   useEffect(() => {
     if (!platformAccessible) return undefined;
     const poll = setInterval(() => {
-      // Pendant un enregistrement du To Do, recharger réafficherait l'état d'avant le geste.
       if (platformAccessibleRef.current && !todoSaveRef.current.running) load().catch(() => {});
     }, 15000);
     return () => clearInterval(poll);
   }, [platformAccessible, load]);
 
-  // Ajoute au Daily affiché les tâches que le serveur vient d'y placer (validation de la
-  // journée, ou tâche ajoutée au To Do après validation) — sans écraser les retraits pas encore
-  // envoyés que l'employé aurait faits dans le Daily.
   function addToDaily(tasks) {
     if (tasks.length === 0) return;
     const ids = new Set(tasks.map((t) => t.id));
@@ -138,8 +122,6 @@ function MyDay() {
     setDailySubmittedAt((cur) => cur || new Date().toISOString());
   }
 
-  // Enregistrements du To Do après validation, un à la fois et toujours avec la DERNIÈRE liste :
-  // deux gestes rapides ne doivent pas se croiser, ni laisser le premier écraser le second.
   function queueTodoSave(taskIds) {
     const state = todoSaveRef.current;
     state.next = taskIds;
@@ -162,31 +144,23 @@ function MyDay() {
   }
 
   function handleUpdate({ available: filteredAvailable, selected: filteredSelected }) {
-    // Listes complètes reconstruites : pendant une recherche, le glisser-déposer ne voit que
-    // les tâches affichées (voir utils/filteredDrag).
     const newAvailable = todoQuery ? mergeFilteredMove(available, filteredAvailable, todoMatches) : filteredAvailable;
     const newSelected = todoQuery ? mergeFilteredMove(selected, filteredSelected, todoMatches) : filteredSelected;
     const before = new Set(selected.map((t) => t.id));
     setAvailable(newAvailable);
     setSelected(newSelected);
-    // Avant validation, rien ne part : tout s'envoie au clic sur « Valider ma journée ».
-    // Après, chaque ajout ou retrait est enregistré aussitôt, sans demande à l'admin ; une
-    // tâche ajoutée rejoint aussi le Daily (le serveur fait de même).
     if (validated) {
       queueTodoSave(newSelected.map((t) => t.id));
       addToDaily(newSelected.filter((t) => !before.has(t.id)));
     }
   }
 
-  // Charge la sélection « Daily » (une fois au montage, indépendamment du polling To Do
-  // pour ne pas écraser un glisser-déposer en cours). Le pool = toutes les tâches assignées.
   useEffect(() => {
     let cancelled = false;
     dailyService
       .getMyDailyDone()
       .then((data) => {
         if (cancelled) return;
-        // Le pool « disponible » = MES tâches assignées (calculé côté serveur), pas toutes les tâches.
         setDailySelected(data.done || []);
         setDailyAvailable(data.available || []);
         setDailySubmittedAt((data.done || [])[0]?.created_at || null);
@@ -197,7 +171,6 @@ function MyDay() {
     };
   }, []);
 
-  // Le glisser-déposer met à jour l'état local ; l'envoi se fait au clic sur « Valider le daily ».
   function handleDailyUpdate({ available: filteredAvailable, selected: filteredSelected }) {
     setDailyAvailable(dailyQuery ? mergeFilteredMove(dailyAvailable, filteredAvailable, dailyMatches) : filteredAvailable);
     setDailySelected(dailyQuery ? mergeFilteredMove(dailySelected, filteredSelected, dailyMatches) : filteredSelected);
@@ -229,7 +202,6 @@ function MyDay() {
       await taskService.validateMyDay();
       setValidated(true);
       setDayValidated(true);
-      // Le serveur a placé ces tâches dans le Daily : on l'affiche tout de suite.
       addToDaily(selected);
       notifySuccess('Votre journée est validée : ses tâches sont aussi dans votre Daily');
     } catch (err) {
@@ -246,7 +218,6 @@ function MyDay() {
   const todoHidden = available.length + selected.length - shownAvailable.length - shownSelected.length;
   const dailyHidden = dailyAvailable.length + dailySelected.length - shownDailyAvailable.length - shownDailySelected.length;
 
-  // Horodatage d'envoi du To Do = le plus récent validated_at de la sélection.
   const todoSubmittedAt = selected.reduce(
     (max, t) => (t.validated_at && (!max || t.validated_at > max) ? t.validated_at : max),
     null

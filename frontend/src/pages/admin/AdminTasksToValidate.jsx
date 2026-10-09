@@ -29,8 +29,6 @@ const STATUS_FILTERS = [
   { value: 'DECLAREE', label: 'Déclarée' },
   { value: 'TERMINEE', label: 'Terminée' },
   { value: 'EN_COURS', label: 'En cours' },
-  // « À reprendre » n'existe pas en base : c'est une EN_COURS dont le chrono est arrêté.
-  // Le filtre porte donc sur le statut AFFICHÉ, pas sur la colonne.
   { value: 'A_REPRENDRE', label: 'À reprendre' },
   { value: 'VALIDEE', label: 'À faire' },
   { value: 'CONFIRMEE', label: 'Confirmée' },
@@ -79,12 +77,11 @@ function matchesDeadlineRange(deadline, range) {
 }
 
 function AdminTasksToValidate() {
-  const [activeTab, setActiveTab] = useState('validate'); // 'validate' | 'late'
+  const [activeTab, setActiveTab] = useState('validate');
   const [lateCount, setLateCount] = useState(0);
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [search, setSearch] = useState(''); // recherche texte (titre, assigné, projet, description)
-  // Filtres multi-sélection : chaque filtre est une liste de valeurs cochées (OU logique).
+  const [search, setSearch] = useState('');
   const [statusFilters, setStatusFilters] = useState([]);
   const [priorityFilters, setPriorityFilters] = useState([]);
   const [employeeFilters, setEmployeeFilters] = useState([]);
@@ -97,15 +94,12 @@ function AdminTasksToValidate() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Clic sur la carte → page détail de la tâche, SAUF si on clique un élément interactif
-  // (case, bouton, lien, champ) qui garde son propre comportement.
   function openTaskFromCard(e, taskId) {
     if (e.target.closest('button, a, input, label, select, textarea')) return;
     navigate(`/tasks/${taskId}`, { state: { backgroundLocation: location } });
   }
   const [pendingAction, setPendingAction] = useState(null);
   const [loading, setLoading] = useState(true);
-  // Pagination de la liste : 10 / 50 / Toutes (Infinity).
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -134,7 +128,6 @@ function AdminTasksToValidate() {
       .getLateTasks()
       .then((late) => setLateCount(late.length))
       .catch(() => setLateCount(0));
-    // Recharge la liste quand une tâche est créée/supprimée ailleurs (sans actualiser).
     const onTasksChanged = () => load();
     window.addEventListener('tasks:changed', onTasksChanged);
     return () => window.removeEventListener('tasks:changed', onTasksChanged);
@@ -158,7 +151,6 @@ function AdminTasksToValidate() {
     const q = search.trim().toLowerCase();
     return tasks
         .filter((task) => {
-        // Recherche texte : titre, assignés, chemin projet, description (OU logique).
         const matchesSearch =
           !q ||
           [
@@ -173,9 +165,6 @@ function AdminTasksToValidate() {
             .join(' ')
             .toLowerCase()
             .includes(q);
-        // Multi-sélection : un filtre vide = pas de contrainte ; sinon OU logique sur les valeurs cochées.
-        // On compare au statut AFFICHÉ : sans cela, cocher « En cours » ramènerait aussi les
-        // tâches à reprendre, et « À reprendre » ne ramènerait jamais rien.
         const matchesStatus = !statusFilters.length || statusFilters.includes(displayStatusOf(task));
         const matchesPriority = !priorityFilters.length || priorityFilters.includes(task.priority);
         const matchesEmployee =
@@ -194,17 +183,13 @@ function AdminTasksToValidate() {
         });
   }, [tasks, search, statusFilters, priorityFilters, employeeFilters, deadlineFilters]);
 
-  // Sous-ensemble affiché selon la pagination (Toutes = pas de découpe).
   const pagedTasks =
     pageSize === Infinity ? filteredTasks : filteredTasks.slice((page - 1) * pageSize, page * pageSize);
 
-  // Un changement de recherche ou de filtre remet à la première page.
   useEffect(() => {
     setPage(1);
   }, [search, statusFilters, priorityFilters, employeeFilters, deadlineFilters]);
 
-  // Booléen explicite : la somme des longueurs valait 0 sans filtre, et `{0 && …}` affiche
-  // « 0 » en JSX — un zéro isolé apparaissait à côté de « Toutes échéances ».
   const hasFilters =
     statusFilters.length + priorityFilters.length + employeeFilters.length + deadlineFilters.length > 0;
   const selectedTasks = tasks.filter((task) => selectedIds.includes(task.id));
@@ -221,7 +206,6 @@ function AdminTasksToValidate() {
     setDeadlineFilters([]);
   }
 
-  // Coche/décoche une valeur de statut ('' = « Tous » → tout effacer).
   function toggleStatus(value) {
     if (value === '') {
       setStatusFilters([]);
@@ -231,8 +215,6 @@ function AdminTasksToValidate() {
   }
 
   function toggleSelect(id) {
-    // On peut cocher N'IMPORTE QUELLE tâche (pour la suppression groupée) ; les actions
-    // valider/confirmer/renvoyer ne s'appliquent qu'au sous-ensemble concerné (déclarées/terminées).
     if (isProcessing) return;
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
@@ -249,8 +231,6 @@ function AdminTasksToValidate() {
   async function handleConfirmOne(id) {
     setPendingAction(`confirm:${id}`);
     try {
-      // Relecture juste avant l'action : la liste peut être ancienne (autre admin,
-      // validation automatique ou changement depuis un autre onglet).
       const current = await taskService.getTask(id);
       if (current.status !== 'TERMINEE') {
         throw Object.assign(new Error('Statut changé'), {
@@ -292,7 +272,6 @@ function AdminTasksToValidate() {
     finally { setPendingAction(null); }
   }
 
-  // Suppression groupée : supprime toutes les tâches cochées (n'importe quel statut). Admin.
   async function handleBulkDelete() {
     if (selectedIds.length === 0 || isProcessing) return;
     if (
@@ -324,9 +303,6 @@ function AdminTasksToValidate() {
 
     setPendingAction('bulk-confirm');
     try {
-      // La sélection peut contenir un statut devenu obsolète depuis le dernier
-      // chargement. On relit la liste avant d'envoyer les confirmations afin de ne
-      // transmettre au backend que les tâches encore TERMINEE.
       const latestTasks = await taskService.getTasks();
       const selectedSet = new Set(selectedDoneIds);
       const confirmableIds = latestTasks

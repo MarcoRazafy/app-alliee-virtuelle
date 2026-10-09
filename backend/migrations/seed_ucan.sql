@@ -1,9 +1,3 @@
--- L'Alliée Virtuelle - Données d'exemple pour l'utilisateur ucan.mih@gmail.com
--- À exécuter après migrations/init.sql et migrations/seed_messages_resources.sql :
---   psql -U postgres -h localhost -d alliee_virtuelle -f migrations/seed_ucan.sql
-
--- ===== TÂCHES =====
-
 INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, deadline, start_date)
 SELECT 'Vérifier les factures fournisseurs', 'Contrôler les factures reçues ce mois-ci avant paiement',
        (SELECT id FROM users WHERE email = 'ucan.mih@gmail.com'),
@@ -38,8 +32,6 @@ SELECT 'Préparer la démo produit', 'Slides et scénario pour la démo client d
        (SELECT id FROM users WHERE email = 'admin@alliee.test'),
        'FAIBLE', 'DECLAREE', CURRENT_DATE + INTERVAL '10 days', CURRENT_DATE
 WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Préparer la démo produit');
-
--- ===== MESSAGERIE =====
 
 INSERT INTO message_conversations (participant1_id, participant2_id, last_message_at)
 SELECT

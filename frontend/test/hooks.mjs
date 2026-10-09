@@ -2,10 +2,6 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
 
-// Hook de chargement pour les tests de composants (node:test) :
-//  - neutralise les imports d'assets (CSS, images) → module vide,
-//  - transpile le JSX de nos fichiers via esbuild (déjà présent via Vite).
-// Ainsi, pas besoin de Jest/Vitest : le runner reste `node --test`.
 const ASSET_RE = /\.(css|png|jpe?g|gif|svg|webp|woff2?)(\?.*)?$/;
 
 export async function load(url, context, nextLoad) {

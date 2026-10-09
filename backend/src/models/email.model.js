@@ -1,7 +1,5 @@
 const db = require('../config/database');
 
-// Insère un email récupéré via IMAP. Ne fait rien s'il existe déjà (même compte + UID).
-// Renvoie la ligne insérée (id, received_at…) ou null si c'était un doublon.
 async function insertEmail(data) {
   const result = await db.query(
     `INSERT INTO emails (
@@ -31,7 +29,6 @@ async function insertEmail(data) {
   return result.rows[0] || null;
 }
 
-// Liste paginée pour la vue « Boîte mail » (sans les corps, allégée).
 async function listEmails({ limit = 30, offset = 0 } = {}) {
   const result = await db.query(
     `SELECT id, from_name, from_address, subject, snippet, received_at, is_read, has_attachments
@@ -53,7 +50,6 @@ async function countUnread() {
   return result.rows[0].unread;
 }
 
-// Détail complet d'un email (corps inclus).
 async function getEmailById(id) {
   const result = await db.query('SELECT * FROM emails WHERE id = $1', [id]);
   return result.rows[0] || null;
@@ -67,7 +63,6 @@ async function setRead(id, isRead) {
   return result.rows[0] || null;
 }
 
-// Plus grand UID déjà stocké pour un compte/boîte : sert de point de reprise à la synchro.
 async function getMaxUid(account, mailbox = 'INBOX') {
   const result = await db.query(
     'SELECT COALESCE(MAX(imap_uid), 0) AS max_uid FROM emails WHERE account = $1 AND mailbox = $2',
