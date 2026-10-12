@@ -361,6 +361,16 @@
 .task-card-main .task-card-title {
   flex: none;
 }
+.task-card-title--link {
+  align-self: flex-start;
+  max-width: 100%;
+  cursor: pointer;
+}
+.task-card-title--link:hover,
+.task-card-title--link:focus-visible {
+  color: var(--color-accent-lighter);
+  text-decoration: underline;
+}
 .task-card-path {
   font-size: 11px;
   color: var(--color-text-muted);

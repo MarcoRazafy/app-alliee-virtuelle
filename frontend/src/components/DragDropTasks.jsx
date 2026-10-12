@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
 const ITEM_TYPE = 'TASK';
+const OPEN_DELAY_MS = 250;
 
 const PRIORITY_DOT_CLASS = {
   URGENT: 'priority-dot--urgent',
@@ -68,8 +69,11 @@ function RequestControl({ task, requestState, onRequest }) {
   );
 }
 
-function DraggableTask({ task, index, column, order, moveTask, onToggleTask, disabled, requestable, requestState, onRequest }) {
+function DraggableTask({ task, index, column, order, moveTask, onToggleTask, onOpenTask, disabled, requestable, requestState, onRequest }) {
   const ref = useRef(null);
+  const openTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(openTimer.current), []);
 
   const [, drop] = useDrop({
     accept: ITEM_TYPE,
@@ -97,6 +101,22 @@ function DraggableTask({ task, index, column, order, moveTask, onToggleTask, dis
   const toggleHint =
     column === 'available' ? 'Double-cliquez pour ajouter' : 'Double-cliquez pour retirer';
 
+  function handleOpenClick(event) {
+    clearTimeout(openTimer.current);
+    if (event.detail > 1) return;
+    if (!canToggle) {
+      onOpenTask(task);
+      return;
+    }
+    openTimer.current = setTimeout(() => onOpenTask(task), OPEN_DELAY_MS);
+  }
+
+  function handleOpenKeyDown(event) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    onOpenTask(task);
+  }
+
   return (
     <div
       ref={ref}
@@ -113,7 +133,20 @@ function DraggableTask({ task, index, column, order, moveTask, onToggleTask, dis
       {order != null && <span className="task-order-badge">{order}</span>}
       <span className={`priority-dot ${PRIORITY_DOT_CLASS[task.priority] || 'priority-dot--normale'}`} />
       <span className="task-card-main">
-        <span className="task-card-title">{task.title}</span>
+        {onOpenTask ? (
+          <span
+            className="task-card-title task-card-title--link"
+            role="link"
+            tabIndex={0}
+            title="Cliquez pour ouvrir la tâche"
+            onClick={handleOpenClick}
+            onKeyDown={handleOpenKeyDown}
+          >
+            {task.title}
+          </span>
+        ) : (
+          <span className="task-card-title">{task.title}</span>
+        )}
         {taskPath && (
           <span className="task-card-path" title={taskPath}>
             {taskPath}
@@ -138,7 +171,7 @@ function DraggableTask({ task, index, column, order, moveTask, onToggleTask, dis
   );
 }
 
-function Column({ title, tasks, column, moveTask, onToggleTask, showOrder, emptyLabel, disabled, requestable, requestsByTaskId, onRequestTask }) {
+function Column({ title, tasks, column, moveTask, onToggleTask, onOpenTask, showOrder, emptyLabel, disabled, requestable, requestsByTaskId, onRequestTask }) {
   const ref = useRef(null);
   const [{ isOver }, drop] = useDrop({
     accept: ITEM_TYPE,
@@ -170,6 +203,7 @@ function Column({ title, tasks, column, moveTask, onToggleTask, showOrder, empty
           order={showOrder ? index + 1 : null}
           moveTask={moveTask}
           onToggleTask={onToggleTask}
+          onOpenTask={onOpenTask}
           disabled={disabled}
           requestable={requestable}
           requestState={requestsByTaskId?.[task.id]}
@@ -187,6 +221,7 @@ function DragDropTasks({
   validated,
   requestsByTaskId,
   onRequestTask,
+  onOpenTask,
   availableTitle = 'Tâches disponibles',
   selectedTitle = "Mes tâches aujourd'hui",
   selectedEmptyLabel = 'Glissez des tâches ici, ou double-cliquez dessus.',
@@ -222,6 +257,7 @@ function DragDropTasks({
           column="available"
           moveTask={moveTask}
           onToggleTask={toggleTaskColumn}
+          onOpenTask={onOpenTask}
           emptyLabel="Aucune tâche disponible."
           disabled={validated}
           requestable={validated && !!onRequestTask}
@@ -234,6 +270,7 @@ function DragDropTasks({
           column="selected"
           moveTask={moveTask}
           onToggleTask={toggleTaskColumn}
+          onOpenTask={onOpenTask}
           showOrder
           emptyLabel={selectedEmptyLabel}
           disabled={validated}

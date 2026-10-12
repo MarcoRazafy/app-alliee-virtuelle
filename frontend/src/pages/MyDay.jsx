@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as taskService from '../services/taskService';
 import * as dailyService from '../services/dailyService';
 import DragDropTasks from '../components/DragDropTasks';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
+import NewTaskModal from '../components/employee/NewTaskModal';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
 import '../styles/daily.css';
 import { groupByProject } from '../utils/dailyGrouping';
-import { IconSearch } from '../components/icons';
+import { IconSearch, IconPlus } from '../components/icons';
 import { matchesTerms } from '../utils/textSearch';
 import { mergeFilteredMove } from '../utils/filteredDrag';
 
@@ -20,6 +21,7 @@ const today = new Date().toLocaleDateString('fr-FR', {
 });
 const todayShort = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 
+const isSelectable = (task) => task.status === 'VALIDEE' || task.status === 'EN_COURS';
 
 function formatSubmit(ts) {
   if (!ts) return null;
@@ -46,6 +48,8 @@ function TaskSearch({ value, onChange, hidden, placeholder, label }) {
 }
 
 function MyDay() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [available, setAvailable] = useState([]);
   const [selected, setSelected] = useState([]);
   const [validated, setValidated] = useState(false);
@@ -62,6 +66,7 @@ function MyDay() {
   const [dailySubmittedAt, setDailySubmittedAt] = useState(null);
   const [todoQuery, setTodoQuery] = useState('');
   const [dailyQuery, setDailyQuery] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   const taskMatches = (task, query) =>
     matchesTerms([task.title, task.space_name, task.folder_name, task.list_name], query);
   const todoMatches = (task) => taskMatches(task, todoQuery);
@@ -71,7 +76,7 @@ function MyDay() {
   const load = useCallback(async () => {
     const [allTasks, myDay] = await Promise.all([taskService.getTasks(), taskService.getMyDay()]);
 
-    const selectableTasks = allTasks.filter((t) => t.status === 'VALIDEE' || t.status === 'EN_COURS');
+    const selectableTasks = allTasks.filter(isSelectable);
 
     const selectedIds = new Set(myDay.map((item) => item.task_id));
     setSelected(
@@ -175,6 +180,25 @@ function MyDay() {
     setDailyAvailable(dailyQuery ? mergeFilteredMove(dailyAvailable, filteredAvailable, dailyMatches) : filteredAvailable);
     setDailySelected(dailyQuery ? mergeFilteredMove(dailySelected, filteredSelected, dailyMatches) : filteredSelected);
     setDailyDirty(true);
+  }
+
+  function openTask(task) {
+    navigate(`/tasks/${task.id}`, { state: { backgroundLocation: location } });
+  }
+
+  async function handleTaskCreated(created) {
+    try {
+      const allTasks = await taskService.getTasks();
+      const task = allTasks.find((t) => t.id === created?.id);
+      if (!task || !isSelectable(task)) return;
+      const append = (cur) => (cur.some((t) => t.id === task.id) ? cur : [...cur, task]);
+      setAvailable(append);
+      setDailyAvailable(append);
+      setNoTasksAvailable(false);
+      setDayValidated(validated);
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Tâche créée, mais la liste n'a pas pu être actualisée");
+    }
   }
 
   async function handleValidateDaily() {
@@ -290,6 +314,7 @@ function MyDay() {
             availableTasks={shownAvailable}
             selectedTasks={shownSelected}
             onUpdate={handleUpdate}
+            onOpenTask={openTask}
             validated={false}
           />
         </>
@@ -303,10 +328,13 @@ function MyDay() {
           </button>
         )}
         {platformAccessible && (
-          <Link to="/dashboard" className="btn-primary">
-            Accéder au tableau de bord
+          <Link to="/workspace" className="btn-primary">
+            Accéder à mon espace
           </Link>
         )}
+        <button type="button" className="btn-outline" onClick={() => setCreateOpen(true)}>
+          <IconPlus /> Nouvelle tâche
+        </button>
       </div>
 
       {validated && selected.length > 0 && (
@@ -322,7 +350,9 @@ function MyDay() {
               {group.tasks.map((task) => (
                 <div key={task.id} className="daily-recap-item">
                   <span className="daily-bullet" />
-                  <span>{task.title}</span>
+                  <Link to={`/tasks/${task.id}`} state={{ backgroundLocation: location }} className="daily-recap-link">
+                    {task.title}
+                  </Link>
                 </div>
               ))}
             </div>
@@ -351,6 +381,7 @@ function MyDay() {
             availableTasks={shownDailyAvailable}
             selectedTasks={shownDailySelected}
             onUpdate={handleDailyUpdate}
+            onOpenTask={openTask}
             validated={false}
             availableTitle="Tâches disponibles"
             selectedTitle="Tâches faites (Daily)"
@@ -381,7 +412,9 @@ function MyDay() {
               {group.tasks.map((task) => (
                 <div key={task.id} className="daily-recap-item">
                   <span className="daily-bullet" />
-                  <span>{task.title}</span>
+                  <Link to={`/tasks/${task.id}`} state={{ backgroundLocation: location }} className="daily-recap-link">
+                    {task.title}
+                  </Link>
                 </div>
               ))}
             </div>
@@ -389,6 +422,7 @@ function MyDay() {
         </section>
       )}
 
+      <NewTaskModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={handleTaskCreated} />
     </EmployeeLayout>
   );
 }
