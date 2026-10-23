@@ -39,7 +39,10 @@ export function deleteTask(id) {
 }
 
 export function updateTask(id, payload) {
-  return api.patch(`/api/tasks/${id}`, payload).then((res) => res.data);
+  return api.patch(`/api/tasks/${id}`, payload).then((res) => {
+    notifyTasksChanged();
+    return res.data;
+  });
 }
 
 export function updateTaskStatus(id, status) {
@@ -67,11 +70,17 @@ export function rejectTask(id, motif) {
 }
 
 export function updateTaskDeadline(id, deadline) {
-  return api.patch(`/api/tasks/${id}/deadline`, { deadline }).then((res) => res.data);
+  return api.patch(`/api/tasks/${id}/deadline`, { deadline }).then((res) => {
+    notifyTasksChanged();
+    return res.data;
+  });
 }
 
 export function updateTaskDescription(id, description) {
-  return api.patch(`/api/tasks/${id}/description`, { description }).then((res) => res.data);
+  return api.patch(`/api/tasks/${id}/description`, { description }).then((res) => {
+    notifyTasksChanged();
+    return res.data;
+  });
 }
 
 export function completeTask(id) {

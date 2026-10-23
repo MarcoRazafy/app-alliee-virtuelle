@@ -42,6 +42,8 @@ const ACTION_LABELS = {
   SUSPEND_USER: 'a suspendu un compte',
   ACTIVATE_USER: 'a réactivé un compte',
   PROMOTE_USER: 'a nommé un administrateur',
+  GRANT_ALL_TASKS_ACCESS: 'a donné l’accès à toutes les tâches',
+  REVOKE_ALL_TASKS_ACCESS: 'a retiré l’accès à toutes les tâches',
   CREATE_SPACE: 'a créé un espace client',
   UPDATE_SPACE: 'a modifié un espace client',
   DELETE_SPACE: 'a supprimé un espace client',

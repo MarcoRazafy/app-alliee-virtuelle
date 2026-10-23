@@ -47,3 +47,7 @@ export function activateUser(id) {
 export function promoteUser(id) {
   return api.post(`/api/users/${id}/promote`).then((res) => res.data);
 }
+
+export function setAllTasksAccess(id, enabled) {
+  return api.put(`/api/users/${id}/all-tasks-access`, { enabled }).then((res) => res.data);
+}

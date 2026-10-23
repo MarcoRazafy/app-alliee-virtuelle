@@ -18,6 +18,7 @@ router.post('/users/:id/reject', authMiddleware.requireRole('ADMIN'), userContro
 router.post('/users/:id/suspend', authMiddleware.requireRole('ADMIN'), userController.suspendUser);
 router.post('/users/:id/activate', authMiddleware.requireRole('ADMIN'), userController.activateUser);
 router.post('/users/:id/promote', authMiddleware.requireRole('ADMIN'), userController.promoteUser);
+router.put('/users/:id/all-tasks-access', authMiddleware.requireRole('ADMIN'), userController.setAllTasksAccess);
 
 router.get('/users/:id/notes', authMiddleware.requireRole('ADMIN'), userController.listUserNotes);
 router.post('/users/:id/notes', authMiddleware.requireRole('ADMIN'), userController.createUserNote);

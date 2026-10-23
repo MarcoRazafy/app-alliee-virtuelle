@@ -169,6 +169,19 @@ async function updateStatus(id, status, client = db) {
   return result.rows[0];
 }
 
+async function canAccessAllTasks(id) {
+  const result = await db.query('SELECT can_access_all_tasks FROM users WHERE id = $1', [id]);
+  return Boolean(result.rows[0]?.can_access_all_tasks);
+}
+
+async function setAllTasksAccess(id, enabled, client = db) {
+  const result = await client.query(
+    'UPDATE users SET can_access_all_tasks = $1, updated_at = now() WHERE id = $2 RETURNING id, can_access_all_tasks',
+    [enabled, id]
+  );
+  return result.rows[0];
+}
+
 async function promoteToAdmin(id, client = db) {
   const result = await client.query(
     "UPDATE users SET role = 'ADMIN', updated_at = now() WHERE id = $1 RETURNING id, role",
@@ -368,6 +381,8 @@ module.exports = {
   findPending,
   findAdminEmails,
   updateStatus,
+  canAccessAllTasks,
+  setAllTasksAccess,
   promoteToAdmin,
   listNotes,
   createNote,

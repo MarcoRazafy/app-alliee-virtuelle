@@ -455,6 +455,25 @@ function AdminUserProfile() {
     }
   }
 
+  async function toggleAllTasksAccess() {
+    if (busy) return;
+    const enabled = !detail.user.can_access_all_tasks;
+    const question = enabled
+      ? `Donner à ${detail.user.full_name} l'accès à toutes les tâches ?\n\nCette personne verra une page « Liste des tâches » et pourra modifier le titre, les dates, la priorité et la description de n'importe quelle tâche. Elle ne pourra pas en créer pour les autres, ni en supprimer, ni changer leur statut.`
+      : `Retirer à ${detail.user.full_name} l'accès à toutes les tâches ?`;
+    if (!window.confirm(question)) return;
+    setBusy(true);
+    try {
+      await userService.setAllTasksAccess(id, enabled);
+      setDetail((cur) => ({ ...cur, user: { ...cur.user, can_access_all_tasks: enabled } }));
+      notifySuccess(enabled ? 'Accès à toutes les tâches accordé' : 'Accès à toutes les tâches retiré');
+    } catch (err) {
+      notifyError(err.response?.data?.error || "Impossible de modifier l'accès");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <PageSkeleton variant="list" />;
   if (notFound || !detail) {
     return (
@@ -502,6 +521,7 @@ function AdminUserProfile() {
             </p>
             <div className="aup-badges">
               <span className={`pill pill--${status.cls}`}>{status.label}</span>
+              {user.can_access_all_tasks && <span className="pill pill--todo">Accès à toutes les tâches</span>}
             </div>
           </div>
         </div>
@@ -514,6 +534,20 @@ function AdminUserProfile() {
           >
             <IconArrowRight /> Message
           </button>
+          {user.role === 'EMPLOYEE' && (
+            <label
+              className={`aup-access-toggle${user.can_access_all_tasks ? ' aup-access-toggle--on' : ''}`}
+              title="Voir et modifier toutes les tâches de l'équipe, sans pouvoir en créer pour les autres"
+            >
+              <input
+                type="checkbox"
+                checked={Boolean(user.can_access_all_tasks)}
+                onChange={toggleAllTasksAccess}
+                disabled={busy}
+              />
+              Accès à toutes les tâches
+            </label>
+          )}
           {user.status === 'ACTIF' ? (
             <button type="button" className="btn-danger" onClick={() => changeStatus('suspend')} disabled={busy}>
               Suspendre

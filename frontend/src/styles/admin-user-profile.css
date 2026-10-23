@@ -66,6 +66,34 @@
 .aup-hero-actions .btn-danger {
   min-height: 40px;
 }
+.aup-access-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.aup-access-toggle:hover {
+  border-color: var(--color-accent-light);
+}
+.aup-access-toggle--on {
+  border-color: var(--color-accent-light);
+  background: var(--glow-accent);
+}
+.aup-access-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
 
 .aup-kpis {
   display: grid;

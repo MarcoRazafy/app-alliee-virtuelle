@@ -202,6 +202,41 @@ async function promoteUser(req, res, next) {
   }
 }
 
+async function setAllTasksAccess(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'Le champ enabled doit valoir true ou false' });
+    }
+
+    const user = await userModel.findById(id);
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
+    }
+    if (user.role !== userModel.USER_ROLE.EMPLOYEE) {
+      return res.status(400).json({ error: 'Seul un employé peut recevoir cet accès' });
+    }
+
+    await db.withTransaction(async (client) => {
+      await userModel.setAllTasksAccess(id, enabled, client);
+      await taskModel.recordAudit(
+        {
+          userId: req.user.id,
+          action: enabled ? 'GRANT_ALL_TASKS_ACCESS' : 'REVOKE_ALL_TASKS_ACCESS',
+          entityType: 'user',
+          entityId: id,
+        },
+        client
+      );
+    });
+
+    res.status(200).json({ can_access_all_tasks: enabled });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getUserDetail(req, res, next) {
   try {
     const { id } = req.params;
@@ -228,6 +263,7 @@ async function getUserDetail(req, res, next) {
         status: user.status,
         has_avatar: !!avatar,
         role: user.role,
+        can_access_all_tasks: Boolean(user.can_access_all_tasks),
         username: user.username,
         phone_number: user.phone_number,
         birth_date: user.birth_date,
@@ -402,6 +438,7 @@ module.exports = {
   suspendUser,
   activateUser,
   promoteUser,
+  setAllTasksAccess,
   getUserDetail,
   listUserNotes,
   createUserNote,

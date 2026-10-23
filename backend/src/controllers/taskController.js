@@ -16,17 +16,30 @@ function isTaskAssignee(task, userId) {
   return Array.isArray(task.assignees) && task.assignees.some((a) => a.id === userId);
 }
 
-function canAccessTask(task, user) {
+async function hasAllTasksAccess(task, user) {
   if (user.role === 'ADMIN') return true;
-  return isTaskAssignee(task, user.id);
+  if (task.status === taskModel.TASK_STATUS.DECLARED) return false;
+  return userModel.canAccessAllTasks(user.id);
+}
+
+async function canAccessTask(task, user) {
+  if (user.role === 'ADMIN' || isTaskAssignee(task, user.id)) return true;
+  return hasAllTasksAccess(task, user);
 }
 
 const todayDateString = businessDayNow;
 
 async function listTasks(req, res, next) {
   try {
-    const { status, priority, deadline, list_id: listId, active_only: activeOnlyParam } = req.query;
+    const { status, priority, deadline, list_id: listId, active_only: activeOnlyParam, scope } = req.query;
     const activeOnly = activeOnlyParam === 'true' || activeOnlyParam === '1';
+    if (scope === 'all' && req.user.role !== 'ADMIN') {
+      if (!(await userModel.canAccessAllTasks(req.user.id))) {
+        return res.status(403).json({ error: "Vous n'avez pas accès à la liste de toutes les tâches" });
+      }
+      const all = await taskModel.findAllTasks({ status, priority, deadline, listId, activeOnly });
+      return res.status(200).json(all.filter((t) => t.status !== taskModel.TASK_STATUS.DECLARED));
+    }
     const tasks =
       req.user.role === 'ADMIN'
         ? await taskModel.findAllTasks({ status, priority, deadline, listId, activeOnly })
@@ -47,7 +60,7 @@ async function getTask(req, res, next) {
     const isOwner = isTaskAssignee(task, req.user.id);
     const isAdmin = req.user.role === 'ADMIN';
     if (task.status === taskModel.TASK_STATUS.DECLARED && !isAdmin && !isOwner) return res.status(404).json({ error: 'Tâche introuvable' });
-    if (!isOwner && !isAdmin) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -188,7 +201,7 @@ async function updateTask(req, res, next) {
 
     const isAdmin = req.user.role === 'ADMIN';
     const isCreator = task.created_by === req.user.id;
-    if (!isAdmin && !isCreator) {
+    if (!isAdmin && !isCreator && !(await hasAllTasksAccess(task, req.user))) {
       return res.status(403).json({
         error: 'Vous ne pouvez modifier que les tâches que vous avez créées',
       });
@@ -240,7 +253,7 @@ async function updateTaskDeadline(req, res, next) {
     if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
 
     const isAdmin = req.user.role === 'ADMIN';
-    if (!isAdmin && task.created_by !== req.user.id) {
+    if (!isAdmin && task.created_by !== req.user.id && !(await hasAllTasksAccess(task, req.user))) {
       return res.status(403).json({ error: 'Vous ne pouvez modifier que les tâches que vous avez créées' });
     }
 
@@ -293,8 +306,7 @@ async function updateTaskDescription(req, res, next) {
     const task = await taskModel.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Tâche introuvable' });
 
-    const isAdmin = req.user.role === 'ADMIN';
-    if (!isAdmin && !isTaskAssignee(task, req.user.id)) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Cette tâche ne vous est pas assignée' });
     }
 
@@ -376,7 +388,7 @@ async function getTaskDetail(req, res, next) {
     }
 
     const isAdmin = req.user.role === 'ADMIN';
-    if (!canAccessTask(task, req.user)) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -398,7 +410,7 @@ async function getSubtasks(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (!canAccessTask(task, req.user)) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -648,7 +660,7 @@ async function getTimelogHistory(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (!isTaskAssignee(task, req.user.id) && req.user.role !== 'ADMIN') {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -927,7 +939,7 @@ async function getComments(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (!canAccessTask(task, req.user)) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -982,7 +994,7 @@ async function createComment(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (!canAccessTask(task, req.user)) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -1022,7 +1034,7 @@ async function updateComment(req, res, next) {
     }
 
     const task = await taskModel.findById(id);
-    if (!task || !canAccessTask(task, req.user)) {
+    if (!task || !(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
     if (comment.type === 'NOTE' && req.user.role !== 'ADMIN') {
@@ -1055,7 +1067,7 @@ async function toggleCommentReaction(req, res, next) {
     }
 
     const task = await taskModel.findById(id);
-    if (!task || !canAccessTask(task, req.user)) {
+    if (!task || !(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
     if (comment.type === 'NOTE' && req.user.role !== 'ADMIN') {
@@ -1078,7 +1090,7 @@ async function deleteComment(req, res, next) {
     }
 
     const task = await taskModel.findById(id);
-    if (!task || !canAccessTask(task, req.user)) {
+    if (!task || !(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -1176,7 +1188,7 @@ async function getAttachments(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (!canAccessTask(task, req.user)) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
 
@@ -1194,7 +1206,7 @@ async function uploadAttachment(req, res, next) {
     if (!task) {
       return res.status(404).json({ error: 'Tâche introuvable' });
     }
-    if (!canAccessTask(task, req.user)) {
+    if (!(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
     if (!req.file) {
@@ -1234,7 +1246,7 @@ async function downloadAttachment(req, res, next) {
     }
 
     const task = await taskModel.findById(attachment.task_id);
-    if (!task || !canAccessTask(task, req.user)) {
+    if (!task || !(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à ce fichier' });
     }
 
@@ -1253,7 +1265,7 @@ async function deleteAttachment(req, res, next) {
     }
 
     const task = await taskModel.findById(id);
-    if (!task || !canAccessTask(task, req.user)) {
+    if (!task || !(await canAccessTask(task, req.user))) {
       return res.status(403).json({ error: 'Accès refusé à cette tâche' });
     }
     if (req.user.role !== 'ADMIN' && attachment.uploaded_by !== req.user.id) {

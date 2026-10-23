@@ -1,0 +1,136 @@
+.tl-search {
+  margin-bottom: 14px;
+  max-width: 420px;
+}
+
+.tl-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.tl-filter-reset {
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-accent-lighter);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 4px;
+}
+.tl-filter-reset:hover {
+  text-decoration: underline;
+}
+
+.tl-count {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.tl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--glass-overlay), transparent 40%), var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.tl-card:hover {
+  border-color: var(--color-accent-light);
+}
+
+.tl-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.tl-card-top .pill {
+  flex-shrink: 0;
+}
+
+.tl-card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color 0.15s ease;
+}
+.tl-card-title:hover {
+  color: var(--color-accent-lighter);
+}
+
+.tl-card-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  transition: color 150ms ease, background 150ms ease;
+}
+.tl-card-open:hover {
+  color: var(--color-accent-lighter);
+  background: var(--glass-overlay);
+}
+.tl-card-open svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tl-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.tl-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 12px;
+}
+
+.tl-meta-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.tl-card-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-lighter);
+}
+.tl-card-path svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}

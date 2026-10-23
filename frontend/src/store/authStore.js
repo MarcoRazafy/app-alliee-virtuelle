@@ -71,6 +71,14 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  mergeUser: (partial) => {
+    const current = get().user;
+    if (!current || Object.keys(partial).every((key) => current[key] === partial[key])) return;
+    const updatedUser = { ...current, ...partial };
+    authService.setUser(updatedUser);
+    set({ user: updatedUser });
+  },
+
   setDayValidated: (value) => set({ dayValidated: value }),
 
   checkDayValidated: async () => {

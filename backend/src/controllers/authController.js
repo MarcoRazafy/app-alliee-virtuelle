@@ -117,6 +117,7 @@ async function login(req, res, next) {
         full_name: user.full_name,
         role: user.role,
         status: user.status,
+        can_access_all_tasks: Boolean(user.can_access_all_tasks),
       },
     });
   } catch (err) {
@@ -146,6 +147,7 @@ async function me(req, res, next) {
       description: user.description,
       role: user.role,
       status: user.status,
+      can_access_all_tasks: Boolean(user.can_access_all_tasks),
       has_avatar: !!avatar,
       created_at: user.created_at,
     });

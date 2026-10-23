@@ -27,6 +27,7 @@ import {
   IconLock,
   IconMenu,
   IconX,
+  IconLayers,
 } from '../icons';
 import useAnnouncementUnread from '../../hooks/useAnnouncementUnread';
 import '../../styles/app.css';
@@ -41,6 +42,7 @@ const NAV_ITEMS = [
       { to: '/workspace', label: 'Mon Espace', icon: IconWorkspace },
       { to: '/my-day', label: 'Ma journée', icon: IconCalendarCheck },
       { to: '/tasks', label: 'Mes tâches', icon: IconChecklist },
+      { to: '/task-lists', label: 'Liste des tâches', icon: IconLayers, allTasksOnly: true },
     ],
   },
   { to: '/planning', label: 'Planning', icon: IconCalendarWeek },
@@ -50,7 +52,12 @@ const NAV_ITEMS = [
   { to: '/profile', label: 'Profil', icon: IconUser },
 ];
 
-const FLAT_ITEMS = NAV_ITEMS.flatMap((item) => (item.children ? item.children : [item]));
+function navItemsFor(user) {
+  const allowed = (item) => !item.allTasksOnly || Boolean(user?.can_access_all_tasks);
+  return NAV_ITEMS.filter(allowed).map((item) =>
+    item.children ? { ...item, children: item.children.filter(allowed) } : item
+  );
+}
 
 function activeGroups(pathname) {
   const open = {};
@@ -65,6 +72,8 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const mergeUser = useAuthStore((state) => state.mergeUser);
+  const navItems = navItemsFor(user);
   const { unread: announcementUnread } = useAnnouncementUnread();
 
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -90,6 +99,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
     api
       .get('/api/auth/me')
       .then((res) => {
+        mergeUser({ can_access_all_tasks: Boolean(res.data.can_access_all_tasks) });
         if (!res.data.has_avatar) return null;
         return avatarService.getMyAvatarBlob();
       })
@@ -167,7 +177,9 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
   const firstName = user?.full_name?.split(' ')[0] || '';
 
   const searchMatches = searchQuery.trim()
-    ? FLAT_ITEMS.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    ? navItems
+        .flatMap((item) => (item.children ? item.children : [item]))
+        .filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : [];
 
   function handleSearchSubmit(e) {
@@ -198,7 +210,7 @@ function EmployeeLayout({ title, breadcrumb, subtitle, locked, skeleton = null, 
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             if (!item.children) return renderLeaf(item);
 
             const { label, icon: Icon, children } = item;

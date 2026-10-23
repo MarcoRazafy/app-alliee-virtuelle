@@ -427,11 +427,13 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
         : [];
   const canTime = ['VALIDEE', 'EN_COURS', 'TERMINEE'].includes(task.status);
   const isAssignee = assignees.some((a) => a.id === user?.id);
-  const canAttach = isAdmin || isAssignee;
-  const canEditDescription = isAdmin || isAssignee;
+  const canAccessAll = Boolean(user?.can_access_all_tasks);
+  const canAttach = isAdmin || isAssignee || canAccessAll;
+  const canEditDescription = isAdmin || isAssignee || canAccessAll;
   const isCreator = Boolean(task?.created_by && task.created_by === user?.id);
-  const canEditTask = isAdmin || isCreator;
-  const canDeleteTask = canEditTask;
+  const canEditTask = isAdmin || isCreator || canAccessAll;
+  const canDeleteTask = isAdmin || isCreator;
+  const canTrackTime = isAdmin || isAssignee;
 
   const content = (
     <>
@@ -654,28 +656,30 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
                 <span className="tk-time">
                   <span className="tk-time-total">{formatDurationShort(totalSeconds)}</span>
                   {activeSession && <span className="tk-time-live">· {formatClock(elapsed)} en cours</span>}
-                  <span className="tk-time-actions">
-                    {activeSession ? (
-                      <button type="button" className="tk-icon-btn tk-icon-btn--stop" onClick={handleStop} title="Arrêter le chrono">
-                        <IconStop />
-                      </button>
-                    ) : (
-                      <button type="button" className="tk-icon-btn tk-icon-btn--play" onClick={handleStart} disabled={!canTime} title="Démarrer le chrono">
-                        <IconPlay />
-                      </button>
-                    )}
-                    {!isAdmin && (
-                      <button
-                        type="button"
-                        className="tk-icon-btn tk-icon-btn--done"
-                        onClick={handleComplete}
-                        disabled={task.status !== 'EN_COURS'}
-                        title="Marquer comme terminée"
-                      >
-                        <IconCheckCircle />
-                      </button>
-                    )}
-                  </span>
+                  {canTrackTime && (
+                    <span className="tk-time-actions">
+                      {activeSession ? (
+                        <button type="button" className="tk-icon-btn tk-icon-btn--stop" onClick={handleStop} title="Arrêter le chrono">
+                          <IconStop />
+                        </button>
+                      ) : (
+                        <button type="button" className="tk-icon-btn tk-icon-btn--play" onClick={handleStart} disabled={!canTime} title="Démarrer le chrono">
+                          <IconPlay />
+                        </button>
+                      )}
+                      {!isAdmin && (
+                        <button
+                          type="button"
+                          className="tk-icon-btn tk-icon-btn--done"
+                          onClick={handleComplete}
+                          disabled={task.status !== 'EN_COURS'}
+                          title="Marquer comme terminée"
+                        >
+                          <IconCheckCircle />
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </span>
               </PropRow>
 

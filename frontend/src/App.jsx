@@ -20,6 +20,7 @@ const MyTasks = lazy(() => import('./pages/MyTasks'));
 const TaskDetail = lazy(() => import('./pages/TaskDetail'));
 const TaskDetailModal = lazy(() => import('./pages/TaskDetail').then((m) => ({ default: m.TaskDetailModal })));
 const MyDay = lazy(() => import('./pages/MyDay'));
+const TaskLists = lazy(() => import('./pages/TaskLists'));
 const MyStats = lazy(() => import('./pages/MyStats'));
 const Planning = lazy(() => import('./pages/Planning'));
 const Messaging = lazy(() => import('./pages/Messaging'));
@@ -184,6 +185,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <MyDay />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/task-lists"
+          element={
+            <ProtectedRoute>
+              <TaskLists />
             </ProtectedRoute>
           }
         />
