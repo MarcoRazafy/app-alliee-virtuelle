@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { IconDownload, IconFileText, IconX } from './icons';
 import { formatBytes } from '../utils/formatters';
+import PdfPages from './PdfPages';
 import '../styles/media-preview.css';
 
 export function isPreviewableInApp(type) {
@@ -50,7 +51,9 @@ export default function MediaPreview({ url, type, name, size, onClose, onDownloa
       </div>
       <div className="media-preview-stage">
         {isPdf ? (
-          <iframe className="media-preview-pdf" src={url} title={name || 'PDF'} onClick={stop} />
+          <div className="media-preview-pdf" onClick={stop}>
+            <PdfPages url={url} />
+          </div>
         ) : displayable ? (
           <img className="media-preview-img" src={url} alt={name || ''} onClick={stop} />
         ) : (

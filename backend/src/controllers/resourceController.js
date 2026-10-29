@@ -7,6 +7,8 @@ const taskModel = require('../models/task.model');
 const userModel = require('../models/user.model');
 const { isVideoMime } = require('../config/resourceUpload');
 const { videoAccessError } = require('../utils/videoAccess');
+const { rawPdfAccessError } = require('../utils/pdfAccess');
+const pdfRender = require('../services/pdfRender.service');
 const { MEDIA_URL_PREFIX, extractMediaIds, mediaKind, isUuid } = require('../utils/documentMedia');
 
 const FOLDER_TYPES = ['INTERNE', 'CLIENT', 'ADMIN'];
@@ -296,6 +298,10 @@ async function serveFile(req, res, next, { disposition }) {
       if (refused) return res.status(403).json({ error: refused });
       res.setHeader('Cache-Control', 'private');
     }
+    if (file.mime_type === 'application/pdf') {
+      const refused = rawPdfAccessError(req.user.role);
+      if (refused) return res.status(403).json({ error: refused });
+    }
 
     if (file.mime_type) res.type(file.mime_type);
     const encoded = encodeURIComponent(file.file_name);
@@ -305,6 +311,81 @@ async function serveFile(req, res, next, { disposition }) {
     next(err);
   }
 }
+
+async function findReadablePdf(req, res, source) {
+  const { id } = req.params;
+  const item = !isUuid(id)
+    ? null
+    : source === 'media'
+      ? await resourceModel.findDocumentMediaById(id)
+      : await resourceModel.findFileById(id);
+  const readable =
+    item &&
+    !item.deleted_at &&
+    !item.folder_deleted_at &&
+    (source === 'media' || item.kind === 'FILE') &&
+    item.file_path &&
+    item.mime_type === 'application/pdf' &&
+    canReadFolderType(item.folder_type, req.user);
+  if (!readable) {
+    res.status(404).json({ error: 'Fichier introuvable' });
+    return null;
+  }
+  if (!fs.existsSync(item.file_path)) {
+    res.status(404).json({ error: 'Fichier absent du stockage' });
+    return null;
+  }
+  return item;
+}
+
+function sendPdfRenderError(res, next, err) {
+  if (err instanceof pdfRender.PdfRenderError) {
+    console.error('Rendu PDF impossible :', err.message);
+    return res.status(422).json({ error: "Ce PDF ne peut pas être affiché." });
+  }
+  return next(err);
+}
+
+function pdfPages(source) {
+  return async function (req, res, next) {
+    try {
+      const item = await findReadablePdf(req, res, source);
+      if (!item) return undefined;
+      const { pages } = await pdfRender.describe(item.file_path);
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.status(200).json({ pages });
+    } catch (err) {
+      return sendPdfRenderError(res, next, err);
+    }
+  };
+}
+
+function pdfPageImage(source) {
+  return async function (req, res, next) {
+    try {
+      if (!/^\d{1,5}$/.test(req.params.page) || Number(req.params.page) < 1) {
+        return res.status(400).json({ error: 'Numéro de page invalide' });
+      }
+      const page = Number(req.params.page);
+      const item = await findReadablePdf(req, res, source);
+      if (!item) return undefined;
+      const { pages } = await pdfRender.describe(item.file_path);
+      if (page > pages.length) return res.status(404).json({ error: 'Page introuvable' });
+      const image = await pdfRender.renderPage(item.file_path, page);
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.setHeader('Content-Disposition', 'inline');
+      res.type('image/webp');
+      return res.status(200).send(image);
+    } catch (err) {
+      return sendPdfRenderError(res, next, err);
+    }
+  };
+}
+
+const filePdfPages = pdfPages('file');
+const filePdfPage = pdfPageImage('file');
+const mediaPdfPages = pdfPages('media');
+const mediaPdfPage = pdfPageImage('media');
 
 function previewFile(req, res, next) {
   return serveFile(req, res, next, { disposition: 'inline' });
@@ -523,6 +604,10 @@ async function serveDocumentMedia(req, res, next) {
       const refused = videoAccessError({ disposition: 'inline', fetchDest: req.get('Sec-Fetch-Dest') });
       if (refused) return res.status(403).json({ error: refused });
     }
+    if (media.mime_type === 'application/pdf') {
+      const refused = rawPdfAccessError(req.user.role);
+      if (refused) return res.status(403).json({ error: refused });
+    }
     res.setHeader('Cache-Control', 'private');
     res.type(media.mime_type);
     res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(media.file_name)}`);
@@ -659,6 +744,10 @@ module.exports = {
   getFile,
   previewFile,
   downloadFile,
+  filePdfPages,
+  filePdfPage,
+  mediaPdfPages,
+  mediaPdfPage,
   deleteFile,
   getTrash,
   restoreFolder,

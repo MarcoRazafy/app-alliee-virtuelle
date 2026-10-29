@@ -19,6 +19,7 @@
     "axios": "^1.7.2",
     "html2pdf.js": "^0.10.3",
     "lottie-react": "^2.4.1",
+    "pdfjs-dist": "^4.10.38",
     "react": "^18.2.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",

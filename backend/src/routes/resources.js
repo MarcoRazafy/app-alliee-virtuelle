@@ -1,9 +1,19 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const resourceController = require('../controllers/resourceController');
 const authMiddleware = require('../middleware/auth.middleware');
 const { handleSingleUpload } = require('../config/resourceUpload');
 
 const router = express.Router();
+
+const pdfPageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 200,
+  keyGenerator: (req) => req.user.id,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de pages demandées. Patientez une minute.' },
+});
 
 router.use(authMiddleware);
 
@@ -12,7 +22,11 @@ router.get('/resources/folders/:id/files', resourceController.getFolderFiles);
 router.get('/resources/files/:id', resourceController.getFile);
 router.get('/resources/files/:id/preview', resourceController.previewFile);
 router.get('/resources/files/:id/download', resourceController.downloadFile);
+router.get('/resources/files/:id/pages', resourceController.filePdfPages);
+router.get('/resources/files/:id/pages/:page', pdfPageLimiter, resourceController.filePdfPage);
 router.get('/resources/media/:id', resourceController.serveDocumentMedia);
+router.get('/resources/media/:id/pages', resourceController.mediaPdfPages);
+router.get('/resources/media/:id/pages/:page', pdfPageLimiter, resourceController.mediaPdfPage);
 
 const requireAdmin = authMiddleware.requireRole('ADMIN');
 

@@ -44,6 +44,18 @@ export function getFilePreviewBlob(id) {
   return api.get(`/api/resources/files/${id}/preview`, { responseType: 'blob' }).then((res) => res.data);
 }
 
+function pdfPagesPath(id, media) {
+  return `/api/resources/${media ? 'media' : 'files'}/${id}/pages`;
+}
+
+export function getPdfPagesInfo(id, { media = false } = {}) {
+  return api.get(pdfPagesPath(id, media)).then((res) => res.data);
+}
+
+export function getPdfPageBlob(id, page, { media = false } = {}) {
+  return api.get(`${pdfPagesPath(id, media)}/${page}`, { responseType: 'blob' }).then((res) => res.data);
+}
+
 export function downloadFileBlob(id) {
   return api.get(`/api/resources/files/${id}/download`, { responseType: 'blob' }).then((res) => res.data);
 }

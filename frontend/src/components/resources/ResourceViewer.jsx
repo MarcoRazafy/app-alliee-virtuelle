@@ -6,6 +6,8 @@ import { IconX, IconDownload, IconPencil } from '../icons';
 import { linkifyHtml } from '../../utils/sanitizeHtml';
 import { isVideoMime } from '../../utils/resourceMedia';
 import MediaPreview from '../MediaPreview';
+import PdfPages from '../PdfPages';
+import PdfPageImages from './PdfPageImages';
 
 function saveBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -34,12 +36,13 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const isPdf = mime === 'application/pdf';
   const isImage = mime.startsWith('image/');
   const isVideo = isVideoMime(mime);
+  const protectedPdf = isPdf && !canManage;
 
   useEffect(() => {
     let objectUrl;
     let cancelled = false;
 
-    if (isVideo) {
+    if (isVideo || protectedPdf) {
       setError(null);
       setLoading(false);
       return undefined;
@@ -71,7 +74,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [file.id, file.media, isDocument, isPdf, isImage, isVideo]);
+  }, [file.id, file.media, isDocument, isPdf, isImage, isVideo, protectedPdf]);
 
   async function handleDownloadFile() {
     try {
@@ -158,8 +161,12 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
             </div>
           )}
 
-          {!loading && !error && !isDocument && isPdf && blobUrl && (
-            <iframe className="resources-viewer-frame" src={blobUrl} title={file.file_name} />
+          {!loading && !error && !isDocument && protectedPdf && (
+            <PdfPageImages fileId={file.id} media={Boolean(file.media)} className="resources-viewer-pdf" />
+          )}
+
+          {!loading && !error && !isDocument && isPdf && !protectedPdf && blobUrl && (
+            <PdfPages url={blobUrl} className="resources-viewer-pdf" />
           )}
 
           {!loading && !error && !isDocument && isImage && blobUrl && (
@@ -210,7 +217,10 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
               <IconDownload /> {exporting ? 'Génération…' : 'Télécharger en PDF'}
             </button>
           )}
-          {!isDocument && (
+          {!isDocument && isPdf && !canManage && (
+            <span className="resources-viewer-note">Consultation dans l'application uniquement</span>
+          )}
+          {!isDocument && (!isPdf || canManage) && (
             <button type="button" className="btn-primary" onClick={handleDownloadFile}>
               <IconDownload /> Télécharger
             </button>
@@ -233,6 +243,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
                 kind: 'FILE',
                 media: true,
               }}
+              canManage={canManage}
               onClose={() => setOpenedPdf(null)}
             />,
             window.document.body
