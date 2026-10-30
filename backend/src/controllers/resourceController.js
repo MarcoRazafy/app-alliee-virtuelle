@@ -9,6 +9,8 @@ const { isVideoMime } = require('../config/resourceUpload');
 const { videoAccessError } = require('../utils/videoAccess');
 const { rawPdfAccessError } = require('../utils/pdfAccess');
 const pdfRender = require('../services/pdfRender.service');
+const pageMedia = require('../services/pageMedia.service');
+const { filesUsedBy, isPageDocumentName } = require('../utils/pageBlocks');
 const { MEDIA_URL_PREFIX, extractMediaIds, mediaKind, isUuid } = require('../utils/documentMedia');
 
 const FOLDER_TYPES = ['INTERNE', 'CLIENT', 'ADMIN'];
@@ -312,18 +314,22 @@ async function serveFile(req, res, next, { disposition }) {
   }
 }
 
+async function loadPdfSource({ id, name }, source) {
+  if (!isUuid(id)) return null;
+  if (source === 'media') return resourceModel.findDocumentMediaById(id);
+  const file = await resourceModel.findFileById(id);
+  if (!file) return null;
+  if (source === 'file') return file.kind === 'FILE' ? file : null;
+  if (file.kind !== 'PAGE' || !isPageDocumentName(name) || !filesUsedBy(file.blocks).has(name)) return null;
+  return { ...file, file_path: pageMedia.mediaPath(id, name), mime_type: 'application/pdf' };
+}
+
 async function findReadablePdf(req, res, source) {
-  const { id } = req.params;
-  const item = !isUuid(id)
-    ? null
-    : source === 'media'
-      ? await resourceModel.findDocumentMediaById(id)
-      : await resourceModel.findFileById(id);
+  const item = await loadPdfSource(req.params, source);
   const readable =
     item &&
     !item.deleted_at &&
     !item.folder_deleted_at &&
-    (source === 'media' || item.kind === 'FILE') &&
     item.file_path &&
     item.mime_type === 'application/pdf' &&
     canReadFolderType(item.folder_type, req.user);
@@ -386,6 +392,8 @@ const filePdfPages = pdfPages('file');
 const filePdfPage = pdfPageImage('file');
 const mediaPdfPages = pdfPages('media');
 const mediaPdfPage = pdfPageImage('media');
+const pageDocumentPages = pdfPages('page');
+const pageDocumentPage = pdfPageImage('page');
 
 function previewFile(req, res, next) {
   return serveFile(req, res, next, { disposition: 'inline' });
@@ -503,12 +511,16 @@ async function permanentlyDeleteFolder(req, res, next) {
     }
 
     const filePaths = await resourceModel.findFilePathsInFolderTree(id);
+    const pageIds = await resourceModel.findPageIdsInFolderTree(id);
     const deleted = await resourceModel.permanentlyDeleteFolder(id);
     if (!deleted) {
       return res.status(409).json({ error: 'Ce dossier ne peut plus être supprimé' });
     }
     for (const filePath of filePaths) {
       fs.unlink(filePath, () => {});
+    }
+    for (const pageId of pageIds) {
+      await pageMedia.removePageDir(pageId).catch(() => {});
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -541,6 +553,9 @@ async function permanentlyDeleteFile(req, res, next) {
     if (file.kind === 'DOCUMENT') {
       const removed = await resourceModel.deleteUnreferencedMedia(extractMediaIds(file.content));
       removed.forEach((m) => fs.unlink(m.file_path, () => {}));
+    }
+    if (file.kind === 'PAGE') {
+      await pageMedia.removePageDir(id).catch(() => {});
     }
     await taskModel.recordAudit({
       userId: req.user.id,
@@ -733,6 +748,7 @@ async function revokeShare(req, res, next) {
 }
 
 module.exports = {
+  canReadFolderType,
   getFolders,
   getFolderFiles,
   createFolder,
@@ -748,6 +764,8 @@ module.exports = {
   filePdfPage,
   mediaPdfPages,
   mediaPdfPage,
+  pageDocumentPages,
+  pageDocumentPage,
   deleteFile,
   getTrash,
   restoreFolder,

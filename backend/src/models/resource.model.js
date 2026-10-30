@@ -112,9 +112,52 @@ async function updateDocument(id, { fileName, content }) {
   return result.rows[0] || null;
 }
 
+async function createPage({ folderId, fileName, createdBy }) {
+  const result = await db.query(
+    `INSERT INTO resources_files (folder_id, file_name, file_type, kind, blocks, created_by)
+     VALUES ($1, $2, 'Page', 'PAGE', '[]'::jsonb, $3)
+     RETURNING id`,
+    [folderId, fileName, createdBy]
+  );
+  return result.rows[0];
+}
+
+async function updatePage(id, { fileName, blocks }) {
+  const result = await db.query(
+    `UPDATE resources_files
+     SET file_name = COALESCE($2, file_name),
+         blocks = $3::jsonb,
+         updated_at = now()
+     WHERE id = $1 AND kind = 'PAGE' AND deleted_at IS NULL
+     RETURNING id, folder_id, file_name, file_type, kind, blocks, created_at, updated_at`,
+    [id, fileName ?? null, JSON.stringify(blocks)]
+  );
+  return result.rows[0] || null;
+}
+
+async function hardDeletePage(id) {
+  await db.query(`DELETE FROM resources_files WHERE id = $1 AND kind = 'PAGE'`, [id]);
+}
+
+async function findPageIdsInFolderTree(folderId) {
+  const result = await db.query(
+    `WITH RECURSIVE folder_tree AS (
+       SELECT id FROM resources_folders WHERE id = $1
+       UNION ALL
+       SELECT child.id
+       FROM resources_folders child
+       JOIN folder_tree parent ON child.parent_folder_id = parent.id
+     )
+     SELECT id FROM resources_files
+     WHERE folder_id IN (SELECT id FROM folder_tree) AND kind = 'PAGE'`,
+    [folderId]
+  );
+  return result.rows.map((row) => row.id);
+}
+
 async function findFileById(id) {
   const result = await db.query(
-    `SELECT f.*, folder.deleted_at AS folder_deleted_at, folder.type AS folder_type,
+    `SELECT f.*, folder.deleted_at AS folder_deleted_at, folder.type AS folder_type, folder.name AS folder_name,
             u.full_name AS created_by_name
      FROM resources_files f
      JOIN resources_folders folder ON folder.id = f.folder_id
@@ -314,6 +357,10 @@ module.exports = {
   createFile,
   createDocument,
   updateDocument,
+  createPage,
+  updatePage,
+  hardDeletePage,
+  findPageIdsInFolderTree,
   findFileById,
   deleteFile,
   findTrash,

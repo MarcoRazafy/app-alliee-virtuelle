@@ -3,7 +3,7 @@ import * as resourceService from '../../services/resourceService';
 import { useNearViewport } from '../PdfPages';
 import '../../styles/pdf-pages.css';
 
-function PageImage({ fileId, media, number, width, height, total }) {
+function PageImage({ fileId, media, pageMedia, number, width, height, total }) {
   const wrapRef = useRef(null);
   const near = useNearViewport(wrapRef);
   const [src, setSrc] = useState(null);
@@ -14,7 +14,7 @@ function PageImage({ fileId, media, number, width, height, total }) {
     let cancelled = false;
     let objectUrl = null;
     resourceService
-      .getPdfPageBlob(fileId, number, { media })
+      .getPdfPageBlob(fileId, number, { media, pageMedia })
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
@@ -27,7 +27,7 @@ function PageImage({ fileId, media, number, width, height, total }) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [near, fileId, media, number]);
+  }, [near, fileId, media, pageMedia, number]);
 
   return (
     <div ref={wrapRef} className="pdf-page" style={{ aspectRatio: `${width} / ${height}` }}>
@@ -40,7 +40,7 @@ function PageImage({ fileId, media, number, width, height, total }) {
   );
 }
 
-export default function PdfPageImages({ fileId, media = false, className = '' }) {
+export default function PdfPageImages({ fileId, media = false, pageMedia = null, className = '' }) {
   const [pages, setPages] = useState(null);
   const [error, setError] = useState(null);
 
@@ -49,7 +49,7 @@ export default function PdfPageImages({ fileId, media = false, className = '' })
     setPages(null);
     setError(null);
     resourceService
-      .getPdfPagesInfo(fileId, { media })
+      .getPdfPagesInfo(fileId, { media, pageMedia })
       .then((data) => {
         if (!cancelled) setPages(data.pages || []);
       })
@@ -59,7 +59,7 @@ export default function PdfPageImages({ fileId, media = false, className = '' })
     return () => {
       cancelled = true;
     };
-  }, [fileId, media]);
+  }, [fileId, media, pageMedia]);
 
   return (
     <div
@@ -75,6 +75,7 @@ export default function PdfPageImages({ fileId, media = false, className = '' })
             key={index + 1}
             fileId={fileId}
             media={media}
+            pageMedia={pageMedia}
             number={index + 1}
             total={pages.length}
             width={page.width}

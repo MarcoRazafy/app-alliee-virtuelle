@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/resources');
+const UPLOAD_DIR = process.env.RESOURCE_UPLOAD_DIR || path.join(__dirname, '../../uploads/resources');
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });

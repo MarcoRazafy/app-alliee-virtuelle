@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import EmployeeLayout from '../components/employee/EmployeeLayout';
 import * as resourceService from '../services/resourceService';
 import { formatBytes } from '../utils/formatters';
 import { notifyError } from '../utils/toast';
 import ResourceViewer from '../components/resources/ResourceViewer';
-import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil, IconPlay } from '../components/icons';
+import { IconFolder, IconFileText, IconSearch, IconArrowRight, IconPencil, IconPlay, IconLayers } from '../components/icons';
 import { isVideoMime } from '../utils/resourceMedia';
 import '../styles/resources.css';
 
@@ -14,7 +15,10 @@ const TABS = [
 ];
 
 function Resources() {
-  const [tab, setTab] = useState('INTERNE');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const reopenRef = useRef(location.state?.reopen || null);
+  const [tab, setTab] = useState(() => location.state?.reopen?.tab || 'INTERNE');
   const [folders, setFolders] = useState([]);
   const [loadingFolders, setLoadingFolders] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -30,10 +34,27 @@ function Resources() {
     setLoadingFolders(true);
     resourceService
       .getFolders(tab)
-      .then(setFolders)
+      .then((data) => {
+        setFolders(data);
+        const reopen = reopenRef.current;
+        if (reopen && reopen.tab === tab) {
+          reopenRef.current = null;
+          const folder = data.find((item) => item.id === reopen.folderId);
+          if (folder) openFolder(folder);
+          if (reopen.fileId) resourceService.getFile(reopen.fileId).then(openFile).catch(() => {});
+        }
+      })
       .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
       .finally(() => setLoadingFolders(false));
   }, [tab]);
+
+  function openFile(file) {
+    if (file.kind === 'PAGE') {
+      navigate(`/resources/${file.id}`);
+      return;
+    }
+    setViewerFile(file);
+  }
 
   async function openFolder(folder) {
     setSelectedFolder(folder);
@@ -163,11 +184,13 @@ function Resources() {
                               <button
                                 type="button"
                                 className="resources-file-name-cell resources-file-name-btn"
-                                onClick={() => setViewerFile(file)}
+                                onClick={() => openFile(file)}
                               >
                                 <span className="resources-file-icon">
                                   {file.kind === 'DOCUMENT' ? (
                                     <IconPencil />
+                                  ) : file.kind === 'PAGE' ? (
+                                    <IconLayers />
                                   ) : isVideoMime(file.mime_type) ? (
                                     <IconPlay />
                                   ) : (
@@ -178,13 +201,13 @@ function Resources() {
                               </button>
                             </td>
                             <td>{file.file_type || '—'}</td>
-                            <td>{file.kind === 'DOCUMENT' ? '—' : formatBytes(file.file_size)}</td>
+                            <td>{file.kind === 'DOCUMENT' || file.kind === 'PAGE' ? '—' : formatBytes(file.file_size)}</td>
                             <td>{new Date(file.created_at).toLocaleDateString('fr-FR')}</td>
                             <td className="resources-actions-col">
                               <button
                                 type="button"
                                 className="icon-link-btn"
-                                onClick={() => setViewerFile(file)}
+                                onClick={() => openFile(file)}
                                 aria-label="Ouvrir"
                                 title="Ouvrir"
                               >

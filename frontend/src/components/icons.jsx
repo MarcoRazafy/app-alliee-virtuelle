@@ -507,3 +507,70 @@ export const IconSettings = (props) =>
     </>,
     props
   );
+
+export const IconGrip = (props) =>
+  base(
+    <>
+      {[6, 12, 18].map((y) => (
+        <g key={y}>
+          <circle cx="9" cy={y} r="1.4" fill="currentColor" />
+          <circle cx="15" cy={y} r="1.4" fill="currentColor" />
+        </g>
+      ))}
+    </>,
+    props
+  );
+
+export const IconBold = (props) =>
+  base(
+    <path
+      d="M7 5h6a3.5 3.5 0 010 7H7zM7 12h7a3.5 3.5 0 010 7H7z"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinejoin="round"
+    />,
+    props
+  );
+
+export const IconItalic = (props) =>
+  base(<path d="M10 5h8M6 19h8M14 5l-4 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />, props);
+
+export const IconUnderline = (props) =>
+  base(
+    <path d="M7 4v7a5 5 0 0010 0V4M5 20h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />,
+    props
+  );
+
+export const IconAlignLeft = (props) =>
+  base(<path d="M4 6h16M4 10h10M4 14h16M4 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />, props);
+
+export const IconAlignCenter = (props) =>
+  base(<path d="M4 6h16M7 10h10M4 14h16M7 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />, props);
+
+export const IconAlignRight = (props) =>
+  base(<path d="M4 6h16M10 10h10M4 14h16M10 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />, props);
+
+export const IconImage = (props) =>
+  base(
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+      <circle cx="9" cy="10" r="1.6" fill="currentColor" />
+      <path d="M4 17l5-5 4 4 2.5-2.5L20 18" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
+export const IconVideo = (props) =>
+  base(
+    <>
+      <rect x="3" y="6" width="13" height="12" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M16 10.5l5-3v9l-5-3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </>,
+    props
+  );
+
+export const IconArrowUp = (props) =>
+  base(<path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);
+
+export const IconArrowDown = (props) =>
+  base(<path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, props);

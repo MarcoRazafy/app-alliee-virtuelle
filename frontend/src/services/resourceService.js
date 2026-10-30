@@ -32,6 +32,30 @@ export function uploadFile(folderId, file, onProgress) {
     .then((res) => res.data);
 }
 
+export function uploadPageMedia(file, onProgress) {
+  const payload = new FormData();
+  payload.append('file', file);
+  return api
+    .post('/api/resources/page-uploads', payload, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      onUploadProgress: onProgress ? (event) => onProgress(event.loaded, event.total) : undefined,
+    })
+    .then((res) => res.data);
+}
+
+export function createPage(folderId, payload) {
+  return api.post(`/api/resources/folders/${folderId}/pages`, payload).then((res) => res.data);
+}
+
+export function updatePage(id, payload) {
+  return api.put(`/api/resources/pages/${id}`, payload).then((res) => res.data);
+}
+
+export function pageMediaUrl(id, name) {
+  return `${apiBaseUrl}/api/resources/files/${id}/page-media/${encodeURIComponent(name)}`;
+}
+
 export function videoStreamUrl(id) {
   return `${apiBaseUrl}/api/resources/files/${id}/preview`;
 }
@@ -44,16 +68,23 @@ export function getFilePreviewBlob(id) {
   return api.get(`/api/resources/files/${id}/preview`, { responseType: 'blob' }).then((res) => res.data);
 }
 
-function pdfPagesPath(id, media) {
+function pdfPagesPath(id, media, pageMedia) {
+  if (pageMedia) return `/api/resources/files/${id}/page-media/${encodeURIComponent(pageMedia)}/pages`;
   return `/api/resources/${media ? 'media' : 'files'}/${id}/pages`;
 }
 
-export function getPdfPagesInfo(id, { media = false } = {}) {
-  return api.get(pdfPagesPath(id, media)).then((res) => res.data);
+export function getPdfPagesInfo(id, { media = false, pageMedia = null } = {}) {
+  return api.get(pdfPagesPath(id, media, pageMedia)).then((res) => res.data);
 }
 
-export function getPdfPageBlob(id, page, { media = false } = {}) {
-  return api.get(`${pdfPagesPath(id, media)}/${page}`, { responseType: 'blob' }).then((res) => res.data);
+export function getPdfPageBlob(id, page, { media = false, pageMedia = null } = {}) {
+  return api.get(`${pdfPagesPath(id, media, pageMedia)}/${page}`, { responseType: 'blob' }).then((res) => res.data);
+}
+
+export function getPageMediaBlob(id, name) {
+  return api
+    .get(`/api/resources/files/${id}/page-media/${encodeURIComponent(name)}`, { responseType: 'blob' })
+    .then((res) => res.data);
 }
 
 export function downloadFileBlob(id) {

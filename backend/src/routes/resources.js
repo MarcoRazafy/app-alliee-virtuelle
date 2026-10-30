@@ -1,6 +1,8 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const resourceController = require('../controllers/resourceController');
+const resourcePageController = require('../controllers/resourcePageController');
+const { handlePageUpload } = require('../services/pageMedia.service');
 const authMiddleware = require('../middleware/auth.middleware');
 const { handleSingleUpload } = require('../config/resourceUpload');
 
@@ -24,6 +26,9 @@ router.get('/resources/files/:id/preview', resourceController.previewFile);
 router.get('/resources/files/:id/download', resourceController.downloadFile);
 router.get('/resources/files/:id/pages', resourceController.filePdfPages);
 router.get('/resources/files/:id/pages/:page', pdfPageLimiter, resourceController.filePdfPage);
+router.get('/resources/files/:id/page-media/:name', resourcePageController.servePageMedia);
+router.get('/resources/files/:id/page-media/:name/pages', resourceController.pageDocumentPages);
+router.get('/resources/files/:id/page-media/:name/pages/:page', pdfPageLimiter, resourceController.pageDocumentPage);
 router.get('/resources/media/:id', resourceController.serveDocumentMedia);
 router.get('/resources/media/:id/pages', resourceController.mediaPdfPages);
 router.get('/resources/media/:id/pages/:page', pdfPageLimiter, resourceController.mediaPdfPage);
@@ -41,6 +46,9 @@ router.put('/resources/folders/:id', requireAdmin, resourceController.renameFold
 router.delete('/resources/folders/:id', requireAdmin, resourceController.deleteFolder);
 router.post('/resources/folders/:id/files', requireAdmin, handleSingleUpload, resourceController.uploadFile);
 router.post('/resources/folders/:id/documents', requireAdmin, resourceController.createDocument);
+router.post('/resources/page-uploads', requireAdmin, handlePageUpload, resourcePageController.uploadPageMedia);
+router.post('/resources/folders/:id/pages', requireAdmin, resourcePageController.createPage);
+router.put('/resources/pages/:id', requireAdmin, resourcePageController.updatePage);
 router.post('/resources/folders/:id/media', requireAdmin, handleSingleUpload, resourceController.uploadDocumentMedia);
 router.delete('/resources/media/:id', requireAdmin, resourceController.deleteDocumentMedia);
 router.put('/resources/files/:id', requireAdmin, resourceController.updateDocument);

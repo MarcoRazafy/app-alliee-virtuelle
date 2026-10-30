@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import * as resourceService from '../../services/resourceService';
 import * as userService from '../../services/userService';
 import { formatBytes, formatDateTime } from '../../utils/formatters';
@@ -17,6 +18,7 @@ import {
   IconDownload,
   IconArrowRight,
   IconPlay,
+  IconLayers,
 } from '../../components/icons';
 import { PageSkeleton } from '../../components/Skeleton';
 import { RESOURCE_ACCEPT, isVideoMime, uploadSizeError, uploadPercent } from '../../utils/resourceMedia';
@@ -29,7 +31,10 @@ const TABS = [
 ];
 
 function AdminResources() {
-  const [tab, setTab] = useState('INTERNE');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const reopenRef = useRef(location.state?.reopen || null);
+  const [tab, setTab] = useState(() => location.state?.reopen?.tab || 'INTERNE');
   const [folders, setFolders] = useState([]);
   const [loadingFolders, setLoadingFolders] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -63,7 +68,16 @@ function AdminResources() {
     setLoadingFolders(true);
     return resourceService
       .getFolders(tab)
-      .then(setFolders)
+      .then((data) => {
+        setFolders(data);
+        const reopen = reopenRef.current;
+        if (reopen && reopen.tab === tab) {
+          reopenRef.current = null;
+          const folder = data.find((item) => item.id === reopen.folderId);
+          if (folder) openFolder(folder);
+          if (reopen.fileId) resourceService.getFile(reopen.fileId).then(openViewer).catch(() => {});
+        }
+      })
       .catch((err) => notifyError(err.response?.data?.error || 'Impossible de charger les dossiers'))
       .finally(() => setLoadingFolders(false));
   }
@@ -218,15 +232,23 @@ function AdminResources() {
   }, [uploading]);
 
   function openViewer(file) {
+    if (file.kind === 'PAGE') {
+      navigate(`/admin/resources/${file.id}`);
+      return;
+    }
     setViewerFile(file);
   }
 
-  function openNewDocument() {
-    setEditor({ document: null });
+  function openNewPage() {
+    navigate(`/admin/resources/pages/nouvelle?dossier=${selectedFolder.id}&onglet=${tab}`);
   }
 
   function openEditDocument(doc) {
     setViewerFile(null);
+    if (doc.kind === 'PAGE') {
+      navigate(`/admin/resources/pages/${doc.id}`);
+      return;
+    }
     setEditor({ document: doc });
   }
 
@@ -518,10 +540,10 @@ function AdminResources() {
                     ? uploadProgress === null
                       ? 'Import…'
                       : `Import… ${uploadProgress} %`
-                    : 'Importer un fichier'}
+                    : 'Déposer un fichier'}
                 </button>
-                <button type="button" className="btn-outline" onClick={openNewDocument}>
-                  <IconPencil /> Nouveau document
+                <button type="button" className="btn-outline" onClick={openNewPage}>
+                  <IconLayers /> Composer une page
                 </button>
               </div>
 
@@ -541,7 +563,7 @@ function AdminResources() {
                 <div className="empty-state">
                   {fileSearch.trim()
                     ? 'Aucun fichier ne correspond à cette recherche.'
-                    : 'Ce dossier est vide. Importez un fichier ou créez un document.'}
+                    : 'Ce dossier est vide. Déposez un fichier ou composez une page.'}
                 </div>
               )}
 
@@ -578,6 +600,8 @@ function AdminResources() {
                               <span className="resources-file-icon">
                                 {file.kind === 'DOCUMENT' ? (
                                   <IconPencil />
+                                ) : file.kind === 'PAGE' ? (
+                                  <IconLayers />
                                 ) : isVideoMime(file.mime_type) ? (
                                   <IconPlay />
                                 ) : (
@@ -588,16 +612,16 @@ function AdminResources() {
                             </button>
                           </td>
                           <td>{file.file_type || '—'}</td>
-                          <td>{file.kind === 'DOCUMENT' ? '—' : formatBytes(file.file_size)}</td>
+                          <td>{file.kind === 'DOCUMENT' || file.kind === 'PAGE' ? '—' : formatBytes(file.file_size)}</td>
                           <td>{file.created_by_name}</td>
                           <td className="resources-actions-col">
                             <div className="resources-row-actions">
-                              {file.kind === 'DOCUMENT' && (
+                              {(file.kind === 'DOCUMENT' || file.kind === 'PAGE') && (
                                 <button
                                   type="button"
                                   className="icon-link-btn"
                                   onClick={() => openEditDocument(file)}
-                                  aria-label="Éditer le document"
+                                  aria-label={file.kind === 'PAGE' ? 'Éditer la page' : 'Éditer le document'}
                                   title="Éditer"
                                 >
                                   <IconPencil />

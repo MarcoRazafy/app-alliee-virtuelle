@@ -60,6 +60,8 @@ const ACTION_LABELS = {
   PERMANENT_DELETE_RESOURCE_FOLDER: 'a supprimé définitivement un dossier',
   UPLOAD_RESOURCE_FILE: 'a ajouté un fichier',
   CREATE_RESOURCE_DOCUMENT: 'a créé un document',
+  CREATE_RESOURCE_PAGE: 'a créé une page de ressources',
+  UPDATE_RESOURCE_PAGE: 'a modifié une page de ressources',
   TRASH_RESOURCE_FILE: 'a placé un fichier dans la corbeille',
   RESTORE_RESOURCE_FILE: 'a restauré un fichier',
   PERMANENT_DELETE_RESOURCE_FILE: 'a supprimé définitivement un fichier',

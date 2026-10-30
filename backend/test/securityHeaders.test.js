@@ -25,9 +25,12 @@ test('la CSP laisse lire les vidéos du site et les médias blob:', async () => 
   assert.ok(csp['media-src'].includes('blob:'));
 });
 
-test('la CSP n’ouvre ni cadres ni objets à d’autres sources', async () => {
+test('la CSP n’ouvre les cadres qu’aux lecteurs vidéo YouTube (nocookie) et Vimeo', async () => {
   const csp = directives(await request(app).get('/api/auth/me'));
-  assert.equal(csp['frame-src'], undefined, 'les cadres retombent sur default-src');
+  assert.deepEqual(
+    [...csp['frame-src']].sort(),
+    ["'self'", 'https://player.vimeo.com', 'https://www.youtube-nocookie.com'].sort()
+  );
   assert.deepEqual(csp['default-src'], ["'self'"]);
   assert.deepEqual(csp['object-src'], ["'none'"]);
 });

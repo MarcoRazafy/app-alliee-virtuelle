@@ -8,26 +8,19 @@ import { isVideoMime } from '../../utils/resourceMedia';
 import MediaPreview from '../MediaPreview';
 import PdfPages from '../PdfPages';
 import PdfPageImages from './PdfPageImages';
-
-function saveBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
+import PageBlocks from './page/PageBlocks';
+import { saveBlob } from '../../utils/saveBlob';
 
 function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
   const isDocument = file.kind === 'DOCUMENT';
+  const isPage = file.kind === 'PAGE';
   const docRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [blobUrl, setBlobUrl] = useState(null);
   const [docContent, setDocContent] = useState('');
+  const [pageBlocks, setPageBlocks] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [openedPdf, setOpenedPdf] = useState(null);
   const [zoomedImage, setZoomedImage] = useState(null);
@@ -52,9 +45,10 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
       setLoading(true);
       setError(null);
       try {
-        if (isDocument) {
+        if (isDocument || isPage) {
           const full = await resourceService.getFile(file.id);
-          if (!cancelled) setDocContent(full.content || '');
+          if (!cancelled && isPage) setPageBlocks(full.blocks || []);
+          if (!cancelled && isDocument) setDocContent(full.content || '');
         } else if (isPdf || isImage) {
           const blob = file.media
             ? await resourceService.getDocumentMediaBlob(file.id)
@@ -74,7 +68,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [file.id, file.media, isDocument, isPdf, isImage, isVideo, protectedPdf]);
+  }, [file.id, file.media, isDocument, isPage, isPdf, isImage, isVideo, protectedPdf]);
 
   async function handleDownloadFile() {
     try {
@@ -161,6 +155,12 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
             </div>
           )}
 
+          {!loading && !error && isPage && (
+            <div className="resources-doc-page rp-paper">
+              <PageBlocks blocks={pageBlocks} pageId={file.id} canDownload={canManage} />
+            </div>
+          )}
+
           {!loading && !error && !isDocument && protectedPdf && (
             <PdfPageImages fileId={file.id} media={Boolean(file.media)} className="resources-viewer-pdf" />
           )}
@@ -198,7 +198,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
             </div>
           )}
 
-          {!loading && !error && !isDocument && !isPdf && !isImage && !isVideo && (
+          {!loading && !error && !isDocument && !isPage && !isPdf && !isImage && !isVideo && (
             <div className="empty-state">
               Aperçu indisponible pour ce format. Téléchargez le fichier pour l'ouvrir.
             </div>
@@ -207,7 +207,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
 
         {!isVideo && (
         <div className="resources-modal-foot">
-          {canManage && isDocument && (
+          {canManage && (isDocument || isPage) && (
             <button type="button" className="btn-outline" onClick={() => onEdit?.(file)}>
               <IconPencil /> Éditer
             </button>
@@ -220,7 +220,7 @@ function ResourceViewer({ file, canManage = false, onClose, onEdit }) {
           {!isDocument && isPdf && !canManage && (
             <span className="resources-viewer-note">Consultation dans l'application uniquement</span>
           )}
-          {!isDocument && (!isPdf || canManage) && (
+          {!isDocument && !isPage && (!isPdf || canManage) && (
             <button type="button" className="btn-primary" onClick={handleDownloadFile}>
               <IconDownload /> Télécharger
             </button>
