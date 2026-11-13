@@ -150,6 +150,18 @@ async function deleteList(id, deletedBy) {
   return result.rows[0] || null;
 }
 
+async function findActiveListPath(id) {
+  const { rows } = await db.query(
+    `SELECT l.id, l.name, f.name AS folder_name, s.name AS space_name
+     FROM task_lists l
+     JOIN task_folders f ON f.id = l.folder_id AND f.deleted_at IS NULL
+     JOIN task_spaces s ON s.id = f.space_id AND s.deleted_at IS NULL
+     WHERE l.id = $1 AND l.deleted_at IS NULL`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
 async function getTree() {
   const result = await db.query(`
     SELECT
@@ -205,5 +217,6 @@ module.exports = {
   createList,
   updateList,
   deleteList,
+  findActiveListPath,
   getTree,
 };

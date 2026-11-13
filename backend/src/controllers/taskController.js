@@ -9,6 +9,10 @@ const { businessDayNow } = require('../utils/businessDay');
 const { FINISHED_STATUSES } = require('../utils/lateTasks');
 const { DateTime } = require('luxon');
 const dailyModel = require('../models/daily.model');
+const hierarchyModel = require('../models/hierarchy.model');
+const { isUuid } = require('../utils/documentMedia');
+
+const MAX_MOVED_TASKS = 200;
 
 function isTaskAssignee(task, userId) {
   if (!task) return false;
@@ -242,6 +246,58 @@ async function updateTask(req, res, next) {
       details: { title },
     });
     return res.status(200).json(updated);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function moveTasks(req, res, next) {
+  try {
+    const { task_ids: rawIds, list_id: rawListId } = req.body;
+    const taskIds = Array.isArray(rawIds) ? [...new Set(rawIds.map((id) => String(id).toLowerCase()))] : [];
+    const listId = String(rawListId || '').toLowerCase();
+    if (taskIds.length === 0 || !taskIds.every(isUuid)) {
+      return res.status(400).json({ error: 'Choisissez au moins une tâche à déplacer' });
+    }
+    if (taskIds.length > MAX_MOVED_TASKS) {
+      return res.status(400).json({ error: `Vous pouvez déplacer au plus ${MAX_MOVED_TASKS} tâches à la fois` });
+    }
+    if (!isUuid(listId)) return res.status(400).json({ error: 'Choisissez le projet de destination' });
+
+    const list = await hierarchyModel.findActiveListPath(listId);
+    if (!list) return res.status(404).json({ error: 'Projet de destination introuvable' });
+
+    const tasks = [];
+    for (const id of taskIds) {
+      // eslint-disable-next-line no-await-in-loop
+      const task = await taskModel.findById(id);
+      if (!task) return res.status(404).json({ error: 'Une des tâches est introuvable' });
+      // eslint-disable-next-line no-await-in-loop
+      if (task.created_by !== req.user.id && !(await canAccessTask(task, req.user))) {
+        return res.status(403).json({ error: `Vous ne pouvez pas déplacer la tâche « ${task.title} »` });
+      }
+      tasks.push(task);
+    }
+
+    const path = `${list.space_name} › ${list.folder_name} › ${list.name}`;
+    const moved = await db.withTransaction(async (client) => {
+      const ids = await taskModel.moveTasks(taskIds, listId, client);
+      for (const task of tasks.filter((t) => t.list_id !== listId)) {
+        // eslint-disable-next-line no-await-in-loop
+        await taskModel.recordAudit(
+          {
+            userId: req.user.id,
+            action: 'MOVE_TASK',
+            entityType: 'task',
+            entityId: task.id,
+            details: { title: task.title, from_list_id: task.list_id, to_list_id: listId, to_list: path },
+          },
+          client
+        );
+      }
+      return ids;
+    });
+    return res.status(200).json({ moved: moved.length, list: { id: list.id, name: list.name, path } });
   } catch (err) {
     return next(err);
   }
@@ -1574,6 +1630,7 @@ module.exports = {
   deleteAttachment,
   deleteTask,
   updateTask,
+  moveTasks,
   updateTaskDescription,
   updateTaskDeadline,
   updateTaskStatus,

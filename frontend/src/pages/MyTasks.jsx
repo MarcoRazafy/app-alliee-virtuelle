@@ -6,8 +6,9 @@ import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import { formatDurationShort } from '../utils/formatters';
 import { STATUS_PILL, priorityPillClass, formatRelativeDeadline, displayStatusOf, isTaskLate } from '../utils/taskStatus';
-import { IconExternalLink, IconChecklist, IconTrash } from '../components/icons';
+import { IconExternalLink, IconChecklist, IconTrash, IconFolder } from '../components/icons';
 import NewTaskModal from '../components/employee/NewTaskModal';
+import MoveTasksDialog from '../components/MoveTasksDialog';
 import { htmlToText } from '../utils/sanitizeHtml';
 import { notifySuccess, notifyError } from '../utils/toast';
 import useAuthStore from '../store/authStore';
@@ -74,6 +75,7 @@ function MyTasks() {
   const [sort, setSort] = useState('recent');
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleting, setDeleting] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: '', statuses: [], priorities: [], deadlineRange: '' });
@@ -135,20 +137,20 @@ function MyTasks() {
 
   const isMine = (task) => Boolean(user?.id && task.created_by === user.id);
 
-  const mineInView = filteredTasks.filter(isMine);
-  const selectedInView = mineInView.filter((t) => selectedIds.includes(t.id));
-  const allMineSelected = mineInView.length > 0 && selectedInView.length === mineInView.length;
+  const selectedInView = filteredTasks.filter((t) => selectedIds.includes(t.id));
+  const allSelected = filteredTasks.length > 0 && selectedInView.length === filteredTasks.length;
+  const canDeleteSelection = selectedInView.length > 0 && selectedInView.every(isMine);
 
   function toggleSelected(taskId) {
     setSelectedIds((cur) => (cur.includes(taskId) ? cur.filter((id) => id !== taskId) : [...cur, taskId]));
   }
 
   function toggleSelectAll() {
-    setSelectedIds(allMineSelected ? [] : mineInView.map((t) => t.id));
+    setSelectedIds(allSelected ? [] : filteredTasks.map((t) => t.id));
   }
 
   async function deleteSelected() {
-    if (selectedInView.length === 0 || deleting) return;
+    if (!canDeleteSelection || deleting) return;
     const count = selectedInView.length;
     const message =
       `Supprimer ${count} tâche${count > 1 ? 's' : ''} que vous avez créée${count > 1 ? 's' : ''} ?\n\n` +
@@ -208,9 +210,14 @@ function MyTasks() {
             <button type="button" className="mt-bulk-clear" onClick={() => setSelectedIds([])}>
               Annuler
             </button>
-            <button type="button" className="btn-danger mt-bulk-delete" onClick={deleteSelected} disabled={deleting}>
-              <IconTrash /> {deleting ? 'Suppression…' : 'Supprimer'}
+            <button type="button" className="btn-outline mt-bulk-move" onClick={() => setMoveOpen(true)}>
+              <IconFolder /> Déplacer vers un projet…
             </button>
+            {canDeleteSelection && (
+              <button type="button" className="btn-danger mt-bulk-delete" onClick={deleteSelected} disabled={deleting}>
+                <IconTrash /> {deleting ? 'Suppression…' : 'Supprimer'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -223,15 +230,13 @@ function MyTasks() {
               <thead>
                 <tr>
                   <th className="mt-select-col">
-                    {mineInView.length > 0 && (
-                      <input
-                        type="checkbox"
-                        checked={allMineSelected}
-                        onChange={toggleSelectAll}
-                        aria-label="Sélectionner toutes mes tâches"
-                        title="Sélectionner toutes les tâches que j'ai créées"
-                      />
-                    )}
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Sélectionner toutes les tâches affichées"
+                      title="Sélectionner toutes les tâches affichées"
+                    />
                   </th>
                   <th>Tâche</th>
                   <th>Projet / Contexte</th>
@@ -246,14 +251,12 @@ function MyTasks() {
                 {paginatedTasks.map((task) => (
                   <tr key={task.id} className={selectedIds.includes(task.id) ? 'mt-row--selected' : undefined}>
                     <td className="mt-select-col">
-                      {isMine(task) && (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(task.id)}
-                          onChange={() => toggleSelected(task.id)}
-                          aria-label={`Sélectionner « ${task.title} »`}
-                        />
-                      )}
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(task.id)}
+                        onChange={() => toggleSelected(task.id)}
+                        aria-label={`Sélectionner « ${task.title} »`}
+                      />
                     </td>
                     <td>
                       <span className="mt-title-cell">
@@ -309,6 +312,16 @@ function MyTasks() {
       )}
 
       <NewTaskModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={loadTasks} />
+      {moveOpen && (
+        <MoveTasksDialog
+          taskIds={selectedInView.map((t) => t.id)}
+          onClose={() => setMoveOpen(false)}
+          onMoved={() => {
+            setMoveOpen(false);
+            setSelectedIds([]);
+          }}
+        />
+      )}
     </EmployeeLayout>
   );
 }

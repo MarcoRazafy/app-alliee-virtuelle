@@ -45,6 +45,13 @@ export function updateTask(id, payload) {
   });
 }
 
+export function moveTasks(taskIds, listId) {
+  return api.post('/api/tasks/move', { task_ids: taskIds, list_id: listId }).then((res) => {
+    notifyTasksChanged();
+    return res.data;
+  });
+}
+
 export function updateTaskStatus(id, status) {
   return api.patch(`/api/tasks/${id}/status`, { status }).then((res) => res.data);
 }

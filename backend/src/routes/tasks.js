@@ -47,6 +47,7 @@ router.delete('/tasks/:id/attachments/:fileId', taskController.deleteAttachment)
 router.get('/attachments/:fileId/download', taskController.downloadAttachment);
 
 router.post('/tasks', taskController.createTask);
+router.post('/tasks/move', taskController.moveTasks);
 router.post('/tasks/:id/validate', authMiddleware.requireRole('ADMIN'), taskController.validateTask);
 router.post('/tasks/:id/confirm', authMiddleware.requireRole('ADMIN'), taskController.confirmTask);
 router.post('/tasks/:id/reject', authMiddleware.requireRole('ADMIN'), taskController.rejectTask);

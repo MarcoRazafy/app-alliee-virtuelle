@@ -22,6 +22,7 @@ import '../styles/notifications.css';
 const ACTION_LABELS = {
   CREATE_TASK: 'a créé une tâche',
   DELETE_TASK: 'a supprimé une tâche',
+  MOVE_TASK: 'a déplacé une tâche vers un autre projet',
   START_TIMELOG: 'a démarré un chrono',
   ADD_MANUAL_TIMELOG: 'a ajouté du temps manuellement',
   STOP_TIMELOG: 'a arrêté un chrono',

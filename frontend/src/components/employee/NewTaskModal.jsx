@@ -5,6 +5,7 @@ import { formatBytes } from '../../utils/formatters';
 import { IconX, IconAlert, IconCalendarWeek, IconFolder, IconChat, IconPaperclip } from '../icons';
 import RichTextEditor from '../RichTextEditor';
 import ProjectPicker from '../ProjectPicker';
+import { flattenLists } from '../../utils/projectSearch';
 import { htmlToText } from '../../utils/sanitizeHtml';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import '../../styles/task-detail.css';
@@ -29,18 +30,6 @@ const EMPTY_NEW_TASK = {
 };
 
 const MAX_ATTACH_SIZE = 5 * 1024 * 1024;
-
-function flattenLists(tree) {
-  const out = [];
-  (tree || []).forEach((space) => {
-    (space.folders || []).forEach((folder) => {
-      (folder.lists || []).forEach((list) => {
-        out.push({ id: list.id, path: `${space.name} › ${folder.name} › ${list.name}` });
-      });
-    });
-  });
-  return out;
-}
 
 function NewTaskModal({ open, onClose, onCreated }) {
   const [creating, setCreating] = useState(false);

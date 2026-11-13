@@ -26,11 +26,14 @@ import {
   IconAlert,
   IconX,
   IconPaperclip,
+  IconFolder,
 } from '../components/icons';
 import { sanitizeHtml, linkifyHtml } from '../utils/sanitizeHtml';
 import { createPortal } from 'react-dom';
 import RichTextEditor from '../components/RichTextEditor';
 import StatusDropdown from '../components/StatusDropdown';
+import ProjectPicker from '../components/ProjectPicker';
+import { useProjectLists } from '../components/MoveTasksDialog';
 import '../styles/task-detail.css';
 import { toDatetimeLocal, datetimeLocalToIso } from '../utils/datetimeLocal';
 
@@ -118,6 +121,8 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const projects = useProjectLists(Boolean(user));
 
   const loadData = useCallback(async () => {
     try {
@@ -329,6 +334,20 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
     }
   }
 
+  async function handleMoveTask(listId) {
+    if (!listId || moving || listId === breadcrumbData?.list?.id) return;
+    setMoving(true);
+    try {
+      const result = await taskService.moveTasks([id], listId);
+      notifySuccess(`Tâche déplacée vers « ${result.list.name} »`);
+      await loadData();
+    } catch (err) {
+      notifyError(err.response?.data?.error || 'Déplacement impossible');
+    } finally {
+      setMoving(false);
+    }
+  }
+
   async function savePatch(partial) {
     try {
       await taskService.updateTask(id, {
@@ -433,6 +452,10 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
   const isCreator = Boolean(task?.created_by && task.created_by === user?.id);
   const canEditTask = isAdmin || isCreator || canAccessAll;
   const canDeleteTask = isAdmin || isCreator;
+  const canMoveTask = isAdmin || isCreator || isAssignee || canAccessAll;
+  const projectPath = breadcrumbData
+    ? `${breadcrumbData.space.name} › ${breadcrumbData.folder.name} › ${breadcrumbData.list.name}`
+    : '';
   const canTrackTime = isAdmin || isAssignee;
 
   const content = (
@@ -482,6 +505,16 @@ function TaskDetail({ taskId, isModal = false, onClose }) {
             )}
 
             <div className="tk-props">
+              <PropRow icon={<IconFolder />} label="Projet" full>
+                {canMoveTask ? (
+                  <div className={`tk-project-move${moving ? ' tk-project-move--busy' : ''}`}>
+                    <ProjectPicker projects={projects} value={breadcrumbData?.list?.id || ''} onChange={handleMoveTask} />
+                  </div>
+                ) : (
+                  <span>{projectPath || 'Aucun projet'}</span>
+                )}
+              </PropRow>
+
               <PropRow icon={<IconCheckCircle />} label="Statut">
                 {isAdmin ? (
                   <StatusDropdown taskId={id} status={task.status} displayStatus={displayStatus} onChanged={loadData} />

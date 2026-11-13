@@ -3047,6 +3047,15 @@
   color: var(--color-text-primary);
 }
 
+@media (max-width: 640px) {
+  .mt-bulk-bar {
+    flex-wrap: wrap;
+    width: 100%;
+    border-radius: 14px;
+    padding: 8px 10px;
+  }
+}
+
 .mt-bulk-clear {
   border: none;
   background: transparent;
@@ -3072,6 +3081,38 @@
 .mt-bulk-delete svg {
   width: 14px;
   height: 14px;
+}
+
+.mt-bulk-move {
+  width: auto;
+  height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.mt-bulk-move svg {
+  width: 14px;
+  height: 14px;
+}
+
+.modal-card--move {
+  overflow: visible;
+}
+.move-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.tk-project-move {
+  width: 100%;
+}
+.tk-project-move--busy {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .mt-select-col {

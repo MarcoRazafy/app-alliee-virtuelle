@@ -330,6 +330,21 @@ async function recordHistory({ taskId, fieldChanged, oldValue, newValue, changed
   );
 }
 
+async function moveTasks(taskIds, listId, client = db) {
+  const { rows } = await client.query(
+    `WITH RECURSIVE family AS (
+       SELECT id FROM tasks WHERE id = ANY($1::uuid[])
+       UNION
+       SELECT t.id FROM tasks t JOIN family f ON t.parent_task_id = f.id
+     )
+     UPDATE tasks SET list_id = $2, updated_at = now()
+     WHERE id IN (SELECT id FROM family) AND list_id IS DISTINCT FROM $2
+     RETURNING id`,
+    [taskIds, listId]
+  );
+  return rows.map((row) => row.id);
+}
+
 async function recordAudit({ userId, action, entityType, entityId, details }, client = db) {
   await client.query(
     `INSERT INTO audit_log (user_id, action, entity_type, entity_id, details)
@@ -838,6 +853,7 @@ module.exports = {
   getTaskDetail,
   updateStatus,
   updateTask,
+  moveTasks,
   updateDescription,
   updateDeadline,
   updateAssignee,

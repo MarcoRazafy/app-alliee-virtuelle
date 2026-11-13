@@ -5,7 +5,8 @@ import * as taskService from '../../services/taskService';
 import * as hierarchyService from '../../services/hierarchyService';
 import { notifySuccess, notifyError } from '../../utils/toast';
 import { formatDate } from '../../utils/formatters';
-import { IconChecklist, IconExternalLink, IconPlus, IconTrash } from '../../components/icons';
+import MoveTasksDialog from '../../components/MoveTasksDialog';
+import { IconChecklist, IconExternalLink, IconFolder, IconPlus, IconTrash } from '../../components/icons';
 import '../../styles/admin.css';
 
 const STATUS_GROUPS = [
@@ -26,6 +27,19 @@ function AdminListView() {
   const [tasks, setTasks] = useState([]);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [deletingProject, setDeletingProject] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [moveOpen, setMoveOpen] = useState(false);
+
+  const selectedTasks = tasks.filter((task) => selectedIds.includes(task.id));
+
+  function toggleSelected(taskId) {
+    setSelectedIds((current) => (current.includes(taskId) ? current.filter((id) => id !== taskId) : [...current, taskId]));
+  }
+
+  function toggleGroup(groupTasks, allChecked) {
+    const ids = groupTasks.map((task) => task.id);
+    setSelectedIds((current) => (allChecked ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]));
+  }
 
   function loadTasks(listId) {
     taskService
@@ -35,6 +49,7 @@ function AdminListView() {
   }
 
   function handleSelectList(listId, list) {
+    setSelectedIds([]);
     setSelectedListId(listId);
     setSelectedList(list);
     loadTasks(listId);
@@ -69,6 +84,7 @@ function AdminListView() {
   }
 
   function clearHierarchySelection() {
+    setSelectedIds([]);
     setSelectedListId(null);
     setSelectedList(null);
     setTasks([]);
@@ -126,6 +142,19 @@ function AdminListView() {
                 <h2 className="lists-content-title">{selectedList.name}</h2>
               </div>
               <div className="lists-content-actions">
+                {selectedTasks.length > 0 && (
+                  <div className="mt-bulk-bar">
+                    <span>
+                      {selectedTasks.length} sélectionnée{selectedTasks.length > 1 ? 's' : ''}
+                    </span>
+                    <button type="button" className="mt-bulk-clear" onClick={() => setSelectedIds([])}>
+                      Annuler
+                    </button>
+                    <button type="button" className="btn-outline mt-bulk-move" onClick={() => setMoveOpen(true)}>
+                      <IconFolder /> Déplacer vers un projet…
+                    </button>
+                  </div>
+                )}
                 <span className="lists-content-total">
                   {tasks.length} tâche{tasks.length > 1 ? 's' : ''}
                 </span>
@@ -144,6 +173,7 @@ function AdminListView() {
             {STATUS_GROUPS.map((group) => {
               const groupTasks = tasks.filter((t) => t.status === group.key);
               const isDeclared = group.key === 'DECLAREE';
+              const groupChecked = groupTasks.length > 0 && groupTasks.every((t) => selectedIds.includes(t.id));
               return (
                 <div key={group.key} className="lists-group">
                   <div className="lists-group-header">
@@ -170,6 +200,14 @@ function AdminListView() {
                       <table className="task-table">
                         <thead>
                           <tr>
+                            <th className="mt-select-col">
+                              <input
+                                type="checkbox"
+                                checked={groupChecked}
+                                onChange={() => toggleGroup(groupTasks, groupChecked)}
+                                aria-label={`Sélectionner toutes les tâches « ${group.label} »`}
+                              />
+                            </th>
                             <th>Tâche</th>
                             <th>Assigné à</th>
                             <th>Échéance</th>
@@ -181,9 +219,18 @@ function AdminListView() {
                           {groupTasks.map((task) => (
                             <tr
                               key={task.id}
+                              className={selectedIds.includes(task.id) ? 'mt-row--selected' : undefined}
                               onClick={() => navigate(`/tasks/${task.id}`, { state: { backgroundLocation: location } })}
                               style={{ cursor: 'pointer' }}
                             >
+                              <td className="mt-select-col" onClick={(event) => event.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.includes(task.id)}
+                                  onChange={() => toggleSelected(task.id)}
+                                  aria-label={`Sélectionner « ${task.title} »`}
+                                />
+                              </td>
                               <td>
                                 <Link
                                   to={`/tasks/${task.id}`}
@@ -225,6 +272,18 @@ function AdminListView() {
           </>
         )}
       </section>
+
+      {moveOpen && (
+        <MoveTasksDialog
+          taskIds={selectedTasks.map((task) => task.id)}
+          excludeListId={selectedListId}
+          onClose={() => setMoveOpen(false)}
+          onMoved={() => {
+            setMoveOpen(false);
+            setSelectedIds([]);
+          }}
+        />
+      )}
     </div>
   );
 }
