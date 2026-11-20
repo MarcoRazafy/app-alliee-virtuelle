@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   IconChat,
@@ -110,7 +110,9 @@ function PeerIdentityLink({ href, label, className, children }) {
 function MessagingView({ enableBulk = false, initialRecipientId = null, initialChannel = null, channelNonce = null }) {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'ADMIN';
-  const messagesEndRef = useRef(null);
+  const messagesBoxRef = useRef(null);
+  const stickToBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
 
   const [globalMessages, setGlobalMessages] = useState([]);
   const [globalInput, setGlobalInput] = useState('');
@@ -526,12 +528,49 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
     });
   }, [groups]);
 
+  const scrollToBottom = useCallback(() => {
+    const box = messagesBoxRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
+  }, []);
+
+  useLayoutEffect(() => {
+    stickToBottomRef.current = true;
+    scrollToBottom();
+  }, [activeChannel, openConversation?.other_user_id, openGroup?.id, scrollToBottom]);
+
+  useLayoutEffect(() => {
+    if (stickToBottomRef.current) scrollToBottom();
+  }, [conversationMessages, groupMessages, globalMessages, loadingPrivate, loadingGroup, loadingGlobal, scrollToBottom]);
+
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 50);
-    return () => window.clearTimeout(timer);
-  }, [activeChannel, conversationMessages, groupMessages, globalMessages]);
+    const box = messagesBoxRef.current;
+    if (!box) return undefined;
+    const follow = () => {
+      if (stickToBottomRef.current) scrollToBottom();
+    };
+    const observer = new MutationObserver(follow);
+    observer.observe(box, { childList: true, subtree: true });
+    const resizeObserver = new ResizeObserver(follow);
+    resizeObserver.observe(box);
+    box.addEventListener('load', follow, true);
+    return () => {
+      observer.disconnect();
+      resizeObserver.disconnect();
+      box.removeEventListener('load', follow, true);
+    };
+  }, [scrollToBottom]);
+
+  function handleMessagesScroll(event) {
+    const box = event.currentTarget;
+    if (box.scrollHeight - box.scrollTop - box.clientHeight < 80) stickToBottomRef.current = true;
+    else if (box.scrollTop < lastScrollTopRef.current) stickToBottomRef.current = false;
+    lastScrollTopRef.current = box.scrollTop;
+  }
+
+  const sendAndFollow = (handler) => (...args) => {
+    stickToBottomRef.current = true;
+    return handler(...args);
+  };
 
   function groupAvatarNode(group, className = 'conversation-avatar') {
     const url = group && groupAvatarUrls[group.id];
@@ -700,6 +739,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   }
 
   function openGlobalChannel() {
+    stickToBottomRef.current = true;
     setActiveChannel('global');
     setOpenConversation(null);
     setConversationMessages([]);
@@ -710,6 +750,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   }
 
   async function openConversationWith(conversation) {
+    stickToBottomRef.current = true;
     setActiveChannel('private');
     setOpenConversation(conversation);
     setOpenGroup(null);
@@ -728,6 +769,7 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
   }
 
   async function openGroupWith(group) {
+    stickToBottomRef.current = true;
     setActiveChannel('group');
     setOpenGroup(group);
     setOpenConversation(null);
@@ -1520,18 +1562,17 @@ function MessagingView({ enableBulk = false, initialRecipientId = null, initialC
           </div>
         </header>
 
-        <div className="msgr-messages" aria-live="polite">
+        <div className="msgr-messages" aria-live="polite" ref={messagesBoxRef} onScroll={handleMessagesScroll}>
           {renderMessages()}
-          <div ref={messagesEndRef} />
         </div>
 
         <div className="msgr-composer-wrap">
           {activeChannel === 'global' ? (
-            <MessageComposer value={globalInput} onChange={setGlobalInput} onSend={handleSendGlobal} disabled={sending} placeholder="Écrire dans le salon général..." onCreatePoll={() => setPollOpen(true)} />
+            <MessageComposer value={globalInput} onChange={setGlobalInput} onSend={sendAndFollow(handleSendGlobal)} disabled={sending} placeholder="Écrire dans le salon général..." onCreatePoll={() => setPollOpen(true)} />
           ) : activeChannel === 'group' ? (
-            <MessageComposer value={groupReplyText} onChange={setGroupReplyText} onSend={handleGroupReply} disabled={sending || !openGroup} placeholder={`Écrire dans ${openGroup?.name || 'le groupe'}...`} onCreatePoll={() => setPollOpen(true)} />
+            <MessageComposer value={groupReplyText} onChange={setGroupReplyText} onSend={sendAndFollow(handleGroupReply)} disabled={sending || !openGroup} placeholder={`Écrire dans ${openGroup?.name || 'le groupe'}...`} onCreatePoll={() => setPollOpen(true)} />
           ) : (
-            <MessageComposer value={replyText} onChange={setReplyText} onSend={handleReply} disabled={sending || !openConversation} placeholder="Écrire un message..." onCreatePoll={() => setPollOpen(true)} />
+            <MessageComposer value={replyText} onChange={setReplyText} onSend={sendAndFollow(handleReply)} disabled={sending || !openConversation} placeholder="Écrire un message..." onCreatePoll={() => setPollOpen(true)} />
           )}
         </div>
       </section>
